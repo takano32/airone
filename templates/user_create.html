@@ -1,0 +1,13 @@
+<html>
+<body>
+<script src="/static/js/jquery-3.2.1.min.js"></script>
+<form id='create_user' url='/user/create' method='post'>
+  {% csrf_token %}
+  Name: <input type="text" name="name"></input><br/>
+  UserId: <input type="text" name="userid"></input><br/>
+  Password: <input type="password" name="passwd"></input><br/>
+  <input type="submit"></input><br/>
+</form>
+<script src="/static/js/form.js"></script>
+</body>
+</html>

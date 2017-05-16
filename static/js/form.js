@@ -11,9 +11,9 @@ $('form').submit(function(){
       'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val(),
     },
     data:          JSON.stringify(data)
+  }).always(function(data){
+    location.reload();
   });
-
-  location.reload();
 
   return false;
 });

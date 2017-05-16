@@ -1,0 +1,25 @@
+<html>
+<body>
+UserList<hr/>
+{% if users %}
+<table border='1'>
+  <tr>
+    <th>name</th>
+    <th>userid</th>
+    <th>type</th>
+    <th>created_time</th>
+  </tr>
+
+  {% for user in users %}
+  <tr>
+    <td>{{ user.name }}</td>
+    <td>{{ user.userid }}</td>
+    <td>{{ user.type }}</td>
+    <td>{{ user.created_time }}</td>
+  </tr>
+  {% endfor %}
+
+</table>
+{% endif %}
+</body>
+</html>

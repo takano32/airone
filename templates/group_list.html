@@ -1,0 +1,27 @@
+<html>
+<body>
+GroupList<hr/>
+{% if groups %}
+<table border='1'>
+  <tr>
+    <th>name</th>
+    <th>users</th>
+    <th>created_time</th>
+  </tr>
+
+  {% for group in groups %}
+  <tr>
+    <td>{{ group.name }}</td>
+    <td>
+      {% for username in group.users %}
+        {{ username }}<br/>
+      {% endfor %}
+    </td>
+    <td>{{ group.created_time }}</td>
+  </tr>
+  {% endfor %}
+
+</table>
+{% endif %}
+</body>
+</html>

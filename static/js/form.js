@@ -1,5 +1,11 @@
 $('form').submit(function(){
-  data = parseJson($('form').serializeArray());
+  var data = parseJson($('form').serializeArray());
+
+  // set selected values if they exist
+  var elem_select = $('form').find('select');
+  if (elem_select.length) {
+    data[elem_select.attr('name')] = elem_select.val();
+  }
 
   $.ajax({
     url:           $('form').attr('url'),

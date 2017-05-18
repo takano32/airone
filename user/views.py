@@ -2,7 +2,7 @@ import json
 
 from django.shortcuts import render
 from django.template import loader
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse
 
 from .models import User
 
@@ -23,7 +23,6 @@ def create(request):
                         passwd=received_json['passwd'])
             user.save()
 
-            #return HttpResponse('')
             return render(request, 'user_create.html')
         except KeyError:
             return HttpResponse('Invalid parameters are specified', status=500)

@@ -1,11 +1,14 @@
 <html>
 <body>
 <script src="/static/js/jquery-3.2.1.min.js"></script>
-<form url='/user/create' method='post'>
+<form url='/group/create' method='post'>
   {% csrf_token %}
   Name: <input type="text" name="name"></input><br/>
-  UserId: <input type="text" name="userid"></input><br/>
-  Password: <input type="password" name="passwd"></input><br/>
+  Users: <select name='users' multiple='true'>
+    {% for user in users %}
+    <option value='{{ user.id }}'>{{ user.name }}</option>
+    {% endfor %}
+  </select><br/>
   <input type="submit"></input><br/>
 </form>
 <script src="/static/js/form.js"></script>

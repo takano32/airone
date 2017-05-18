@@ -68,7 +68,7 @@ class ViewTest(TestCase):
                                 json.dumps(params),
                                 'application/json')
 
-        self.assertEqual(resp.status_code, 500)
+        self.assertEqual(resp.status_code, 400)
         self.assertIsNone(Group.objects.first())
 
     def test_create_port_with_invalid_params(self):
@@ -80,5 +80,5 @@ class ViewTest(TestCase):
                                 json.dumps(params),
                                 'application/json')
 
-        self.assertEqual(resp.status_code, 500)
+        self.assertEqual(resp.status_code, 400)
         self.assertIsNone(Group.objects.first())

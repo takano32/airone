@@ -26,29 +26,28 @@ def create(request):
         new_group = None
         try:
             received_json = json.loads(request.body.decode('utf-8'))
+        except json.decoder.JSONDecodeError:
+            return HttpResponse('Failed to parse string to JSON', status=400)
 
-            # validate parameters
-            if not _is_valid(received_json):
-                raise KeyError()
+        # validate input parameters
+        if not _is_valid(received_json):
+            return HttpResponse('Invalid parameters are specified', status=400)
+
+        try:
+            # Collects all users to check they are actually exist in advance.
+            # If an invalid userid is specified, an 'ObjectDoesNotExist' exception
+            # is going to be raised.
+            users = [User.objects.get(id=x) for x in received_json['users']]
 
             new_group = Group(name=received_json['name'])
             new_group.save()
-            for userid in received_json['users']:
-                new_group.users.add(User.objects.get(id=userid))
+
+            # set users to the created Group object
+            new_group.users = users
 
             return redirect('/group/')
-        except KeyError:
-            if new_group:
-                new_group.delete()
-
-            return HttpResponse('Invalid parameters are specified', status=500)
         except ObjectDoesNotExist:
-            if new_group:
-                new_group.delete()
-
-            return HttpResponse('Invalid userid is specified', status=500)
-        except json.decoder.JSONDecodeError:
-            return HttpResponse('Failed to parse string to JSON', status=500)
+            return HttpResponse('Invalid userid is specified', status=400)
 
     else:
         context = {
@@ -57,19 +56,14 @@ def create(request):
         return render(request, 'group_create.html', context)
 
 def _is_valid(params):
-    is_valid = True
-
-    try:
-        is_valid &= isinstance(params, dict)
-        is_valid &= len(params) > 0
-        is_valid &= 'name' in params
-        is_valid &= 'users' in params
-        is_valid &= isinstance(params['name'], str)
-        is_valid &= isinstance(params['users'], list)
-        is_valid &= len(params['name']) > 0
-        is_valid &= len(params['users']) > 0
-    except Exception as e:
-        logger.warning(e)
+    if not isinstance(params, dict):
         return False
-
-    return is_valid
+    if ('name' not in params) or ('users' not in params):
+        return False
+    if (not isinstance(params['name'], str)) or (not isinstance(params['users'], list)):
+        return False
+    if not params["name"]:
+        return False
+    if not params["users"]:
+        return False
+    return True

@@ -38,6 +38,6 @@ class ModelTest(TestCase):
         entity = Entity(name='test01')
         entity.save()
         
+        self.assertIsNone(entity.acl)
         self.assertEqual(entity.name, 'test01')
-        self.assertEqual(list(entity.acl.readable.all()), [])
-        self.assertEqual(list(entity.attribute_bases.all()), [])
+        self.assertEqual(list(entity.attr_bases.all()), [])

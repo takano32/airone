@@ -1,0 +1,32 @@
+<html>
+<body>
+EntityList<hr/>
+{% if entities %}
+<table border='1'>
+  <tr>
+    <th>名前</th>
+    <th>属性</th>
+    <th>必須</th>
+  </tr>
+
+  {% for entity in entities %}
+    {% for attr in entity.attrs %}
+    <tr>
+      {% if forloop.first %}
+        <td rowspan='{{ entity.rowspan }}'>{{ entity.name }}</td>
+      {% endif %}
+      <td>{{ attr.name }}</td>
+      
+      {% if attr.is_mandatory %}
+        <td>o</td>
+      {% else %}
+        <td></td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  {% endfor %}
+
+</table>
+{% endif %}
+</body>
+</html>

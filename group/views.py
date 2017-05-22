@@ -1,5 +1,4 @@
 import json
-import logging
 
 from django.shortcuts import render, redirect
 from django.core.exceptions import ObjectDoesNotExist
@@ -7,8 +6,6 @@ from django.http import HttpResponse
 
 from user.models import User
 from .models import Group
-
-logger = logging.getLogger(__name__)
 
 
 def index(request):

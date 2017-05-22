@@ -8,6 +8,13 @@
   Password: <input type="password" name="passwd"></input><br/>
   <input type="submit"></input><br/>
 </form>
-<script src="/static/js/form.js"></script>
+<script src="/static/js/http_request.js"></script>
+<script>
+$('form').submit(function(){
+  HttpPost($(this));
+
+  return false;
+});
+</script>
 </body>
 </html>

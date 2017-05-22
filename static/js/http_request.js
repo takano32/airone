@@ -1,14 +1,15 @@
-$('form').submit(function(){
-  var data = parseJson($('form').serializeArray());
+// This sends HTTP POST request and reloads page
+HttpPost = function(form_elem, add_data) {
+  // parse form data to JSON object
+  var sending_data = parseJson(form_elem.serializeArray());  
 
-  // set selected values if they exist
-  var elem_select = $('form').find('select');
-  if (elem_select.length) {
-    data[elem_select.attr('name')] = elem_select.val();
+  // merge additional object to the form data if needed
+  if(add_data != undefined && typeof add_data == 'object') {
+    sending_data = Object.assign(sending_data, add_data);
   }
 
   $.ajax({
-    url:           $('form').attr('url'),
+    url:           form_elem.attr('url'),
     type:          'post',
     dataType:      'json',
     contentType:   'application/x-www-form-urlencoded;charset=utf-8',
@@ -16,13 +17,11 @@ $('form').submit(function(){
     headers: {
       'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val(),
     },
-    data:          JSON.stringify(data)
+    data:          JSON.stringify(sending_data)
   }).always(function(data){
     location.reload();
   });
-
-  return false;
-});
+}
 
 var parseJson = function(data) {
   var returnJson = {};

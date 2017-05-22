@@ -1,0 +1,60 @@
+<html>
+<body>
+<script src="/static/js/jquery-3.2.1.min.js"></script>
+<form url='/entity/create' method='post'>
+  {% csrf_token %}
+  Name: <input type="text" name="name"></input><br/>
+  NOTE: <input type="text" name="note"></input><br/>
+
+  <input type='button' value='属性追加' name='add_attr'></input>
+  <table border='1' name='attrs'>
+    <tr>
+      <th>属性名</th>
+      <th>型</th>
+      <th>必須</th>
+    </tr>
+    <tr class='attr'>
+      <td><input type='text' class='attr_name'></input></td>
+      <td>
+        <select class='attr_type'>
+          {% for type in attr_types %}
+          <option value='{{ type.type }}'>{{ type.name }}</option>
+          {% endfor %}
+        </select>
+      </td>
+      <td><input type='checkbox' class='is_mandatory'></input></td>
+    </tr>
+  </table>
+  <input type="submit"></input><br/>
+</form>
+<script src="/static/js/http_request.js"></script>
+<script>
+$('input[name=add_attr]').on('click', function() {
+  append_attr_column();
+});
+$('form').submit(function(){
+  var attrs = []
+  $('.attr').each(function(index){
+    attrs.push({
+      'name': $(this).find('.attr_name').val(),
+      'type': $(this).find('.attr_type').val(),
+      'is_mandatory': $(this).find('.is_mandatory:checked').val() != undefined ? true : false,
+    });
+  });
+
+  HttpPost($(this), {'attrs': attrs});
+
+  return false;
+});
+
+var table_column = $('table').find('tr:last').html();
+var append_attr_column = function() {
+  var new_column = $('<tr class="attr">');
+
+  new_column.append($.parseHTML(table_column));
+
+  $('table[name=attrs]').append(new_column);
+}
+</script>
+</body>
+</html>

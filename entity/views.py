@@ -1,13 +1,14 @@
 import json
 import re
 
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 from django.http import HttpResponse
 
 from .models import Entity
 from .models import AttributeBase
 from acl.models import ACL
-from .lib import AttrTypes
+from airone.lib import AttrTypes
+from airone.lib import HttpResponseSeeOther
 
 
 def index(request):
@@ -41,29 +42,29 @@ def create(request):
         entity.save()
 
         for attr in received_json['attrs']:
-            if _is_valid_attr(attr):
-                attr_base = AttributeBase(name=attr['name'],
-                                          type=int(attr['type']),
-                                          is_mandatory=attr['is_mandatory'])
-                attr_base.save()
-                entity.attr_bases.add(attr_base)
+            attr_base = AttributeBase(name=attr['name'],
+                                      type=int(attr['type']),
+                                      is_mandatory=attr['is_mandatory'])
+            attr_base.save()
+            entity.attr_bases.add(attr_base)
 
-        return redirect('/entity/')
+        return HttpResponseSeeOther('/entity/')
     else:
         HttpResponse('Invalid HTTP method is specified', status=400)
 
 def _is_valid(params):
     if not isinstance(params, dict):
         return False
+    # These are existance checks of each parameters
     if ('name' not in params) or ('attrs' not in params):
         return False
+    # These are type checks of each parameters
     if (not isinstance(params['name'], str)) or (not isinstance(params['attrs'], list)):
         return False
-    if not params["name"]:
+    # These are value checks of each parameters
+    if [x for x in params["attrs"] if not _is_valid_attr(x)]:
         return False
     if not params["attrs"]:
-        return False
-    if not [x for x in params["attrs"] if _is_valid_attr(x)]:
         return False
     return True
 

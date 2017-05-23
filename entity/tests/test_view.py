@@ -43,14 +43,13 @@ class ViewTest(TestCase):
             'attrs': [
                 {'name': 'foo', 'type': 1, 'is_mandatory': True},
                 {'name': 'bar', 'type': 2, 'is_mandatory': False},
-                {'name': '', 'type': 4, 'is_mandatory': True}, # This won't be registered
             ],
         }
         resp = self.client.post(reverse('entity:create'),
                                 json.dumps(params),
                                 'application/json')
 
-        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.status_code, 303)
         self.assertEqual(Entity.objects.first().name, 'hoge')
         self.assertEqual(len(AttributeBase.objects.all()), 2)
 
@@ -69,12 +68,13 @@ class ViewTest(TestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertIsNone(Entity.objects.first())
 
-    def test_create_post_with_no_attrs(self):
+    def test_create_post_with_invalid_attrs(self):
         params = {
             'name': 'hoge',
             'note': 'fuga',
             'attrs': [
-                {'name': '', 'type': 1, 'is_mandatory': True}, # This won't be registered
+                {'name': 'foo', 'type': 1, 'is_mandatory': True},
+                {'name': '', 'type': 1, 'is_mandatory': True},
             ],
         }
         resp = self.client.post(reverse('entity:create'),

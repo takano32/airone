@@ -1,3 +1,4 @@
+from django.http import HttpResponseRedirect
 from .types import AttrTypeInt, AttrTypeStr, AttrTypeArr
 
 AttrTypes = [
@@ -5,3 +6,7 @@ AttrTypes = [
   AttrTypeStr(),
   AttrTypeArr(),
 ]
+
+
+class HttpResponseSeeOther(HttpResponseRedirect):
+    status_code = 303

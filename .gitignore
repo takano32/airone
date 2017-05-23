@@ -2,5 +2,5 @@
 db.sqlite3*
 manage.py
 .*.sw*
-migrations/
 _tmp
+0*_initial.py

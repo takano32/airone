@@ -1,14 +1,12 @@
 import json
-import logging
 
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 
+from airone.lib import HttpResponseSeeOther
 from user.models import User
 from .models import Group
-
-logger = logging.getLogger(__name__)
 
 
 def index(request):
@@ -45,7 +43,7 @@ def create(request):
             # set users to the created Group object
             new_group.users = users
 
-            return redirect('/group/')
+            return HttpResponseSeeOther('/group/')
         except ObjectDoesNotExist:
             return HttpResponse('Invalid userid is specified', status=400)
 

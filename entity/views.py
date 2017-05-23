@@ -14,8 +14,7 @@ def index(request):
     context = {}
     context['entities'] = [{
         'name': x.name,
-        'attrs': [y for y in x.attr_bases.all()],
-        'rowspan': len(x.attr_bases.all()),
+        'note': x.note,
     } for x in Entity.objects.all()]
 
     return render(request, 'list_entities.html', context)

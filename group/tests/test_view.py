@@ -55,7 +55,6 @@ class ViewTest(TestCase):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 302)
-        
         self.assertIsNotNone(Group.objects.first())
         self.assertEqual(Group.objects.first().name, 'test-group')
 

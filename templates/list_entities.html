@@ -5,25 +5,14 @@ EntityList<hr/>
 <table border='1'>
   <tr>
     <th>名前</th>
-    <th>属性</th>
-    <th>必須</th>
+    <th>備考</th>
   </tr>
 
   {% for entity in entities %}
-    {% for attr in entity.attrs %}
     <tr>
-      {% if forloop.first %}
-        <td rowspan='{{ entity.rowspan }}'>{{ entity.name }}</td>
-      {% endif %}
-      <td>{{ attr.name }}</td>
-      
-      {% if attr.is_mandatory %}
-        <td>o</td>
-      {% else %}
-        <td></td>
-      {% endif %}
+      <td>{{ entity.name }}</td>
+      <td>{{ entity.note }}</td>
     </tr>
-    {% endfor %}
   {% endfor %}
 
 </table>

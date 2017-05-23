@@ -49,7 +49,7 @@ $('form').submit(function(){
 
 var table_column = $('table').find('tr:last').html();
 var append_attr_column = function() {
-  var new_column = $('<tr class="attr">');
+  var new_column = $('<tr class="attr" />');
 
   new_column.append($.parseHTML(table_column));
 

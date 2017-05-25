@@ -1,0 +1,28 @@
+
+# test machine
+machine:
+  timezone: Asia/Tokyo
+  python:
+    version: 3.5.3
+
+# dependencies
+# install django
+dependencies:
+  pre:
+    - pip install django
+
+# checkout script
+checkout:
+  # after checkout, migrate to initialize database
+  post:
+    - python manage.py makemigrations
+    - python manage.py migrate
+
+# custom test script
+# circle ci automatically runs "python manage.py test",
+# therefore this section is empty
+# test:
+
+# deployment
+# (TBD)
+# deployment:

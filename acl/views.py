@@ -100,7 +100,10 @@ def _is_valid_acl(params):
         return False
     if not Member.objects.filter(id=params['member_id']).count():
         return False
-    if not [x for x in ACLType() if int(params['value']) == x]:
+    try:
+        if not [x for x in ACLType() if int(params['value']) == x]:
+            return False
+    except ValueError:
         return False
 
     return True

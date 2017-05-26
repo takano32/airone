@@ -108,11 +108,25 @@ class ViewTest(TestCase):
 
         self.assertEqual(resp.status_code, 400)
 
-    def test_post_acl_set_with_invalid_acl(self):
+    def test_post_acl_set_with_invalid_member_id(self):
         params = {
             'object_id': str(self._entity.id),
             'acl': [
                 {'member_id': '9999', 'value': str(ACLType.Writable)},
+            ]
+        }
+        resp = self.client.post(reverse('acl:set'), json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+
+    def test_post_acl_set_with_invalid_acl(self):
+        user = User(name='hoge')
+        user.save()
+
+        params = {
+            'object_id': str(self._entity.id),
+            'acl': [
+                {'member_id': str(user.id), 'value': 'abcd'},
             ]
         }
         resp = self.client.post(reverse('acl:set'), json.dumps(params), 'application/json')

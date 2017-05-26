@@ -40,11 +40,13 @@ def set(request):
         # filters enabled ACL data
         acl_data = [x for x in recv_data['acl'] if x['value']]
 
-        #document = ACLBase.objects.get(id=recv_data['object_id'])
-        document = Entity.objects.get(id=recv_data['object_id'])
+        document = ACLBase.objects.get(id=recv_data['object_id'])
 
         for acl_data in [x for x in recv_data['acl'] if x['value']]:
             member = Member.objects.get(id=acl_data['member_id'])
+
+            # clear target old-field which is previously set if needed
+            document.acl.unset_member(member)
 
             if int(acl_data['value']) == ACLType.Readable:
                 document.acl.readable.add(member)

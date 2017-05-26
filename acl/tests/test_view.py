@@ -2,6 +2,7 @@ import json
 
 from django.test import TestCase, Client
 from django.urls import reverse
+from django.core import exceptions
 
 from entity.models import Entity
 from user.models import User
@@ -55,6 +56,31 @@ class ViewTest(TestCase):
         self.assertEqual(self._entity.acl.writable.count(), 1)
         self.assertEqual(self._entity.acl.deletable.count(), 0)
         self.assertEqual(self._entity.acl.writable.first().name, user.name)
+        self.assertEqual(ACL.objects.count(), 1)
+        self.assertEqual(ACL.objects.first(), self._entity.acl)
+
+    def test_update_acl(self):
+        u_hoge = User(name='hoge')
+        u_hoge.save()
+        u_fuga = User(name='fuga')
+        u_fuga.save()
+
+        # set ACL object in advance, there are two members in the deletable parameter
+        self._entity.acl.deletable = [u_hoge, u_fuga]
+
+        params = {
+            'object_id': str(self._entity.id),
+            'acl': [
+                {'member_id': str(u_hoge.id), 'value': str(ACLType.Readable)},
+            ]
+        }
+        resp = self.client.post(reverse('acl:set'), json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        self.assertEqual(self._entity.acl.readable.count(), 1)
+        self.assertEqual(self._entity.acl.writable.count(), 0)
+        self.assertEqual(self._entity.acl.deletable.count(), 1)
+        self.assertEqual(self._entity.acl.readable.first().name, u_hoge.name)
         self.assertEqual(ACL.objects.count(), 1)
         self.assertEqual(ACL.objects.first(), self._entity.acl)
 

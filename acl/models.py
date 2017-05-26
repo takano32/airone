@@ -1,4 +1,5 @@
 from django.db import models
+from django.core import exceptions
 from user.models import Member
 
 
@@ -7,15 +8,21 @@ class ACL(models.Model):
     writable = models.ManyToManyField(Member, related_name='acl_writable', blank=True)
     deletable = models.ManyToManyField(Member, related_name='acl_deletable', blank=True)
 
-class ACLBase(models.Model):
-    def _create_default_acl():
-        return ACL.objects.create()
+    def unset_member(self, member):
+        self.readable.remove(member)
+        self.writable.remove(member)
+        self.deletable.remove(member)
 
+class ACLBase(models.Model):
     name = models.CharField(max_length=200)
-    acl = models.ForeignKey(ACL, default=_create_default_acl)
+    acl = models.OneToOneField(ACL, related_name='object', null=True)
 
     # This fields describes the sub-class of this object
     objtype = models.IntegerField(default=0)
 
-    def __init__(self, *args, **kwargs):
-        super(ACLBase, self).__init__(*args, **kwargs)
+    def save(self, *args, **kwargs):
+        # create a default ACL object if it doens't exist
+        if not self.acl:
+            self.acl = ACL.objects.create()
+
+        super(ACLBase, self).save(*args, **kwargs)

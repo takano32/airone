@@ -38,12 +38,12 @@ def set(request):
             return HttpResponse('Invalid parameters are specified', status=400)
 
         # filters enabled ACL data
-        acl_data = [x for x in recv_data['acl'] if x['value'] != None]
+        acl_data = [x for x in recv_data['acl'] if x['value']]
 
         #document = ACLBase.objects.get(id=recv_data['object_id'])
         document = Entity.objects.get(id=recv_data['object_id'])
 
-        for acl_data in [x for x in recv_data['acl'] if x['value'] != None]:
+        for acl_data in [x for x in recv_data['acl'] if x['value']]:
             member = Member.objects.get(id=acl_data['member_id'])
 
             if int(acl_data['value']) == ACLType.Readable:
@@ -90,13 +90,15 @@ def _is_valid_acl(params):
     # These are type checks of each parameters
     if not isinstance(params['member_id'], str):
         return False
-    if not (isinstance(params['value'], str) or params['value'] == None):
+    if not (isinstance(params['value'], str) or not params['value']):
         return False
 
     # These are value checks of each parameters
     if not params['member_id']:
         return False
     if not Member.objects.filter(id=params['member_id']).count():
+        return False
+    if not [x for x in ACLType() if int(params['value']) == x]:
         return False
 
     return True

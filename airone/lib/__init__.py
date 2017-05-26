@@ -19,3 +19,9 @@ class ACLType(object):
     Readable = (1 << 0)
     Writable = (1 << 1)
     Deletable = (1 << 2)
+
+    def __init__(self):
+        self.acl_types = [self.Readable, self.Writable, self.Deletable]
+
+    def __iter__(self):
+        return self.acl_types.__iter__()

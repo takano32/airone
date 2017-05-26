@@ -19,6 +19,7 @@ from django.views.generic import RedirectView
 
 urlpatterns = [
     url(r'^$', RedirectView.as_view(url='dashboard/')),
+    url(r'^acl/', include('acl.urls', namespace='acl')),
     url(r'^user/', include('user.urls', namespace='user')),
     url(r'^group/', include('group.urls', namespace='group')),
     url(r'^entity/', include('entity.urls', namespace='entity')),

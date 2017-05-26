@@ -1,0 +1,24 @@
+
+# test machine
+machine:
+  timezone: Asia/Tokyo
+  python:
+    version: 3.5.0
+
+# dependencies
+# install django
+dependencies:
+  pre:
+    - pip install django
+
+# custom test script
+# run database migration
+test:
+  pre:
+    - python manage.py makemigrations
+    - python manage.py migrate
+
+
+# deployment
+# (TBD)
+# deployment:

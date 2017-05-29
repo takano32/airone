@@ -4,3 +4,4 @@ manage.py
 .*.sw*
 _tmp
 0*_initial.py
+.tox

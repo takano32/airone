@@ -1,24 +1,20 @@
 
-# test machine
+## test machine
 machine:
   timezone: Asia/Tokyo
   python:
     version: 3.5.0
 
-# dependencies
-# install django
+## dependencies
 dependencies:
   pre:
-    - pip install django
+    - pip install tox
+    - cd /home/ubuntu/.pyenv/plugins/python-build/../.. && git pull && cd -
+    - pyenv install 2.7.13
+    - pyenv install 3.4.6
+    - pyenv install 3.5.3
+    - pyenv install 3.6.1
 
-# custom test script
-# run database migration
-test:
-  pre:
-    - python manage.py makemigrations
-    - python manage.py migrate
-
-
-# deployment
-# (TBD)
-# deployment:
+## test definition
+# CircleCI automatically runs tox commands, so definition is empty.
+# test:

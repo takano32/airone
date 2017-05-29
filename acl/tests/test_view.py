@@ -1,12 +1,13 @@
 import json
 
 from django.test import TestCase, Client
+from django.contrib.auth.models import Group
 from django.urls import reverse
 from django.core import exceptions
 
 from entity.models import Entity
 from user.models import User
-from acl.models import ACLBase, ACL
+from acl.models import ACLBase
 
 from airone.lib import ACLType
 from xml.etree import ElementTree
@@ -27,7 +28,7 @@ class ViewTest(TestCase):
         self.assertIsNotNone(root.find('.//form'))
 
     def test_index_with_objects(self):
-        User(name='hoge').save()
+        User(username='hoge').save()
 
         resp = self.client.get(reverse('acl:index', args=[self._entity.id]))
         self.assertEqual(resp.status_code, 200)
@@ -40,52 +41,50 @@ class ViewTest(TestCase):
         self.assertEqual(resp.status_code, 400)
 
     def test_post_acl_set(self):
-        user = User(name='hoge')
+        user = User(username='hoge')
         user.save()
 
         params = {
             'object_id': str(self._entity.id),
+            'object_type': str(self._entity.objtype),
             'acl': [
-                {'member_id': str(user.id), 'value': str(ACLType.Writable)},
+                {
+                    'member_id': str(user.id),
+                    'member_type': 'user',
+                    'value': str(ACLType.Writable.id)},
             ]
         }
         resp = self.client.post(reverse('acl:set'), json.dumps(params), 'application/json')
 
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(self._entity.acl.readable.count(), 0)
-        self.assertEqual(self._entity.acl.writable.count(), 1)
-        self.assertEqual(self._entity.acl.deletable.count(), 0)
-        self.assertEqual(self._entity.acl.writable.first().name, user.name)
-        self.assertEqual(ACL.objects.count(), 1)
-        self.assertEqual(ACL.objects.first(), self._entity.acl)
+        self.assertEqual(user.permissions.count(), 1)
+        self.assertEqual(user.permissions.last(), self._entity.writable)
 
     def test_update_acl(self):
-        u_hoge = User(name='hoge')
-        u_hoge.save()
-        u_fuga = User(name='fuga')
-        u_fuga.save()
+        group = Group(name='fuga')
+        group.save()
 
         # set ACL object in advance, there are two members in the deletable parameter
-        self._entity.acl.deletable = [u_hoge, u_fuga]
+        group.permissions.add(self._entity.deletable)
 
         params = {
             'object_id': str(self._entity.id),
+            'object_type': str(self._entity.objtype),
             'acl': [
-                {'member_id': str(u_hoge.id), 'value': str(ACLType.Readable)},
+                {
+                    'member_id': str(group.id),
+                    'member_type': 'group',
+                    'value': str(ACLType.Readable.id)
+                }
             ]
         }
         resp = self.client.post(reverse('acl:set'), json.dumps(params), 'application/json')
         self.assertEqual(resp.status_code, 200)
-
-        self.assertEqual(self._entity.acl.readable.count(), 1)
-        self.assertEqual(self._entity.acl.writable.count(), 0)
-        self.assertEqual(self._entity.acl.deletable.count(), 1)
-        self.assertEqual(self._entity.acl.readable.first().name, u_hoge.name)
-        self.assertEqual(ACL.objects.count(), 1)
-        self.assertEqual(ACL.objects.first(), self._entity.acl)
+        self.assertEqual(group.permissions.count(), 1)
+        self.assertEqual(group.permissions.last(), self._entity.readable)
 
     def test_post_acl_set_without_object_id(self):
-        user = User(name='hoge')
+        user = User(username='hoge')
         user.save()
 
         params = {
@@ -98,7 +97,7 @@ class ViewTest(TestCase):
         self.assertEqual(resp.status_code, 400)
 
     def test_post_acl_set_without_acl_params(self):
-        user = User(name='hoge')
+        user = User(username='hoge')
         user.save()
 
         params = {
@@ -120,7 +119,7 @@ class ViewTest(TestCase):
         self.assertEqual(resp.status_code, 400)
 
     def test_post_acl_set_with_invalid_acl(self):
-        user = User(name='hoge')
+        user = User(username='hoge')
         user.save()
 
         params = {

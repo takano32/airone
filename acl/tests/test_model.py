@@ -1,12 +1,15 @@
 from django.test import TestCase
-from acl.models import ACL
+from django.contrib.auth.models import Permission
+from acl.models import ACLBase
 
 
 class ModelTest(TestCase):
     def test_acl_base(self):
         # chacks to enable embedded acl field
-        ACL().save()
+        ACLBase(name='hoge').save()
         
-        acl = ACL.objects.first()
+        acl = ACLBase.objects.first()
         self.assertIsNotNone(acl)
-        self.assertEqual(list(acl.readable.all()), [])
+        self.assertIsInstance(acl.readable, Permission)
+        self.assertIsInstance(acl.writable, Permission)
+        self.assertIsInstance(acl.deletable, Permission)

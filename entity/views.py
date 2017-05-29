@@ -6,7 +6,6 @@ from django.http import HttpResponse
 
 from .models import Entity
 from .models import AttributeBase
-from acl.models import ACL
 from airone.lib import AttrTypes
 from airone.lib import HttpResponseSeeOther
 

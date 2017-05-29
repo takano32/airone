@@ -14,3 +14,9 @@ class AttrTypeStr(AttrTypeBase):
 class AttrTypeArr(AttrTypeBase):
     def __init__(self):
         super(AttrTypeArr, self).__init__('arr', 1 << 2)
+
+AttrTypes = [
+  AttrTypeInt(),
+  AttrTypeStr(),
+  AttrTypeArr(),
+]

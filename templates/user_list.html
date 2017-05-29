@@ -5,17 +5,17 @@ UserList (<a href='/user/create'>Create</a>)<hr/>
 <table border='1'>
   <tr>
     <th>name</th>
-    <th>userid</th>
+    <th>email</th>
     <th>type</th>
     <th>created_time</th>
   </tr>
 
   {% for user in users %}
   <tr>
-    <td>{{ user.name }}</td>
-    <td>{{ user.userid }}</td>
-    <td>{{ user.type }}</td>
-    <td>{{ user.created_time }}</td>
+    <td>{{ user.username }}</td>
+    <td>{{ user.email }}</td>
+    <td>{{ user.authorized_type }}</td>
+    <td>{{ user.date_joined }}</td>
   </tr>
   {% endfor %}
 

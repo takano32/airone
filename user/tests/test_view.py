@@ -18,7 +18,7 @@ class ViewTest(TestCase):
         self.assertIsNone(root.find('.//table'))
 
     def test_index_with_user(self):
-        User(name='hoge').save()
+        User(username='hoge').save()
 
         resp = self.client.get(reverse('user:index'))
         self.assertEqual(resp.status_code, 200)
@@ -37,7 +37,7 @@ class ViewTest(TestCase):
     def test_create_post(self):
         params = {
             'name': 'hoge',
-            'userid': 'fuga',
+            'email': 'hoge@fuga.com',
             'passwd': 'puyo',
         }
         resp = self.client.post(reverse('user:create'),
@@ -46,4 +46,4 @@ class ViewTest(TestCase):
 
         self.assertEqual(resp.status_code, 200)
         self.assertIsNotNone(User.objects.first())
-        self.assertEqual(User.objects.first().name, 'hoge')
+        self.assertEqual(User.objects.first().username, 'hoge')

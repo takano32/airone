@@ -9,8 +9,6 @@ machine:
 dependencies:
   pre:
     - pip install tox
-  cache_directories:
-    - "/home/ubuntu/.pyenv/"
 
 ## test definition
 test:

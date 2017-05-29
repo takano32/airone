@@ -47,3 +47,29 @@ class ViewTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIsNotNone(User.objects.first())
         self.assertEqual(User.objects.first().username, 'hoge')
+        self.assertNotEqual(User.objects.first().password, 'puyo')
+
+    def test_create_user_without_mandatory_param(self):
+        params = {
+            'email': 'hoge@fuga.com',
+            'passwd': 'puyo',
+        }
+        resp = self.client.post(reverse('user:create'),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(User.objects.count(), 0)
+
+    def test_create_user_with_empty_param(self):
+        params = {
+            'user': 'hoge',
+            'email': '',
+            'passwd': 'puyo',
+        }
+        resp = self.client.post(reverse('user:create'),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(User.objects.count(), 0)

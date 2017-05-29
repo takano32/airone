@@ -14,16 +14,17 @@ Edit ACL ({{ object_name }})<hr/>
     <tr>
       <td>{{ member.name }}</td>
       <td>
-        <select name='acl' size='3' member_id='{{ member.id }}'>
-          <option value='1'>Readable</option>
-          <option value='2'>Writable</option>
-          <option value='4'>Deletable</option>
+        <select name='acl' size='3' member_id='{{ member.id }}' member_type='{{ member.type }}'>
+          {% for acltype in acltypes %}
+          <option value='{{ acltype.id }}'>{{ acltype.name }}</option>
+          {% endfor %}
         </select>
       </td>
     </tr>
     {% endfor %}
   </table>
   <input type='hidden' name='object_id' value='{{ object_id }}' />
+  <input type='hidden' name='object_type' value='{{ object_type }}' />
 </form>
 <script src="/static/js/http_request.js"></script>
 <script>
@@ -31,6 +32,7 @@ $('form').submit(function(){
   var acl = []
   $(this).find('select[name=acl]').each(function(){
     acl.push({
+      'member_type': $(this).attr('member_type'),
       'member_id': $(this).attr('member_id'),
       'value': $(this).val(),
     });

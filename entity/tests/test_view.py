@@ -2,7 +2,6 @@ import json
 
 from django.test import TestCase, Client
 from django.urls import reverse
-from acl.models import ACL
 from entity.models import Entity, AttributeBase
 from xml.etree import ElementTree
 

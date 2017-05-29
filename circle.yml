@@ -1,24 +1,17 @@
 
-# test machine
+## test machine
 machine:
   timezone: Asia/Tokyo
   python:
     version: 3.5.0
 
-# dependencies
-# install django
+## dependencies
 dependencies:
   pre:
-    - pip install django
+    - pip install tox tox-pyenv
+    - pyenv local 2.7.10 3.4.3 3.5.0
 
-# custom test script
-# run database migration
+## test definition
 test:
-  pre:
-    - python manage.py makemigrations
-    - python manage.py migrate
-
-
-# deployment
-# (TBD)
-# deployment:
+  override:
+    - tox

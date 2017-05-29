@@ -2,19 +2,17 @@ import json
 
 from django.shortcuts import render
 from django.core.exceptions import ObjectDoesNotExist
+from django.contrib.auth.models import Group
 from django.http import HttpResponse
 
 from airone.lib import HttpResponseSeeOther
 from user.models import User
-from .models import Group
 
 
 def index(request):
     context = {}
     context['groups'] = [{
         'name': x.name,
-        'created_time': x.created_time,
-        'users': [ y.name for y in x.users.all() ],
     } for x in Group.objects.all()]
 
     return render(request, 'group_list.html', context)
@@ -32,16 +30,11 @@ def create(request):
             return HttpResponse('Invalid parameters are specified', status=400)
 
         try:
-            # Collects all users to check they are actually exist in advance.
-            # If an invalid userid is specified, an 'ObjectDoesNotExist' exception
-            # is going to be raised.
-            users = [User.objects.get(id=x) for x in received_json['users']]
-
             new_group = Group(name=received_json['name'])
             new_group.save()
 
-            # set users to the created Group object
-            new_group.users = users
+            for user in [User.objects.get(id=x) for x in received_json['users']]:
+                user.groups.add(new_group)
 
             return HttpResponseSeeOther('/group/')
         except ObjectDoesNotExist:
@@ -63,5 +56,7 @@ def _is_valid(params):
     if not params["name"]:
         return False
     if not params["users"]:
+        return False
+    if [x for x in params['users'] if not User.objects.filter(id=x).count()]:
         return False
     return True

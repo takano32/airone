@@ -53,7 +53,8 @@ class ViewTest(TestCase):
         resp = self.client.post(reverse('user:create'),
                                 json.dumps(params),
                                 'application/json')
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 401)
+        self.assertEqual(User.objects.count(), 0)
 
     def test_create_post_with_login(self):
         self._admin_login()

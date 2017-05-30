@@ -31,7 +31,10 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
-    'user', 'group', 'entity', 'acl',
+    'user',
+    'group',
+    'entity',
+    'acl',
     'dashboard',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -126,3 +129,5 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     PROJECT_PATH + '/../static/'
 ]
+
+LOGIN_REDIRECT_URL='/dashboard/'

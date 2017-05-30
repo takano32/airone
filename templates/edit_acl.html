@@ -1,0 +1,46 @@
+<html>
+<body>
+<script src="/static/js/jquery-3.2.1.min.js"></script>
+Edit ACL ({{ object_name }})<hr/>
+<form url='/acl/set' method='post'>
+  {% csrf_token %}
+  <input type='submit' value='設定'></input>
+  <table>
+    <tr>
+      <th>ユーザ・グループ</th>
+      <th>権限</th>
+    </tr>
+    {% for member in members %}
+    <tr>
+      <td>{{ member.name }}</td>
+      <td>
+        <select name='acl' size='3' member_id='{{ member.id }}' member_type='{{ member.type }}'>
+          {% for acltype in acltypes %}
+          <option value='{{ acltype.id }}'>{{ acltype.name }}</option>
+          {% endfor %}
+        </select>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  <input type='hidden' name='object_id' value='{{ object_id }}' />
+  <input type='hidden' name='object_type' value='{{ object_type }}' />
+</form>
+<script src="/static/js/http_request.js"></script>
+<script>
+$('form').submit(function(){
+  var acl = []
+  $(this).find('select[name=acl]').each(function(){
+    acl.push({
+      'member_type': $(this).attr('member_type'),
+      'member_id': $(this).attr('member_id'),
+      'value': $(this).val(),
+    });
+  });
+  HttpPost($(this), {'acl': acl});
+
+  return false;
+});
+</script>
+</body>
+</html>

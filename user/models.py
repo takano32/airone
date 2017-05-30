@@ -1,12 +1,11 @@
 from django.db import models
+from django.contrib.auth.models import User as DjangoUser
 
 
-class Member(models.Model):
-    name = models.CharField(max_length=200)
-    created_time = models.DateTimeField(auto_now=True)
+class User(DjangoUser):
+    authorized_type = models.IntegerField(default=0)
 
-class User(Member):
-    userid = models.CharField(max_length=200)
-    passwd = models.CharField(max_length=200)
-    type = models.IntegerField(default=0)
-    logined_time = models.DateTimeField(auto_now=True)
+    # to make a polymorphism between the Group model
+    @property
+    def permissions(self):
+        return self.user_permissions

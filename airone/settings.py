@@ -129,3 +129,5 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     PROJECT_PATH + '/../static/'
 ]
+
+LOGIN_REDIRECT_URL='/dashboard/'

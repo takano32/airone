@@ -49,7 +49,7 @@ def create(request):
 
         return HttpResponseSeeOther('/entity/')
     else:
-        HttpResponse('Invalid HTTP method is specified', status=400)
+        return HttpResponse('Invalid HTTP method is specified', status=400)
 
 def _is_valid(params):
     if not isinstance(params, dict):

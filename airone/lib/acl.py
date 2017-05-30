@@ -7,9 +7,10 @@ class Iteratable(object):
 class ACLObjType(Iteratable):
     Entity = (1 << 0)
     AttrBase = (1 << 1)
+    Attr = (1 << 2)
 
     def __init__(self):
-        self._types = [self.Entity, self.AttrBase]
+        self._types = [self.Entity, self.AttrBase, self.Attr]
 
 class ACLType(Iteratable):
     Readable = type('ACLTypeReadable', (object,), {'id': (1 << 0), 'name': 'readable'})

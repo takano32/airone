@@ -1,5 +1,12 @@
 <html>
 <body>
+  {% if user.is_authenticated %}
+  <b>'{{ user.username }}'</b> is logged in<br/>
+  <a href='/dashboard/logout'>Logout</a><br/>
+  {% else %}
+  <a href='/dashboard/login'>Login</a>
+  {% endif %}
+  <hr/>
   <a href='/user'>UserList</a><br/>
   <a href='/group'>GroupList</a><br/>
   <a href='/entity'>EntityList</a><br/>

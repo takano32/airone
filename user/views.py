@@ -5,10 +5,14 @@ from django.template import loader
 from django.http import HttpResponse
 from django.db import utils
 
+from airone.lib import HttpResponseSeeOther
 from .models import User
 
 
 def index(request):
+    if not request.user.is_authenticated():
+        return HttpResponseSeeOther('/dashboard/login')
+
     context = {
         'users': User.objects.all(),
     }
@@ -16,10 +20,13 @@ def index(request):
 
 def create(request):
     if request.method == 'POST':
+        if not request.user.is_authenticated():
+            return HttpResponse('You have to login to execute this operation', status=401)
+
         try:
             received_json = json.loads(request.body.decode('utf-8'))
         except json.decoder.JSONDecodeError:
-            return HttpResponse('Failed to parse string to JSON', status=400)
+            return HttpResponse('Failed to parse string to JSON', status=401)
 
         # validation check for the received data
         if not _is_valid(received_json):
@@ -35,6 +42,9 @@ def create(request):
         # store encrypted password in the database
         user.set_password(received_json['passwd'])
         user.save()
+    else:
+        if not request.user.is_authenticated():
+            return HttpResponseSeeOther('/dashboard/login')
 
     return render(request, 'user_create.html')
 

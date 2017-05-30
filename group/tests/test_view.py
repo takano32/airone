@@ -3,7 +3,7 @@ import json
 from django.test import TestCase, Client
 from django.urls import reverse
 from user.models import User
-from group.models import Group
+from django.contrib.auth.models import Group
 from xml.etree import ElementTree
 
 
@@ -19,12 +19,12 @@ class ViewTest(TestCase):
         self.assertIsNone(root.find('.//table'))
 
     def test_index_with_objects(self):
-        user = User(name='fuga', userid='puyo')
+        user = User(username='fuga')
         user.save()
         group = Group(name='hoge')
         group.save()
 
-        group.users.add(user)
+        user.groups.add(group)
 
         resp = self.client.get(reverse('group:index'))
         self.assertEqual(resp.status_code, 200)
@@ -41,9 +41,9 @@ class ViewTest(TestCase):
         self.assertIsNotNone(root.find('.//form'))
 
     def test_create_post(self):
-        user1 = User(name='hgoe', userid='HOGE')
+        user1 = User(username='hgoe')
         user1.save()
-        user2 = User(name='fuga', userid='FUGA')
+        user2 = User(username='fuga')
         user2.save()
 
         params = {

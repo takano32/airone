@@ -1,0 +1,17 @@
+
+## test machine
+machine:
+  timezone: Asia/Tokyo
+  python:
+    version: 3.5.0
+
+## dependencies
+dependencies:
+  pre:
+    - pip install tox tox-pyenv
+    - pyenv local 2.7.10 3.4.3 3.5.0
+
+## test definition
+test:
+  override:
+    - tox

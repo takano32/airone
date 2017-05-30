@@ -7,9 +7,16 @@ machine:
 
 ## dependencies
 dependencies:
-  pre:
+  override:
     - pip install tox tox-pyenv
-    - pyenv local 2.7.10 3.4.3 3.5.0
+    - cd ~/.pyenv && git pull
+    - |
+      if [[ ! -d ~/.pyenv/versions/3.6.1 ]]; then
+        pyenv install 3.6.1
+      fi
+    - pyenv local 2.7.10 3.4.3 3.5.0 3.6.1
+  cache_directories:
+    - ~/.pyenv/versions/3.6.1
 
 ## test definition
 test:

@@ -114,6 +114,38 @@ class ViewTest(TestCase):
         self.assertEqual(entry.attrs.last().values.count(), 1)
         self.assertEqual(entry.attrs.last().values.last(), AttributeValue.objects.last())
 
+    def test_post_with_optional_parameter(self):
+        self._admin_login()
+
+        # add an optional AttributeBase to the test Entity object
+        self._attr_base_optional = AttributeBase(name='test-optional',
+                                                 type=airone_types.AttrTypeStr().type,
+                                                 is_mandatory=False)
+        self._attr_base_optional.save()
+        self._entity.attr_bases.add(self._attr_base_optional)
+
+        params = {
+            'entry_name': 'hoge',
+            'attrs': [
+                {'id': str(self._attr_base.id), 'value': 'hoge'},
+                {'id': str(self._attr_base_optional.id), 'value': ''},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Entry.objects.count(), 1)
+        self.assertEqual(Attribute.objects.count(), 2)
+        self.assertEqual(AttributeValue.objects.count(), 1)
+
+        entry = Entry.objects.last()
+        self.assertEqual(entry.attrs.count(), 2)
+        self.assertEqual(entry.attrs.get(name='test').values.count(), 1)
+        self.assertEqual(entry.attrs.get(name='test-optional').values.count(), 0)
+        self.assertEqual(entry.attrs.get(name='test').values.last().value, 'hoge')
+
     def test_post_with_lack_of_params(self):
         self._admin_login()
 
@@ -194,6 +226,25 @@ class ViewTest(TestCase):
         self.assertEqual(Attribute.objects.get(id=e_input.attrib['attr_id']).values.last().value,
                          e_input.attrib['value'])
 
+    def test_get_edit_with_optional_attr(self):
+        self._admin_login()
+
+        # making test Entry set
+        entry = Entry(name='fuga', schema=self._entity, created_user=User.objects.last())
+        entry.save()
+
+        attr = Attribute(name='foo', is_mandatory=False, type=airone_types.AttrTypeStr().type)
+        attr.save()
+        entry.attrs.add(attr)
+
+        # with invalid entry-id
+        resp = self.client.get(reverse('entry:edit', args=[entry.id]))
+        self.assertEqual(resp.status_code, 200)
+
+        e_input = ElementTree.fromstring(resp.content.decode('utf-8')).find('.//table/tr/td/input')
+        self.assertIsNotNone(e_input)
+        self.assertEqual(e_input.attrib['value'], '')
+
     def test_post_edit_without_login(self):
         params = {'attrs': [{'id': '0', 'value': 'hoge'}]}
         resp = self.client.post(reverse('entry:do_edit'),
@@ -244,4 +295,32 @@ class ViewTest(TestCase):
         self.assertEqual(Attribute.objects.get(name='foo').values.count(), 1)
         self.assertEqual(Attribute.objects.get(name='bar').values.count(), 2)
         self.assertEqual(Attribute.objects.get(name='foo').values.last().value, 'hoge')
+        self.assertEqual(Attribute.objects.get(name='bar').values.last().value, 'fuga')
+
+    def test_post_edit_with_optional_params(self):
+        self._admin_login()
+
+        # making test Entry set
+        entry = Entry(name='fuga', schema=self._entity, created_user=User.objects.last())
+        entry.save()
+
+        for attr_name in ['foo', 'bar']:
+            attr = Attribute(name=attr_name,
+                             type=airone_types.AttrTypeStr().type,
+                             is_mandatory=False)
+            attr.save()
+            entry.attrs.add(attr)
+
+        params = {
+            'attrs': [
+                {'id': str(Attribute.objects.get(name='foo').id), 'value': ''}, # blank value
+                {'id': str(Attribute.objects.get(name='bar').id), 'value': 'fuga'},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_edit'), json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(AttributeValue.objects.count(), 1)
+        self.assertEqual(Attribute.objects.get(name='foo').values.count(), 0)
+        self.assertEqual(Attribute.objects.get(name='bar').values.count(), 1)
         self.assertEqual(Attribute.objects.get(name='bar').values.last().value, 'fuga')

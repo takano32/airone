@@ -59,45 +59,112 @@ def do_create(request, entity_id):
         return HttpResponse('Failed to parse string to JSON', status=401)
 
     meta = [
-        {'name': 'entry_name', 'type': str},
+        {'name': 'entry_name', 'type': str, 'checker': lambda x: x['entry_name']},
         {'name': 'attrs', 'type': list, 'meta': [
-            {'name': 'id', 'type': str,
-             'checker': lambda x: AttributeBase.objects.filter(id=x).count() > 0},
-            {'name': 'value', 'type': str},
+            {'name': 'id', 'type': str},
+            {'name': 'value', 'type': str,
+             'checker': lambda x: (
+                 AttributeBase.objects.filter(id=x['id']).count() > 0 and
+                 (AttributeBase.objects.get(id=x['id']).is_mandatory and x['value'] or
+                  not AttributeBase.objects.get(id=x['id']).is_mandatory)
+             )},
         ]},
     ]
     if not _is_valid(recv_data, meta):
         return HttpResponse('Invalid parameters are specified', status=400)
 
-    # get an User object
+    # get objects to be referred in the following processing
     user = User.objects.get(id=request.user.id)
+    entity = Entity.objects.get(id=entity_id)
 
-    # Create Entry
+    # Create a new Entry object
     entry = Entry(name=recv_data['entry_name'],
                   created_user=user,
-                  schema=Entity.objects.get(id=entity_id))
+                  schema=entity)
     entry.save()
 
-    # Create Attributes
-    for attr_info in recv_data['attrs']:
-        # make an initial AttributeValue object
-        attr_value = AttributeValue(value=attr_info['value'], created_user=user)
-        attr_value.save()
-
-        # get AttributeBase object to create Attribute
-        attr_base = AttributeBase(id=attr_info['id'])
-
+    # Create new Attributes objects based on the specified value
+    for attr_base in entity.attr_bases.all():
         # create Attibute object that contains AttributeValues
         attr = Attribute(name=attr_base.name,
                          type=attr_base.type,
                          is_mandatory=attr_base.is_mandatory)
         attr.save()
 
-        # set AttributeValue to Attribute
-        attr.values.add(attr_value)
+        # make an initial AttributeValue object if the initial value is specified
+        for info in [x for x in recv_data['attrs'] if int(x['id']) == attr_base.id and x['value']]:
+            attr_value = AttributeValue(value=info['value'], created_user=user)
+            attr_value.save()
+
+            # set AttributeValue to Attribute
+            attr.values.add(attr_value)
 
         # set Attribute to Entry
         entry.attrs.add(attr)
+
+    return HttpResponse('')
+
+def edit(request, entry_id):
+    if request.method != 'GET':
+        return HttpResponse('Invalid HTTP method is specified', status=400)
+
+    if not request.user.is_authenticated():
+        return HttpResponseSeeOther('/dashboard/login')
+
+    if not Entry.objects.filter(id=entry_id).count():
+        return HttpResponse('Failed to get an Entry object of specified id', status=400)
+
+    entry = Entry.objects.get(id=entry_id)
+    context = {
+        'entry': entry,
+        'attributes': [{
+            'id': x.id,
+            'name': x.name,
+            'last_value': x.values.count() > 0 and x.values.last().value or '',
+        } for x in entry.attrs.all()],
+    }
+    return render(request, 'edit_entry.html', context)
+
+def do_edit(request):
+    if request.method != 'POST':
+        return HttpResponse('Invalid HTTP method is specified', status=400)
+
+    if not request.user.is_authenticated():
+        return HttpResponse('You have to login to execute this operation', status=401)
+
+    try:
+        recv_data = json.loads(request.body.decode('utf-8'))
+    except json.decoder.JSONDecodeError:
+        return HttpResponse('Failed to parse string to JSON', status=401)
+
+    meta = [
+        {'name': 'attrs', 'type': list, 'meta': [
+            {'name': 'id', 'type': str},
+            {'name': 'value', 'type': str,
+             'checker': lambda x: (
+                 AttributeBase.objects.filter(id=x['id']).count() > 0 and
+                 (AttributeBase.objects.get(id=x['id']).is_mandatory and x['value'] or
+                  not AttributeBase.objects.get(id=x['id']).is_mandatory)
+             )},
+        ]},
+    ]
+    if not _is_valid(recv_data, meta):
+        return HttpResponse('Invalid parameters are specified', status=400)
+
+    for attr_info in recv_data['attrs']:
+        attr = Attribute.objects.get(id=attr_info['id'])
+
+        # Check a new update value is specified, or not
+        if (attr.values.count() == 0 and attr_info['value'] or
+            attr.values.count() > 0 and attr.values.last().value != attr_info['value']):
+
+            # Add a new AttributeValue object only at updating value
+            attr_value = AttributeValue(value=attr_info['value'],
+                                        created_user=User.objects.get(id=request.user.id))
+            attr_value.save()
+
+            # append new AttributeValue
+            attr.values.add(attr_value)
 
     return HttpResponse('')
 
@@ -113,14 +180,8 @@ def _is_valid(params, meta_info):
     # These are value checks of each parameters
     for _meta in meta_info:
         # The case specified value is str
-        if _meta['type'] == str:
-            # Check specified value is exists
-            if not params[_meta['name']]:
-                return False
-
-            # Check if meta has checker function
-            if 'checker' in _meta and not _meta['checker'](params[_meta['name']]):
-                return False
+        if (_meta['type'] == str and 'checker' in _meta and not _meta['checker'](params)):
+            return False
 
         # The case specified value is list
         if (_meta['type'] == list and 

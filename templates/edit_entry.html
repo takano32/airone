@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Entry{% endblock %}
+
+{% block content %}
+  <h2>Edit ({{ entry.name }})</h2>
+  <form url='/entry/do_edit/' method='post'>
+    {% csrf_token %}
+    <table>
+      <tr>
+        <th>属性名</th>
+        <th>属性値</th>
+      </tr>
+      {% for attr in attributes %}
+      <tr>
+        <td>{{ attr.name }}</td>
+        <td><input type='string' name='attr_value' attr_id='{{ attr.id }}' value='{{ attr.last_value }}'/></td>
+      </tr>
+      {% endfor %}
+    </table>
+    <input type='submit' value='Create' />
+  </form>
+  <script>
+  $('form').submit(function(){
+    attrs = []
+    $(this).find('input[name=attr_value]').each(function(){
+      attrs.push({
+        'id': $(this).attr('attr_id'),
+        'value': $(this).val(),
+      });
+    });
+    HttpPost($(this), {'attrs': attrs});
+  
+    return false;
+  });
+  </script>
+{% endblock %}

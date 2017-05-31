@@ -21,8 +21,8 @@ class ViewTest(TestCase):
 
         # set AttributeBase for the test Entity object
         self._attr_base = AttributeBase(name='test',
-                                  type=airone_types.AttrTypeStr().type,
-                                  is_mandatory=True)
+                                        type=airone_types.AttrTypeStr().type,
+                                        is_mandatory=True)
         self._attr_base.save()
 
         # save AttributeBase object to it
@@ -150,3 +150,98 @@ class ViewTest(TestCase):
         self.assertEqual(Entry.objects.count(), 0)
         self.assertEqual(Attribute.objects.count(), 0)
         self.assertEqual(AttributeValue.objects.count(), 0)
+
+    def test_get_edit_without_login(self):
+        resp = self.client.get(reverse('entry:edit', args=[0]))
+        self.assertEqual(resp.status_code, 303)
+
+    def test_get_edit_with_invalid_entry_id(self):
+        self._admin_login()
+
+        Entry(name='fuga', schema=self._entity, created_user=User.objects.last()).save()
+
+        # with invalid entry-id
+        resp = self.client.get(reverse('entry:edit', args=[0]))
+        self.assertEqual(resp.status_code, 400)
+
+    def test_get_edit_with_valid_entry_id(self):
+        self._admin_login()
+
+        # making test Entry set
+        entry = Entry(name='fuga', schema=self._entity, created_user=User.objects.last())
+        entry.save()
+
+        for attr_name in ['foo', 'bar']:
+            attr = Attribute(name=attr_name,
+                             type=airone_types.AttrTypeStr().type,
+                             is_mandatory=True)
+            attr.save()
+
+            for value in ['hoge', 'fuga']:
+                attr_value = AttributeValue(value=value, created_user=User.objects.last())
+                attr_value.save()
+
+                attr.values.add(attr_value)
+
+            entry.attrs.add(attr)
+
+        # with invalid entry-id
+        resp = self.client.get(reverse('entry:edit', args=[entry.id]))
+        self.assertEqual(resp.status_code, 200)
+
+        e_input = ElementTree.fromstring(resp.content.decode('utf-8')).find('.//table/tr/td/input')
+        self.assertIsNotNone(e_input)
+        self.assertEqual(Attribute.objects.get(id=e_input.attrib['attr_id']).values.last().value,
+                         e_input.attrib['value'])
+
+    def test_post_edit_without_login(self):
+        params = {'attrs': [{'id': '0', 'value': 'hoge'}]}
+        resp = self.client.post(reverse('entry:do_edit'),
+                                json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 401)
+        self.assertEqual(AttributeValue.objects.count(), 0)
+
+    def test_post_edit_with_invalid_param(self):
+        self._admin_login()
+
+        params = {'attrs': [{'id': '0', 'value': 'hoge'}]}
+        resp = self.client.post(reverse('entry:do_edit'),
+                                json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(AttributeValue.objects.count(), 0)
+
+    def test_post_edit_with_valid_param(self):
+        self._admin_login()
+
+        # making test Entry set
+        entry = Entry(name='fuga', schema=self._entity, created_user=User.objects.last())
+        entry.save()
+
+        for attr_name in ['foo', 'bar']:
+            attr = Attribute(name=attr_name,
+                             type=airone_types.AttrTypeStr().type,
+                             is_mandatory=True)
+            attr.save()
+
+            attr_value = AttributeValue(value='hoge', created_user=User.objects.last())
+            attr_value.save()
+
+            attr.values.add(attr_value)
+            entry.attrs.add(attr)
+
+        params = {
+            'attrs': [
+                {'id': str(Attribute.objects.get(name='foo').id), 'value': 'hoge'}, # same value
+                {'id': str(Attribute.objects.get(name='bar').id), 'value': 'fuga'},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_edit'), json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(AttributeValue.objects.count(), 3)
+        self.assertEqual(Attribute.objects.get(name='foo').values.count(), 1)
+        self.assertEqual(Attribute.objects.get(name='bar').values.count(), 2)
+        self.assertEqual(Attribute.objects.get(name='foo').values.last().value, 'hoge')
+        self.assertEqual(Attribute.objects.get(name='bar').values.last().value, 'fuga')

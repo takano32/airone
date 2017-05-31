@@ -101,6 +101,63 @@ def do_create(request, entity_id):
 
     return HttpResponse('')
 
+def edit(request, entry_id):
+    if request.method != 'GET':
+        return HttpResponse('Invalid HTTP method is specified', status=400)
+
+    if not request.user.is_authenticated():
+        return HttpResponseSeeOther('/dashboard/login')
+
+    if not Entry.objects.filter(id=entry_id).count():
+        return HttpResponse('Failed to get an Entry object of specified id', status=400)
+
+    entry = Entry.objects.get(id=entry_id)
+    context = {
+        'entry': entry,
+        'attributes': [{
+            'id': x.id,
+            'name': x.name,
+            'last_value': x.values.last().value,
+        } for x in entry.attrs.all()],
+    }
+    return render(request, 'edit_entry.html', context)
+
+def do_edit(request):
+    if request.method != 'POST':
+        return HttpResponse('Invalid HTTP method is specified', status=400)
+
+    if not request.user.is_authenticated():
+        return HttpResponse('You have to login to execute this operation', status=401)
+
+    try:
+        recv_data = json.loads(request.body.decode('utf-8'))
+    except json.decoder.JSONDecodeError:
+        return HttpResponse('Failed to parse string to JSON', status=401)
+
+    meta = [
+        {'name': 'attrs', 'type': list, 'meta': [
+            {'name': 'id', 'type': str,
+             'checker': lambda x: AttributeBase.objects.filter(id=x).count() > 0},
+            {'name': 'value', 'type': str},
+        ]},
+    ]
+    if not _is_valid(recv_data, meta):
+        return HttpResponse('Invalid parameters are specified', status=400)
+
+    for attr_info in recv_data['attrs']:
+        attr = Attribute.objects.get(id=attr_info['id'])
+
+        # Add a new AttributeValue object only at updating value
+        if attr.values.last().value != attr_info['value']:
+            attr_value = AttributeValue(value=attr_info['value'],
+                                        created_user=User.objects.get(id=request.user.id))
+            attr_value.save()
+
+            # append new AttributeValue
+            attr.values.add(attr_value)
+
+    return HttpResponse('')
+
 def _is_valid(params, meta_info):
     if not isinstance(params, dict):
         return False

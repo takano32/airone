@@ -24,7 +24,7 @@ def index(request, entity_id):
         'entity': Entity.objects.get(id=entity_id),
         'entries': Entry.objects.all(),
     }
-    return render(request, 'list_entries.html', context)
+    return render(request, 'list_entry.html', context)
 
 def create(request, entity_id):
     if request.method != 'GET':

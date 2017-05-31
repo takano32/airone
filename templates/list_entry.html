@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}List Entries{% endblock %}
+
+{% block nav_sub_header %}
+<div class="conatiner-fluid">
+  <ul class="breadcrumb airone-breadcrumb">
+    <li class="breadcrumb-item"><a href="index.html">top</a></li>
+    <li class="breadcrumb-item">エントリ一覧</li>
+  </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col">
+      <h1>エントリ一覧</h1>
+      <h2>エンティティ名: Server</h2>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <div class="float-left">
+        <button name="button_new" type="button" class="btn btn-primary">新規作成</button>
+        <button name="button_export" type="button" class="btn btn-secondary">エクスポート</button>
+        <button name="button_import" type="button" class="btn btn-secondary">インポート</button>
+        <button name="button_delete" type="button" class="btn btn-danger">削除</button>
+      </div>
+      <div class="float-right">
+        <button name="button_save" type="button" class="btn btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <form name="form" action="list_entry.html" method="post">
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <td></td>
+              <td>エントリ名</td>
+              <td>大分類</td>
+              <td>中分類</td>
+              <td>場所</td>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><label class="form-check-label"><input name="checkbox_select_0" type="checkbox" class="form-check-input" /></label></td>
+              <td><input name="text_attrval_0_0" type="text" value="srv0001" /></td>
+              <td><input name="text_attrval_0_1" type="text" value="17_マーケティング" /></td>
+              <td><input name="text_attrval_0_2" type="text" value="" /></td>
+              <td><input name="text_attrval_0_3" type="text" value="BBT" /></td>
+            </tr>
+          </tbody>
+        </table>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

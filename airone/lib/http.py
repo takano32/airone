@@ -33,7 +33,7 @@ def http_post(validator):
             try:
                 kwargs['recv_data'] = json.loads(request.body.decode('utf-8'))
             except json.decoder.JSONDecodeError:
-                return HttpResponse('Failed to parse string to JSON', status=401)
+                return HttpResponse('Failed to parse string to JSON', status=400)
 
             if not _is_valid(kwargs['recv_data'], validator):
                 return HttpResponse('Invalid parameters are specified', status=400)

@@ -119,3 +119,24 @@ def do_edit(request, recv_data):
             attr.values.add(attr_value)
 
     return HttpResponse('')
+
+@http_get
+def history(request, entry_id):
+    if not Entry.objects.filter(id=entry_id).count():
+        return HttpResponse('Failed to get an Entry object of specified id', status=400)
+
+    entry = Entry.objects.get(id=entry_id)
+
+    # get history of Entry object
+    value_history = sum([[{
+        'attr_name': attr.name,
+        'attr_value': attr_value.value,
+        'created_time': attr_value.created_time,
+        'created_user': attr_value.created_user.username,
+    } for attr_value in attr.values.all()] for attr in entry.attrs.all()], [])
+
+    context = {
+        'entry': entry,
+        'value_history': sorted(value_history, key=lambda x: x['created_time']),
+    }
+    return render(request, 'list_history_of_entry.html', context)

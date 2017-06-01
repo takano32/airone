@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}List Entries{% endblock %}
+
+{% block nav_sub_header %}
+<div class="conatiner-fluid">
+  <ul class="breadcrumb airone-breadcrumb">
+    <li class="breadcrumb-item"><a href="index.html">top</a></li>
+    <li class="breadcrumb-item">エントリ一覧</li>
+  </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col">
+      <h2>エンティティ: {{ entity.name }}</h2>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <div class="float-left">
+        <button name="button_new" type="button" class="btn btn-primary">新規作成</button>
+        <button name="button_export" type="button" class="btn btn-secondary">エクスポート</button>
+        <button name="button_import" type="button" class="btn btn-secondary">インポート</button>
+        <button name="button_delete" type="button" class="btn btn-danger">削除</button>
+      </div>
+      <div class="float-right">
+        <button name="button_save" type="button" class="btn btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <form name="form" action="list_entry.html" method="post">
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <th class='col-xs-1'></th>
+              <th class='col-md-1'>エントリ名</th>
+              <th class='col-md-1'></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in entries %}
+            <tr>
+              <td><label class="form-check-label"><input name="checkbox_select_0" type="checkbox" class="form-check-input" /></label></td>
+              <td>{{ entry.name }}</td>
+              <td><input name="text_attrval_0_1" type="button" class="btn btn-secondary" value="編集" /></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

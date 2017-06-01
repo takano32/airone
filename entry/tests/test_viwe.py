@@ -47,7 +47,7 @@ class ViewTest(TestCase):
         self.assertEqual(resp.status_code, 200)
 
         root = ElementTree.fromstring(resp.content.decode('utf-8'))
-        self.assertIsNone(root.find('.//table'))
+        self.assertIsNone(root.find('.//tbody/tr/td'))
 
     def test_get_index_with_entries(self):
         self._admin_login()
@@ -58,7 +58,7 @@ class ViewTest(TestCase):
         self.assertEqual(resp.status_code, 200)
 
         root = ElementTree.fromstring(resp.content.decode('utf-8'))
-        self.assertIsNotNone(root.find('.//table/tr/td'))
+        self.assertIsNotNone(root.find('.//tbody/tr/td'))
 
     def test_get_create_page_without_login(self):
         resp = self.client.get(reverse('entry:create', args=[self._entity.id]))

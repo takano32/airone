@@ -1,22 +1,15 @@
-import json
-
 from django.shortcuts import render
 from django.http import HttpResponse
 
-from airone.lib import HttpResponseSeeOther
+from airone.lib import http_get, http_post
 
 from entity.models import Entity, AttributeBase
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
 
 
+@http_get
 def index(request, entity_id):
-    if request.method != 'GET':
-        return HttpResponse('Invalid HTTP method is specified', status=400)
-
-    if not request.user.is_authenticated():
-        return HttpResponseSeeOther('/dashboard/login')
-
     if not Entity.objects.filter(id=entity_id).count():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
@@ -26,13 +19,8 @@ def index(request, entity_id):
     }
     return render(request, 'list_entry.html', context)
 
+@http_get
 def create(request, entity_id):
-    if request.method != 'GET':
-        return HttpResponse('Invalid HTTP method is specified', status=400)
-
-    if not request.user.is_authenticated():
-        return HttpResponseSeeOther('/dashboard/login')
-
     if not Entity.objects.filter(id=entity_id).count():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
@@ -43,36 +31,19 @@ def create(request, entity_id):
     }
     return render(request, 'create_entry.html', context)
 
-def do_create(request, entity_id):
-    if request.method != 'POST':
-        return HttpResponse('Invalid HTTP method is specified', status=400)
-
-    if not request.user.is_authenticated():
-        return HttpResponse('You have to login to execute this operation', status=401)
-
-    if not Entity.objects.filter(id=entity_id).count():
-        return HttpResponse('Failed to get entity of specified id', status=400)
-
-    try:
-        recv_data = json.loads(request.body.decode('utf-8'))
-    except json.decoder.JSONDecodeError:
-        return HttpResponse('Failed to parse string to JSON', status=401)
-
-    meta = [
-        {'name': 'entry_name', 'type': str, 'checker': lambda x: x['entry_name']},
-        {'name': 'attrs', 'type': list, 'meta': [
-            {'name': 'id', 'type': str},
-            {'name': 'value', 'type': str,
-             'checker': lambda x: (
-                 AttributeBase.objects.filter(id=x['id']).count() > 0 and
-                 (AttributeBase.objects.get(id=x['id']).is_mandatory and x['value'] or
-                  not AttributeBase.objects.get(id=x['id']).is_mandatory)
-             )},
-        ]},
-    ]
-    if not _is_valid(recv_data, meta):
-        return HttpResponse('Invalid parameters are specified', status=400)
-
+@http_post([
+    {'name': 'entry_name', 'type': str, 'checker': lambda x: x['entry_name']},
+    {'name': 'attrs', 'type': list, 'meta': [
+        {'name': 'id', 'type': str},
+        {'name': 'value', 'type': str,
+         'checker': lambda x: (
+             AttributeBase.objects.filter(id=x['id']).count() > 0 and
+             (AttributeBase.objects.get(id=x['id']).is_mandatory and x['value'] or
+              not AttributeBase.objects.get(id=x['id']).is_mandatory)
+         )},
+    ]}
+])
+def do_create(request, entity_id, recv_data):
     # get objects to be referred in the following processing
     user = User.objects.get(id=request.user.id)
     entity = Entity.objects.get(id=entity_id)
@@ -104,13 +75,8 @@ def do_create(request, entity_id):
 
     return HttpResponse('')
 
+@http_get
 def edit(request, entry_id):
-    if request.method != 'GET':
-        return HttpResponse('Invalid HTTP method is specified', status=400)
-
-    if not request.user.is_authenticated():
-        return HttpResponseSeeOther('/dashboard/login')
-
     if not Entry.objects.filter(id=entry_id).count():
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
@@ -125,32 +91,18 @@ def edit(request, entry_id):
     }
     return render(request, 'edit_entry.html', context)
 
-def do_edit(request):
-    if request.method != 'POST':
-        return HttpResponse('Invalid HTTP method is specified', status=400)
-
-    if not request.user.is_authenticated():
-        return HttpResponse('You have to login to execute this operation', status=401)
-
-    try:
-        recv_data = json.loads(request.body.decode('utf-8'))
-    except json.decoder.JSONDecodeError:
-        return HttpResponse('Failed to parse string to JSON', status=401)
-
-    meta = [
-        {'name': 'attrs', 'type': list, 'meta': [
-            {'name': 'id', 'type': str},
-            {'name': 'value', 'type': str,
-             'checker': lambda x: (
-                 AttributeBase.objects.filter(id=x['id']).count() > 0 and
-                 (AttributeBase.objects.get(id=x['id']).is_mandatory and x['value'] or
-                  not AttributeBase.objects.get(id=x['id']).is_mandatory)
-             )},
-        ]},
-    ]
-    if not _is_valid(recv_data, meta):
-        return HttpResponse('Invalid parameters are specified', status=400)
-
+@http_post([
+    {'name': 'attrs', 'type': list, 'meta': [
+        {'name': 'id', 'type': str},
+        {'name': 'value', 'type': str,
+         'checker': lambda x: (
+             AttributeBase.objects.filter(id=x['id']).count() > 0 and
+             (AttributeBase.objects.get(id=x['id']).is_mandatory and x['value'] or
+              not AttributeBase.objects.get(id=x['id']).is_mandatory)
+         )},
+    ]},
+])
+def do_edit(request, recv_data):
     for attr_info in recv_data['attrs']:
         attr = Attribute.objects.get(id=attr_info['id'])
 
@@ -167,25 +119,3 @@ def do_edit(request):
             attr.values.add(attr_value)
 
     return HttpResponse('')
-
-def _is_valid(params, meta_info):
-    if not isinstance(params, dict):
-        return False
-    # These are existance checks of each parameters
-    if not all([x['name'] in params for x in meta_info]):
-        return False
-    # These are type checks of each parameters
-    if not all([isinstance(params[x['name']], x['type']) for x in meta_info]):
-        return False
-    # These are value checks of each parameters
-    for _meta in meta_info:
-        # The case specified value is str
-        if (_meta['type'] == str and 'checker' in _meta and not _meta['checker'](params)):
-            return False
-
-        # The case specified value is list
-        if (_meta['type'] == list and 
-            not all([_is_valid(x , _meta['meta']) for x in params[_meta['name']]])):
-            return False
-
-    return True

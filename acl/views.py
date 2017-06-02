@@ -40,13 +40,22 @@ def index(request, obj_id):
          'checker': lambda x: any(
              [k.objects.filter(id=x['member_id']).count() for k in [User, Group]]
           )},
-        {'name': 'value', 'type': str,
+        {'name': 'value', 'type': (str, type(None)),
          'checker': lambda x: [y for y in ACLType() if int(x['value']) == y.id]},
     ]},
 ])
 def set(request, recv_data):
     acl_obj = getattr(_get_acl_model(recv_data['object_type']),
                       'objects').get(id=recv_data['object_id'])
+
+    _is_public = False
+    if 'is_public' in recv_data:
+        acl_obj.is_public = True
+    else:
+        acl_obj.is_public = False
+
+    # update the Public/Private flag parameter
+    acl_obj.save()
 
     for acl_data in [x for x in recv_data['acl'] if x['value']]:
         if acl_data['member_type'] == 'user':

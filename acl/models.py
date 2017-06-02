@@ -16,11 +16,13 @@ class ACLBase(models.Model):
 
     def save(self, *args, **kwargs):
         super(ACLBase, self).save(*args, **kwargs)
+
+        # create Permission sets for this object at once
         content_type = ContentType.objects.get_for_model(self)
         for acltype in ACLType():
-            Permission(name=acltype.name,
-                       content_type=content_type,
-                       codename='%s.%s.%s' % (content_type.model, self.id, acltype.id)).save()
+            codename = '%s.%s.%s' % (content_type.model, self.id, acltype.id)
+            if not Permission.objects.filter(codename=codename).count():
+                Permission(name=acltype.name, codename=codename, content_type=content_type).save()
 
     @property
     def readable(self):

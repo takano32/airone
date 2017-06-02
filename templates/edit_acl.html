@@ -25,6 +25,11 @@ Edit ACL ({{ object.name }})<hr/>
   </table>
   <input type='hidden' name='object_id' value='{{ object.id }}' />
   <input type='hidden' name='object_type' value='{{ object.objtype }}' />
+  {% if object.is_public %}
+  公開：<input type='checkbox' name='is_public' checked='true' />
+  {% else %}
+  公開：<input type='checkbox' name='is_public' />
+  {% endif %}
 </form>
 <script src="/static/js/http_request.js"></script>
 <script>

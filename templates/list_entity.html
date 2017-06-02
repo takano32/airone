@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}List Entities{% endblock %}
+
+{% block nav_sub_header %}
+<div class="conatiner-fluid">
+  <ul class="breadcrumb airone-breadcrumb">
+    <li class="breadcrumb-item"><a href="index.html">top</a></li>
+    <li class="breadcrumb-item">エンティティ一覧</li>
+  </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col">
+      <h2>エンティティ一覧</h2>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <div class="float-left">
+        <button name="button_new" type="button" class="btn btn-primary">新規作成</button>
+        <button name="button_export" type="button" class="btn btn-secondary">エクスポート</button>
+        <button name="button_import" type="button" class="btn btn-secondary">インポート</button>
+        <button name="button_delete" type="button" class="btn btn-danger">削除</button>
+      </div>
+      <div class="float-right">
+        <a href="list_entry.html" role="button" class="btn btn-secondary">エントリ一覧</a>
+        <button name="button_save" type="button" class="btn btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <form name="form" action="list_entity.html" method="post">
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <td></td>
+              <td>エンティティ名</td>
+              <td>表示名</td>
+              <td>権限</td>
+              <td>備考</td>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entity in entites %}
+            <tr>
+              <td><label class="form-check-label"><input name="checkbox_select_0" type="checkbox" class="form-check-input"></label></td>
+              <td><a href="edit_entity.html">Server</a></td>
+              <td><input name="text_displayname_0" type="text" class="form-control" placeholder="" value="サーバ"></td>
+              <td><a href="create_acl.html">ACL</a></td>
+              <td><input name="text_note_0" type="text" class="form-control" placeholder="" value=""></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </form>
+    </div>
+  </div>
+  
+</div>
+{% endblock %}

@@ -73,6 +73,7 @@ class ViewTest(AironeViewTest):
         params = {
             'object_id': str(self._entity.id),
             'object_type': str(self._entity.objtype),
+            'is_public': 'on',
             'acl': [
                 {
                     'member_id': str(user.id),
@@ -85,6 +86,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(user.permissions.count(), 1)
         self.assertEqual(user.permissions.last(), self._entity.writable)
+        self.assertTrue(Entity.objects.get(id=self._entity.id).is_public)
 
     def test_update_acl(self):
         self.admin_login()
@@ -110,6 +112,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(group.permissions.count(), 1)
         self.assertEqual(group.permissions.last(), self._entity.readable)
+        self.assertFalse(Entity.objects.get(id=self._entity.id).is_public)
 
     def test_post_acl_set_without_object_id(self):
         user = self.admin_login()

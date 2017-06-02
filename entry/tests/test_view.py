@@ -324,3 +324,36 @@ class ViewTest(TestCase):
         self.assertEqual(Attribute.objects.get(name='foo').values.count(), 0)
         self.assertEqual(Attribute.objects.get(name='bar').values.count(), 1)
         self.assertEqual(Attribute.objects.get(name='bar').values.last().value, 'fuga')
+
+    def test_get_history_with_invalid_param(self):
+        self._admin_login()
+
+        resp = self.client.get(reverse('entry:history', args=[0]))
+        self.assertEqual(resp.status_code, 400)
+
+    def test_get_history_with_valid_param(self):
+        self._admin_login()
+
+        # making test Entry set
+        entry = Entry(name='fuga', schema=self._entity, created_user=User.objects.last())
+        entry.save()
+
+        for attr_name in ['foo', 'bar']:
+            attr = Attribute(name=attr_name,
+                             type=airone_types.AttrTypeStr().type,
+                             is_mandatory=True)
+            attr.save()
+
+            for value in ['hoge', 'fuga']:
+                attr_value = AttributeValue(value=value, created_user=User.objects.last())
+                attr_value.save()
+
+                attr.values.add(attr_value)
+
+            entry.attrs.add(attr)
+
+        resp = self.client.get(reverse('entry:history', args=[entry.id]))
+        self.assertEqual(resp.status_code, 200)
+
+        root = ElementTree.fromstring(resp.content.decode('utf-8'))
+        self.assertEqual(len(root.findall('.//table/tr/td')), 16)

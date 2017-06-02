@@ -1,6 +1,5 @@
 import json
 
-from django.test import TestCase, Client
 from django.contrib.auth.models import Group
 from django.urls import reverse
 from django.core import exceptions
@@ -10,17 +9,24 @@ from user.models import User
 from acl.models import ACLBase
 
 from airone.lib import ACLType
+from airone.lib.test import AironeViewTest
 from xml.etree import ElementTree
 
 
-class ViewTest(TestCase):
+class ViewTest(AironeViewTest):
     def setUp(self):
-        self.client = Client()
+        super(ViewTest, self).setUp()
 
         self._entity = Entity(name='test')
         self._entity.save()
 
+    def test_index_without_login(self):
+        resp = self.client.get(reverse('acl:index', args=[self._entity.id]))
+        self.assertEqual(resp.status_code, 303)
+
     def test_index(self):
+        self.admin_login()
+
         resp = self.client.get(reverse('acl:index', args=[self._entity.id]))
         self.assertEqual(resp.status_code, 200)
 
@@ -28,6 +34,8 @@ class ViewTest(TestCase):
         self.assertIsNotNone(root.find('.//form'))
 
     def test_index_with_objects(self):
+        self.admin_login()
+
         User(username='hoge').save()
 
         resp = self.client.get(reverse('acl:index', args=[self._entity.id]))
@@ -37,13 +45,31 @@ class ViewTest(TestCase):
         self.assertIsNotNone(root.find('.//table/tr/td'))
 
     def test_get_acl_set(self):
+        self.admin_login()
+
         resp = self.client.get(reverse('acl:set'))
         self.assertEqual(resp.status_code, 400)
 
-    def test_post_acl_set(self):
+    def test_post_acl_set_without_login(self):
         user = User(username='hoge')
         user.save()
 
+        params = {
+            'object_id': str(self._entity.id),
+            'object_type': str(self._entity.objtype),
+            'acl': [
+                {
+                    'member_id': str(user.id),
+                    'member_type': 'user',
+                    'value': str(ACLType.Writable.id)},
+            ]
+        }
+        resp = self.client.post(reverse('acl:set'), json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 401)
+
+    def test_post_acl_set(self):
+        user = self.admin_login()
         params = {
             'object_id': str(self._entity.id),
             'object_type': str(self._entity.objtype),
@@ -61,6 +87,8 @@ class ViewTest(TestCase):
         self.assertEqual(user.permissions.last(), self._entity.writable)
 
     def test_update_acl(self):
+        self.admin_login()
+
         group = Group(name='fuga')
         group.save()
 
@@ -84,9 +112,7 @@ class ViewTest(TestCase):
         self.assertEqual(group.permissions.last(), self._entity.readable)
 
     def test_post_acl_set_without_object_id(self):
-        user = User(username='hoge')
-        user.save()
-
+        user = self.admin_login()
         params = {
             'acl': [
                 {'member_id': str(user.id), 'value': str(ACLType.Writable)},
@@ -97,9 +123,7 @@ class ViewTest(TestCase):
         self.assertEqual(resp.status_code, 400)
 
     def test_post_acl_set_without_acl_params(self):
-        user = User(username='hoge')
-        user.save()
-
+        user = self.admin_login()
         params = {
             'object_id': str(self._entity.id)
         }
@@ -108,6 +132,7 @@ class ViewTest(TestCase):
         self.assertEqual(resp.status_code, 400)
 
     def test_post_acl_set_with_invalid_member_id(self):
+        self.admin_login()
         params = {
             'object_id': str(self._entity.id),
             'acl': [
@@ -119,9 +144,7 @@ class ViewTest(TestCase):
         self.assertEqual(resp.status_code, 400)
 
     def test_post_acl_set_with_invalid_acl(self):
-        user = User(username='hoge')
-        user.save()
-
+        user = self.admin_login()
         params = {
             'object_id': str(self._entity.id),
             'acl': [

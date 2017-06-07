@@ -58,8 +58,12 @@ def _is_valid(params, meta_info):
             return False
 
         # The case specified value is list
-        if (_meta['type'] == list and
-            not all([_is_valid(x , _meta['meta']) for x in params[_meta['name']]])):
-            return False
+        if _meta['type'] == list:
+            if 'checker' in _meta and not _meta['checker'](params):
+                return False
+
+            if ('meta' in _meta and
+                not all([_is_valid(x , _meta['meta']) for x in params[_meta['name']]])):
+                return False
 
     return True

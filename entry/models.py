@@ -21,4 +21,3 @@ class Attribute(AttributeBase):
 class Entry(ACLBase):
     attrs = models.ManyToManyField(Attribute)
     schema = models.ForeignKey(Entity)
-    created_user = models.ForeignKey(User)

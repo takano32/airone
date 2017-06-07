@@ -75,6 +75,8 @@ def _get_acl_model(object_id):
         return Entity
     elif int(object_id) == ACLObjType.AttrBase:
         return AttributeBase
+    else:
+        return ACLBase
 
 def _set_permission(member, acl_obj, acl_type):
     # clear unset permissions of target ACLbased object

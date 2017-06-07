@@ -22,9 +22,9 @@ class ViewTest(AironeViewTest):
         self.assertIsNone(root.find('.//table'))
 
     def test_index_with_objects(self):
-        self.admin_login()
+        user = self.admin_login()
 
-        entity = Entity(name='test-entity')
+        entity = Entity(name='test-entity', created_user=user)
         entity.save()
 
         resp = self.client.get(reverse('entity:index'))

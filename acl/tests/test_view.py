@@ -4,7 +4,6 @@ from django.contrib.auth.models import Group
 from django.urls import reverse
 from django.core import exceptions
 
-from entity.models import Entity
 from user.models import User
 from acl.models import ACLBase
 
@@ -14,20 +13,23 @@ from xml.etree import ElementTree
 
 
 class ViewTest(AironeViewTest):
-    def setUp(self):
-        super(ViewTest, self).setUp()
+    # override 'admin_login' method to create initial ACLBase objects
+    def admin_login(self):
+        user = super(ViewTest, self).admin_login()
 
-        self._entity = Entity(name='test')
-        self._entity.save()
+        self._aclobj = ACLBase(name='test', created_user=user)
+        self._aclobj.save()
+
+        return user
 
     def test_index_without_login(self):
-        resp = self.client.get(reverse('acl:index', args=[self._entity.id]))
+        resp = self.client.get(reverse('acl:index', args=[0]))
         self.assertEqual(resp.status_code, 303)
 
     def test_index(self):
         self.admin_login()
 
-        resp = self.client.get(reverse('acl:index', args=[self._entity.id]))
+        resp = self.client.get(reverse('acl:index', args=[self._aclobj.id]))
         self.assertEqual(resp.status_code, 200)
 
         root = ElementTree.fromstring(resp.content.decode('utf-8'))
@@ -38,7 +40,7 @@ class ViewTest(AironeViewTest):
 
         User(username='hoge').save()
 
-        resp = self.client.get(reverse('acl:index', args=[self._entity.id]))
+        resp = self.client.get(reverse('acl:index', args=[self._aclobj.id]))
         self.assertEqual(resp.status_code, 200)
 
         root = ElementTree.fromstring(resp.content.decode('utf-8'))
@@ -54,9 +56,11 @@ class ViewTest(AironeViewTest):
         user = User(username='hoge')
         user.save()
 
+        aclobj = ACLBase(name='hoge', created_user=user)
+
         params = {
-            'object_id': str(self._entity.id),
-            'object_type': str(self._entity.objtype),
+            'object_id': str(aclobj.id),
+            'object_type': str(aclobj.objtype),
             'acl': [
                 {
                     'member_id': str(user.id),
@@ -71,8 +75,8 @@ class ViewTest(AironeViewTest):
     def test_post_acl_set(self):
         user = self.admin_login()
         params = {
-            'object_id': str(self._entity.id),
-            'object_type': str(self._entity.objtype),
+            'object_id': str(self._aclobj.id),
+            'object_type': str(self._aclobj.objtype),
             'is_public': 'on',
             'acl': [
                 {
@@ -85,8 +89,8 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(user.permissions.count(), 1)
-        self.assertEqual(user.permissions.last(), self._entity.writable)
-        self.assertTrue(Entity.objects.get(id=self._entity.id).is_public)
+        self.assertEqual(user.permissions.last(), self._aclobj.writable)
+        self.assertTrue(ACLBase.objects.get(id=self._aclobj.id).is_public)
 
     def test_update_acl(self):
         self.admin_login()
@@ -95,11 +99,11 @@ class ViewTest(AironeViewTest):
         group.save()
 
         # set ACL object in advance, there are two members in the deletable parameter
-        group.permissions.add(self._entity.deletable)
+        group.permissions.add(self._aclobj.deletable)
 
         params = {
-            'object_id': str(self._entity.id),
-            'object_type': str(self._entity.objtype),
+            'object_id': str(self._aclobj.id),
+            'object_type': str(self._aclobj.objtype),
             'acl': [
                 {
                     'member_id': str(group.id),
@@ -111,8 +115,8 @@ class ViewTest(AironeViewTest):
         resp = self.client.post(reverse('acl:set'), json.dumps(params), 'application/json')
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(group.permissions.count(), 1)
-        self.assertEqual(group.permissions.last(), self._entity.readable)
-        self.assertFalse(Entity.objects.get(id=self._entity.id).is_public)
+        self.assertEqual(group.permissions.last(), self._aclobj.readable)
+        self.assertFalse(ACLBase.objects.get(id=self._aclobj.id).is_public)
 
     def test_post_acl_set_without_object_id(self):
         user = self.admin_login()
@@ -128,7 +132,7 @@ class ViewTest(AironeViewTest):
     def test_post_acl_set_without_acl_params(self):
         user = self.admin_login()
         params = {
-            'object_id': str(self._entity.id)
+            'object_id': str(self._aclobj.id)
         }
         resp = self.client.post(reverse('acl:set'), json.dumps(params), 'application/json')
 
@@ -137,7 +141,7 @@ class ViewTest(AironeViewTest):
     def test_post_acl_set_with_invalid_member_id(self):
         self.admin_login()
         params = {
-            'object_id': str(self._entity.id),
+            'object_id': str(self._aclobj.id),
             'acl': [
                 {'member_id': '9999', 'value': str(ACLType.Writable)},
             ]
@@ -149,7 +153,7 @@ class ViewTest(AironeViewTest):
     def test_post_acl_set_with_invalid_acl(self):
         user = self.admin_login()
         params = {
-            'object_id': str(self._entity.id),
+            'object_id': str(self._aclobj.id),
             'acl': [
                 {'member_id': str(user.id), 'value': 'abcd'},
             ]

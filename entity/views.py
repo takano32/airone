@@ -7,6 +7,8 @@ from django.core.exceptions import PermissionDenied
 
 from .models import Entity
 from .models import AttributeBase
+from user.models import User
+
 from airone.lib import AttrTypes
 from airone.lib import HttpResponseSeeOther
 from airone.lib import http_get, http_post
@@ -45,15 +47,20 @@ def create(request):
     ]}
 ])
 def do_create(request, recv_data):
+    # get user object that current access
+    user = User.objects.get(id=request.user.id)
+
     # create AttributeBase objects
     entity = Entity(name=recv_data['name'],
-                    note=recv_data['note'])
+                    note=recv_data['note'],
+                    created_user=user)
     entity.save()
 
     for attr in recv_data['attrs']:
         attr_base = AttributeBase(name=attr['name'],
                                   type=int(attr['type']),
-                                  is_mandatory=attr['is_mandatory'])
+                                  is_mandatory=attr['is_mandatory'],
+                                  created_user=user)
         attr_base.save()
         entity.attr_bases.add(attr_base)
 

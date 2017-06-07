@@ -59,7 +59,8 @@ def do_create(request, entity_id, recv_data):
         # create Attibute object that contains AttributeValues
         attr = Attribute(name=attr_base.name,
                          type=attr_base.type,
-                         is_mandatory=attr_base.is_mandatory)
+                         is_mandatory=attr_base.is_mandatory,
+                         created_user=user)
         attr.save()
 
         # make an initial AttributeValue object if the initial value is specified

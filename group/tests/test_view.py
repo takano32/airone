@@ -101,3 +101,19 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 400)
         self.assertIsNone(Group.objects.first())
+
+    def test_create_duplicate_name_of_group(self):
+        user = self.admin_login()
+        duplicated_name = 'hoge'
+
+        # create Group object previously
+        Group(name=duplicated_name).save()
+
+        params = {
+            'name': duplicated_name,
+            'users': [user.id],
+        }
+        resp = self.client.post(reverse('group:do_create'),
+                                json.dumps(params),
+                                'application/json')
+        self.assertEqual(resp.status_code, 400)

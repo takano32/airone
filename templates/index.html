@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}Top Page{% endblock %}
+
+{% block nav_sub_header %}
+<div class="conatiner-fluid">
+  <ul class="breadcrumb airone-breadcrumb">
+    <li class="breadcrumb-item">top</li>
+  </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col">
+      <h2>ユーザ管理</h2>
+      <p>ユーザ・グループの管理はこちら</p>
+      <p><a class="btn btn-secondary" href="list_user.html" role="button">ユーザ・グループ管理ページへ &raquo;</a></p>
+    </div>
+    <div class="col">
+      <h2>エンティティ管理</h2>
+      <p>データのモデルを管理する場合はこちら</p>
+      <p><a class="btn btn-secondary" href="list_entity.html" role="button">エンティティ管理ページへ &raquo;</a></p>
+    </div>
+    <div class="col">
+      <h2>エントリ管理</h2>
+      <p>各エントリの閲覧・編集はこちら</p>
+      <ul>
+        <li><a href="list_entry.html">Server</a></li>
+        <li>Switch</li>
+        <li>LoadBalancer</li>              
+        <li>Router</li>              
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

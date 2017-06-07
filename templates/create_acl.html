@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}Create ACLs{% endblock %}
+
+{% block nav_sub_header %}
+<div class="conatiner-fluid">
+  <ul class="breadcrumb airone-breadcrumb">
+    <li class="breadcrumb-item"><a href="index.html">top</a></li>
+    <li class="breadcrumb-item"><a href="list_entity.html">エンティティ一覧</a></li>
+    <li class="breadcrumb-item"><a href="edit_entity.html">エンティティ属性</a></li>
+    <li class="breadcrumb-item">ACL作成</li>
+  </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col">
+      <h1>ACL作成</h1>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col">
+      <div class="float-left form-group">
+        <form name="searchform" action="create_acl.html" method="post" class="form-inline">
+          <label for="userSearch">追加するユーザ or グループ</label><input type="text" class="form-control" id="userSearch" name="userSearch" placeholder="user or group">
+          <button name="button_add" type="button" class="btn btn-primary">追加</button>
+        </form>
+      </div>
+      <div class="float-right">
+        <button name="button_save" type="button" class="btn btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col">
+      <form name="form" action="create_entity.html" method="post">
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <td>ユーザ or グループ</td>
+              <td>Read</td>
+              <td>Write</td>
+              <td>Delete</td>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in users %}
+            <tr>
+              <td>{{ user.id }}<input type="hidden" name="hidden_user_0" value="uchikawa"></td>
+              <td><input name="checkbox_read_0" type="checkbox" class="form-control" placeholder="" value="read_0" checked></td>
+              <td><input name="checkbox_write_0" type="checkbox" class="form-control" placeholder="" value="write_0" checked></td>
+              <td><input name="checkbox_delete_0" type="checkbox" class="form-control" placeholder="" value="delete_0"  checked></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

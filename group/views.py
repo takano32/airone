@@ -36,15 +36,10 @@ def create(request):
     )}
 ])
 def do_create(request, recv_data):
-    new_group = None
+    new_group = Group(name=recv_data['name'])
+    new_group.save()
 
-    try:
-        new_group = Group(name=recv_data['name'])
-        new_group.save()
+    for user in [User.objects.get(id=x) for x in recv_data['users']]:
+        user.groups.add(new_group)
 
-        for user in [User.objects.get(id=x) for x in recv_data['users']]:
-            user.groups.add(new_group)
-
-        return HttpResponseSeeOther('/group/')
-    except ObjectDoesNotExist:
-        return HttpResponse('Invalid userid is specified', status=400)
+    return HttpResponseSeeOther('/group/')

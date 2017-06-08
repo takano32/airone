@@ -10,7 +10,7 @@ class ModelTest(TestCase):
         self._user = User(username='test')
         self._user.save()
 
-        self._entity = Entity(name='entity')
+        self._entity = Entity(name='entity', created_user=self._user)
         self._entity.save()
 
     def test_make_attribute_value(self):
@@ -22,7 +22,7 @@ class ModelTest(TestCase):
         self.assertIsNotNone(AttributeValue.objects.last().created_time)
 
     def test_make_attribute(self):
-        attr = Attribute(name='attr')
+        attr = Attribute(name='attr', created_user=self._user)
         attr.save()
 
         value = AttributeValue(value='hoge', created_user=self._user)
@@ -41,7 +41,7 @@ class ModelTest(TestCase):
                       created_user=self._user)
         entry.save()
 
-        attr = Attribute(name='attr')
+        attr = Attribute(name='attr', created_user=self._user)
         attr.save()
 
         entry.attrs.add(attr)

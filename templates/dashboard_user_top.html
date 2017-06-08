@@ -1,14 +1,27 @@
-<html>
-<body>
-  {% if user.is_authenticated %}
-  <b>'{{ user.username }}'</b> is logged in<br/>
-  <a href='/dashboard/logout'>Logout</a><br/>
-  {% else %}
-  <a href='/dashboard/login'>Login</a>
-  {% endif %}
-  <hr/>
-  <a href='/user'>UserList</a><br/>
-  <a href='/group'>GroupList</a><br/>
-  <a href='/entity'>EntityList</a><br/>
-</body>
-</html>
+{% extends 'base.html' %}
+
+{% block title %}Top Page{% endblock %}
+
+{% block nav_sub_header %}
+<div class="conatiner-fluid">
+  <ul class="breadcrumb airone-breadcrumb">
+    <li class="breadcrumb-item">TOP</li>
+  </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col">
+      <p><a class="btn btn-secondary" href="/user" role="button">ユーザ管理 &#x000bb;</a></p>
+    </div>
+    <div class="col">
+      <p><a class="btn btn-secondary" href="/group" role="button">グループ管理 &#x000bb;</a></p>
+    </div>
+    <div class="col">
+      <p><a class="btn btn-secondary" href="/entity" role="button">エンティティ作成 &#x000bb;</a></p>
+    </div>
+  </div>
+</div>
+{% endblock %}

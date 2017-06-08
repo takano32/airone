@@ -16,7 +16,7 @@ def index(request):
     context = {
         'users': User.objects.all(),
     }
-    return render(request, 'user_list.html', context)
+    return render(request, 'list_user.html', context)
 
 def create(request):
     if request.method == 'POST':
@@ -46,7 +46,7 @@ def create(request):
         if not request.user.is_authenticated():
             return HttpResponseSeeOther('/dashboard/login')
 
-    return render(request, 'user_create.html')
+    return render(request, 'create_user.html')
 
 def _is_valid(params):
     param_keys = ['name', 'email', 'passwd']

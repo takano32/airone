@@ -18,14 +18,14 @@ def index(request):
         'name': x.name,
     } for x in Group.objects.all()]
 
-    return render(request, 'group_list.html', context)
+    return render(request, 'list_group.html', context)
 
 @http_get
 def create(request):
     context = {
         'users': User.objects.all(),
     }
-    return render(request, 'group_create.html', context)
+    return render(request, 'create_group.html', context)
 
 @http_post([
     {'name': 'name', 'type': str, 'checker': lambda x: (

@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Create Group{% endblock %}
+
+{% block nav_sub_header %}
+<div class="conatiner-fluid">
+  <ul class="breadcrumb airone-breadcrumb">
+    <li class="breadcrumb-item"><a href="/">TOP</a></li>
+    <li class="breadcrumb-item"><a href="/group">グループ一覧</a></li>
+    <li class="breadcrumb-item">新規グループ作成</li>
+  </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col">
+      <div class="float-left form-group">
+        <form url='/group/do_create' method='post'>
+          {% csrf_token %}
+          Name: <input type="text" name="name"></input><br/>
+          Users: <select name='users' multiple='true'>
+            {% for user in users %}
+            <option value='{{ user.id }}'>{{ user.username }}</option>
+            {% endfor %}
+          </select><br/>
+          <input type="submit"></input><br/>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/jquery-3.2.1.min.js"></script>
+<script src="/static/js/http_request.js"></script>
+<script>
+$('form').submit(function(){
+  HttpPost($(this), {'users': $('select[name=users]').val()});
+
+  return false;
+});
+</script>
+{% endblock %}

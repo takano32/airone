@@ -4,12 +4,23 @@ from django.db.models.signals import pre_save
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth.models import Permission
 from django.dispatch import receiver
+
+from user.models import User
+
 from airone.lib import ACLType
 
+
+# Add comparison operations to the Permission model
+def _get_acltype(permission):
+    return int(permission.codename.split('.')[-1])
+
+Permission.__le__ = lambda self, comp: _get_acltype(self) <= _get_acltype(comp)
+Permission.__ge__ = lambda self, comp: _get_acltype(self) >= _get_acltype(comp)
 
 class ACLBase(models.Model):
     name = models.CharField(max_length=200)
     is_public = models.BooleanField(default=True)
+    created_user = models.ForeignKey(User)
 
     # This fields describes the sub-class of this object
     objtype = models.IntegerField(default=0)

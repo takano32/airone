@@ -3,6 +3,9 @@ import json
 from django.http import HttpResponseRedirect
 from django.http import HttpResponse
 
+from acl.models import ACLBase
+from user.models import User
+
 
 class HttpResponseSeeOther(HttpResponseRedirect):
     status_code = 303
@@ -18,6 +21,36 @@ def http_get(func):
 
         return func(*args, **kwargs)
     return wrapper
+
+def check_permission(model, permission_level):
+    def _decorator(func):
+        def permission_checker(*args, **kwargs):
+            # the arguments length is assured by the Django URL dispatcher
+            (request, object_id) = args
+
+            if not model.objects.filter(id=object_id).count():
+                return HttpResponse('Failed to get entity of specified id', status=400)
+
+            target_obj = model.objects.get(id=object_id)
+            if not isinstance(target_obj, ACLBase):
+                return HttpResponse('[InternalError] "%s" has no permisison' % target_obj, status=500)
+
+            perm = getattr(target_obj, permission_level)
+            user = User.objects.get(id=request.user.id)
+
+            if (target_obj.is_public or
+                # checks that current uesr is created this document
+                target_obj.created_user == user or
+                # checks user permission
+                [perm <= x for x in user.permissions.all()] or
+                # checks group permission
+                sum([[perm <= x for x in g.permissions.all()] for g in user.groups.all()], [])):
+
+                # only requests that have correct permission are executed
+                return func(*args, **kwargs)
+            return HttpResponse('You don\'t have permission to access this object', status=400)
+        return permission_checker
+    return _decorator
 
 def http_post(validator):
     def _decorator(func):

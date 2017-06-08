@@ -2,46 +2,42 @@ import json
 
 from django.test import TestCase, Client
 from django.urls import reverse
+from django.contrib.auth.models import Group
 
 from entity.models import Entity, AttributeBase
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
 
 from airone.lib import types as airone_types
+from airone.lib.test import AironeViewTest
 from xml.etree import ElementTree
 
 
-class ViewTest(TestCase):
-    def setUp(self):
-        self.client = Client()
+class ViewTest(AironeViewTest):
+    # override 'admin_login' method to create initial Entity/AttributeBase objects
+    def admin_login(self):
+        user = super(ViewTest, self).admin_login()
 
         # create test entity which is a base of creating entry
-        self._entity = Entity(name='hoge')
+        self._entity = Entity(name='hoge', created_user=user)
         self._entity.save()
 
         # set AttributeBase for the test Entity object
         self._attr_base = AttributeBase(name='test',
                                         type=airone_types.AttrTypeStr().type,
-                                        is_mandatory=True)
+                                        is_mandatory=True,
+                                        created_user=user)
         self._attr_base.save()
-
-        # save AttributeBase object to it
         self._entity.attr_bases.add(self._attr_base)
 
-    def _admin_login(self):
-        # create test user to authenticate
-        user = User(username='admin')
-        user.set_password('admin')
-        user.save()
-
-        self.client.login(username='admin', password='admin')
+        return user
 
     def test_get_index_without_login(self):
-        resp = self.client.get(reverse('entry:index', args=[self._entity.id]))
+        resp = self.client.get(reverse('entry:index', args=[0]))
         self.assertEqual(resp.status_code, 303)
 
     def test_get_index_with_login(self):
-        self._admin_login()
+        self.admin_login()
 
         resp = self.client.get(reverse('entry:index', args=[self._entity.id]))
         self.assertEqual(resp.status_code, 200)
@@ -50,9 +46,9 @@ class ViewTest(TestCase):
         self.assertIsNone(root.find('.//tbody/tr/td'))
 
     def test_get_index_with_entries(self):
-        self._admin_login()
+        user = self.admin_login()
 
-        Entry(name='fuga', schema=self._entity, created_user=User.objects.last()).save()
+        Entry(name='fuga', schema=self._entity, created_user=user).save()
 
         resp = self.client.get(reverse('entry:index', args=[self._entity.id]))
         self.assertEqual(resp.status_code, 200)
@@ -60,12 +56,90 @@ class ViewTest(TestCase):
         root = ElementTree.fromstring(resp.content.decode('utf-8'))
         self.assertIsNotNone(root.find('.//tbody/tr/td'))
 
+    def test_get_permitted_entries(self):
+        user = self.admin_login()
+
+        another_user = User.objects.create(username='hoge')
+        entity = Entity(name='hoge', created_user=another_user, is_public=False)
+        entity.save()
+
+        resp = self.client.get(reverse('entry:index', args=[entity.id]))
+        self.assertEqual(resp.status_code, 400)
+
+    def test_get_self_created_entries(self):
+        user = self.admin_login()
+
+        self._entity.is_public = False
+
+        resp = self.client.get(reverse('entry:index', args=[self._entity.id]))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_get_entries_with_user_permission(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='hoge',
+                                       is_public=False,
+                                       created_user=User.objects.create(username='hoge'))
+
+        # set permission to the logged-in user
+        user.permissions.add(entity.readable)
+
+        resp = self.client.get(reverse('entry:index', args=[entity.id]))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_get_entries_with_superior_user_permission(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='hoge',
+                                       is_public=False,
+                                       created_user=User.objects.create(username='hoge'))
+
+        # set superior permission to the logged-in user
+        user.permissions.add(entity.writable)
+
+        resp = self.client.get(reverse('entry:index', args=[entity.id]))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_get_entries_with_group_permission(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='hoge',
+                                       is_public=False,
+                                       created_user=User.objects.create(username='hoge'))
+
+        # create test group
+        group = Group.objects.create(name='test-group')
+        user.groups.add(group)
+
+        # set permission to the group which logged-in user belonged to
+        group.permissions.add(entity.readable)
+
+        resp = self.client.get(reverse('entry:index', args=[entity.id]))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_get_entries_with_superior_group_permission(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='hoge',
+                                       is_public=False,
+                                       created_user=User.objects.create(username='hoge'))
+
+        # create test group
+        group = Group.objects.create(name='test-group')
+        user.groups.add(group)
+
+        # set superior permission to the group which logged-in user belonged to
+        group.permissions.add(entity.deletable)
+
+        resp = self.client.get(reverse('entry:index', args=[entity.id]))
+        self.assertEqual(resp.status_code, 200)
+
     def test_get_create_page_without_login(self):
-        resp = self.client.get(reverse('entry:create', args=[self._entity.id]))
+        resp = self.client.get(reverse('entry:create', args=[0]))
         self.assertEqual(resp.status_code, 303)
 
     def test_get_create_page_with_login(self):
-        self._admin_login()
+        self.admin_login()
 
         resp = self.client.get(reverse('entry:create', args=[self._entity.id]))
 
@@ -78,10 +152,10 @@ class ViewTest(TestCase):
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(self._attr_base.id), 'value': 'fuga'},
+                {'id': '0', 'value': 'fuga'},
             ],
         }
-        resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
+        resp = self.client.post(reverse('entry:do_create', args=[0]),
                                 json.dumps(params),
                                 'application/json')
 
@@ -91,7 +165,7 @@ class ViewTest(TestCase):
         self.assertEqual(AttributeValue.objects.count(), 0)
 
     def test_post_with_login(self):
-        self._admin_login()
+        self.admin_login()
 
         params = {
             'entry_name': 'hoge',
@@ -115,12 +189,13 @@ class ViewTest(TestCase):
         self.assertEqual(entry.attrs.last().values.last(), AttributeValue.objects.last())
 
     def test_post_with_optional_parameter(self):
-        self._admin_login()
+        user = self.admin_login()
 
         # add an optional AttributeBase to the test Entity object
         self._attr_base_optional = AttributeBase(name='test-optional',
                                                  type=airone_types.AttrTypeStr().type,
-                                                 is_mandatory=False)
+                                                 is_mandatory=False,
+                                                 created_user=user)
         self._attr_base_optional.save()
         self._entity.attr_bases.add(self._attr_base_optional)
 
@@ -147,7 +222,7 @@ class ViewTest(TestCase):
         self.assertEqual(entry.attrs.get(name='test').values.last().value, 'hoge')
 
     def test_post_with_lack_of_params(self):
-        self._admin_login()
+        self.admin_login()
 
         params = {
             'entry_name': '',
@@ -165,7 +240,7 @@ class ViewTest(TestCase):
         self.assertEqual(AttributeValue.objects.count(), 0)
 
     def test_post_with_invalid_param(self):
-        self._admin_login()
+        self.admin_login()
 
         params = {
             'entry_name': 'hoge',
@@ -188,29 +263,30 @@ class ViewTest(TestCase):
         self.assertEqual(resp.status_code, 303)
 
     def test_get_edit_with_invalid_entry_id(self):
-        self._admin_login()
+        user = self.admin_login()
 
-        Entry(name='fuga', schema=self._entity, created_user=User.objects.last()).save()
+        Entry(name='fuga', schema=self._entity, created_user=user).save()
 
         # with invalid entry-id
         resp = self.client.get(reverse('entry:edit', args=[0]))
         self.assertEqual(resp.status_code, 400)
 
     def test_get_edit_with_valid_entry_id(self):
-        self._admin_login()
+        user = self.admin_login()
 
         # making test Entry set
-        entry = Entry(name='fuga', schema=self._entity, created_user=User.objects.last())
+        entry = Entry(name='fuga', schema=self._entity, created_user=user)
         entry.save()
 
         for attr_name in ['foo', 'bar']:
             attr = Attribute(name=attr_name,
                              type=airone_types.AttrTypeStr().type,
-                             is_mandatory=True)
+                             is_mandatory=True,
+                             created_user=user)
             attr.save()
 
             for value in ['hoge', 'fuga']:
-                attr_value = AttributeValue(value=value, created_user=User.objects.last())
+                attr_value = AttributeValue(value=value, created_user=user)
                 attr_value.save()
 
                 attr.values.add(attr_value)
@@ -227,13 +303,16 @@ class ViewTest(TestCase):
                          e_input.attrib['value'])
 
     def test_get_edit_with_optional_attr(self):
-        self._admin_login()
+        user = self.admin_login()
 
         # making test Entry set
-        entry = Entry(name='fuga', schema=self._entity, created_user=User.objects.last())
+        entry = Entry(name='fuga', schema=self._entity, created_user=user)
         entry.save()
 
-        attr = Attribute(name='foo', is_mandatory=False, type=airone_types.AttrTypeStr().type)
+        attr = Attribute(name='foo',
+                         created_user=user,
+                         is_mandatory=False,
+                         type=airone_types.AttrTypeStr().type)
         attr.save()
         entry.attrs.add(attr)
 
@@ -254,7 +333,7 @@ class ViewTest(TestCase):
         self.assertEqual(AttributeValue.objects.count(), 0)
 
     def test_post_edit_with_invalid_param(self):
-        self._admin_login()
+        self.admin_login()
 
         params = {'attrs': [{'id': '0', 'value': 'hoge'}]}
         resp = self.client.post(reverse('entry:do_edit'),
@@ -264,19 +343,20 @@ class ViewTest(TestCase):
         self.assertEqual(AttributeValue.objects.count(), 0)
 
     def test_post_edit_with_valid_param(self):
-        self._admin_login()
+        user = self.admin_login()
 
         # making test Entry set
-        entry = Entry(name='fuga', schema=self._entity, created_user=User.objects.last())
+        entry = Entry(name='fuga', schema=self._entity, created_user=user)
         entry.save()
 
         for attr_name in ['foo', 'bar']:
             attr = Attribute(name=attr_name,
-                             type=airone_types.AttrTypeStr().type,
-                             is_mandatory=True)
+                             created_user=user,
+                             is_mandatory=True,
+                             type=airone_types.AttrTypeStr().type)
             attr.save()
 
-            attr_value = AttributeValue(value='hoge', created_user=User.objects.last())
+            attr_value = AttributeValue(value='hoge', created_user=user)
             attr_value.save()
 
             attr.values.add(attr_value)
@@ -298,16 +378,17 @@ class ViewTest(TestCase):
         self.assertEqual(Attribute.objects.get(name='bar').values.last().value, 'fuga')
 
     def test_post_edit_with_optional_params(self):
-        self._admin_login()
+        user = self.admin_login()
 
         # making test Entry set
-        entry = Entry(name='fuga', schema=self._entity, created_user=User.objects.last())
+        entry = Entry(name='fuga', schema=self._entity, created_user=user)
         entry.save()
 
         for attr_name in ['foo', 'bar']:
             attr = Attribute(name=attr_name,
-                             type=airone_types.AttrTypeStr().type,
-                             is_mandatory=False)
+                             created_user=user,
+                             is_mandatory=False,
+                             type=airone_types.AttrTypeStr().type)
             attr.save()
             entry.attrs.add(attr)
 
@@ -326,26 +407,27 @@ class ViewTest(TestCase):
         self.assertEqual(Attribute.objects.get(name='bar').values.last().value, 'fuga')
 
     def test_get_history_with_invalid_param(self):
-        self._admin_login()
+        self.admin_login()
 
         resp = self.client.get(reverse('entry:history', args=[0]))
         self.assertEqual(resp.status_code, 400)
 
     def test_get_history_with_valid_param(self):
-        self._admin_login()
+        user = self.admin_login()
 
         # making test Entry set
-        entry = Entry(name='fuga', schema=self._entity, created_user=User.objects.last())
+        entry = Entry(name='fuga', schema=self._entity, created_user=user)
         entry.save()
 
         for attr_name in ['foo', 'bar']:
             attr = Attribute(name=attr_name,
-                             type=airone_types.AttrTypeStr().type,
-                             is_mandatory=True)
+                             created_user=user,
+                             is_mandatory=True,
+                             type=airone_types.AttrTypeStr().type)
             attr.save()
 
             for value in ['hoge', 'fuga']:
-                attr_value = AttributeValue(value=value, created_user=User.objects.last())
+                attr_value = AttributeValue(value=value, created_user=user)
                 attr_value.save()
 
                 attr.values.add(attr_value)

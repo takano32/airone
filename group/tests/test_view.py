@@ -22,7 +22,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
 
         root = ElementTree.fromstring(resp.content.decode('utf-8'))
-        self.assertIsNone(root.find('.//table'))
+        self.assertIsNone(root.find('.//tbody/tr'))
 
     def test_index_with_objects(self):
         self.admin_login()
@@ -38,8 +38,8 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
 
         root = ElementTree.fromstring(resp.content.decode('utf-8'))
-        self.assertIsNotNone(root.find('.//table'))
-        self.assertEqual(len(root.findall('.//tr')), 2)
+        self.assertIsNotNone(root.find('.//tbody/tr'))
+        self.assertEqual(len(root.findall('.//tbody/tr')), 1)
 
     def test_create_get(self):
         self.admin_login()

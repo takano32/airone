@@ -1,17 +1,25 @@
-{% extends 'old_base.html' %}
+{% extends 'base.html' %}
 
 {% block title %}Create Entry{% endblock %}
+
+{% block nav_sub_header %}
+<div class="conatiner-fluid">
+  <ul class="breadcrumb airone-breadcrumb">
+    <li class="breadcrumb-item"><a href="/">TOP</a></li>
+    <li class="breadcrumb-item"><a href='/entry/{{ entity.id }}'>{{ entity.name }}</a></li>
+    <li class="breadcrumb-item">新規エントリ作成</li>
+  </ul>
+</div>
+{% endblock %}
 
 {% block content %}
 <h2>Create Entry ({{ entity.name }})</h2>
 <form url='/entry/do_create/{{ entity.id }}/' method='post'>
+  <p><input type="submit" class="btn btn-primary align-right" value='保存'/></p>
   {% csrf_token %}
   Name: <input type='string' name='entry_name' />
+  <hr/>
   <table>
-    <tr>
-      <th>属性名</th>
-      <th>属性値</th>
-    </tr>
     {% for attr in attributes %}
     <tr>
       <td>{{ attr.name }}</td>
@@ -19,8 +27,9 @@
     </tr>
     {% endfor %}
   </table>
-  <input type='submit' value='Create' />
 </form>
+<script src="/static/js/jquery-3.2.1.min.js"></script>
+<script src="/static/js/http_request.js"></script>
 <script>
 $('form').submit(function(){
   attrs = []

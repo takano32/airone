@@ -5,7 +5,7 @@
 {% block nav_sub_header %}
 <div class="conatiner-fluid">
   <ul class="breadcrumb airone-breadcrumb">
-    <li class="breadcrumb-item"><a href="index.html">top</a></li>
+    <li class="breadcrumb-item"><a href="/">TOP</a></li>
     <li class="breadcrumb-item">ユーザ一覧</li>
   </ul>
 </div>
@@ -15,14 +15,8 @@
 <div class="container-fluid">
   <div class="row">
     <div class="col">
-      <h2>エンティティ: {{ entity.name }}</h2>
-    </div>
-  </div>
-
-  <div class="row">
-    <div class="col">
       <div class="float-left">
-        <button name="button_new" type="button" class="btn btn-primary">新規作成</button>
+        <button name="button_new" type="button" class="btn btn-primary" onclick="location.href='/user/create'">新規作成</button>
         <button name="button_export" type="button" class="btn btn-secondary">エクスポート</button>
         <button name="button_import" type="button" class="btn btn-secondary">インポート</button>
         <button name="button_delete" type="button" class="btn btn-danger">削除</button>
@@ -37,24 +31,18 @@
           <thead>
             <tr>
               <td></td>
-              <td>name</td>
-              <td>姓</td>
-              <td>名</td>
+              <td>名前</td>
               <td>メールアドレス</td>
-              <td>所属</td>
-              <td>備考</td>
+              <td>作成日時</td>
             </tr>
           </thead>
           <tbody>
             {% for user in users %}
             <tr>
               <td><label class="form-check-label"><input name="checkbox_select_0" type="checkbox" class="form-check-input" /></label></td>
-              <td><a href="edit_user.html">uchikawa</a></td>
-              <td>内川</td>
-              <td>喜章</td>
-              <td>uchikawa-yoshi@dmm.com</td>
-              <td>XaaS</td>
-              <td></td>
+              <td>{{ user.username }}</td>
+              <td>{{ user.email }}</td>
+              <td>{{ user.date_joined }}</td>
             </tr>
             {% endfor %}
           </tbody>

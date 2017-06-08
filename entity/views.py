@@ -17,10 +17,7 @@ from airone.lib import http_get, http_post
 @http_get
 def index(request):
     context = {}
-    context['entities'] = [{
-        'name': x.name,
-        'note': x.note,
-    } for x in Entity.objects.all()]
+    context['entities'] = Entity.objects.all()
 
     return render(request, 'list_entities.html', context)
 

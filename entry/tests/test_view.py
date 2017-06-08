@@ -2,6 +2,7 @@ import json
 
 from django.test import TestCase, Client
 from django.urls import reverse
+from django.contrib.auth.models import Group
 
 from entity.models import Entity, AttributeBase
 from entry.models import Entry, Attribute, AttributeValue
@@ -54,6 +55,84 @@ class ViewTest(AironeViewTest):
 
         root = ElementTree.fromstring(resp.content.decode('utf-8'))
         self.assertIsNotNone(root.find('.//tbody/tr/td'))
+
+    def test_get_permitted_entries(self):
+        user = self.admin_login()
+
+        another_user = User.objects.create(username='hoge')
+        entity = Entity(name='hoge', created_user=another_user, is_public=False)
+        entity.save()
+
+        resp = self.client.get(reverse('entry:index', args=[entity.id]))
+        self.assertEqual(resp.status_code, 400)
+
+    def test_get_self_created_entries(self):
+        user = self.admin_login()
+
+        self._entity.is_public = False
+
+        resp = self.client.get(reverse('entry:index', args=[self._entity.id]))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_get_entries_with_user_permission(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='hoge',
+                                       is_public=False,
+                                       created_user=User.objects.create(username='hoge'))
+
+        # set permission to the logged-in user
+        user.permissions.add(entity.readable)
+
+        resp = self.client.get(reverse('entry:index', args=[entity.id]))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_get_entries_with_superior_user_permission(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='hoge',
+                                       is_public=False,
+                                       created_user=User.objects.create(username='hoge'))
+
+        # set superior permission to the logged-in user
+        user.permissions.add(entity.writable)
+
+        resp = self.client.get(reverse('entry:index', args=[entity.id]))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_get_entries_with_group_permission(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='hoge',
+                                       is_public=False,
+                                       created_user=User.objects.create(username='hoge'))
+
+        # create test group
+        group = Group.objects.create(name='test-group')
+        user.groups.add(group)
+
+        # set permission to the group which logged-in user belonged to
+        group.permissions.add(entity.readable)
+
+        resp = self.client.get(reverse('entry:index', args=[entity.id]))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_get_entries_with_superior_group_permission(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='hoge',
+                                       is_public=False,
+                                       created_user=User.objects.create(username='hoge'))
+
+        # create test group
+        group = Group.objects.create(name='test-group')
+        user.groups.add(group)
+
+        # set superior permission to the group which logged-in user belonged to
+        group.permissions.add(entity.deletable)
+
+        resp = self.client.get(reverse('entry:index', args=[entity.id]))
+        self.assertEqual(resp.status_code, 200)
 
     def test_get_create_page_without_login(self):
         resp = self.client.get(reverse('entry:create', args=[0]))

@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponse
 
-from airone.lib import http_get, http_post
+from airone.lib import http_get, http_post, check_permission
 
 from entity.models import Entity, AttributeBase
 from entry.models import Entry, Attribute, AttributeValue
@@ -9,6 +9,7 @@ from user.models import User
 
 
 @http_get
+@check_permission(Entity, 'readable')
 def index(request, entity_id):
     if not Entity.objects.filter(id=entity_id).count():
         return HttpResponse('Failed to get entity of specified id', status=400)

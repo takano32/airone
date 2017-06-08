@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block title %}Create User{% endblock %}
+
+{% block nav_sub_header %}
+<div class="conatiner-fluid">
+  <ul class="breadcrumb airone-breadcrumb">
+    <li class="breadcrumb-item"><a href="index.html">top</a></li>
+    <li class="breadcrumb-item"><a href="list_user.html">ユーザ一覧</a></li>
+    <li class="breadcrumb-item">ユーザ新規作成</li>
+  </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col">
+      <h2>ユーザ新規作成</h2>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-11">
+      <p>
+        <button type="button" class="btn btn-primary">新規属性</button>
+        <button type="button" class="btn btn-secondary">複製</button>
+        <button type="button" class="btn btn-danger">削除</button>
+      </p>
+    </div>
+    <div class="col-md-1">
+      <p><button type="button" class="btn btn-primary align-right">保存</button></p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col">
+      <form>
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <td></td>
+              <td>属性</td>
+              <td>値</td>
+              <td>TYPE</td>
+              <td>必須</td>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><label class="form-check-label"><input type="checkbox" class="form-check-input" /></label></td>
+              <td>name</td>
+              <td><input type="text" class="form-control" placeholder="username([A-Za-z][A-Za-z0-9]*)" /></td>
+              <td>string</td>
+              <td>■</td>
+            </tr>
+            <tr>
+              <td><label class="form-check-label"><input type="checkbox" class="form-check-input" /></label></td>
+              <td>姓</td>
+              <td><input type="text" class="form-control" placeholder="鈴木" /></td>
+              <td>utf8</td>
+              <td>■</td>
+            </tr>
+            <tr>
+              <td><label class="form-check-label"><input type="checkbox" class="form-check-input" /></label></td>
+              <td>名</td>
+              <td><input type="text" class="form-control" placeholder="太郎" /></td>
+              <td>utf8</td>
+              <td>■</td>
+            </tr>
+            <tr>
+              <td><label class="form-check-label"><input type="checkbox" class="form-check-input" /></label></td>
+              <td>password</td>
+              <td><input type="password" class="form-control" placeholder="" /></td>
+              <td>string</td>
+              <td>■</td>
+            </tr>
+            <tr>
+              <td><label class="form-check-label"><input type="checkbox" class="form-check-input" /></label></td>
+              <td>所属</td>
+              <td><input type="text" class="form-control" placeholder="サポート" /></td>
+              <td>string</td>
+              <td>■</td>
+            </tr>
+            <tr>
+              <td><label class="form-check-label"><input type="checkbox" class="form-check-input" /></label></td>
+              <td>mail address</td>
+              <td><input type="text" class="form-control" placeholder="suzuki-taro@example.com" /></td>
+              <td>string</td>
+              <td>□</td>
+            </tr>
+            <tr>
+              <td><label class="form-check-label"><input type="checkbox" class="form-check-input" /></label></td>
+              <td>group list</td>
+              <td><input type="text" class="form-control" placeholder="" /></td>
+              <td>string-list</td>
+              <td>□</td>
+            </tr>
+            <tr>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

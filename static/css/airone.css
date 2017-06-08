@@ -1,9 +1,26 @@
 
+body {
+    padding-top: 50px;
+}
+
+.airone-navbar {
+    min-height: 50px;
+    height: 50px;
+}
+
 .airone-sidebar {
     background-color: #d2d4d5;
+
+    position: fixed;
+    top: 50px;
+    bottom: 0;
+    left: 0;
+    padding-top: 10px;
+
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .airone-breadcrumb {
     border-radius: 0;
 }
-

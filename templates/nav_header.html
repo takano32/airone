@@ -5,9 +5,11 @@
   </div>
   <div>
     <ul class="navbar-nav">
-      <li class="navbar"><a href="list_user.html" class="nav-link">ユーザ一覧</a></li>
-      <li class="navbar"><a href="list_entity.html" class="nav-link">エンティティ一覧</a></li>
-      <li class="navbar"><a href="view_history.html" class="nav-link">変更履歴</a></li>
+      {% if user.is_authenticated %}
+      <li class="navbar"><a href="/dashboard/logout" class="nav-link">({{ user.username }}) ログアウト</a></li>
+      {% else %}
+      <li class="navbar"><a href="/dashboard/login" class="nav-link">ログイン</a></li>
+      {% endif %}
     </ul>
   </div>
   <div>

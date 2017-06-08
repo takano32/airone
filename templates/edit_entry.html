@@ -1,6 +1,16 @@
-{% extends 'old_base.html' %}
+{% extends 'base.html' %}
 
 {% block title %}Edit Entry{% endblock %}
+
+{% block nav_sub_header %}
+<div class="conatiner-fluid">
+  <ul class="breadcrumb airone-breadcrumb">
+    <li class="breadcrumb-item"><a href="/">TOP</a></li>
+    <li class="breadcrumb-item"><a href='/entry/{{ entry.schema.id }}'>{{ entry.schema.name }}</a></li>
+    <li class="breadcrumb-item">{{ entry.name }}</li>
+  </ul>
+</div>
+{% endblock %}
 
 {% block content %}
   <h2>Edit ({{ entry.name }})</h2>
@@ -20,6 +30,8 @@
     </table>
     <input type='submit' value='Create' />
   </form>
+<script src="/static/js/jquery-3.2.1.min.js"></script>
+<script src="/static/js/http_request.js"></script>
   <script>
   $('form').submit(function(){
     attrs = []

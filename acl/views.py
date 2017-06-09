@@ -1,11 +1,11 @@
 import json
 
-from django.shortcuts import render
 from django.http import HttpResponse
 from django.contrib.auth.models import Group
 
 from airone.lib import ACLType, ACLObjType
 from airone.lib import http_get, http_post
+from airone.lib.http import render
 
 from entity.models import Entity
 from user.models import User

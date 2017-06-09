@@ -1,7 +1,6 @@
 import json
 import re
 
-from django.shortcuts import render
 from django.http import HttpResponse
 from django.core.exceptions import PermissionDenied
 
@@ -12,6 +11,7 @@ from user.models import User
 from airone.lib import AttrTypes
 from airone.lib import HttpResponseSeeOther
 from airone.lib import http_get, http_post
+from airone.lib.http import render
 
 
 @http_get

@@ -1,7 +1,7 @@
-from django.shortcuts import render
 from django.http import HttpResponse
 
 from airone.lib import http_get, http_post, check_permission
+from airone.lib.http import render
 
 from entity.models import Entity, AttributeBase
 from entry.models import Entry, Attribute, AttributeValue

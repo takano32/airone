@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from airone.lib.http import render
 
 
 def index(request):

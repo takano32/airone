@@ -57,11 +57,7 @@ def do_create(request, entity_id, recv_data):
     # Create new Attributes objects based on the specified value
     for attr_base in entity.attr_bases.all():
         # create Attibute object that contains AttributeValues
-        attr = Attribute(name=attr_base.name,
-                         type=attr_base.type,
-                         is_mandatory=attr_base.is_mandatory,
-                         created_user=user)
-        attr.save()
+        attr = entry.add_attribute_from_base(attr_base, user)
 
         # make an initial AttributeValue object if the initial value is specified
         for info in [x for x in recv_data['attrs'] if int(x['id']) == attr_base.id and x['value']]:
@@ -70,9 +66,6 @@ def do_create(request, entity_id, recv_data):
 
             # set AttributeValue to Attribute
             attr.values.add(attr_value)
-
-        # set Attribute to Entry
-        entry.attrs.add(attr)
 
     return HttpResponse('')
 

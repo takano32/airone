@@ -2,7 +2,7 @@ from django.test import TestCase
 from entity.models import Entity
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
-from airone.lib import ACLObjType
+from airone.lib.acl import ACLObjType
 
 
 class ModelTest(TestCase):

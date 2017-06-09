@@ -2,7 +2,9 @@ import json
 
 from django.http import HttpResponseRedirect
 from django.http import HttpResponse
+from django.shortcuts import render as django_render
 
+from entity import models as entity_models
 from acl.models import ACLBase
 from user.models import User
 
@@ -74,6 +76,12 @@ def http_post(validator):
             return func(*args, **kwargs)
         return http_post_handler
     return _decorator
+
+def render(request, template, context={}):
+    # added default parameters for navigate
+    context['navigator'] = {'entities': entity_models.Entity.objects.all()}
+
+    return django_render(request, template, context)
 
 def _is_valid(params, meta_info):
     if not isinstance(params, dict):

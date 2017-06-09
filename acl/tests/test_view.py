@@ -7,7 +7,7 @@ from django.core import exceptions
 from user.models import User
 from acl.models import ACLBase
 
-from airone.lib import ACLType
+from airone.lib.acl import ACLType
 from airone.lib.test import AironeViewTest
 from xml.etree import ElementTree
 

@@ -8,9 +8,9 @@ from .models import Entity
 from .models import AttributeBase
 from user.models import User
 
-from airone.lib import AttrTypes
-from airone.lib import HttpResponseSeeOther
-from airone.lib import http_get, http_post
+from airone.lib.types import AttrTypes
+from airone.lib.http import HttpResponseSeeOther
+from airone.lib.http import http_get, http_post
 from airone.lib.http import render
 
 

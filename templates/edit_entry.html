@@ -13,14 +13,10 @@
 {% endblock %}
 
 {% block content %}
-  <h2>Edit ({{ entry.name }})</h2>
   <form url='/entry/do_edit/' method='post'>
-    {% csrf_token %}
+    エントリ名：<input type='string' name='entry_name' value='{{ entry.name }}'/>
+    <hr/>
     <table>
-      <tr>
-        <th>属性名</th>
-        <th>属性値</th>
-      </tr>
       {% for attr in attributes %}
       <tr>
         <td>{{ attr.name }}</td>
@@ -28,7 +24,9 @@
       </tr>
       {% endfor %}
     </table>
-    <input type='submit' value='Create' />
+    <input type='hidden' name='entry_id' value='{{ entry.id }}' />
+    <input type='submit' value='Update' />
+    {% csrf_token %}
   </form>
 <script src="/static/js/jquery-3.2.1.min.js"></script>
 <script src="/static/js/http_request.js"></script>

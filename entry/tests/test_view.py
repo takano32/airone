@@ -8,7 +8,7 @@ from entity.models import Entity, AttributeBase
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
 
-from airone.lib import types as airone_types
+from airone.lib.types import AttrTypeStr
 from airone.lib.test import AironeViewTest
 from xml.etree import ElementTree
 
@@ -24,7 +24,7 @@ class ViewTest(AironeViewTest):
 
         # set AttributeBase for the test Entity object
         self._attr_base = AttributeBase(name='test',
-                                        type=airone_types.AttrTypeStr().type,
+                                        type=AttrTypeStr().type,
                                         is_mandatory=True,
                                         created_user=user)
         self._attr_base.save()
@@ -193,7 +193,7 @@ class ViewTest(AironeViewTest):
 
         # add an optional AttributeBase to the test Entity object
         self._attr_base_optional = AttributeBase(name='test-optional',
-                                                 type=airone_types.AttrTypeStr().type,
+                                                 type=AttrTypeStr().type,
                                                  is_mandatory=False,
                                                  created_user=user)
         self._attr_base_optional.save()
@@ -280,7 +280,7 @@ class ViewTest(AironeViewTest):
 
         for attr_name in ['foo', 'bar']:
             attr = Attribute(name=attr_name,
-                             type=airone_types.AttrTypeStr().type,
+                             type=AttrTypeStr().type,
                              is_mandatory=True,
                              created_user=user)
             attr.save()
@@ -312,7 +312,7 @@ class ViewTest(AironeViewTest):
         attr = Attribute(name='foo',
                          created_user=user,
                          is_mandatory=False,
-                         type=airone_types.AttrTypeStr().type)
+                         type=AttrTypeStr().type)
         attr.save()
         entry.attrs.add(attr)
 
@@ -353,7 +353,7 @@ class ViewTest(AironeViewTest):
             attr = Attribute(name=attr_name,
                              created_user=user,
                              is_mandatory=True,
-                             type=airone_types.AttrTypeStr().type)
+                             type=AttrTypeStr().type)
             attr.save()
 
             attr_value = AttributeValue(value='hoge', created_user=user)
@@ -363,6 +363,8 @@ class ViewTest(AironeViewTest):
             entry.attrs.add(attr)
 
         params = {
+            'entry_id': str(entry.id),
+            'entry_name': 'hoge',
             'attrs': [
                 {'id': str(Attribute.objects.get(name='foo').id), 'value': 'hoge'}, # same value
                 {'id': str(Attribute.objects.get(name='bar').id), 'value': 'fuga'},
@@ -376,6 +378,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(Attribute.objects.get(name='bar').values.count(), 2)
         self.assertEqual(Attribute.objects.get(name='foo').values.last().value, 'hoge')
         self.assertEqual(Attribute.objects.get(name='bar').values.last().value, 'fuga')
+        self.assertEqual(Entry.objects.get(id=entry.id).name, 'hoge')
 
     def test_post_edit_with_optional_params(self):
         user = self.admin_login()
@@ -388,11 +391,13 @@ class ViewTest(AironeViewTest):
             attr = Attribute(name=attr_name,
                              created_user=user,
                              is_mandatory=False,
-                             type=airone_types.AttrTypeStr().type)
+                             type=AttrTypeStr().type)
             attr.save()
             entry.attrs.add(attr)
 
         params = {
+            'entry_name': entry.name,
+            'entry_id': str(entry.id),
             'attrs': [
                 {'id': str(Attribute.objects.get(name='foo').id), 'value': ''}, # blank value
                 {'id': str(Attribute.objects.get(name='bar').id), 'value': 'fuga'},
@@ -405,6 +410,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(Attribute.objects.get(name='foo').values.count(), 0)
         self.assertEqual(Attribute.objects.get(name='bar').values.count(), 1)
         self.assertEqual(Attribute.objects.get(name='bar').values.last().value, 'fuga')
+        self.assertEqual(Entry.objects.get(id=entry.id).name, entry.name)
 
     def test_get_history_with_invalid_param(self):
         self.admin_login()
@@ -423,7 +429,7 @@ class ViewTest(AironeViewTest):
             attr = Attribute(name=attr_name,
                              created_user=user,
                              is_mandatory=True,
-                             type=airone_types.AttrTypeStr().type)
+                             type=AttrTypeStr().type)
             attr.save()
 
             for value in ['hoge', 'fuga']:

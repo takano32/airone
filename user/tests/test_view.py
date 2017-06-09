@@ -50,7 +50,7 @@ class ViewTest(TestCase):
             'email': 'hoge@fuga.com',
             'passwd': 'puyo',
         }
-        resp = self.client.post(reverse('user:create'),
+        resp = self.client.post(reverse('user:do_create'),
                                 json.dumps(params),
                                 'application/json')
         self.assertEqual(resp.status_code, 401)
@@ -64,7 +64,7 @@ class ViewTest(TestCase):
             'email': 'hoge@fuga.com',
             'passwd': 'puyo',
         }
-        resp = self.client.post(reverse('user:create'),
+        resp = self.client.post(reverse('user:do_create'),
                                 json.dumps(params),
                                 'application/json')
 
@@ -80,7 +80,7 @@ class ViewTest(TestCase):
             'email': 'hoge@fuga.com',
             'passwd': 'puyo',
         }
-        resp = self.client.post(reverse('user:create'),
+        resp = self.client.post(reverse('user:do_create'),
                                 json.dumps(params),
                                 'application/json')
 
@@ -95,7 +95,7 @@ class ViewTest(TestCase):
             'email': '',
             'passwd': 'puyo',
         }
-        resp = self.client.post(reverse('user:create'),
+        resp = self.client.post(reverse('user:do_create'),
                                 json.dumps(params),
                                 'application/json')
 

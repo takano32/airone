@@ -1,12 +1,12 @@
 import json
 
-from django.shortcuts import render
 from django.template import loader
 from django.http import HttpResponse
 from django.db import utils
 
 from airone.lib import HttpResponseSeeOther
 from airone.lib import http_get, http_post
+from airone.lib.http import render
 
 from .models import User
 

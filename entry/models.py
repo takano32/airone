@@ -2,7 +2,7 @@ from django.db import models
 from entity.models import AttributeBase, Entity
 from user.models import User
 from acl.models import ACLBase
-from airone.lib import ACLObjType
+from airone.lib.acl import ACLObjType
 
 
 class AttributeValue(models.Model):

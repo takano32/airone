@@ -1,12 +1,12 @@
 import json
 
-from django.shortcuts import render
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.models import Group
 from django.http import HttpResponse
 
-from airone.lib import HttpResponseSeeOther
-from airone.lib import http_get, http_post
+from airone.lib.http import HttpResponseSeeOther
+from airone.lib.http import http_get, http_post
+from airone.lib.http import render
 
 from user.models import User
 

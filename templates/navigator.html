@@ -1,8 +1,7 @@
 <nav class="col-2 sidebar airone-sidebar">
   <ul class="nav nav-pills flex-column">
-    <li class="nav-item"><a href="list_entry.html" class="nav-link">Server</a></li>
-    <li class="nav-item"><a class="nav-link">Switch</a></li>
-    <li class="nav-item"><a class="nav-link">LoadBalancer</a></li>
-    <li class="nav-item"><a class="nav-link">Router</a></li>
+    {% for entity in navigator.entities %}
+    <li class="nav-item"><a href="/entry/{{ entity.id }}" class="nav-link">{{ entity.name }}</a></li>
+    {% endfor %}
   </ul>
 </nav>

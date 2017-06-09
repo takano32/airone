@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
-from airone.lib import ACLObjType
+from airone.lib.acl import ACLObjType
 from acl.models import ACLBase
 
 

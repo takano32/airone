@@ -7,7 +7,7 @@ from django.dispatch import receiver
 
 from user.models import User
 
-from airone.lib import ACLType
+from airone.lib.acl import ACLType
 
 
 # Add comparison operations to the Permission model

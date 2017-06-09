@@ -1,7 +1,6 @@
 from django.http import HttpResponse
 
-from airone.lib import http_get, http_post, check_permission
-from airone.lib.http import render
+from airone.lib.http import http_get, http_post, check_permission, render
 
 from entity.models import Entity, AttributeBase
 from entry.models import Entry, Attribute, AttributeValue
@@ -94,6 +93,12 @@ def edit(request, entry_id):
     return render(request, 'edit_entry.html', context)
 
 @http_post([
+    {'name': 'entry_name', 'type': str, 'checker': lambda x: (
+        x['entry_name']
+    )},
+    {'name': 'entry_id', 'type': str, 'checker': lambda x: (
+        Entry.objects.filter(id=x['entry_id']).count() == 1
+    )},
     {'name': 'attrs', 'type': list, 'meta': [
         {'name': 'id', 'type': str},
         {'name': 'value', 'type': str,
@@ -105,6 +110,11 @@ def edit(request, entry_id):
     ]},
 ])
 def do_edit(request, recv_data):
+    # update name of Entry object
+    Entry.objects.filter(id=recv_data['entry_id']).update(name=recv_data['entry_name'])
+
+    # This checks there is no Entry that has same name
+
     for attr_info in recv_data['attrs']:
         attr = Attribute.objects.get(id=attr_info['id'])
 

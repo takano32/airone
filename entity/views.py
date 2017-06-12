@@ -9,7 +9,7 @@ from .models import AttributeBase
 from user.models import User
 from entry.models import Entry, Attribute
 
-from airone.lib.types import AttrTypes
+from airone.lib.types import AttrTypes, AttrTypeObj
 from airone.lib.http import HttpResponseSeeOther
 from airone.lib.http import http_get, http_post
 from airone.lib.http import render
@@ -25,6 +25,7 @@ def index(request):
 @http_get
 def create(request):
     context = {
+        'entities': Entity.objects.all(),
         'attr_types': AttrTypes
     }
     return render(request, 'create_entity.html', context)
@@ -99,7 +100,12 @@ def do_edit(request, entity_id, recv_data):
             x['name'] and not re.match(r'^\s*$', x['name'])
         )},
         {'name': 'type', 'type': str, 'checker': lambda x: (
-            any([int(x['type']) == y.type for y in AttrTypes])
+            any([int(x['type']) == y.type for y in AttrTypes]) and (
+                int(x['type']) != AttrTypeObj().type or (
+                    int(x['type']) == AttrTypeObj().type and
+                    'ref_id' in x and Entity.objects.filter(id=x['ref_id']).count()
+                )
+            )
         )},
         {'name': 'is_mandatory', 'type': bool}
     ]}
@@ -119,6 +125,10 @@ def do_create(request, recv_data):
                                   type=int(attr['type']),
                                   is_mandatory=attr['is_mandatory'],
                                   created_user=user)
+
+        if int(attr['type']) == AttrTypeObj():
+            attr_base.referral = Entity.objects.get(id=attr['ref_id'])
+
         attr_base.save()
         entity.attr_bases.add(attr_base)
 

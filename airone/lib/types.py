@@ -3,9 +3,15 @@ class AttrTypeBase(object):
         self.name = name
         self.type = type
 
-class AttrTypeInt(AttrTypeBase):
+    def __eq__(self, comp):
+        return self.type == comp or self.name == comp
+
+    def __ne__(self, comp):
+        return self.type != comp or self.name != comp
+
+class AttrTypeObj(AttrTypeBase):
     def __init__(self):
-        super(AttrTypeInt, self).__init__('int', 1 << 0)
+        super(AttrTypeObj, self).__init__('entry', 1 << 0)
 
 class AttrTypeStr(AttrTypeBase):
     def __init__(self):
@@ -17,6 +23,5 @@ class AttrTypeArr(AttrTypeBase):
 
 AttrTypes = [
   AttrTypeStr(),
-  AttrTypeInt(),
-  AttrTypeArr(),
+  AttrTypeObj(),
 ]

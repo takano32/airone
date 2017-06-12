@@ -44,7 +44,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
 
         root = ElementTree.fromstring(resp.content.decode('utf-8'))
-        self.assertIsNotNone(root.find('.//table/tbody/tr/td'))
+        self.assertIsNotNone(root.find('.//table/tr/td'))
 
     def test_get_acl_set(self):
         self.admin_login()

@@ -6,7 +6,7 @@ from entity.models import Entity, AttributeBase
 from entry.models import Entry, Attribute
 from xml.etree import ElementTree
 from airone.lib.test import AironeViewTest
-from airone.lib.types import AttrTypeStr
+from airone.lib.types import AttrTypeStr, AttrTypeObj
 
 
 class ViewTest(AironeViewTest):
@@ -50,14 +50,15 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 401)
 
     def test_create_post(self):
+        type_str = AttrTypeStr().type
         self.admin_login()
 
         params = {
             'name': 'hoge',
             'note': 'fuga',
             'attrs': [
-                {'name': 'foo', 'type': '1', 'is_mandatory': True},
-                {'name': 'bar', 'type': '2', 'is_mandatory': False},
+                {'name': 'foo', 'type': str(type_str), 'is_mandatory': True},
+                {'name': 'bar', 'type': str(type_str), 'is_mandatory': False},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -69,13 +70,14 @@ class ViewTest(AironeViewTest):
         self.assertEqual(len(AttributeBase.objects.all()), 2)
 
     def test_create_post_without_name_param(self):
+        type_str = AttrTypeStr().type
         self.admin_login()
 
         params = {
             'note': 'fuga',
             'attrs': [
-                {'name': 'foo', 'type': '1', 'is_mandatory': True},
-                {'name': 'bar', 'type': '2', 'is_mandatory': False},
+                {'name': 'foo', 'type': str(type_str), 'is_mandatory': True},
+                {'name': 'bar', 'type': str(type_str), 'is_mandatory': False},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -86,14 +88,15 @@ class ViewTest(AironeViewTest):
         self.assertIsNone(Entity.objects.first())
 
     def test_create_post_with_invalid_attrs(self):
+        type_str = AttrTypeStr().type
         self.admin_login()
 
         params = {
             'name': 'hoge',
             'note': 'fuga',
             'attrs': [
-                {'name': 'foo', 'type': '1', 'is_mandatory': True},
-                {'name': '', 'type': '1', 'is_mandatory': True},
+                {'name': 'foo', 'type': str(type_str), 'is_mandatory': True},
+                {'name': '', 'type': str(type_str), 'is_mandatory': True},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -143,13 +146,14 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 401)
 
     def test_post_edit_with_invalid_params(self):
+        type_str = AttrTypeStr().type
         self.admin_login()
 
         params = {
             'name': 'hoge',
             'note': 'fuga',
             'attrs': [
-                {'name': 'foo', 'type': '1', 'is_mandatory': True},
+                {'name': 'foo', 'type': str(type_str), 'is_mandatory': True},
             ],
         }
         resp = self.client.post(reverse('entity:do_edit', args=[999]),
@@ -158,6 +162,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 400)
 
     def test_post_edit_with_valid_params(self):
+        type_str = AttrTypeStr().type
         user = self.admin_login()
 
         entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
@@ -171,8 +176,8 @@ class ViewTest(AironeViewTest):
             'name': 'foo',
             'note': 'bar',
             'attrs': [
-                {'name': 'foo', 'type': '1', 'is_mandatory': True, 'id': attr.id},
-                {'name': 'bar', 'type': '1', 'is_mandatory': True},
+                {'name': 'foo', 'type': str(type_str), 'is_mandatory': True, 'id': attr.id},
+                {'name': 'bar', 'type': str(type_str), 'is_mandatory': True},
             ],
         }
         resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
@@ -186,6 +191,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(Entity.objects.get(id=entity.id).attr_bases.last().name, 'bar')
 
     def test_post_edit_after_creating_entry(self):
+        type_str = AttrTypeStr().type
         user = self.admin_login()
 
         entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
@@ -202,8 +208,8 @@ class ViewTest(AironeViewTest):
             'name': 'foo',
             'note': 'bar',
             'attrs': [
-                {'name': 'foo', 'type': '1', 'is_mandatory': True, 'id': attrbase.id},
-                {'name': 'bar', 'type': '1', 'is_mandatory': True},
+                {'name': 'foo', 'type': str(type_str), 'is_mandatory': True, 'id': attrbase.id},
+                {'name': 'bar', 'type': str(type_str), 'is_mandatory': True},
             ],
         }
         resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
@@ -212,3 +218,44 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 303)
         self.assertEqual(Entry.objects.get(id=entry.id).attrs.count(), 2)
+
+    def test_post_create_with_invalid_referral_attr(self):
+        type_obj = AttrTypeObj().type
+        self.admin_login()
+
+        params = {
+            'name': 'hoge',
+            'note': 'fuga',
+            'attrs': [
+                {'name': 'a', 'type': str(type_obj), 'is_mandatory': False},
+            ],
+        }
+        resp = self.client.post(reverse('entity:do_create'),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+
+    def test_post_create_with_valid_referral_attr(self):
+        type_obj = AttrTypeObj().type
+        user = self.admin_login()
+
+        entity = Entity(name='test-entity', created_user=user)
+        entity.save()
+
+        params = {
+            'name': 'hoge',
+            'note': 'fuga',
+            'attrs': [
+                {'name': 'a', 'type': str(type_obj), 'ref_id': entity.id, 'is_mandatory': False},
+            ],
+        }
+        resp = self.client.post(reverse('entity:do_create'),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(Entity.objects.last().name, 'hoge')
+        self.assertEqual(AttributeBase.objects.last().name, 'a')
+        self.assertIsNotNone(AttributeBase.objects.last().referral)
+        self.assertEqual(AttributeBase.objects.last().referral.id, entity.id)

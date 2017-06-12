@@ -50,7 +50,7 @@
             {% for entity in entities %}
             <tr>
               <td><label class="form-check-label"><input name="checkbox_select_0" type="checkbox" class="form-check-input" /></label></td>
-              <td><a href="/entry/{{ entity.id }}">{{ entity.name }}</a></td>
+              <td><a href="/entity/edit/{{ entity.id }}">{{ entity.name }}</a></td>
               <td>{{ entity.note }}</td>
               <td><a href="/acl/{{ entity.id }}">ACL</a></td>
             </tr>

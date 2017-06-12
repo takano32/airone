@@ -16,7 +16,7 @@ class AttrTypeArr(AttrTypeBase):
         super(AttrTypeArr, self).__init__('arr', 1 << 2)
 
 AttrTypes = [
-  AttrTypeInt(),
   AttrTypeStr(),
+  AttrTypeInt(),
   AttrTypeArr(),
 ]

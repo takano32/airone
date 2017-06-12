@@ -21,3 +21,11 @@ class Attribute(AttributeBase):
 class Entry(ACLBase):
     attrs = models.ManyToManyField(Attribute)
     schema = models.ForeignKey(Entity)
+
+    def add_attribute_from_base(self, base, user):
+        attr = Attribute.objects.create(name=base.name,
+                                        type=base.type,
+                                        is_mandatory=base.is_mandatory,
+                                        created_user=user)
+        self.attrs.add(attr)
+        return attr

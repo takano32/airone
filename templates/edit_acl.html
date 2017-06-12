@@ -1,83 +1,51 @@
-{% extends 'base.html' %}
-
-{% block title %}Create ACLs{% endblock %}
-
-{% block nav_sub_header %}
-<div class="conatiner-fluid">
-  <ul class="breadcrumb airone-breadcrumb">
-    <li class="breadcrumb-item"><a href="/dashboard/">top</a></li>
-    <li class="breadcrumb-item"><a href="/entity/">エンティティ一覧</a></li>
-    <li class="breadcrumb-item">ACL作成</li>
-  </ul>
-</div>
-{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-  <div class="row">
-    <div class="col">
-      <h2>ACL作成</h2>
-    </div>
-  </div>
-  <div class="row">
-    <div class="col">
-      <div class="float-left form-group">
-      </div>
-      <div class="float-right">
-        <button id="submit" name="submit" type="button" class="btn btn-primary">保存</button>
-      </div>
-    </div>
-  </div>
-  <div class="row">
-    <div class="col">
-      <form id="form" name="form" url="/acl/set" action="/acl/set" method="post">
-        {% csrf_token %}
-        <input type="hidden" name="object_id" value="{{ object.id }}" />
-        <input type="hidden" name="object_type" value="{{ object.objtype }}" />
-        公開：<input type="checkbox" name="is_public" {% if object.is_public %}checked="checked"{% endif %}/>
-        <table class="table table-bordered">
-          <thead>
-            <tr>
-              <td>ユーザ or グループ</td>
-              <td>権限</td>
-            </tr>
-          </thead>
-          <tbody>
-            {% for member in members %}
-            <tr>
-              <td>{{ member.name }}</td>
-              <td>
-                <select name='acl' member_id='{{ member.id }}' member_type='{{ member.type }}'>
-                  <option value=''>(none)</option>
-                  {% for acltype in acltypes %}
-                  <option value='{{ acltype.id }}'>{{ acltype.name }}</option>
-                  {% endfor %}
-                </select>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </form>
-    </div>
-  </div>
-</div>
-
+<html>
+<body>
 <script src="/static/js/jquery-3.2.1.min.js"></script>
+Edit ACL ({{ object.name }})<hr/>
+<form url='/acl/set' method='post'>
+  {% csrf_token %}
+  <input type='submit' value='設定'></input>
+  <table>
+    <tr>
+      <th>ユーザ・グループ</th>
+      <th>権限</th>
+    </tr>
+    {% for member in members %}
+    <tr>
+      <td>{{ member.name }}</td>
+      <td>
+        <select name='acl' size='3' member_id='{{ member.id }}' member_type='{{ member.type }}'>
+          {% for acltype in acltypes %}
+          <option value='{{ acltype.id }}'>{{ acltype.name }}</option>
+          {% endfor %}
+        </select>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  <input type='hidden' name='object_id' value='{{ object.id }}' />
+  <input type='hidden' name='object_type' value='{{ object.objtype }}' />
+  {% if object.is_public %}
+  公開：<input type='checkbox' name='is_public' checked='true' />
+  {% else %}
+  公開：<input type='checkbox' name='is_public' />
+  {% endif %}
+</form>
+<script src="/static/js/http_request.js"></script>
 <script>
-  $("#submit").click(function() {
-    var acl = [];
-  
-    $("#form").find('select[name=acl]').each(function(){
-      acl.push({
-        'member_type': $(this).attr('member_type'),
-        'member_id': $(this).attr('member_id'),
-        'value': $(this).val() != "" ? $(this).val() : null,
-      });
+$('form').submit(function(){
+  var acl = []
+  $(this).find('select[name=acl]').each(function(){
+    acl.push({
+      'member_type': $(this).attr('member_type'),
+      'member_id': $(this).attr('member_id'),
+      'value': $(this).val(),
     });
-    HttpPost($("#form"), {'acl': acl});
-    return false;
-  });  
-</script>
+  });
+  HttpPost($(this), {'acl': acl});
 
-{% endblock %}
+  return false;
+});
+</script>
+</body>
+</html>

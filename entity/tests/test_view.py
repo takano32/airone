@@ -219,6 +219,62 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 303)
         self.assertEqual(Entry.objects.get(id=entry.id).attrs.count(), 2)
 
+    def test_post_edit_string_attribute(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
+        attr = AttributeBase.objects.create(name='puyo',
+                                            type=AttrTypeStr().type,
+                                            created_user=user)
+        entity.attr_bases.add(attr)
+
+        params = {
+            'name': 'foo',
+            'note': 'bar',
+            'attrs': [{
+                'name': 'baz',
+                'type': str(AttrTypeObj().type),
+                'ref_id': entity.id,
+                'is_mandatory': True,
+                'id': attr.id
+            }],
+        }
+        resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(AttributeBase.objects.get(id=attr.id).type, AttrTypeObj().type)
+        self.assertEqual(AttributeBase.objects.get(id=attr.id).referral.id, entity.id)
+
+    def test_post_edit_referral_attribute(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
+        attr = AttributeBase.objects.create(name='puyo',
+                                            type=AttrTypeObj().type,
+                                            referral=entity,
+                                            created_user=user)
+        entity.attr_bases.add(attr)
+
+        params = {
+            'name': 'foo',
+            'note': 'bar',
+            'attrs': [{
+                'name': 'baz',
+                'type': str(AttrTypeStr().type),
+                'is_mandatory': True,
+                'id': attr.id
+            }],
+        }
+        resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(AttributeBase.objects.get(id=attr.id).type, AttrTypeStr().type)
+        self.assertIsNone(AttributeBase.objects.get(id=attr.id).referral)
+
     def test_post_create_with_invalid_referral_attr(self):
         type_obj = AttrTypeObj().type
         self.admin_login()

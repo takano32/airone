@@ -27,6 +27,7 @@ class Entry(ACLBase):
         attr = Attribute.objects.create(name=base.name,
                                         type=base.type,
                                         is_mandatory=base.is_mandatory,
+                                        referral=base.referral,
                                         created_user=user)
         self.attrs.add(attr)
         return attr

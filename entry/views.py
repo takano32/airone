@@ -1,6 +1,7 @@
 from django.http import HttpResponse
 
 from airone.lib.http import http_get, http_post, check_permission, render
+from airone.lib.types import AttrTypeStr, AttrTypeObj
 
 from entity.models import Entity, AttributeBase
 from entry.models import Entry, Attribute, AttributeValue
@@ -13,9 +14,10 @@ def index(request, entity_id):
     if not Entity.objects.filter(id=entity_id).count():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
+    entity = Entity.objects.get(id=entity_id)
     context = {
-        'entity': Entity.objects.get(id=entity_id),
-        'entries': Entry.objects.all(),
+        'entity': entity,
+        'entries': Entry.objects.filter(schema=entity),
     }
     return render(request, 'list_entry.html', context)
 
@@ -27,7 +29,11 @@ def create(request, entity_id):
     entity = Entity.objects.get(id=entity_id)
     context = {
         'entity': entity,
-        'attributes': entity.attr_bases.all()
+        'attributes': [{
+            'id': x.id,
+            'name': x.name,
+            'referrals': x.referral and Entry.objects.filter(schema=x.referral) or [],
+        } for x in entity.attr_bases.all()]
     }
     return render(request, 'create_entry.html', context)
 
@@ -61,7 +67,12 @@ def do_create(request, entity_id, recv_data):
 
         # make an initial AttributeValue object if the initial value is specified
         for info in [x for x in recv_data['attrs'] if int(x['id']) == attr_base.id and x['value']]:
-            attr_value = AttributeValue(value=info['value'], created_user=user)
+            attr_value = AttributeValue(created_user=user)
+            if attr.type == AttrTypeStr().type:
+                attr_value.value = value=info['value']
+            elif attr.type == AttrTypeObj().type and Entry.objects.filter(id=info['value']).count():
+                attr_value.referral = Entry.objects.get(id=info['value'])
+
             attr_value.save()
 
             # set AttributeValue to Attribute

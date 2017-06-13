@@ -46,7 +46,7 @@
         <div class='col-4'>
           <select class='attr_type'>
             {% for type in attr_types %}
-            <option value='{{ type.type }}'>{{ type.name }}</option>
+            <option value='{{ type.TYPE }}'>{{ type.NAME }}</option>
             {% endfor %}
           </select>
           <select class='attr_referral' style='display:none'>
@@ -72,7 +72,7 @@
       <div class='col-4'>
         <select class='attr_type'>
           {% for type in attr_types %}
-          <option value='{{ type.type }}'>{{ type.name }}</option>
+          <option value='{{ type.TYPE }}'>{{ type.NAME }}</option>
           {% endfor %}
         </select>
         <select class='attr_referral' style='display:none'>

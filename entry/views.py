@@ -68,9 +68,9 @@ def do_create(request, entity_id, recv_data):
         # make an initial AttributeValue object if the initial value is specified
         for info in [x for x in recv_data['attrs'] if int(x['id']) == attr_base.id and x['value']]:
             attr_value = AttributeValue(created_user=user)
-            if attr.type == AttrTypeStr().type:
+            if attr.type == AttrTypeStr:
                 attr_value.value = value=info['value']
-            elif attr.type == AttrTypeObj().type and Entry.objects.filter(id=info['value']).count():
+            elif attr.type == AttrTypeObj and Entry.objects.filter(id=info['value']).count():
                 attr_value.referral = Entry.objects.get(id=info['value'])
 
             attr_value.save()
@@ -107,9 +107,9 @@ def edit(request, entry_id):
         if attr.values.count() > 0:
             last_value = attr.values.last()
 
-            if attr.type == AttrTypeStr().type:
+            if attr.type == AttrTypeStr:
                 attrinfo['last_value'] = last_value.value
-            elif attr.type == AttrTypeObj().type and last_value.referral:
+            elif attr.type == AttrTypeObj and last_value.referral:
                 attrinfo['last_value'] = last_value.referral.id
 
         context['attributes'].append(attrinfo)
@@ -153,9 +153,9 @@ def do_edit(request, recv_data):
             attr_value = AttributeValue(created_user=User.objects.get(id=request.user.id))
 
             # set attribute value according to the attribute-type
-            if attr.type == AttrTypeStr().type:
+            if attr.type == AttrTypeStr:
                 attr_value.value = value=info['value']
-            elif attr.type == AttrTypeObj().type and Entry.objects.filter(id=info['value']).count():
+            elif attr.type == AttrTypeObj and Entry.objects.filter(id=info['value']).count():
                 attr_value.referral = Entry.objects.get(id=info['value'])
 
             attr_value.save()

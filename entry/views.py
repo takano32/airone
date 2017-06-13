@@ -175,7 +175,9 @@ def history(request, entry_id):
     # get history of Entry object
     value_history = sum([[{
         'attr_name': attr.name,
+        'attr_type': attr.type,
         'attr_value': attr_value.value,
+        'attr_referral': attr_value.referral,
         'created_time': attr_value.created_time,
         'created_user': attr_value.created_user.username,
     } for attr_value in attr.values.all()] for attr in entry.attrs.all()], [])

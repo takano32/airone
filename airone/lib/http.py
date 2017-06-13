@@ -8,6 +8,8 @@ from entity import models as entity_models
 from acl.models import ACLBase
 from user.models import User
 
+from airone.lib.types import AttrTypes
+
 
 class HttpResponseSeeOther(HttpResponseRedirect):
     status_code = 303
@@ -80,6 +82,10 @@ def http_post(validator):
 def render(request, template, context={}):
     # added default parameters for navigate
     context['navigator'] = {'entities': entity_models.Entity.objects.all()}
+
+    context['attr_type'] = {}
+    for attr_type in AttrTypes:
+        context['attr_type'][attr_type.name] = attr_type.type
 
     return django_render(request, template, context)
 

@@ -239,7 +239,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(Attribute.objects.count(), 0)
         self.assertEqual(AttributeValue.objects.count(), 0)
 
-    def test_post_with_referral(self):
+    def test_post_create_with_referral(self):
         user = self.admin_login()
 
         attr_base = AttributeBase.objects.create(name='attr_with_referral',
@@ -477,3 +477,37 @@ class ViewTest(AironeViewTest):
 
         root = ElementTree.fromstring(resp.content.decode('utf-8'))
         self.assertEqual(len(root.findall('.//table/tr/td')), 16)
+
+    def test_post_edit_with_referral(self):
+        user = self.admin_login()
+
+        attr_base = AttributeBase.objects.create(name='attr_with_referral',
+                                                 created_user=user,
+                                                 type=AttrTypeObj().type,
+                                                 referral=self._entity,
+                                                 is_mandatory=False)
+        self._entity.attr_bases.add(attr_base)
+
+        entry = Entry.objects.create(name='old_entry', schema=self._entity, created_user=user)
+
+        attr = entry.add_attribute_from_base(attr_base, user)
+        attr_value = AttributeValue.objects.create(referral=entry, created_user=user)
+        attr.values.add(attr_value)
+
+        new_entry = Entry.objects.create(name='new_entry', schema=self._entity, created_user=user)
+
+        params = {
+            'entry_name': 'new_entry',
+            'entry_id': str(entry.id),
+            'attrs': [
+                {'id': str(attr.id), 'value': str(new_entry.id)},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_edit'), json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(entry.attrs.last().values.count(), 2)
+        self.assertEqual(entry.attrs.last().values.first().value, '')
+        self.assertEqual(entry.attrs.last().values.first().referral.id, entry.id)
+        self.assertEqual(entry.attrs.last().values.last().value, '')
+        self.assertEqual(entry.attrs.last().values.last().referral.id, new_entry.id)

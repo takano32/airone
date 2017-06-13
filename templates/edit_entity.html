@@ -47,10 +47,10 @@
         <div class='col-4'>
           <select class='attr_type'>
             {% for type in attr_types %}
-              {% if attr.type == type.type %}
-              <option value='{{ type.type }}' selected='selected'>{{ type.name }}</option>
+              {% if attr.type == type.TYPE %}
+              <option value='{{ type.TYPE }}' selected='selected'>{{ type.NAME }}</option>
               {% else %}
-              <option value='{{ type.type }}'>{{ type.name }}</option>
+              <option value='{{ type.TYPE }}'>{{ type.NAME }}</option>
               {% endif %}
             {% endfor %}
           </select>
@@ -86,7 +86,7 @@
       <div class='col-4'>
         <select class='attr_type'>
           {% for type in attr_types %}
-          <option value='{{ type.type }}'>{{ type.name }}</option>
+          <option value='{{ type.TYPE }}'>{{ type.NAME }}</option>
           {% endfor %}
         </select>
         <select class='attr_referral' style='display:none'>

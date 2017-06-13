@@ -85,7 +85,7 @@ def render(request, template, context={}):
 
     context['attr_type'] = {}
     for attr_type in AttrTypes:
-        context['attr_type'][attr_type.name] = attr_type.type
+        context['attr_type'][attr_type.NAME] = attr_type.TYPE
 
     return django_render(request, template, context)
 

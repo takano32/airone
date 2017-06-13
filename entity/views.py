@@ -52,9 +52,9 @@ def edit(request, entity_id):
             x['name'] and not re.match(r'^\s*$', x['name'])
         )},
         {'name': 'type', 'type': str, 'checker': lambda x: (
-            any([int(x['type']) == y.type for y in AttrTypes]) and (
-                int(x['type']) != AttrTypeObj().type or (
-                    int(x['type']) == AttrTypeObj().type and
+            any([y == int(x['type']) for y in AttrTypes]) and (
+                int(x['type']) != AttrTypeObj or (
+                    int(x['type']) == AttrTypeObj and
                     'ref_id' in x and Entity.objects.filter(id=x['ref_id']).count()
                 )
             )
@@ -89,7 +89,7 @@ def do_edit(request, entity_id, recv_data):
                                       is_mandatory=attr['is_mandatory'],
                                       created_user=user)
 
-        if int(attr['type']) == AttrTypeObj():
+        if int(attr['type']) == AttrTypeObj:
             attr_base.referral = Entity.objects.get(id=attr['ref_id'])
         else:
             attr_base.referral = None
@@ -115,9 +115,9 @@ def do_edit(request, entity_id, recv_data):
             x['name'] and not re.match(r'^\s*$', x['name'])
         )},
         {'name': 'type', 'type': str, 'checker': lambda x: (
-            any([int(x['type']) == y.type for y in AttrTypes]) and (
-                int(x['type']) != AttrTypeObj().type or (
-                    int(x['type']) == AttrTypeObj().type and
+            any([y == int(x['type']) for y in AttrTypes]) and (
+                int(x['type']) != AttrTypeObj or (
+                    int(x['type']) == AttrTypeObj and
                     'ref_id' in x and Entity.objects.filter(id=x['ref_id']).count()
                 )
             )
@@ -141,7 +141,7 @@ def do_create(request, recv_data):
                                   is_mandatory=attr['is_mandatory'],
                                   created_user=user)
 
-        if int(attr['type']) == AttrTypeObj():
+        if int(attr['type']) == AttrTypeObj:
             attr_base.referral = Entity.objects.get(id=attr['ref_id'])
 
         attr_base.save()

@@ -24,7 +24,7 @@ class ViewTest(AironeViewTest):
 
         # set AttributeBase for the test Entity object
         self._attr_base = AttributeBase(name='test',
-                                        type=AttrTypeStr().type,
+                                        type=AttrTypeStr,
                                         is_mandatory=True,
                                         created_user=user)
         self._attr_base.save()
@@ -193,7 +193,7 @@ class ViewTest(AironeViewTest):
 
         # add an optional AttributeBase to the test Entity object
         self._attr_base_optional = AttributeBase(name='test-optional',
-                                                 type=AttrTypeStr().type,
+                                                 type=AttrTypeStr,
                                                  is_mandatory=False,
                                                  created_user=user)
         self._attr_base_optional.save()
@@ -244,7 +244,7 @@ class ViewTest(AironeViewTest):
 
         attr_base = AttributeBase.objects.create(name='attr_with_referral',
                                                  created_user=user,
-                                                 type=AttrTypeObj().type,
+                                                 type=AttrTypeObj,
                                                  referral=self._entity,
                                                  is_mandatory=False)
         self._entity.attr_bases.add(attr_base)
@@ -310,7 +310,7 @@ class ViewTest(AironeViewTest):
 
         for attr_name in ['foo', 'bar']:
             attr = Attribute(name=attr_name,
-                             type=AttrTypeStr().type,
+                             type=AttrTypeStr,
                              is_mandatory=True,
                              created_user=user)
             attr.save()
@@ -344,7 +344,7 @@ class ViewTest(AironeViewTest):
         attr = Attribute(name='foo',
                          created_user=user,
                          is_mandatory=False,
-                         type=AttrTypeStr().type)
+                         type=AttrTypeStr)
         attr.save()
         entry.attrs.add(attr)
 
@@ -385,7 +385,7 @@ class ViewTest(AironeViewTest):
             attr = Attribute(name=attr_name,
                              created_user=user,
                              is_mandatory=True,
-                             type=AttrTypeStr().type)
+                             type=AttrTypeStr)
             attr.save()
 
             attr_value = AttributeValue(value='hoge', created_user=user)
@@ -423,7 +423,7 @@ class ViewTest(AironeViewTest):
             attr = Attribute(name=attr_name,
                              created_user=user,
                              is_mandatory=False,
-                             type=AttrTypeStr().type)
+                             type=AttrTypeStr)
             attr.save()
             entry.attrs.add(attr)
 
@@ -461,7 +461,7 @@ class ViewTest(AironeViewTest):
             attr = Attribute(name=attr_name,
                              created_user=user,
                              is_mandatory=True,
-                             type=AttrTypeStr().type)
+                             type=AttrTypeStr)
             attr.save()
 
             for value in ['hoge', 'fuga']:
@@ -483,7 +483,7 @@ class ViewTest(AironeViewTest):
 
         attr_base = AttributeBase.objects.create(name='attr_with_referral',
                                                  created_user=user,
-                                                 type=AttrTypeObj().type,
+                                                 type=AttrTypeObj,
                                                  referral=self._entity,
                                                  is_mandatory=False)
         self._entity.attr_bases.add(attr_base)

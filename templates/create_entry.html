@@ -7,33 +7,52 @@
   <ul class="breadcrumb airone-breadcrumb">
     <li class="breadcrumb-item"><a href="/">TOP</a></li>
     <li class="breadcrumb-item"><a href='/entry/{{ entity.id }}'>{{ entity.name }}</a></li>
-    <li class="breadcrumb-item">新規エントリ作成</li>
+    <li class="breadcrumb-item">新規エントリ作成 ({{ entity.name }})</li>
   </ul>
 </div>
 {% endblock %}
 
 {% block content %}
-<h2>Create Entry ({{ entity.name }})</h2>
-<form url='/entry/do_create/{{ entity.id }}/' method='post'>
-  <p><input type="submit" class="btn btn-primary align-right" value='保存'/></p>
-  {% csrf_token %}
-  Name: <input type='string' name='entry_name' />
-  <hr/>
-  <table>
-    {% for attr in attributes %}
-    <tr>
-      <td>{{ attr.name }}</td>
-      <td><input type='string' name='attr_value' attr_id='{{ attr.id }}' /></td>
-    </tr>
-    {% endfor %}
-  </table>
-</form>
+<div class="container-fluid">
+  <form url='/entry/do_create/{{ entity.id }}/' method='post'>
+    <div class='row'>
+      <div class='col'>
+        <div class="float-left">
+          Name: <input type='string' name='entry_name' />
+        </div>
+        <div class="float-right">
+          <input type="submit" class="btn btn-primary align-right" value='保存'/>
+        </div>
+      </div>
+    </div>
+    <hr/>
+    <table>
+      {% for attr in attributes %}
+      <tr>
+        <td>{{ attr.name }}</td>
+        {% if attr.referrals %}
+          <td>
+            <select class='attr_value' attr_id='{{ attr.id }}'>
+            {% for referral in attr.referrals %}
+              <option value='{{ referral.id }}'>{{ referral.name }}</option>
+            {% endfor %}
+            </select>
+          </td>
+        {% else %}
+          <td><input type='string' class='attr_value' attr_id='{{ attr.id }}' /></td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </table>
+    {% csrf_token %}
+  </form>
+</div>
 <script src="/static/js/jquery-3.2.1.min.js"></script>
 <script src="/static/js/http_request.js"></script>
 <script>
 $('form').submit(function(){
   attrs = []
-  $(this).find('input[name=attr_value]').each(function(){
+  $(this).find('.attr_value').each(function(){
     attrs.push({
       'id': $(this).attr('attr_id'),
       'value': $(this).val(),

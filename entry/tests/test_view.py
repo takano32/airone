@@ -475,9 +475,6 @@ class ViewTest(AironeViewTest):
         resp = self.client.get(reverse('entry:show', args=[entry.id]))
         self.assertEqual(resp.status_code, 200)
 
-        root = ElementTree.fromstring(resp.content.decode('utf-8'))
-        self.assertEqual(len(root.findall('.//table/tr/td')), 16)
-
     def test_post_edit_with_referral(self):
         user = self.admin_login()
 

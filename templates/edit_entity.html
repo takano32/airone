@@ -38,6 +38,7 @@
       <div class="col">属性名</div>
       <div class="col-4">型</div>
       <div class="col-2">必須</div>
+      <div class="col-1"></div>
     </div>
 
     <div name='attributes'>
@@ -76,6 +77,9 @@
           <input type='checkbox' class='is_mandatory'></input>
           {% endif %}
         </div>
+        <div class="col-1">
+          <button type="button" class="btn btn-danger btn-sm" name="del_attr">del</button>
+        </div>
       </div>
       {% endfor %}
     </div>
@@ -97,6 +101,9 @@
       </div>
       <div class='col-2'>
         <input type='checkbox' class='is_mandatory'></input>
+      </div>
+      <div class="col-1">
+        <button type="button" class="btn btn-danger btn-sm" name="del_attr">del</button>
       </div>
     </div>
 

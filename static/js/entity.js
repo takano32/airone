@@ -9,6 +9,7 @@ var toggle_referral = function() {
 
 $('button[name=add_attr]').on('click', function() {
   append_attr_column();
+  bind_del_attr();
   return false;
 });
 
@@ -37,3 +38,12 @@ var append_attr_column = function() {
 
   $('div[name=attributes]').append(new_column);
 }
+
+
+var bind_del_attr = function() {
+  $("button[name=del_attr]").on('click', function() {
+    $(this).parents(".attr").remove();
+  });
+};
+
+bind_del_attr();

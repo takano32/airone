@@ -36,17 +36,22 @@
 
     <div class="row">
       <div class="col">属性名</div>
-      <div class="col-2">型</div>
+      <div class="col-4">型</div>
       <div class="col-2">必須</div>
     </div>
 
     <div name='attributes'>
       <div class="row attr">
         <div class='col'><input type='text' class='attr_name'></input></div>
-        <div class='col-2'>
+        <div class='col-4'>
           <select class='attr_type'>
             {% for type in attr_types %}
-            <option value='{{ type.type }}'>{{ type.name }}</option>
+            <option value='{{ type.TYPE }}'>{{ type.NAME }}</option>
+            {% endfor %}
+          </select>
+          <select class='attr_referral' style='display:none'>
+            {% for entity in entities %}
+            <option value='{{ entity.id }}'>{{ entity.name }}</option>
             {% endfor %}
           </select>
         </div>
@@ -64,10 +69,15 @@
     <!-- a template of attribute -->
     <div class="row" name='attr_template' style='display:none'>
       <div class='col'><input type='text' class='attr_name'></input></div>
-      <div class='col-2'>
+      <div class='col-4'>
         <select class='attr_type'>
           {% for type in attr_types %}
-          <option value='{{ type.type }}'>{{ type.name }}</option>
+          <option value='{{ type.TYPE }}'>{{ type.NAME }}</option>
+          {% endfor %}
+        </select>
+        <select class='attr_referral' style='display:none'>
+          {% for entity in entities %}
+          <option value='{{ entity.id }}'>{{ entity.name }}</option>
           {% endfor %}
         </select>
       </div>
@@ -87,31 +97,40 @@
 <script src="/static/js/jquery-3.2.1.min.js"></script>
 <script src="/static/js/http_request.js"></script>
 <script>
+var toggle_referral = function() {
+  if($(this).val() == '1') {
+    $(this).parent().find('.attr_referral').show();
+  } else {
+    $(this).parent().find('.attr_referral').hide();
+  }
+}
 $('button[name=add_attr]').on('click', function() {
   append_attr_column();
 
   return false;
 });
 $('form').submit(function(){
-  var attrs = []
-  $('.attr').each(function(index){
-    attrs.push({
+  var attrs = $('.attr').map(function(index, elem){
+    return {
       'name': $(this).find('.attr_name').val(),
       'type': $(this).find('.attr_type').val(),
       'is_mandatory': $(this).find('.is_mandatory:checked').val() != undefined ? true : false,
-    });
+      'ref_id': $(this).find('.attr_referral').val(),
+    };
   });
 
-  HttpPost($(this), {'attrs': attrs});
+  HttpPost($(this), {'attrs': attrs.get()});
 
   return false;
 });
+$('.attr_type').change(toggle_referral);
 
 var table_column = $('div[name=attr_template]').html();
 var append_attr_column = function() {
   var new_column = $('<div class="row attr" />');
 
   new_column.append($.parseHTML(table_column));
+  new_column.find('.attr_type').on('change', toggle_referral);
 
   $('div[name=attributes]').append(new_column);
 }

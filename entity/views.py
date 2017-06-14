@@ -9,7 +9,7 @@ from .models import AttributeBase
 from user.models import User
 from entry.models import Entry, Attribute
 
-from airone.lib.types import AttrTypes
+from airone.lib.types import AttrTypes, AttrTypeObj
 from airone.lib.http import HttpResponseSeeOther
 from airone.lib.http import http_get, http_post
 from airone.lib.http import render
@@ -25,6 +25,7 @@ def index(request):
 @http_get
 def create(request):
     context = {
+        'entities': Entity.objects.all(),
         'attr_types': AttrTypes
     }
     return render(request, 'create_entity.html', context)
@@ -37,6 +38,7 @@ def edit(request, entity_id):
     entity = Entity.objects.get(id=entity_id)
     context = {
         'entity': entity,
+        'entities': Entity.objects.all(),
         'attr_types': AttrTypes,
         'attributes': entity.attr_bases.all(),
     }
@@ -50,7 +52,12 @@ def edit(request, entity_id):
             x['name'] and not re.match(r'^\s*$', x['name'])
         )},
         {'name': 'type', 'type': str, 'checker': lambda x: (
-            any([int(x['type']) == y.type for y in AttrTypes])
+            any([y == int(x['type']) for y in AttrTypes]) and (
+                int(x['type']) != AttrTypeObj or (
+                    int(x['type']) == AttrTypeObj and
+                    'ref_id' in x and Entity.objects.filter(id=x['ref_id']).count()
+                )
+            )
         )},
         {'name': 'is_mandatory', 'type': bool}
     ]}
@@ -68,19 +75,28 @@ def do_edit(request, entity_id, recv_data):
     entity.save()
 
     for attr in recv_data['attrs']:
+        is_new_attr_base = False
         if 'id' in attr and AttributeBase.objects.filter(id=attr['id']).count():
             attr_base = AttributeBase.objects.get(id=attr['id'])
 
             attr_base.name = attr['name']
             attr_base.type = attr['type']
             attr_base.is_mandatory = attr['is_mandatory']
-            attr_base.save()
         else:
+            is_new_attr_base = True
             attr_base = AttributeBase(name=attr['name'],
                                       type=int(attr['type']),
                                       is_mandatory=attr['is_mandatory'],
                                       created_user=user)
-            attr_base.save()
+
+        if int(attr['type']) == AttrTypeObj:
+            attr_base.referral = Entity.objects.get(id=attr['ref_id'])
+        else:
+            attr_base.referral = None
+
+        attr_base.save()
+
+        if is_new_attr_base:
             entity.attr_bases.add(attr_base)
 
             # add a new attribute on the existed Entries
@@ -99,7 +115,12 @@ def do_edit(request, entity_id, recv_data):
             x['name'] and not re.match(r'^\s*$', x['name'])
         )},
         {'name': 'type', 'type': str, 'checker': lambda x: (
-            any([int(x['type']) == y.type for y in AttrTypes])
+            any([y == int(x['type']) for y in AttrTypes]) and (
+                int(x['type']) != AttrTypeObj or (
+                    int(x['type']) == AttrTypeObj and
+                    'ref_id' in x and Entity.objects.filter(id=x['ref_id']).count()
+                )
+            )
         )},
         {'name': 'is_mandatory', 'type': bool}
     ]}
@@ -119,6 +140,10 @@ def do_create(request, recv_data):
                                   type=int(attr['type']),
                                   is_mandatory=attr['is_mandatory'],
                                   created_user=user)
+
+        if int(attr['type']) == AttrTypeObj:
+            attr_base.referral = Entity.objects.get(id=attr['ref_id'])
+
         attr_base.save()
         entity.attr_bases.add(attr_base)
 

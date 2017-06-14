@@ -6,7 +6,7 @@ from entity.models import Entity, AttributeBase
 from entry.models import Entry, Attribute
 from xml.etree import ElementTree
 from airone.lib.test import AironeViewTest
-from airone.lib.types import AttrTypeStr
+from airone.lib.types import AttrTypeStr, AttrTypeObj
 
 
 class ViewTest(AironeViewTest):
@@ -56,8 +56,8 @@ class ViewTest(AironeViewTest):
             'name': 'hoge',
             'note': 'fuga',
             'attrs': [
-                {'name': 'foo', 'type': '1', 'is_mandatory': True},
-                {'name': 'bar', 'type': '2', 'is_mandatory': False},
+                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True},
+                {'name': 'bar', 'type': str(AttrTypeStr), 'is_mandatory': False},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -74,8 +74,8 @@ class ViewTest(AironeViewTest):
         params = {
             'note': 'fuga',
             'attrs': [
-                {'name': 'foo', 'type': '1', 'is_mandatory': True},
-                {'name': 'bar', 'type': '2', 'is_mandatory': False},
+                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True},
+                {'name': 'bar', 'type': str(AttrTypeStr), 'is_mandatory': False},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -92,8 +92,8 @@ class ViewTest(AironeViewTest):
             'name': 'hoge',
             'note': 'fuga',
             'attrs': [
-                {'name': 'foo', 'type': '1', 'is_mandatory': True},
-                {'name': '', 'type': '1', 'is_mandatory': True},
+                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True},
+                {'name': '', 'type': str(AttrTypeStr), 'is_mandatory': True},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -149,7 +149,7 @@ class ViewTest(AironeViewTest):
             'name': 'hoge',
             'note': 'fuga',
             'attrs': [
-                {'name': 'foo', 'type': '1', 'is_mandatory': True},
+                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True},
             ],
         }
         resp = self.client.post(reverse('entity:do_edit', args=[999]),
@@ -164,15 +164,15 @@ class ViewTest(AironeViewTest):
         attr = AttributeBase.objects.create(name='puyo',
                                             created_user=user,
                                             is_mandatory=True,
-                                            type=AttrTypeStr().type)
+                                            type=AttrTypeStr)
         entity.attr_bases.add(attr)
 
         params = {
             'name': 'foo',
             'note': 'bar',
             'attrs': [
-                {'name': 'foo', 'type': '1', 'is_mandatory': True, 'id': attr.id},
-                {'name': 'bar', 'type': '1', 'is_mandatory': True},
+                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True, 'id': attr.id},
+                {'name': 'bar', 'type': str(AttrTypeStr), 'is_mandatory': True},
             ],
         }
         resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
@@ -192,7 +192,7 @@ class ViewTest(AironeViewTest):
         attrbase = AttributeBase.objects.create(name='puyo',
                                                 created_user=user,
                                                 is_mandatory=True,
-                                                type=AttrTypeStr().type)
+                                                type=AttrTypeStr)
         entity.attr_bases.add(attrbase)
 
         entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
@@ -202,8 +202,8 @@ class ViewTest(AironeViewTest):
             'name': 'foo',
             'note': 'bar',
             'attrs': [
-                {'name': 'foo', 'type': '1', 'is_mandatory': True, 'id': attrbase.id},
-                {'name': 'bar', 'type': '1', 'is_mandatory': True},
+                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True, 'id': attrbase.id},
+                {'name': 'bar', 'type': str(AttrTypeStr), 'is_mandatory': True},
             ],
         }
         resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
@@ -212,3 +212,98 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 303)
         self.assertEqual(Entry.objects.get(id=entry.id).attrs.count(), 2)
+
+    def test_post_edit_string_attribute(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
+        attr = AttributeBase.objects.create(name='puyo',
+                                            type=AttrTypeStr,
+                                            created_user=user)
+        entity.attr_bases.add(attr)
+
+        params = {
+            'name': 'foo',
+            'note': 'bar',
+            'attrs': [{
+                'name': 'baz',
+                'type': str(AttrTypeObj),
+                'ref_id': entity.id,
+                'is_mandatory': True,
+                'id': attr.id
+            }],
+        }
+        resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(AttributeBase.objects.get(id=attr.id).type, AttrTypeObj)
+        self.assertEqual(AttributeBase.objects.get(id=attr.id).referral.id, entity.id)
+
+    def test_post_edit_referral_attribute(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
+        attr = AttributeBase.objects.create(name='puyo',
+                                            type=AttrTypeObj,
+                                            referral=entity,
+                                            created_user=user)
+        entity.attr_bases.add(attr)
+
+        params = {
+            'name': 'foo',
+            'note': 'bar',
+            'attrs': [{
+                'name': 'baz',
+                'type': str(AttrTypeStr),
+                'is_mandatory': True,
+                'id': attr.id
+            }],
+        }
+        resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(AttributeBase.objects.get(id=attr.id).type, AttrTypeStr)
+        self.assertIsNone(AttributeBase.objects.get(id=attr.id).referral)
+
+    def test_post_create_with_invalid_referral_attr(self):
+        self.admin_login()
+
+        params = {
+            'name': 'hoge',
+            'note': 'fuga',
+            'attrs': [
+                {'name': 'a', 'type': str(AttrTypeObj), 'is_mandatory': False},
+            ],
+        }
+        resp = self.client.post(reverse('entity:do_create'),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+
+    def test_post_create_with_valid_referral_attr(self):
+        user = self.admin_login()
+
+        entity = Entity(name='test-entity', created_user=user)
+        entity.save()
+
+        params = {
+            'name': 'hoge',
+            'note': 'fuga',
+            'attrs': [
+                {'name': 'a', 'type': str(AttrTypeObj), 'ref_id': entity.id, 'is_mandatory': False},
+            ],
+        }
+        resp = self.client.post(reverse('entity:do_create'),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(Entity.objects.last().name, 'hoge')
+        self.assertEqual(AttributeBase.objects.last().name, 'a')
+        self.assertIsNotNone(AttributeBase.objects.last().referral)
+        self.assertEqual(AttributeBase.objects.last().referral.id, entity.id)

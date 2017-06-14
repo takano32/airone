@@ -7,6 +7,7 @@ from airone.lib.acl import ACLObjType
 
 class AttributeValue(models.Model):
     value = models.TextField()
+    referral = models.ForeignKey(ACLBase, null=True, related_name='referred_attr_value')
     created_time = models.DateTimeField(auto_now=True)
     created_user = models.ForeignKey(User)
 
@@ -26,6 +27,7 @@ class Entry(ACLBase):
         attr = Attribute.objects.create(name=base.name,
                                         type=base.type,
                                         is_mandatory=base.is_mandatory,
+                                        referral=base.referral,
                                         created_user=user)
         self.attrs.add(attr)
         return attr

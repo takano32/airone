@@ -13,35 +13,59 @@
 {% endblock %}
 
 {% block content %}
+<div class="container-fluid">
   <form url='/entry/do_edit/' method='post'>
-    エントリ名：<input type='string' name='entry_name' value='{{ entry.name }}'/>
+    <div class='row'>
+      <div class='col'>
+        <div class="float-left">
+          エントリ名：<input type='string' name='entry_name' value='{{ entry.name }}'/>
+        </div>
+        <div class="float-right">
+          <input type="submit" class="btn btn-primary align-right" value='保存'/>
+        </div>
+      </div>
+    </div>
     <hr/>
     <table>
       {% for attr in attributes %}
       <tr>
         <td>{{ attr.name }}</td>
-        <td><input type='string' name='attr_value' attr_id='{{ attr.id }}' value='{{ attr.last_value }}'/></td>
+        {% if attr.referrals %}
+          <td>
+            <select class='attr_value' attr_id='{{ attr.id }}'>
+            {% for referral in attr.referrals %}
+              {% if referral.id == attr.last_value %}
+                <option value='{{ referral.id }}' selected='selected'>{{ referral.name }}</option>
+              {% else %}
+                <option value='{{ referral.id }}'>{{ referral.name }}</option>
+              {% endif %}
+            {% endfor %}
+            </select>
+          </td>
+        {% else %}
+          <td><input type='string' class='attr_value' attr_id='{{ attr.id }}' value='{{ attr.last_value }}'/></td>
+        {% endif %}
       </tr>
       {% endfor %}
     </table>
     <input type='hidden' name='entry_id' value='{{ entry.id }}' />
-    <input type='submit' value='Update' />
     {% csrf_token %}
   </form>
+</div>
 <script src="/static/js/jquery-3.2.1.min.js"></script>
 <script src="/static/js/http_request.js"></script>
-  <script>
-  $('form').submit(function(){
-    attrs = []
-    $(this).find('input[name=attr_value]').each(function(){
-      attrs.push({
-        'id': $(this).attr('attr_id'),
-        'value': $(this).val(),
-      });
+<script>
+$('form').submit(function(){
+  attrs = []
+  $(this).find('.attr_value').each(function(){
+    attrs.push({
+      'id': $(this).attr('attr_id'),
+      'value': $(this).val(),
     });
-    HttpPost($(this), {'attrs': attrs});
-  
-    return false;
   });
-  </script>
+  HttpPost($(this), {'attrs': attrs});
+
+  return false;
+});
+</script>
 {% endblock %}

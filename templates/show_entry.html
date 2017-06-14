@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}List Entries{% endblock %}
+
+{% block nav_sub_header %}
+<div class="conatiner-fluid">
+  <ul class="breadcrumb airone-breadcrumb">
+    <li class="breadcrumb-item"><a href="/">TOP</a></li>
+    <li class="breadcrumb-item"><a href='/entry/{{ entry.schema.id }}'>{{ entry.schema.name }}</a></li>
+    <li class="breadcrumb-item">{{ entry.name }}</li>
+  </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col">
+      <div class="float-left">
+        <button name="button_new" type="button" class="btn btn-primary" onclick="location.href='/entry/edit/{{ entry.id }}'">編集</button>
+        <button name="button_new" type="button" class="btn btn-primary" onclick="location.href='/acl/{{ entry.id }}'">ACL 設定</button>
+        <button name="button_delete" type="button" class="btn btn-danger">削除</button>
+      </div>
+    </div>
+  </div>
+
+  <div class='row'>
+    <div class='col'>
+      <table class="table table-bordered">
+        <tr>
+          <th>属性</th>
+          <th>属性値</th>
+        </tr>
+        {% for attr in attributes %}
+        <tr>
+          <td>{{ attr.name }}</td>
+          {% if attr.referral %}
+            <td><a href='/entry/show/{{ attr.referral.id }}'>{{ attr.referral.name }}</a></td>
+          {% else %}
+            <td>{{ attr.last_value }}</td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <hr/>
+      <h3>変更履歴</h3>
+      <table class="table table-bordered">
+        <tr>
+          <th>属性値</th>
+          <th>設定値</th>
+          <th>ユーザ名</th>
+          <th>更新日時</th>
+        </tr>
+        {% for history in value_history %}
+        <tr>
+          <td>{{ history.attr_name }}</td>
+          {% if history.attr_type == attr_type.str %}
+            <td>{{ history.attr_value }}</td>
+          {% elif history.attr_type == attr_type.entry %}
+            <td><a href='/entry/show/{{ history.attr_referral.id}}'>{{ history.attr_referral.name }}</a></td>
+          {% else %}
+            <td></td>
+          {% endif %}
+          <td>{{ history.created_user }}</td>
+          <td>{{ history.created_time }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

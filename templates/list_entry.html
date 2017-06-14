@@ -42,8 +42,7 @@
             {% for entry in entries %}
             <tr>
               <td><label class="form-check-label"><input name="checkbox_select_0" type="checkbox" class="form-check-input" /></label></td>
-              <td><a href='/entry/edit/{{ entry.id }}'>{{ entry.name }}</a></td>
-              <td><a href='/entry/history/{{ entry.id }}'>履歴</a></td>
+              <td><a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a></td>
             </tr>
             {% endfor %}
           </tbody>

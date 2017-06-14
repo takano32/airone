@@ -12,8 +12,16 @@ from airone.lib.acl import ACLType
 
 # Add comparison operations to the Permission model
 def _get_acltype(permission):
+    if not any([permission.name == x.name for x in ACLType()]):
+        return 0
     return int(permission.codename.split('.')[-1])
+def _get_objid(permission):
+    if not any([permission.name == x.name for x in ACLType()]):
+        return 0
+    return int(permission.codename.split('.')[1])
 
+Permission.get_aclid = lambda self: _get_acltype(self)
+Permission.get_objid = lambda self: _get_objid(self)
 Permission.__le__ = lambda self, comp: _get_acltype(self) <= _get_acltype(comp)
 Permission.__ge__ = lambda self, comp: _get_acltype(self) >= _get_acltype(comp)
 

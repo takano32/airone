@@ -444,13 +444,13 @@ class ViewTest(AironeViewTest):
         self.assertEqual(Attribute.objects.get(name='bar').values.last().value, 'fuga')
         self.assertEqual(Entry.objects.get(id=entry.id).name, entry.name)
 
-    def test_get_history_with_invalid_param(self):
+    def test_get_detail_with_invalid_param(self):
         self.admin_login()
 
-        resp = self.client.get(reverse('entry:history', args=[0]))
+        resp = self.client.get(reverse('entry:show', args=[0]))
         self.assertEqual(resp.status_code, 400)
 
-    def test_get_history_with_valid_param(self):
+    def test_get_detail_with_valid_param(self):
         user = self.admin_login()
 
         # making test Entry set
@@ -472,7 +472,7 @@ class ViewTest(AironeViewTest):
 
             entry.attrs.add(attr)
 
-        resp = self.client.get(reverse('entry:history', args=[entry.id]))
+        resp = self.client.get(reverse('entry:show', args=[entry.id]))
         self.assertEqual(resp.status_code, 200)
 
         root = ElementTree.fromstring(resp.content.decode('utf-8'))

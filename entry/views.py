@@ -82,37 +82,18 @@ def do_create(request, entity_id, recv_data):
 
 @http_get
 def edit(request, entry_id):
-    context = {}
     if not Entry.objects.filter(id=entry_id).count():
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
     # set specified entry object information
-    context['entry'] = entry = Entry.objects.get(id=entry_id)
+    entry = Entry.objects.get(id=entry_id)
+    context = {
+        'entry': entry,
+        'attributes': entry.get_latest_attributes(),
+    }
 
     # set attribute information of target entry
-    context['attributes'] = []
-    for attr in entry.attrs.all():
-        attrinfo = {}
-
-        attrinfo['id'] = attr.id
-        attrinfo['name'] = attr.name
-
-        # set Entries which are specified in the referral parameter
-        attrinfo['referrals'] = []
-        if attr.referral:
-            attrinfo['referrals'] = Entry.objects.filter(schema=attr.referral)
-
-        # set last-value of current attributes
-        attrinfo['last_value'] = ''
-        if attr.values.count() > 0:
-            last_value = attr.values.last()
-
-            if attr.type == AttrTypeStr:
-                attrinfo['last_value'] = last_value.value
-            elif attr.type == AttrTypeObj and last_value.referral:
-                attrinfo['last_value'] = last_value.referral.id
-
-        context['attributes'].append(attrinfo)
+    context['attributes'] = entry.get_latest_attributes()
 
     return render(request, 'edit_entry.html', context)
 
@@ -166,7 +147,7 @@ def do_edit(request, recv_data):
     return HttpResponse('')
 
 @http_get
-def history(request, entry_id):
+def show(request, entry_id):
     if not Entry.objects.filter(id=entry_id).count():
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
@@ -184,6 +165,7 @@ def history(request, entry_id):
 
     context = {
         'entry': entry,
+        'attributes': entry.get_latest_attributes(),
         'value_history': sorted(value_history, key=lambda x: x['created_time']),
     }
-    return render(request, 'list_history_of_entry.html', context)
+    return render(request, 'show_entry.html', context)

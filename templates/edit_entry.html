@@ -7,7 +7,8 @@
   <ul class="breadcrumb airone-breadcrumb">
     <li class="breadcrumb-item"><a href="/">TOP</a></li>
     <li class="breadcrumb-item"><a href='/entry/{{ entry.schema.id }}'>{{ entry.schema.name }}</a></li>
-    <li class="breadcrumb-item">{{ entry.name }}</li>
+    <li class="breadcrumb-item"><a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a></li>
+    <li class="breadcrumb-item">{{ entry.name }} の編集</li>
   </ul>
 </div>
 {% endblock %}
@@ -34,7 +35,7 @@
           <td>
             <select class='attr_value' attr_id='{{ attr.id }}'>
             {% for referral in attr.referrals %}
-              {% if referral.id == attr.last_value %}
+              {% if referral.id == attr.referral.id %}
                 <option value='{{ referral.id }}' selected='selected'>{{ referral.name }}</option>
               {% else %}
                 <option value='{{ referral.id }}'>{{ referral.name }}</option>

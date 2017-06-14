@@ -3,6 +3,7 @@ from entity.models import AttributeBase, Entity
 from user.models import User
 from acl.models import ACLBase
 from airone.lib.acl import ACLObjType
+from airone.lib.types import AttrTypeStr, AttrTypeObj
 
 
 class AttributeValue(models.Model):
@@ -31,3 +32,30 @@ class Entry(ACLBase):
                                         created_user=user)
         self.attrs.add(attr)
         return attr
+
+    def get_latest_attributes(self):
+        ret_attrs = []
+        for attr in self.attrs.all():
+            attrinfo = {}
+
+            attrinfo['id'] = attr.id
+            attrinfo['name'] = attr.name
+
+            # set Entries which are specified in the referral parameter
+            attrinfo['referrals'] = []
+            if attr.referral:
+                attrinfo['referrals'] = Entry.objects.filter(schema=attr.referral)
+
+            # set last-value of current attributes
+            attrinfo['last_value'] = ''
+            if attr.values.count() > 0:
+                last_value = attr.values.last()
+
+                if attr.type == AttrTypeStr:
+                    attrinfo['last_value'] = last_value.value
+                elif attr.type == AttrTypeObj and last_value.referral:
+                    attrinfo['referral'] = last_value.referral
+
+            ret_attrs.append(attrinfo)
+
+        return ret_attrs

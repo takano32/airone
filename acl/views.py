@@ -1,7 +1,7 @@
 import json
 
 from django.http import HttpResponse
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, Permission
 
 from airone.lib.acl import ACLType, ACLObjType
 from airone.lib.http import http_get, http_post, render
@@ -19,11 +19,25 @@ def index(request, obj_id):
     # This is an Entity or AttributeBase
     target_obj = ACLBase.objects.get(id=obj_id)
 
+    # get ACLTypeID of target_obj if a permission is set
+    def get_current_permission(member):
+        permissions = [x for x in member.permissions.all() if x.get_objid() == target_obj.id]
+        if permissions:
+            return permissions[0].get_aclid()
+        else:
+            return 0
+
     context = {
         'object': target_obj,
         'acltypes': [{'id':x.id, 'name':x.name} for x in ACLType()],
-        'members': [{'id': x.id, 'name': x.username, 'type': 'user'} for x in User.objects.all()] +
-                   [{'id': x.id, 'name': x.name, 'type': 'group'} for x in Group.objects.all()]
+        'members': [{'id': x.id,
+                     'name': x.username,
+                     'current_permission': get_current_permission(x),
+                     'type': 'user'} for x in User.objects.all()] +
+                   [{'id': x.id,
+                     'name': x.name,
+                     'current_permission': get_current_permission(x),
+                     'type': 'group'} for x in Group.objects.all()]
     }
     return render(request, 'edit_acl.html', context)
 
@@ -80,8 +94,9 @@ def _get_acl_model(object_id):
 def _set_permission(member, acl_obj, acl_type):
     # clear unset permissions of target ACLbased object
     for _acltype in ACLType():
-        if _acltype != acl_type:
+        if _acltype != acl_type and _acltype.id != ACLType.Nothing.id:
             member.permissions.remove(getattr(acl_obj, _acltype.name))
 
-    # set new permissoin to be specified
-    member.permissions.add(getattr(acl_obj, acl_type.name))
+    # set new permissoin to be specified except for 'Nothing' permission
+    if acl_type.id != ACLType.Nothing.id:
+        member.permissions.add(getattr(acl_obj, acl_type.name))

@@ -1,6 +1,7 @@
 from django.http import HttpResponse
 
 from airone.lib.http import http_get, http_post, check_permission, render
+from airone.lib.types import AttrTypeStr, AttrTypeObj
 
 from entity.models import Entity, AttributeBase
 from entry.models import Entry, Attribute, AttributeValue
@@ -13,9 +14,10 @@ def index(request, entity_id):
     if not Entity.objects.filter(id=entity_id).count():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
+    entity = Entity.objects.get(id=entity_id)
     context = {
-        'entity': Entity.objects.get(id=entity_id),
-        'entries': Entry.objects.all(),
+        'entity': entity,
+        'entries': Entry.objects.filter(schema=entity),
     }
     return render(request, 'list_entry.html', context)
 
@@ -27,7 +29,11 @@ def create(request, entity_id):
     entity = Entity.objects.get(id=entity_id)
     context = {
         'entity': entity,
-        'attributes': entity.attr_bases.all()
+        'attributes': [{
+            'id': x.id,
+            'name': x.name,
+            'referrals': x.referral and Entry.objects.filter(schema=x.referral) or [],
+        } for x in entity.attr_bases.all()]
     }
     return render(request, 'create_entry.html', context)
 
@@ -61,7 +67,12 @@ def do_create(request, entity_id, recv_data):
 
         # make an initial AttributeValue object if the initial value is specified
         for info in [x for x in recv_data['attrs'] if int(x['id']) == attr_base.id and x['value']]:
-            attr_value = AttributeValue(value=info['value'], created_user=user)
+            attr_value = AttributeValue(created_user=user)
+            if attr.type == AttrTypeStr:
+                attr_value.value = value=info['value']
+            elif attr.type == AttrTypeObj and Entry.objects.filter(id=info['value']).count():
+                attr_value.referral = Entry.objects.get(id=info['value'])
+
             attr_value.save()
 
             # set AttributeValue to Attribute
@@ -71,18 +82,38 @@ def do_create(request, entity_id, recv_data):
 
 @http_get
 def edit(request, entry_id):
+    context = {}
     if not Entry.objects.filter(id=entry_id).count():
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
-    entry = Entry.objects.get(id=entry_id)
-    context = {
-        'entry': entry,
-        'attributes': [{
-            'id': x.id,
-            'name': x.name,
-            'last_value': x.values.count() > 0 and x.values.last().value or '',
-        } for x in entry.attrs.all()],
-    }
+    # set specified entry object information
+    context['entry'] = entry = Entry.objects.get(id=entry_id)
+
+    # set attribute information of target entry
+    context['attributes'] = []
+    for attr in entry.attrs.all():
+        attrinfo = {}
+
+        attrinfo['id'] = attr.id
+        attrinfo['name'] = attr.name
+
+        # set Entries which are specified in the referral parameter
+        attrinfo['referrals'] = []
+        if attr.referral:
+            attrinfo['referrals'] = Entry.objects.filter(schema=attr.referral)
+
+        # set last-value of current attributes
+        attrinfo['last_value'] = ''
+        if attr.values.count() > 0:
+            last_value = attr.values.last()
+
+            if attr.type == AttrTypeStr:
+                attrinfo['last_value'] = last_value.value
+            elif attr.type == AttrTypeObj and last_value.referral:
+                attrinfo['last_value'] = last_value.referral.id
+
+        context['attributes'].append(attrinfo)
+
     return render(request, 'edit_entry.html', context)
 
 @http_post([
@@ -108,16 +139,25 @@ def do_edit(request, recv_data):
 
     # This checks there is no Entry that has same name
 
-    for attr_info in recv_data['attrs']:
-        attr = Attribute.objects.get(id=attr_info['id'])
+    for info in recv_data['attrs']:
+        attr = Attribute.objects.get(id=info['id'])
 
         # Check a new update value is specified, or not
-        if (attr.values.count() == 0 and attr_info['value'] or
-            attr.values.count() > 0 and attr.values.last().value != attr_info['value']):
+        if (attr.values.count() == 0 and info['value'] or
+            attr.values.count() > 0 and (
+                attr.values.last().value != info['value'] or
+                attr.values.last().referral and attr.values.last().referral.id != info['value']
+            )):
 
             # Add a new AttributeValue object only at updating value
-            attr_value = AttributeValue(value=attr_info['value'],
-                                        created_user=User.objects.get(id=request.user.id))
+            attr_value = AttributeValue(created_user=User.objects.get(id=request.user.id))
+
+            # set attribute value according to the attribute-type
+            if attr.type == AttrTypeStr:
+                attr_value.value = value=info['value']
+            elif attr.type == AttrTypeObj and Entry.objects.filter(id=info['value']).count():
+                attr_value.referral = Entry.objects.get(id=info['value'])
+
             attr_value.save()
 
             # append new AttributeValue
@@ -135,7 +175,9 @@ def history(request, entry_id):
     # get history of Entry object
     value_history = sum([[{
         'attr_name': attr.name,
+        'attr_type': attr.type,
         'attr_value': attr_value.value,
+        'attr_referral': attr_value.referral,
         'created_time': attr_value.created_time,
         'created_user': attr_value.created_user.username,
     } for attr_value in attr.values.all()] for attr in entry.attrs.all()], [])

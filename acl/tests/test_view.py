@@ -44,7 +44,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
 
         root = ElementTree.fromstring(resp.content.decode('utf-8'))
-        self.assertIsNotNone(root.find('.//table/tr/td'))
+        self.assertIsNotNone(root.find('.//table/tbody/tr/td'))
 
     def test_get_acl_set(self):
         self.admin_login()
@@ -92,6 +92,24 @@ class ViewTest(AironeViewTest):
         self.assertEqual(user.permissions.last(), self._aclobj.writable)
         self.assertTrue(ACLBase.objects.get(id=self._aclobj.id).is_public)
 
+    def test_post_acl_set_nothing(self):
+        user = self.admin_login()
+        params = {
+            'object_id': str(self._aclobj.id),
+            'object_type': str(self._aclobj.objtype),
+            'is_public': 'on',
+            'acl': [
+                {
+                    'member_id': str(user.id),
+                    'member_type': 'user',
+                    'value': str(ACLType.Nothing.id)},
+            ]
+        }
+        resp = self.client.post(reverse('acl:set'), json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(user.permissions.count(), 0)
+
     def test_update_acl(self):
         self.admin_login()
 
@@ -117,6 +135,30 @@ class ViewTest(AironeViewTest):
         self.assertEqual(group.permissions.count(), 1)
         self.assertEqual(group.permissions.last(), self._aclobj.readable)
         self.assertFalse(ACLBase.objects.get(id=self._aclobj.id).is_public)
+
+    def test_update_acl_to_nothing(self):
+        self.admin_login()
+
+        group = Group(name='fuga')
+        group.save()
+
+        # set ACL object in advance, there are two members in the deletable parameter
+        group.permissions.add(self._aclobj.deletable)
+
+        params = {
+            'object_id': str(self._aclobj.id),
+            'object_type': str(self._aclobj.objtype),
+            'acl': [
+                {
+                    'member_id': str(group.id),
+                    'member_type': 'group',
+                    'value': str(ACLType.Nothing.id)
+                }
+            ]
+        }
+        resp = self.client.post(reverse('acl:set'), json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(group.permissions.count(), 0)
 
     def test_post_acl_set_without_object_id(self):
         user = self.admin_login()

@@ -16,6 +16,7 @@ class ACLType(Iteratable):
     Readable = type('ACLTypeReadable', (object,), {'id': (1 << 0), 'name': 'readable'})
     Writable = type('ACLTypeWritable', (object,), {'id': (1 << 1), 'name': 'writable'})
     Deletable = type('ACLTypeDeletable', (object,), {'id': (1 << 2), 'name': 'deletable'})
+    Nothing = type('ACLTypeNone', (object,), {'id': (1 << 3), 'name': '権限なし'})
 
     def __init__(self):
-        self._types = [self.Readable, self.Writable, self.Deletable]
+        self._types = [self.Nothing, self.Readable, self.Writable, self.Deletable]

@@ -48,9 +48,12 @@
               <td>{{ member.name }}</td>
               <td>
                 <select name='acl' member_id='{{ member.id }}' member_type='{{ member.type }}'>
-                  <option value=''>(none)</option>
                   {% for acltype in acltypes %}
-                  <option value='{{ acltype.id }}'>{{ acltype.name }}</option>
+                    {% if acltype.id == member.current_permission %}
+                      <option value='{{ acltype.id }}' selected='selected'>{{ acltype.name }}</option>
+                    {% else %}
+                      <option value='{{ acltype.id }}'>{{ acltype.name }}</option>
+                    {% endif %}
                   {% endfor %}
                 </select>
               </td>

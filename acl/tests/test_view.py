@@ -6,6 +6,8 @@ from django.core import exceptions
 
 from user.models import User
 from acl.models import ACLBase
+from entity.models import Entity, AttributeBase
+from entry.models import Entry, Attribute
 
 from airone.lib.acl import ACLType
 from airone.lib.test import AironeViewTest
@@ -21,6 +23,19 @@ class ViewTest(AironeViewTest):
         self._aclobj.save()
 
         return user
+
+    def send_set_request(self, aclobj, user, aclid=ACLType.Writable.id):
+        params = {
+            'object_id': str(aclobj.id),
+            'object_type': str(aclobj.objtype),
+            'acl': [
+                {
+                    'member_id': str(user.id),
+                    'member_type': 'user',
+                    'value': str(aclid)},
+            ]
+        }
+        return self.client.post(reverse('acl:set'), json.dumps(params), 'application/json')
 
     def test_index_without_login(self):
         resp = self.client.get(reverse('acl:index', args=[0]))
@@ -74,23 +89,53 @@ class ViewTest(AironeViewTest):
 
     def test_post_acl_set(self):
         user = self.admin_login()
-        params = {
-            'object_id': str(self._aclobj.id),
-            'object_type': str(self._aclobj.objtype),
-            'is_public': 'on',
-            'acl': [
-                {
-                    'member_id': str(user.id),
-                    'member_type': 'user',
-                    'value': str(ACLType.Writable.id)},
-            ]
-        }
-        resp = self.client.post(reverse('acl:set'), json.dumps(params), 'application/json')
+        resp = self.send_set_request(self._aclobj, user)
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(user.permissions.count(), 1)
         self.assertEqual(user.permissions.last(), self._aclobj.writable)
-        self.assertTrue(ACLBase.objects.get(id=self._aclobj.id).is_public)
+        self.assertFalse(ACLBase.objects.get(id=self._aclobj.id).is_public)
+
+    def test_post_acl_set_attrbase(self):
+        user = self.admin_login()
+
+        attrbase = AttributeBase.objects.create(name='hoge', created_user=user)
+        resp = self.send_set_request(attrbase, user)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(user.permissions.last(), attrbase.writable)
+        self.assertFalse(AttributeBase.objects.get(id=attrbase.id).is_public)
+
+    def test_post_acl_set_entity(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='hoge', created_user=user)
+        resp = self.send_set_request(entity, user)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(user.permissions.last(), entity.writable)
+        self.assertFalse(Entity.objects.get(id=entity.id).is_public)
+
+    def test_post_acl_set_attribute(self):
+        user = self.admin_login()
+
+        attr = Attribute.objects.create(name='hoge', created_user=user)
+        resp = self.send_set_request(attr, user)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(user.permissions.last(), attr.writable)
+        self.assertFalse(Attribute.objects.get(id=attr.id).is_public)
+
+    def test_post_acl_set_entry(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='hoge', created_user=user)
+        entry = Entry.objects.create(name='fuga', created_user=user, schema=entity)
+        resp = self.send_set_request(entry, user)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(user.permissions.last(), entry.writable)
+        self.assertFalse(Entry.objects.get(id=entry.id).is_public)
 
     def test_post_acl_set_nothing(self):
         user = self.admin_login()
@@ -203,3 +248,36 @@ class ViewTest(AironeViewTest):
         resp = self.client.post(reverse('acl:set'), json.dumps(params), 'application/json')
 
         self.assertEqual(resp.status_code, 400)
+
+    def test_post_overwrite_entry_permission(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='hoge', created_user=user)
+        entry = Entry.objects.create(name='fuga', created_user=user, schema=entity)
+
+        resp = self.send_set_request(entity, user, ACLType.Readable.id)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(user.permissions.count(), 2)
+        self.assertEqual(user.permissions.first(), entity.readable)
+        self.assertEqual(user.permissions.last(), entry.readable)
+        self.assertFalse(Entity.objects.get(id=entity.id).is_public)
+        self.assertFalse(Entry.objects.get(id=entry.id).is_public)
+
+    def test_post_overwrite_attribute_permission(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='hoge', created_user=user)
+        attrbase = AttributeBase.objects.create(name='attr1', created_user=user)
+
+        entry = Entry.objects.create(name='fuga', created_user=user, schema=entity)
+        attr = entry.add_attribute_from_base(attrbase, user)
+
+        resp = self.send_set_request(attrbase, user, ACLType.Deletable.id)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(user.permissions.count(), 2)
+        self.assertEqual(user.permissions.first(), attrbase.deletable)
+        self.assertEqual(user.permissions.last(), attr.deletable)
+        self.assertFalse(AttributeBase.objects.get(id=attrbase.id).is_public)
+        self.assertFalse(Attribute.objects.get(id=attr.id).is_public)

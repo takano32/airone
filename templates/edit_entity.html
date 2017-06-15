@@ -38,6 +38,7 @@
       <div class="col">属性名</div>
       <div class="col-4">型</div>
       <div class="col-2">必須</div>
+      <div class="col-2"></div>
     </div>
 
     <div name='attributes'>
@@ -69,12 +70,18 @@
           </select>
         </div>
 
+        <!-- Column for checkbox of mandatroy -->
         <div class='col-2'>
           {% if attr.is_mandatory %}
           <input type='checkbox' class='is_mandatory' checked='checked'></input>
           {% else %}
           <input type='checkbox' class='is_mandatory'></input>
           {% endif %}
+        </div>
+
+        <!-- Column for ACL -->
+        <div class='col-2'>
+          <a href='/acl/{{ attr.id }}'><button type='button' class='btn btn-info btn-sm'>ACL</button></a>
         </div>
       </div>
       {% endfor %}
@@ -97,6 +104,8 @@
       </div>
       <div class='col-2'>
         <input type='checkbox' class='is_mandatory'></input>
+      </div>
+      <div class='col-2'>
       </div>
     </div>
 

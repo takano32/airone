@@ -12,14 +12,17 @@ from entry.models import Entry, Attribute
 from airone.lib.types import AttrTypes, AttrTypeObj
 from airone.lib.http import HttpResponseSeeOther
 from airone.lib.http import http_get, http_post
+from airone.lib.http import check_permission
 from airone.lib.http import render
 
 
 @http_get
 def index(request):
-    context = {}
-    context['entities'] = Entity.objects.all()
+    user = User.objects.get(id=request.user.id)
 
+    context = {
+        'entities': [x for x in Entity.objects.all() if user.has_permission(x, 'readable')]
+    }
     return render(request, 'list_entities.html', context)
 
 @http_get
@@ -31,7 +34,10 @@ def create(request):
     return render(request, 'create_entity.html', context)
 
 @http_get
+@check_permission(Entity, 'writable')
 def edit(request, entity_id):
+    user = User.objects.get(id=request.user.id)
+
     if not Entity.objects.filter(id=entity_id).count():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
@@ -40,7 +46,7 @@ def edit(request, entity_id):
         'entity': entity,
         'entities': Entity.objects.all(),
         'attr_types': AttrTypes,
-        'attributes': entity.attr_bases.all(),
+        'attributes': [x for x in entity.attr_bases.all() if user.has_permission(x, 'writable')],
     }
     return render(request, 'edit_entity.html', context)
 
@@ -62,6 +68,7 @@ def edit(request, entity_id):
         {'name': 'is_mandatory', 'type': bool}
     ]}
 ])
+@check_permission(Entity, 'writable')
 def do_edit(request, entity_id, recv_data):
     user = User.objects.get(id=request.user.id)
 

@@ -46,9 +46,10 @@ def check_permission(model, permission_level):
                 # checks that current uesr is created this document
                 target_obj.created_user == user or
                 # checks user permission
-                [perm <= x for x in user.permissions.all()] or
+                any([perm <= x for x in user.permissions.all() if target_obj.id == x.get_objid()]) or
                 # checks group permission
-                sum([[perm <= x for x in g.permissions.all()] for g in user.groups.all()], [])):
+                sum([[perm <= x for x in g.permissions.all() if target_obj.id == x.get_objid()]
+                    for g in user.groups.all()], [])):
 
                 # only requests that have correct permission are executed
                 return func(*args, **kwargs)
@@ -80,8 +81,14 @@ def http_post(validator):
     return _decorator
 
 def render(request, template, context={}):
-    # added default parameters for navigate
-    context['navigator'] = {'entities': entity_models.Entity.objects.all()}
+    if User.objects.filter(id=request.user.id).count():
+        user = User.objects.get(id=request.user.id)
+
+        # added default parameters for navigate
+        context['navigator'] = {
+            'entities': [x for x in entity_models.Entity.objects.all()
+                         if user.has_permission(x, 'readable')],
+        }
 
     context['attr_type'] = {}
     for attr_type in AttrTypes:

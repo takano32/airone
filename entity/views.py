@@ -84,18 +84,21 @@ def do_edit(request, entity_id, recv_data):
     for attr in recv_data['attrs']:
         is_new_attr_base = False
         if 'id' in attr and AttributeBase.objects.filter(id=attr['id']).count():
+            # update attributes which is already created
             attr_base = AttributeBase.objects.get(id=attr['id'])
 
             attr_base.name = attr['name']
             attr_base.type = attr['type']
             attr_base.is_mandatory = attr['is_mandatory']
         else:
+            # add an new attributes
             is_new_attr_base = True
             attr_base = AttributeBase(name=attr['name'],
                                       type=int(attr['type']),
                                       is_mandatory=attr['is_mandatory'],
                                       created_user=user)
 
+        # the case of an attribute that has referral entry
         if int(attr['type']) == AttrTypeObj:
             attr_base.referral = Entity.objects.get(id=attr['ref_id'])
         else:
@@ -104,11 +107,15 @@ def do_edit(request, entity_id, recv_data):
         attr_base.save()
 
         if is_new_attr_base:
+            # add a new attribute on the existed Entries
             entity.attr_bases.add(attr_base)
 
-            # add a new attribute on the existed Entries
             for entry in Entry.objects.filter(schema=entity):
                 entry.add_attribute_from_base(attr_base, user)
+        else:
+            # update Attributes which are already created
+            [x.update_from_base(attr_base)
+                    for x in Attribute.objects.filter(schema_id=attr_base.id)]
 
     return HttpResponseSeeOther('/entity/')
 

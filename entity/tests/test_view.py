@@ -245,11 +245,14 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
 
         entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
-        attr = AttributeBase.objects.create(name='puyo',
+        attrbase = AttributeBase.objects.create(name='puyo',
                                             type=AttrTypeObj,
                                             referral=entity,
                                             created_user=user)
-        entity.attr_bases.add(attr)
+        entity.attr_bases.add(attrbase)
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        attr = entry.add_attribute_from_base(attrbase, user)
 
         params = {
             'name': 'foo',
@@ -258,7 +261,7 @@ class ViewTest(AironeViewTest):
                 'name': 'baz',
                 'type': str(AttrTypeStr),
                 'is_mandatory': True,
-                'id': attr.id
+                'id': attrbase.id
             }],
         }
         resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
@@ -266,8 +269,14 @@ class ViewTest(AironeViewTest):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 303)
-        self.assertEqual(AttributeBase.objects.get(id=attr.id).type, AttrTypeStr)
-        self.assertIsNone(AttributeBase.objects.get(id=attr.id).referral)
+        self.assertEqual(AttributeBase.objects.get(id=attrbase.id).type, AttrTypeStr)
+        self.assertIsNone(AttributeBase.objects.get(id=attrbase.id).referral)
+
+        # checks that the related Attribute is also changed
+        self.assertEqual(Attribute.objects.get(id=attr.id).name, 'baz')
+        self.assertEqual(Attribute.objects.get(id=attr.id).type, AttrTypeStr)
+        self.assertTrue(Attribute.objects.get(id=attr.id).is_mandatory)
+        self.assertIsNone(Attribute.objects.get(id=attr.id).referral)
 
     def test_post_create_with_invalid_referral_attr(self):
         self.admin_login()

@@ -21,6 +21,17 @@ class Attribute(AttributeBase):
         super(Attribute, self).__init__(*args, **kwargs)
         self.objtype = ACLObjType.Attr
 
+    def update_from_base(self, base):
+        if not isinstance(base, AttributeBase):
+            raise TypeError('Variable "base" is incorrect type')
+
+        self.name = base.name
+        self.type = base.type
+        self.referral = base.referral
+        self.is_mandatory = base.is_mandatory
+
+        self.save()
+
 class Entry(ACLBase):
     attrs = models.ManyToManyField(Attribute)
     schema = models.ForeignKey(Entity)
@@ -30,6 +41,12 @@ class Entry(ACLBase):
         self.objtype = ACLObjType.Entry
 
     def add_attribute_from_base(self, base, user):
+        if not isinstance(base, AttributeBase):
+            raise TypeError('Variable "base" is incorrect type')
+
+        if not isinstance(user, User):
+            raise TypeError('Variable "user" is incorrect type')
+
         attr = Attribute.objects.create(name=base.name,
                                         type=base.type,
                                         is_mandatory=base.is_mandatory,

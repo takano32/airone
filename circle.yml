@@ -9,7 +9,7 @@ machine:
 dependencies:
   override:
     - pip install tox tox-pyenv
-    - cd ~/.pyenv && git pull
+    - cd /opt/circleci/.pyenv && git pull
     - |
       if [[ ! -d ~/.pyenv/versions/3.6.1 ]]; then
         pyenv install 3.6.1

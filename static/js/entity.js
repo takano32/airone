@@ -15,12 +15,19 @@ $('button[name=add_attr]').on('click', function() {
 
 $('form').submit(function(){
   var attrs = $('.attr').map(function(index, elem){
-    return {
+    var ret = {
       'name': $(this).find('.attr_name').val(),
       'type': $(this).find('.attr_type').val(),
       'is_mandatory': $(this).find('.is_mandatory:checked').val() != undefined ? true : false,
       'ref_id': $(this).find('.attr_referral').val(),
     };
+    if($(this).attr('attr_id')) {
+      ret['id'] = $(this).attr('attr_id');
+      if($(this).attr('deleted')) {
+        ret['deleted'] = true;
+      }
+    }
+    return ret;
   });
 
   HttpPost($(this), {'attrs': attrs.get()});
@@ -42,7 +49,13 @@ var append_attr_column = function() {
 
 var bind_del_attr = function() {
   $("button[name=del_attr]").on('click', function() {
-    $(this).parents(".attr").remove();
+    var parent = $(this).parents(".attr");
+    if(parent.attr('attr_id')) {
+      parent.attr('deleted', true);
+      parent.hide();
+    } else {
+      parent.remove();
+    }
   });
 };
 

@@ -15,6 +15,7 @@ def _get_latest_attributes(self, user):
 
         attrinfo['id'] = attr.id
         attrinfo['name'] = attr.name
+        attrinfo['is_mandatory'] = attr.is_mandatory
 
         # set Entries which are specified in the referral parameter
         attrinfo['referrals'] = []
@@ -148,6 +149,19 @@ def edit(request, entry_id):
 ])
 @check_permission(Entry, 'writable')
 def do_edit(request, entry_id, recv_data):
+    # check whether each specified attribute needs to update
+    def is_updated(attr, info):
+        # the case new attribute-value is specified
+        if attr.values.count() == 0:
+            return info['value']
+
+        if attr.type == AttrTypeStr and attr.values.last().value != info['value']:
+            return True
+        elif attr.type == AttrTypeObj and attr.values.last().referral.id != int(info['value']):
+            return True
+
+        return False
+
     # update name of Entry object
     Entry.objects.filter(id=entry_id).update(name=recv_data['entry_name'])
 
@@ -155,12 +169,7 @@ def do_edit(request, entry_id, recv_data):
         attr = Attribute.objects.get(id=info['id'])
 
         # Check a new update value is specified, or not
-        if (attr.values.count() == 0 and info['value'] or
-            attr.values.count() > 0 and (
-                attr.values.last().value != info['value'] or
-                attr.values.last().referral and attr.values.last().referral.id != info['value']
-            )):
-
+        if is_updated(attr, info):
             # Add a new AttributeValue object only at updating value
             attr_value = AttributeValue(created_user=User.objects.get(id=request.user.id))
 

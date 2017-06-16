@@ -12,13 +12,13 @@ from airone.lib.acl import ACLType
 
 # Add comparison operations to the Permission model
 def _get_acltype(permission):
-    if not any([permission.name == x.name for x in ACLType()]):
+    if not any([permission.name == x.name for x in ACLType.all()]):
         return 0
     return int(permission.codename.split('.')[-1])
 def _get_objid(permission):
-    if not any([permission.name == x.name for x in ACLType()]):
+    if not any([permission.name == x.name for x in ACLType.all()]):
         return 0
-    return int(permission.codename.split('.')[1])
+    return int(permission.codename.split('.')[0])
 
 Permission.get_aclid = lambda self: _get_acltype(self)
 Permission.get_objid = lambda self: _get_objid(self)
@@ -38,8 +38,8 @@ class ACLBase(models.Model):
 
         # create Permission sets for this object at once
         content_type = ContentType.objects.get_for_model(self)
-        for acltype in ACLType():
-            codename = '%s.%s.%s' % (content_type.model, self.id, acltype.id)
+        for acltype in ACLType.availables():
+            codename = '%s.%s' % (self.id, acltype.id)
             if not Permission.objects.filter(codename=codename).count():
                 Permission(name=acltype.name, codename=codename, content_type=content_type).save()
 
@@ -56,5 +56,4 @@ class ACLBase(models.Model):
         return self._get_permission(ACLType.Deletable.id)
 
     def _get_permission(self, acltype):
-        content_type = ContentType.objects.get_for_model(self)
-        return Permission.objects.get(codename="%s.%s.%s" % (content_type.model, self.id, acltype))
+        return Permission.objects.get(codename="%s.%s" % (self.id, acltype))

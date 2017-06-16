@@ -8,6 +8,33 @@ from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
 
 
+def _get_latest_attributes(self, user):
+    ret_attrs = []
+    for attr in [x for x in self.attrs.all() if user.has_permission(x, 'readable')]:
+        attrinfo = {}
+
+        attrinfo['id'] = attr.id
+        attrinfo['name'] = attr.name
+
+        # set Entries which are specified in the referral parameter
+        attrinfo['referrals'] = []
+        if attr.referral:
+            attrinfo['referrals'] = Entry.objects.filter(schema=attr.referral)
+
+        # set last-value of current attributes
+        attrinfo['last_value'] = ''
+        if attr.values.count() > 0:
+            last_value = attr.values.last()
+
+            if attr.type == AttrTypeStr:
+                attrinfo['last_value'] = last_value.value
+            elif attr.type == AttrTypeObj and last_value.referral:
+                attrinfo['referral'] = last_value.referral
+
+        ret_attrs.append(attrinfo)
+
+    return ret_attrs
+
 @http_get
 @check_permission(Entity, 'readable')
 def index(request, entity_id):
@@ -22,7 +49,10 @@ def index(request, entity_id):
     return render(request, 'list_entry.html', context)
 
 @http_get
+@check_permission(Entity, 'writable')
 def create(request, entity_id):
+    user = User.objects.get(id=request.user.id)
+
     if not Entity.objects.filter(id=entity_id).count():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
@@ -31,9 +61,10 @@ def create(request, entity_id):
         'entity': entity,
         'attributes': [{
             'id': x.id,
+            'type': x.type,
             'name': x.name,
             'referrals': x.referral and Entry.objects.filter(schema=x.referral) or [],
-        } for x in entity.attr_bases.all()]
+        } for x in entity.attr_bases.all() if user.has_permission(x, 'writable')]
     }
     return render(request, 'create_entry.html', context)
 
@@ -49,6 +80,7 @@ def create(request, entity_id):
          )},
     ]}
 ])
+@check_permission(Entity, 'writable')
 def do_create(request, entity_id, recv_data):
     # get objects to be referred in the following processing
     user = User.objects.get(id=request.user.id)
@@ -81,7 +113,10 @@ def do_create(request, entity_id, recv_data):
     return HttpResponse('')
 
 @http_get
+@check_permission(Entry, 'writable')
 def edit(request, entry_id):
+    user = User.objects.get(id=request.user.id)
+
     if not Entry.objects.filter(id=entry_id).count():
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
@@ -89,20 +124,17 @@ def edit(request, entry_id):
     entry = Entry.objects.get(id=entry_id)
     context = {
         'entry': entry,
-        'attributes': entry.get_latest_attributes(),
+        'attributes': _get_latest_attributes(entry, user),
     }
 
     # set attribute information of target entry
-    context['attributes'] = entry.get_latest_attributes()
+    context['attributes'] = _get_latest_attributes(entry, user)
 
     return render(request, 'edit_entry.html', context)
 
 @http_post([
     {'name': 'entry_name', 'type': str, 'checker': lambda x: (
         x['entry_name']
-    )},
-    {'name': 'entry_id', 'type': str, 'checker': lambda x: (
-        Entry.objects.filter(id=x['entry_id']).count() == 1
     )},
     {'name': 'attrs', 'type': list, 'meta': [
         {'name': 'id', 'type': str},
@@ -114,11 +146,10 @@ def edit(request, entry_id):
          )},
     ]},
 ])
-def do_edit(request, recv_data):
+@check_permission(Entry, 'writable')
+def do_edit(request, entry_id, recv_data):
     # update name of Entry object
-    Entry.objects.filter(id=recv_data['entry_id']).update(name=recv_data['entry_name'])
-
-    # This checks there is no Entry that has same name
+    Entry.objects.filter(id=entry_id).update(name=recv_data['entry_name'])
 
     for info in recv_data['attrs']:
         attr = Attribute.objects.get(id=info['id'])
@@ -147,7 +178,10 @@ def do_edit(request, recv_data):
     return HttpResponse('')
 
 @http_get
+@check_permission(Entry, 'readable')
 def show(request, entry_id):
+    user = User.objects.get(id=request.user.id)
+
     if not Entry.objects.filter(id=entry_id).count():
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
@@ -161,11 +195,11 @@ def show(request, entry_id):
         'attr_referral': attr_value.referral,
         'created_time': attr_value.created_time,
         'created_user': attr_value.created_user.username,
-    } for attr_value in attr.values.all()] for attr in entry.attrs.all()], [])
+    } for attr_value in attr.values.all()] for attr in entry.attrs.all() if user.has_permission(attr, 'readable')], [])
 
     context = {
         'entry': entry,
-        'attributes': entry.get_latest_attributes(),
+        'attributes': _get_latest_attributes(entry, user),
         'value_history': sorted(value_history, key=lambda x: x['created_time']),
     }
     return render(request, 'show_entry.html', context)

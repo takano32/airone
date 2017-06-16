@@ -100,6 +100,19 @@ class ViewTest(AironeViewTest):
         resp = self.client.get(reverse('entry:index', args=[entity.id]))
         self.assertEqual(resp.status_code, 200)
 
+    def test_get_with_inferior_user_permission(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='hoge',
+                                       is_public=False,
+                                       created_user=User.objects.create(username='hoge'))
+
+        # set superior permission to the logged-in user
+        user.permissions.add(entity.readable)
+
+        resp = self.client.get(reverse('entry:create', args=[entity.id]))
+        self.assertEqual(resp.status_code, 400)
+
     def test_get_entries_with_group_permission(self):
         user = self.admin_login()
 
@@ -187,6 +200,30 @@ class ViewTest(AironeViewTest):
         self.assertEqual(entry.attrs.last(), Attribute.objects.last())
         self.assertEqual(entry.attrs.last().values.count(), 1)
         self.assertEqual(entry.attrs.last().values.last(), AttributeValue.objects.last())
+
+    def test_post_create_entry_without_permission(self):
+        self.admin_login()
+
+        another_user = User.objects.create(username='hoge')
+        entity = Entity.objects.create(name='hoge', is_public=False, created_user=another_user)
+        attr_base = AttributeBase.objects.create(name='test', type=AttrTypeStr,
+                                                 is_mandatory=True, created_user=another_user)
+        entity.attr_bases.add(attr_base)
+
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(attr_base.id), 'value': 'hoge'},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(Entry.objects.count(), 0)
+        self.assertEqual(Attribute.objects.count(), 0)
+        self.assertEqual(AttributeValue.objects.count(), 0)
 
     def test_post_with_optional_parameter(self):
         user = self.admin_login()
@@ -327,7 +364,7 @@ class ViewTest(AironeViewTest):
         resp = self.client.get(reverse('entry:edit', args=[entry.id]))
         self.assertEqual(resp.status_code, 200)
 
-        e_input = ElementTree.fromstring(resp.content.decode('utf-8')).find('.//table/tr/td/input')
+        e_input = ElementTree.fromstring(resp.content.decode('utf-8')).findall('.//div/input')[-1]
         self.assertIsNotNone(e_input)
         self.assertEqual(Attribute.objects.get(id=e_input.attrib['attr_id']).values.last().value,
                          e_input.attrib['value'])
@@ -352,13 +389,13 @@ class ViewTest(AironeViewTest):
         resp = self.client.get(reverse('entry:edit', args=[entry.id]))
         self.assertEqual(resp.status_code, 200)
 
-        e_input = ElementTree.fromstring(resp.content.decode('utf-8')).find('.//table/tr/td/input')
+        e_input = ElementTree.fromstring(resp.content.decode('utf-8')).findall('.//div/input')[-1]
         self.assertIsNotNone(e_input)
         self.assertEqual(e_input.attrib['value'], '')
 
     def test_post_edit_without_login(self):
         params = {'attrs': [{'id': '0', 'value': 'hoge'}]}
-        resp = self.client.post(reverse('entry:do_edit'),
+        resp = self.client.post(reverse('entry:do_edit', args=[0]),
                                 json.dumps(params), 'application/json')
 
         self.assertEqual(resp.status_code, 401)
@@ -368,7 +405,7 @@ class ViewTest(AironeViewTest):
         self.admin_login()
 
         params = {'attrs': [{'id': '0', 'value': 'hoge'}]}
-        resp = self.client.post(reverse('entry:do_edit'),
+        resp = self.client.post(reverse('entry:do_edit', args=[0]),
                                 json.dumps(params), 'application/json')
 
         self.assertEqual(resp.status_code, 400)
@@ -395,14 +432,15 @@ class ViewTest(AironeViewTest):
             entry.attrs.add(attr)
 
         params = {
-            'entry_id': str(entry.id),
             'entry_name': 'hoge',
             'attrs': [
                 {'id': str(Attribute.objects.get(name='foo').id), 'value': 'hoge'}, # same value
                 {'id': str(Attribute.objects.get(name='bar').id), 'value': 'fuga'},
             ],
         }
-        resp = self.client.post(reverse('entry:do_edit'), json.dumps(params), 'application/json')
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params),
+                                'application/json')
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(AttributeValue.objects.count(), 3)
@@ -429,13 +467,14 @@ class ViewTest(AironeViewTest):
 
         params = {
             'entry_name': entry.name,
-            'entry_id': str(entry.id),
             'attrs': [
                 {'id': str(Attribute.objects.get(name='foo').id), 'value': ''}, # blank value
                 {'id': str(Attribute.objects.get(name='bar').id), 'value': 'fuga'},
             ],
         }
-        resp = self.client.post(reverse('entry:do_edit'), json.dumps(params), 'application/json')
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params),
+                                'application/json')
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(AttributeValue.objects.count(), 1)
@@ -495,12 +534,13 @@ class ViewTest(AironeViewTest):
 
         params = {
             'entry_name': 'new_entry',
-            'entry_id': str(entry.id),
             'attrs': [
                 {'id': str(attr.id), 'value': str(new_entry.id)},
             ],
         }
-        resp = self.client.post(reverse('entry:do_edit'), json.dumps(params), 'application/json')
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params),
+                                'application/json')
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(entry.attrs.last().values.count(), 2)

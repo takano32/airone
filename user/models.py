@@ -9,3 +9,30 @@ class User(DjangoUser):
     @property
     def permissions(self):
         return self.user_permissions
+
+    def has_permission(self, aclobj, permission_level):
+        if aclobj.is_public:
+            return True
+
+        if aclobj.created_user.id == self.id:
+            return True
+
+        if not hasattr(aclobj, permission_level):
+            return False
+
+        # get permission object of required level
+        permission = getattr(aclobj, permission_level)
+
+        acl_checker = (lambda m:
+            [permission <= x for x in m.permissions.filter(codename__regex=(r'^%d\.' % aclobj.id))])
+
+        if any(acl_checker(self)):
+            return True
+
+        if any([acl_checker(g) for g in self.groups.all()]):
+            return True
+
+        return False
+
+    def get_acls(self, aclobj):
+        return self.permissions.filter(codename__regex=(r'^%d\.' % aclobj.id))

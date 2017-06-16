@@ -30,7 +30,7 @@
       {% for attr in attributes %}
       <tr>
         <td>{{ attr.name }}</td>
-        {% if attr.referrals %}
+        {% if attr.type == attr_type.entry %}
           <td>
             <select class='attr_value' attr_id='{{ attr.id }}'>
             {% for referral in attr.referrals %}

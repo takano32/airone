@@ -15,41 +15,44 @@
 
 {% block content %}
 <div class="container-fluid">
-  <form url='/entry/do_edit/' method='post'>
+  <form url='/entry/do_edit/{{ entry.id }}' method='post'>
     <div class='row'>
+      <div class='col-2'>
+        エントリ名
+      </div>
       <div class='col'>
-        <div class="float-left">
-          エントリ名：<input type='string' name='entry_name' value='{{ entry.name }}'/>
-        </div>
-        <div class="float-right">
-          <input type="submit" class="btn btn-primary align-right" value='保存'/>
-        </div>
+        <input type='string' name='entry_name' value='{{ entry.name }}'/>
+      </div>
+      <div class="col-2">
+        <input type="submit" class="btn btn-primary align-right" value='保存'/>
       </div>
     </div>
     <hr/>
-    <table>
-      {% for attr in attributes %}
-      <tr>
-        <td>{{ attr.name }}</td>
-        {% if attr.referrals %}
-          <td>
-            <select class='attr_value' attr_id='{{ attr.id }}'>
-            {% for referral in attr.referrals %}
-              {% if referral.id == attr.referral.id %}
-                <option value='{{ referral.id }}' selected='selected'>{{ referral.name }}</option>
-              {% else %}
-                <option value='{{ referral.id }}'>{{ referral.name }}</option>
-              {% endif %}
-            {% endfor %}
-            </select>
-          </td>
-        {% else %}
-          <td><input type='string' class='attr_value' attr_id='{{ attr.id }}' value='{{ attr.last_value }}'/></td>
-        {% endif %}
-      </tr>
-      {% endfor %}
-    </table>
-    <input type='hidden' name='entry_id' value='{{ entry.id }}' />
+    {% for attr in attributes %}
+    <div class='row'>
+      <div class='col-2'>{{ attr.name }}</div>
+      {% if attr.referrals %}
+      <div class='col'>
+        <select class='attr_value' attr_id='{{ attr.id }}'>
+        {% for referral in attr.referrals %}
+          {% if referral.id == attr.referral.id %}
+            <option value='{{ referral.id }}' selected='selected'>{{ referral.name }}</option>
+          {% else %}
+            <option value='{{ referral.id }}'>{{ referral.name }}</option>
+          {% endif %}
+        {% endfor %}
+        </select>
+      </div>
+      {% else %}
+      <div class='col'>
+        <input type='string' class='attr_value' attr_id='{{ attr.id }}' value='{{ attr.last_value }}'/>
+      </div>
+      {% endif %}
+      <div class='col-2'>
+        <a href='/acl/{{ attr.id }}'><button type='button' class='btn btn-info btn-sm'>ACL</button></a>
+      </div>
+    </div>
+    {% endfor %}
     {% csrf_token %}
   </form>
 </div>

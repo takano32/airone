@@ -4,6 +4,7 @@ from entity.models import Entity, AttributeBase
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
 from airone.lib.acl import ACLObjType
+from airone.lib.types import AttrTypeStr, AttrTypeObj
 
 
 class ModelTest(TestCase):
@@ -85,3 +86,28 @@ class ModelTest(TestCase):
         self.assertEqual(group.permissions.filter(name='writable').count(), 2)
         self.assertEqual(group.permissions.filter(name='writable').first(), attrbase.writable)
         self.assertEqual(group.permissions.filter(name='writable').last(), attr.writable)
+
+    def test_update_attribute_from_base(self):
+        user = User.objects.create(username='hoge')
+
+        # test objects to be handled as referral
+        entity = Entity.objects.create(name='entity', created_user=user)
+
+        attrbase = AttributeBase.objects.create(name='attrbase',
+                                                type=AttrTypeStr.TYPE,
+                                                created_user=user)
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        attr = entry.add_attribute_from_base(attrbase, user)
+
+        # update attrbase
+        attrbase.name = 'hoge'
+        attrbase.type = AttrTypeObj.TYPE
+        attrbase.referral = entity
+        attrbase.is_mandatory = True
+
+        attr.update_from_base(attrbase)
+
+        self.assertEqual(Attribute.objects.get(id=attr.id).name, attrbase.name)
+        self.assertEqual(Attribute.objects.get(id=attr.id).type, attrbase.type)
+        self.assertEqual(Attribute.objects.get(id=attr.id).referral.id, attrbase.referral.id)
+        self.assertEqual(Attribute.objects.get(id=attr.id).is_mandatory, attrbase.is_mandatory)

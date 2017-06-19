@@ -142,7 +142,7 @@ class ViewTest(AironeViewTest):
         user.groups.add(group)
 
         # set superior permission to the group which logged-in user belonged to
-        group.permissions.add(entity.deletable)
+        group.permissions.add(entity.full)
 
         resp = self.client.get(reverse('entry:index', args=[entity.id]))
         self.assertEqual(resp.status_code, 200)

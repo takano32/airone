@@ -18,7 +18,14 @@ HttpPost = function(form_elem, add_data) {
       'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val(),
     },
     data:          JSON.stringify(sending_data)
-  }).always(function(data){
+  }).always(function(jqXHR) {
+    if(jqXHR.status <= 399) {
+      // status code: 2xx, 3xx means success
+      MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, "succeeded");
+    } else {
+      // status code: 4xx, 5xx means error
+      MessageBox.setNextOnLoadMessage(MessageBox.ERROR, escapeHtml(jqXHR.responseText));      
+    }
     location.reload();
   });
 }
@@ -29,4 +36,12 @@ var parseJson = function(data) {
     returnJson[data[idx].name] = data[idx].value
   }
   return returnJson;
+}
+
+var escapeHtml = function(s) {
+  return s.replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }

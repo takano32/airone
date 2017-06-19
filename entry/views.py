@@ -64,6 +64,7 @@ def create(request, entity_id):
             'id': x.id,
             'type': x.type,
             'name': x.name,
+            'is_mandatory': x.is_mandatory,
             'referrals': x.referral and Entry.objects.filter(schema=x.referral) or [],
         } for x in entity.attr_bases.all() if user.has_permission(x, 'writable')]
     }

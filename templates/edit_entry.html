@@ -30,7 +30,11 @@
     <hr/>
     {% for attr in attributes %}
     <div class='row'>
-      <div class='col-2'>{{ attr.name }}</div>
+      {% if attr.is_mandatory %}
+        <div class='col-2'><strong>{{ attr.name }} (*)</strong></div>
+      {% else %}
+        <div class='col-2'>{{ attr.name }}</div>
+      {% endif %}
       {% if attr.referrals %}
       <div class='col'>
         <select class='attr_value' attr_id='{{ attr.id }}'>

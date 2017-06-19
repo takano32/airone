@@ -29,7 +29,11 @@
     <table>
       {% for attr in attributes %}
       <tr>
-        <td>{{ attr.name }}</td>
+        {% if attr.is_mandatory %}
+          <td><strong>{{ attr.name }} (*)</strong></td>
+        {% else %}
+          <td>{{ attr.name }}</td>
+        {% endif %}
         {% if attr.type == attr_type.entry %}
           <td>
             <select class='attr_value' attr_id='{{ attr.id }}'>

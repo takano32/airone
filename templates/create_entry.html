@@ -30,7 +30,7 @@
       {% for attr in attributes %}
       <tr>
         {% if attr.is_mandatory %}
-          <td><strong>{{ attr.name }} (*)</strong></td>
+          <td><strong>(*)</strong> {{ attr.name }} </td>
         {% else %}
           <td>{{ attr.name }}</td>
         {% endif %}
@@ -48,6 +48,7 @@
       </tr>
       {% endfor %}
     </table>
+    <strong>(*)</strong> は必須項目
     {% csrf_token %}
   </form>
 </div>

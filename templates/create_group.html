@@ -30,9 +30,9 @@
     </div>
   </div>
 </div>
+{% endblock %}
 
-<script src="/static/js/jquery-3.2.1.min.js"></script>
-<script src="/static/js/http_request.js"></script>
+{% block script %}
 <script>
 $('form').submit(function(){
   HttpPost($(this), {'users': $('select[name=users]').val()});

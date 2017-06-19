@@ -161,8 +161,8 @@ class ViewTest(AironeViewTest):
         group = Group(name='fuga')
         group.save()
 
-        # set ACL object in advance, there are two members in the deletable parameter
-        group.permissions.add(self._aclobj.deletable)
+        # set ACL object in advance, there are two members in the full parameter
+        group.permissions.add(self._aclobj.full)
 
         params = {
             'object_id': str(self._aclobj.id),
@@ -187,8 +187,8 @@ class ViewTest(AironeViewTest):
         group = Group(name='fuga')
         group.save()
 
-        # set ACL object in advance, there are two members in the deletable parameter
-        group.permissions.add(self._aclobj.deletable)
+        # set ACL object in advance, there are two members in the full parameter
+        group.permissions.add(self._aclobj.full)
 
         params = {
             'object_id': str(self._aclobj.id),
@@ -273,11 +273,11 @@ class ViewTest(AironeViewTest):
         entry = Entry.objects.create(name='fuga', created_user=user, schema=entity)
         attr = entry.add_attribute_from_base(attrbase, user)
 
-        resp = self.send_set_request(attrbase, user, ACLType.Deletable.id)
+        resp = self.send_set_request(attrbase, user, ACLType.Full.id)
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(user.permissions.count(), 2)
-        self.assertEqual(user.permissions.first(), attrbase.deletable)
-        self.assertEqual(user.permissions.last(), attr.deletable)
+        self.assertEqual(user.permissions.first(), attrbase.full)
+        self.assertEqual(user.permissions.last(), attr.full)
         self.assertFalse(AttributeBase.objects.get(id=attrbase.id).is_public)
         self.assertFalse(Attribute.objects.get(id=attr.id).is_public)

@@ -13,7 +13,7 @@ class ModelTest(TestCase):
         self.assertIsNotNone(acl)
         self.assertIsInstance(acl.readable, Permission)
         self.assertIsInstance(acl.writable, Permission)
-        self.assertIsInstance(acl.deletable, Permission)
+        self.assertIsInstance(acl.full, Permission)
 
     def test_pass_permission_check_with_public_obj(self):
         user = User.objects.create(username='foo', email='hoge@fuga.com', password='fuga')
@@ -95,7 +95,7 @@ class ModelTest(TestCase):
         group = Group.objects.create(name='hoge')
 
         aclobj = ACLBase.objects.create(name='hoge', created_user=user, is_public=False)
-        group.permissions.add(aclobj.deletable)
+        group.permissions.add(aclobj.full)
 
         self.assertEqual(group.get_acls(aclobj).count(), 1)
-        self.assertEqual(group.get_acls(aclobj)[0], aclobj.deletable)
+        self.assertEqual(group.get_acls(aclobj)[0], aclobj.full)

@@ -14,15 +14,19 @@ class ACLObjType(Iteratable):
         self._types = [self.Entity, self.AttrBase, self.Attr]
 
 class ACLType(Iteratable):
-    Nothing = type('ACLTypeNone', (object,), {'id': (1 << 0), 'name': '権限なし'})
-    Readable = type('ACLTypeReadable', (object,), {'id': (1 << 1), 'name': 'readable'})
-    Writable = type('ACLTypeWritable', (object,), {'id': (1 << 2), 'name': 'writable'})
-    Deletable = type('ACLTypeDeletable', (object,), {'id': (1 << 3), 'name': 'deletable'})
+    Nothing = type('ACLTypeNone', (object,),
+                   {'id': (1 << 0), 'name': 'nothing', 'label': 'Nothing'})
+    Readable = type('ACLTypeReadable', (object,),
+                    {'id': (1 << 1), 'name': 'readable','label': 'Readable'})
+    Writable = type('ACLTypeWritable', (object,),
+                    {'id': (1 << 2), 'name': 'writable', 'label': 'Writable'})
+    Full = type('ACLTypeFull', (object,),
+                {'id': (1 << 3), 'name': 'full', 'label': 'Full Controllable'})
 
     @classmethod
     def all(cls):
-        return [cls.Nothing, cls.Readable, cls.Writable, cls.Deletable]
+        return [cls.Nothing, cls.Readable, cls.Writable, cls.Full]
 
     @classmethod
     def availables(cls):
-        return [cls.Readable, cls.Writable, cls.Deletable]
+        return [cls.Readable, cls.Writable, cls.Full]

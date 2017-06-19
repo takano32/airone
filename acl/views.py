@@ -30,7 +30,7 @@ def index(request, obj_id):
 
     context = {
         'object': target_obj,
-        'acltypes': [{'id':x.id, 'name':x.name} for x in ACLType.all()],
+        'acltypes': [{'id':x.id, 'name':x.label} for x in ACLType.all()],
         'members': [{'id': x.id,
                      'name': x.username,
                      'current_permission': get_current_permission(x),

@@ -82,7 +82,7 @@ def do_edit(request, entity_id, recv_data):
     entity.save()
 
     for attr in recv_data['attrs']:
-        is_new_attr_base = False
+        is_deleted = is_new_attr_base = False
         if 'id' in attr and AttributeBase.objects.filter(id=attr['id']).count():
             # update attributes which is already created
             attr_base = AttributeBase.objects.get(id=attr['id'])
@@ -90,6 +90,9 @@ def do_edit(request, entity_id, recv_data):
             attr_base.name = attr['name']
             attr_base.type = attr['type']
             attr_base.is_mandatory = attr['is_mandatory']
+
+            if 'deleted' in attr:
+                is_deleted = True
         else:
             # add an new attributes
             is_new_attr_base = True
@@ -104,18 +107,25 @@ def do_edit(request, entity_id, recv_data):
         else:
             attr_base.referral = None
 
-        attr_base.save()
+        if not is_deleted:
+            # create or update an AttributeBase and related Attributes
+            attr_base.save()
 
-        if is_new_attr_base:
-            # add a new attribute on the existed Entries
-            entity.attr_bases.add(attr_base)
+            if is_new_attr_base:
+                # add a new attribute on the existed Entries
+                entity.attr_bases.add(attr_base)
 
-            for entry in Entry.objects.filter(schema=entity):
-                entry.add_attribute_from_base(attr_base, user)
+                for entry in Entry.objects.filter(schema=entity):
+                    entry.add_attribute_from_base(attr_base, user)
+            else:
+                # update Attributes which are already created
+                [x.update_from_base(attr_base)
+                        for x in Attribute.objects.filter(schema_id=attr_base.id)]
         else:
-            # update Attributes which are already created
-            [x.update_from_base(attr_base)
-                    for x in Attribute.objects.filter(schema_id=attr_base.id)]
+            # delete all related Attributes of target AttributeBase
+            [x.delete() for x in Attribute.objects.filter(schema_id=attr_base.id)]
+
+            attr_base.delete()
 
     return HttpResponseSeeOther('/entity/')
 

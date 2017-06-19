@@ -7,6 +7,8 @@ from entry.models import Entry, Attribute
 from xml.etree import ElementTree
 from airone.lib.test import AironeViewTest
 from airone.lib.types import AttrTypeStr, AttrTypeObj
+from airone.lib.acl import ACLType
+from django.contrib.auth.models import Permission
 
 
 class ViewTest(AironeViewTest):
@@ -246,9 +248,9 @@ class ViewTest(AironeViewTest):
 
         entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
         attrbase = AttributeBase.objects.create(name='puyo',
-                                            type=AttrTypeObj,
-                                            referral=entity,
-                                            created_user=user)
+                                                type=AttrTypeObj,
+                                                referral=entity,
+                                                created_user=user)
         entity.attr_bases.add(attrbase)
 
         entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
@@ -316,3 +318,37 @@ class ViewTest(AironeViewTest):
         self.assertEqual(AttributeBase.objects.last().name, 'a')
         self.assertIsNotNone(AttributeBase.objects.last().referral)
         self.assertEqual(AttributeBase.objects.last().referral.id, entity.id)
+
+    def test_post_edit_delete_attribute(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        for name in ['foo', 'bar']:
+            entity.attr_bases.add(AttributeBase.objects.create(name=name,
+                                                               type=AttrTypeStr,
+                                                               created_user=user))
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        [entry.add_attribute_from_base(x, user) for x in entity.attr_bases.all()]
+
+        permission_count = Permission.objects.count()
+        params = {
+            'name': 'new-entity',
+            'note': 'hoge',
+            'attrs': [
+                {'name': 'foo', 'type': str(AttrTypeStr), 'id': entity.attr_bases.first().id,
+                 'is_mandatory': False},
+                {'name': 'bar', 'type': str(AttrTypeStr), 'id': entity.attr_bases.last().id,
+                 'is_mandatory': False, 'deleted': True},
+            ],
+        }
+        resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
+                                json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(Permission.objects.count(),
+                         permission_count - len(ACLType.availables()) * 2)
+        self.assertEqual(entity.attr_bases.count(), 1)
+        self.assertEqual(entry.attrs.count(), 1)
+        self.assertEqual(entity.attr_bases.last().name, 'foo')
+        self.assertEqual(entry.attrs.last().name, 'foo')

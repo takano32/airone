@@ -58,8 +58,8 @@ class ACLBase(models.Model):
         return self._get_permission(ACLType.Writable.id)
 
     @property
-    def deletable(self):
-        return self._get_permission(ACLType.Deletable.id)
+    def full(self):
+        return self._get_permission(ACLType.Full.id)
 
     def _get_permission(self, acltype):
         return Permission.objects.get(codename="%s.%s" % (self.id, acltype))

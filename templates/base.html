@@ -25,6 +25,9 @@
           <!-- breadcrumb -->
           {% block nav_sub_header %}{% endblock %}
 
+          <!-- message box -->
+          {% include 'messagebox.html' %}
+
           <!-- main contents -->
           {% block content %}{% endblock %}
         </div>
@@ -32,9 +35,11 @@
     </div>
     <!-- bootstrap js file -->
     <script src="/static/js/jquery-3.2.1.min.js"></script>
+    <script src="/static/js/jquery.cookie.js"></script>
     <script src="/static/js/tether.min.js"></script>
     <script src="/static/js/bootstrap.min.js"></script>
     <script src="/static/js/http_request.js"></script>
+    <script src="/static/js/messagebox.js"></script>
     {% block script %}{% endblock %}
   </body>
 </html>

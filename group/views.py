@@ -16,6 +16,7 @@ def index(request):
     context = {}
     context['groups'] = [{
         'name': x.name,
+        'members': User.objects.filter(groups__name=x.name),
     } for x in Group.objects.all()]
 
     return render(request, 'list_group.html', context)

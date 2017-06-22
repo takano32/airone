@@ -36,14 +36,14 @@ $('form').submit(function(){
 });
 $('.attr_type').change(toggle_referral);
 
-var table_column = $('div[name=attr_template]').html();
+var table_column = $('[name=attr_template]').html();
 var append_attr_column = function() {
-  var new_column = $('<div class="row attr" />');
+  var new_column = $('<tr class="attr" />');
 
   new_column.append($.parseHTML(table_column));
   new_column.find('.attr_type').on('change', toggle_referral);
 
-  $('div[name=attributes]').append(new_column);
+  $('[name=attributes]').append(new_column);
 }
 
 

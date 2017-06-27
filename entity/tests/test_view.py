@@ -138,7 +138,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
 
         root = ElementTree.fromstring(resp.content.decode('utf-8'))
-        self.assertIsNotNone(root.find('.//div/div/select'))
+        self.assertIsNotNone(root.find('.//tr/td/select'))
 
     def test_post_edit_without_login(self):
         resp = self.client.post(reverse('entity:do_edit', args=[0]), '{}', 'application/json')

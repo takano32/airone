@@ -23,11 +23,11 @@
         <table class="table table-bordered">
           <tr>
             <td>エンティティ名</td>
-            <td><input type='string' name='name' /></td>
+            <td><input type="text" name="name" /></td>
           </tr>
           <tr>
             <td>備考</td>
-            <td><input type='string' name='note' size='50'/></td>
+            <td><input type="text" name="note" size="50"/></td>
           </tr>
         </table>
 
@@ -40,16 +40,16 @@
           </thead>
           <tbody name="attributes">
             <tr class="attr">
-              <td><input type='text' class='attr_name'></input></td>
+              <td><input type="text" class="attr_name" /></td>
               <td>
-                <select class='attr_type'>
+                <select class="attr_type">
                   {% for type in attr_types %}
-                  <option value='{{ type.TYPE }}'>{{ type.NAME }}</option>
+                  <option value="{{ type.TYPE }}">{{ type.NAME }}</option>
                   {% endfor %}
                 </select>
-                <select class='attr_referral' style='display:none'>
+                <select class="attr_referral" style="display:none">
                   {% for entity in entities %}
-                  <option value='{{ entity.id }}'>{{ entity.name }}</option>
+                  <option value="{{ entity.id }}">{{ entity.name }}</option>
                   {% endfor %}
                 </select>
               </td>

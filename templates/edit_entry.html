@@ -17,46 +17,50 @@
 <div class="container-fluid">
   <form url='/entry/do_edit/{{ entry.id }}' method='post'>
     <div class='row'>
-      <div class='col-2'>
-        エントリ名
-      </div>
-      <div class='col'>
-        <input type='string' name='entry_name' value='{{ entry.name }}'/>
-      </div>
-      <div class="col-2">
-        <input type="submit" class="btn btn-primary align-right" value='保存'/>
-      </div>
-    </div>
-    <hr/>
-    {% for attr in attributes %}
-    <div class='row'>
-      {% if attr.is_mandatory %}
-        <div class='col-2'><strong>(*)</strong> {{ attr.name }}</div>
-      {% else %}
-        <div class='col-2'>{{ attr.name }}</div>
-      {% endif %}
-      {% if attr.referrals %}
-      <div class='col'>
-        <select class='attr_value' attr_id='{{ attr.id }}'>
-        {% for referral in attr.referrals %}
-          {% if referral.id == attr.referral.id %}
-            <option value='{{ referral.id }}' selected='selected'>{{ referral.name }}</option>
-          {% else %}
-            <option value='{{ referral.id }}'>{{ referral.name }}</option>
-          {% endif %}
-        {% endfor %}
-        </select>
-      </div>
-      {% else %}
-      <div class='col'>
-        <input type='string' class='attr_value' attr_id='{{ attr.id }}' value='{{ attr.last_value }}'/>
-      </div>
-      {% endif %}
-      <div class='col-2'>
-        <a href='/acl/{{ attr.id }}'><button type='button' class='btn btn-info btn-sm'>ACL</button></a>
+      <div class="col">
+        <div class="float-right">
+          <input type="submit" class="btn btn-primary" value='保存'/>
+        </div>
+        <table class="table table-bordered">
+          <tr>
+            <td>エントリ名</td>
+            <td><input type="text" name="entry_name" value="{{ entry.name }}"/></td>
+          </tr>
+        </table>
       </div>
     </div>
-    {% endfor %}
+
+    <table class="table table-bordered">
+      <thead>
+        <th>属性</th>
+        <th>属性値</th>
+        <th></th>
+      </thead>
+      <tbody>
+        {% for attr in attributes %}
+        <tr>
+          <td>
+            {% if attr.is_mandatory %}<strong>(*)</strong>{% endif %}{{ attr.name }}
+          </td>
+          <td>
+            {% if attr.referrals %}
+            <select class="attr_value" attr_id="{{ attr.id }}">
+              {% for referral in attr.referrals %}
+              <option value="{{ referral.id }}"{% if referral.id == attr.referral.id %} selected="selected" {% endif %}>{{ referral.name }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <input type="text" class="attr_value" attr_id="{{ attr.id }}" value="{{ attr.last_value }}"/>
+            {% endif %}
+          </td>
+          <td>
+            <a href="/acl/{{ attr.id }}"><button type="button" class="btn btn-info btn-sm">ACL</button></a>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    
     <strong>(*)</strong> は必須項目
     {% csrf_token %}
   </form>

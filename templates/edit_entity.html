@@ -17,115 +17,99 @@
   <div class="container-fluid">
     <div class="row">
       <div class="col">
-        <div class="float-left">
-          <div>
-            エンティティ名：<input type='string' name='name' value='{{ entity.name }}'/>
-          </div>
-          <div>
-            備考：<input type='string' name='note' value='{{ entity.note }}' size='50'/>
-          </div>
-        </div>
         <div class="float-right">
           <input name="button_save" type="submit" class="btn btn-primary" value='保存'></input>
         </div>
+        <table class="table table-bordered">
+          <tr>
+            <td>エンティティ名</td>
+            <td><input type="text" name="name" value="{{ entity.name }}" /></td>
+          </tr>
+          <tr>
+            <td>備考</td>
+            <td><input type="text" name="note" size="50" value="{{ entity.note }}" /></td>
+          </tr>
+        </table>
+
+        <table class="table table-bordered">
+          <thead>
+            <th>属性名</th>
+            <th>型</th>
+            <th>必須</th>
+            <th></th>
+            <th></th>
+          </thead>
+
+          <tbody name="attributes">
+            {% for attr in attributes %}
+            <tr class="attr" attr_id="{{ attr.id }}">
+              <td><input type="text" class="attr_name" value="{{ attr.name }}"/></td>
+              <td>
+                <select class="attr_type">
+                  {% for type in attr_types %}
+                  <option value="{{ type.TYPE }}" {% if attr.type == type.TYPE %}selected="selected"{% endif %}>{{ type.NAME }}</option>
+                  {% endfor %}
+                </select>
+                
+                <select class="attr_referral" {% if not attr.referral %}style="display:none"{% endif %}>
+                  {% for entity in entities %}
+                  <option value="{{ entity.id }}" {% if attr.referral.id == entity.id %}selected="selected"{% endif %}>{{ entity.name }}</option>
+                  {% endfor %}
+                </select>
+
+              </td>
+              <td>
+                {% if attr.is_mandatory %}
+                <input type="checkbox" class="is_mandatory" checked="checked" />
+                {% else %}
+                <input type="checkbox" class="is_mandatory" />
+                {% endif %}
+              </td>
+              <td>
+                <a href="/acl/{{ attr.id }}"><button type="button" class="btn btn-info btn-sm">ACL</button></a>
+              </td>
+              <td>
+                <button type="button" class="btn btn-danger btn-sm" name="del_attr">del</button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+
+          <!-- templates -->
+          <tfoot style="display:none">
+            <tr name="attr_template">
+              <td><input type="text" class="attr_name"></input></td>
+              <td>
+                <select class="attr_type">
+                  {% for type in attr_types %}
+                  <option value="{{ type.TYPE }}">{{ type.NAME }}</option>
+                  {% endfor %}
+                </select>
+                <select class="attr_referral" style="display:none">
+                  {% for entity in entities %}
+                  <option value="{{ entity.id }}">{{ entity.name }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <input type="checkbox" class="is_mandatory"></input>
+              </td>
+              <td>
+
+              </td>
+              <td>
+                <button type="button" class="btn btn-danger btn-sm" name="del_attr">del</button>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
       </div>
     </div>
   </div>
-  <hr/>
-  <div class="container-fluid">
 
-    <div class="row">
-      <div class="col">属性名</div>
-      <div class="col-4">型</div>
-      <div class="col-2">必須</div>
-      <div class="col-2"></div>
-      <div class="col-1"></div>
-    </div>
-
-    <div name='attributes'>
-      {% for attr in attributes %}
-      <div class="row attr" attr_id='{{ attr.id }}'>
-        <div class='col'><input type='text' class='attr_name' value='{{ attr.name }}'></input></div>
-        <div class='col-4'>
-          <select class='attr_type'>
-            {% for type in attr_types %}
-              {% if attr.type == type.TYPE %}
-              <option value='{{ type.TYPE }}' selected='selected'>{{ type.NAME }}</option>
-              {% else %}
-              <option value='{{ type.TYPE }}'>{{ type.NAME }}</option>
-              {% endif %}
-            {% endfor %}
-          </select>
-          {% if attr.referral %}
-          <select class='attr_referral'>
-          {% else %}
-          <select class='attr_referral' style='display:none'>
-          {% endif %}
-            {% for entity in entities %}
-              {% if attr.referral.id == entity.id %}
-              <option value='{{ entity.id }}' selected='selected'>{{ entity.name }}</option>
-              {% else %}
-              <option value='{{ entity.id }}'>{{ entity.name }}</option>
-              {% endif %}
-            {% endfor %}
-          </select>
-        </div>
-
-        <!-- Column for checkbox of mandatroy -->
-        <div class='col-2'>
-          {% if attr.is_mandatory %}
-          <input type='checkbox' class='is_mandatory' checked='checked'></input>
-          {% else %}
-          <input type='checkbox' class='is_mandatory'></input>
-          {% endif %}
-        </div>
-
-        <!-- Column for ACL -->
-        <div class='col-2'>
-          <a href='/acl/{{ attr.id }}'><button type='button' class='btn btn-info btn-sm'>ACL</button></a>
-        </div>
-
-        <!-- Column for delete button -->
-        <div class="col-1">
-          <button type="button" class="btn btn-danger btn-sm" name="del_attr">del</button>
-        </div>
-        
-      </div>
-      {% endfor %}
-    </div>
-
-    <!-- a template of attribute -->
-    <div class="row" name='attr_template' style='display:none'>
-      <div class='col'><input type='text' class='attr_name'></input></div>
-      <div class='col-4'>
-        <select class='attr_type'>
-          {% for type in attr_types %}
-          <option value='{{ type.TYPE }}'>{{ type.NAME }}</option>
-          {% endfor %}
-        </select>
-        <select class='attr_referral' style='display:none'>
-          {% for entity in entities %}
-          <option value='{{ entity.id }}'>{{ entity.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class='col-2'>
-        <input type='checkbox' class='is_mandatory'></input>
-      </div>
-
-      <div class='col-2'>
-
-      </div>
-
-      <div class='col-1'>
-        <button type="button" class="btn btn-danger btn-sm" name="del_attr">del</button>
-      </div>
-    </div>
-
-    <div class="row">
-      <div class='col'>
-        <button name='add_attr'>属性追加</button>
-      </div>
+  <div class="row">
+    <div class='col'>
+      <button name='add_attr'>属性追加</button>
     </div>
   </div>
   {% csrf_token %}

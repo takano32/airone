@@ -364,7 +364,7 @@ class ViewTest(AironeViewTest):
         resp = self.client.get(reverse('entry:edit', args=[entry.id]))
         self.assertEqual(resp.status_code, 200)
 
-        e_input = ElementTree.fromstring(resp.content.decode('utf-8')).findall('.//div/input')[-1]
+        e_input = ElementTree.fromstring(resp.content.decode('utf-8')).findall('.//td/input')[-1]
         self.assertIsNotNone(e_input)
         self.assertEqual(Attribute.objects.get(id=e_input.attrib['attr_id']).values.last().value,
                          e_input.attrib['value'])
@@ -389,7 +389,7 @@ class ViewTest(AironeViewTest):
         resp = self.client.get(reverse('entry:edit', args=[entry.id]))
         self.assertEqual(resp.status_code, 200)
 
-        e_input = ElementTree.fromstring(resp.content.decode('utf-8')).findall('.//div/input')[-1]
+        e_input = ElementTree.fromstring(resp.content.decode('utf-8')).findall('.//td/input')[-1]
         self.assertIsNotNone(e_input)
         self.assertEqual(e_input.attrib['value'], '')
 

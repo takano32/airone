@@ -14,39 +14,48 @@
 
 {% block content %}
 <div class="container-fluid">
-  <form url='/entry/do_create/{{ entity.id }}/' method='post'>
-    <div class='row'>
-      <div class='col'>
-        <div class="float-left">
-          Name: <input type='string' name='entry_name' />
-        </div>
+  <form url="/entry/do_create/{{ entity.id }}/" method="post">
+    <div class="row">
+      <div class="col">
         <div class="float-right">
-          <input type="submit" class="btn btn-primary align-right" value='保存'/>
+          <input type="submit" class="btn btn-primary align-right" value="保存"/>
         </div>
+        <table class="table table-bordered">
+          <tr>
+            <td>エントリ名</td>
+            <td><input type="text" name="entry_name" /></td>
+          </tr>
+        </table>
       </div>
     </div>
-    <hr/>
-    <table>
-      {% for attr in attributes %}
-      <tr>
-        {% if attr.is_mandatory %}
+
+    <table class="table table-bordered">
+      <thead>
+        <th>属性</th>
+        <th>属性値</th>
+      </thead>
+      <tbody>
+        {% for attr in attributes %}
+        <tr>
+          {% if attr.is_mandatory %}
           <td><strong>(*)</strong> {{ attr.name }} </td>
-        {% else %}
+          {% else %}
           <td>{{ attr.name }}</td>
-        {% endif %}
-        {% if attr.type == attr_type.entry %}
+          {% endif %}
+          {% if attr.type == attr_type.entry %}
           <td>
             <select class='attr_value' attr_id='{{ attr.id }}'>
-            {% for referral in attr.referrals %}
+              {% for referral in attr.referrals %}
               <option value='{{ referral.id }}'>{{ referral.name }}</option>
-            {% endfor %}
+              {% endfor %}
             </select>
           </td>
-        {% else %}
-          <td><input type='string' class='attr_value' attr_id='{{ attr.id }}' /></td>
-        {% endif %}
-      </tr>
-      {% endfor %}
+          {% else %}
+          <td><input type='text' class='attr_value' attr_id='{{ attr.id }}' /></td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
     </table>
     <strong>(*)</strong> は必須項目
     {% csrf_token %}

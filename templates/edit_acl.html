@@ -5,9 +5,24 @@
 {% block nav_sub_header %}
 <div class="conatiner-fluid">
   <ul class="breadcrumb airone-breadcrumb">
-    <li class="breadcrumb-item"><a href="/dashboard/">top</a></li>
-    <li class="breadcrumb-item"><a href="/entity/">エンティティ一覧</a></li>
-    <li class="breadcrumb-item">ACL作成</li>
+    <li class="breadcrumb-item"><a href="/">TOP</a></li>
+    {% if object.objtype == navigator.acl_objtype.entity %}
+      <li class="breadcrumb-item"><a href="/entity/">エンティティ一覧</a></li>
+      <li class="breadcrumb-item">ACL 設定</li>
+    {% elif object.objtype == navigator.acl_objtype.entry %}
+      <li class="breadcrumb-item"><a href="/entry/{{ object.schema.id }}">{{ object.schema.name }}</a></li>
+      <li class="breadcrumb-item"><a href="/entry/show/{{ object.id }}">{{ object.name }}</a></li>
+      <li class="breadcrumb-item">ACL 設定</li>
+    {% elif object.objtype == navigator.acl_objtype.attrbase %}
+      <li class="breadcrumb-item"><a href="/entity/">エンティティ一覧</a></li>
+      <li class="breadcrumb-item"><a href="/entity/edit/{{ parent.id }}">{{ parent.name }}</a></li>
+      <li class="breadcrumb-item">ACL 設定</li>
+    {% elif object.objtype == navigator.acl_objtype.attr %}
+      <li class="breadcrumb-item"><a href="/entry/{{ parent.schema.id }}">{{ parent.schema.name }}</a></li>
+      <li class="breadcrumb-item"><a href="/entry/show/{{ parent.id }}">{{ parent.name }}</a></li>
+      <li class="breadcrumb-item"><a href="/entry/edit/{{ parent.id }}">{{ parent.name }} の編集</a></li>
+      <li class="breadcrumb-item">ACL 設定</li>
+    {% endif %}
   </ul>
 </div>
 {% endblock %}
@@ -16,7 +31,7 @@
 <div class="container-fluid">
   <div class="row">
     <div class="col">
-      <h2>ACL作成</h2>
+      <h2>"{{ object.name }}" の ACL 設定</h2>
     </div>
   </div>
   <div class="row">

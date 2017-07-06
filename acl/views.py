@@ -1,4 +1,5 @@
 import json
+import logging
 
 from django.http import HttpResponse
 from django.contrib.auth.models import Group, Permission
@@ -11,6 +12,8 @@ from entry.models import Entry, Attribute
 from user.models import User
 from .models import ACLBase
 
+Logger = logging.getLogger(__name__)
+
 
 @http_get
 def index(request, obj_id):
@@ -18,7 +21,7 @@ def index(request, obj_id):
         return HttpResponse('Failed to find target object to set ACL', status=400)
 
     # This is an Entity or AttributeBase
-    target_obj = ACLBase.objects.get(id=obj_id)
+    target_obj = ACLBase.objects.get(id=obj_id).transform_subclass()
 
     # get ACLTypeID of target_obj if a permission is set
     def get_current_permission(member):
@@ -28,8 +31,20 @@ def index(request, obj_id):
         else:
             return 0
 
+    # Some type of objects needs object that refers target_obj (e.g. Attribute)
+    # for showing breadcrumb navigation.
+    parent_obj = None
+    try:
+        if isinstance(target_obj, Attribute):
+            parent_obj = next(x for x in Entry.objects.all() if x.attrs.filter(id=obj_id))
+        elif isinstance(target_obj, AttributeBase):
+            parent_obj = next(x for x in Entity.objects.all() if x.attr_bases.filter(id=obj_id))
+    except StopIteration:
+        Logger.warning('failed to get related parent object')
+
     context = {
         'object': target_obj,
+        'parent': parent_obj,
         'acltypes': [{'id':x.id, 'name':x.label} for x in ACLType.all()],
         'members': [{'id': x.id,
                      'name': x.username,

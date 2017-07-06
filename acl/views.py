@@ -21,7 +21,7 @@ def index(request, obj_id):
         return HttpResponse('Failed to find target object to set ACL', status=400)
 
     # This is an Entity or AttributeBase
-    target_obj = ACLBase.objects.get(id=obj_id).transform_subclass()
+    target_obj = ACLBase.objects.get(id=obj_id).get_subclass_object()
 
     # get ACLTypeID of target_obj if a permission is set
     def get_current_permission(member):

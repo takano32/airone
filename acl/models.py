@@ -66,7 +66,8 @@ class ACLBase(models.Model):
     def _get_permission(self, acltype):
         return Permission.objects.get(codename="%s.%s" % (self.id, acltype))
 
-    def transform_subclass(self):
+    def get_subclass_object(self):
+        # Use importlib to prevent circular import
         if self.objtype == ACLObjType.Entity:
             model = importlib.import_module('entity.models').Entity
         elif self.objtype == ACLObjType.AttrBase:

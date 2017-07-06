@@ -101,7 +101,7 @@ class ModelTest(TestCase):
         self.assertEqual(group.get_acls(aclobj).count(), 1)
         self.assertEqual(group.get_acls(aclobj)[0], aclobj.full)
 
-    def test_transform_subclass(self):
+    def test_get_subclass_object(self):
         user = User.objects.create(username='foo', email='hoge@fuga.com', password='fuga')
 
         # make objects to test
@@ -115,8 +115,8 @@ class ModelTest(TestCase):
         attr = import_module('entry.models').Attribute.objects.create(**kwargs)
         base = ACLBase.objects.create(**kwargs)
 
-        self.assertEqual(ACLBase.objects.get(id=entity.id).transform_subclass(), entity)
-        self.assertEqual(ACLBase.objects.get(id=attr_base.id).transform_subclass(), attr_base)
-        self.assertEqual(ACLBase.objects.get(id=entry.id).transform_subclass(), entry)
-        self.assertEqual(ACLBase.objects.get(id=attr.id).transform_subclass(), attr)
-        self.assertEqual(ACLBase.objects.get(id=base.id).transform_subclass(), base)
+        self.assertEqual(ACLBase.objects.get(id=entity.id).get_subclass_object(), entity)
+        self.assertEqual(ACLBase.objects.get(id=attr_base.id).get_subclass_object(), attr_base)
+        self.assertEqual(ACLBase.objects.get(id=entry.id).get_subclass_object(), entry)
+        self.assertEqual(ACLBase.objects.get(id=attr.id).get_subclass_object(), attr)
+        self.assertEqual(ACLBase.objects.get(id=base.id).get_subclass_object(), base)

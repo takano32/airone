@@ -9,6 +9,7 @@ from acl.models import ACLBase
 from user.models import User
 
 from airone.lib.types import AttrTypes
+from airone.lib.acl import ACLObjType
 
 
 class HttpResponseSeeOther(HttpResponseRedirect):
@@ -88,6 +89,12 @@ def render(request, template, context={}):
         context['navigator'] = {
             'entities': [x for x in entity_models.Entity.objects.all()
                          if user.has_permission(x, 'readable')],
+            'acl_objtype': {
+                'entity': ACLObjType.Entity,
+                'entry': ACLObjType.Entry,
+                'attrbase': ACLObjType.AttrBase,
+                'attr': ACLObjType.Attr,
+            }
         }
 
     context['attr_type'] = {}

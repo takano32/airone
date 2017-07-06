@@ -2,6 +2,7 @@ from django.test import TestCase
 from django.contrib.auth.models import Group, Permission
 from acl.models import ACLBase
 from user.models import User
+from importlib import import_module
 
 
 class ModelTest(TestCase):
@@ -99,3 +100,23 @@ class ModelTest(TestCase):
 
         self.assertEqual(group.get_acls(aclobj).count(), 1)
         self.assertEqual(group.get_acls(aclobj)[0], aclobj.full)
+
+    def test_get_subclass_object(self):
+        user = User.objects.create(username='foo', email='hoge@fuga.com', password='fuga')
+
+        # make objects to test
+        kwargs = {
+            'name': 'test-object',
+            'created_user': user,
+        }
+        entity = import_module('entity.models').Entity.objects.create(**kwargs)
+        attr_base = import_module('entity.models').AttributeBase.objects.create(**kwargs)
+        entry = import_module('entry.models').Entry.objects.create(schema_id=entity.id, **kwargs)
+        attr = import_module('entry.models').Attribute.objects.create(**kwargs)
+        base = ACLBase.objects.create(**kwargs)
+
+        self.assertEqual(ACLBase.objects.get(id=entity.id).get_subclass_object(), entity)
+        self.assertEqual(ACLBase.objects.get(id=attr_base.id).get_subclass_object(), attr_base)
+        self.assertEqual(ACLBase.objects.get(id=entry.id).get_subclass_object(), entry)
+        self.assertEqual(ACLBase.objects.get(id=attr.id).get_subclass_object(), attr)
+        self.assertEqual(ACLBase.objects.get(id=base.id).get_subclass_object(), base)

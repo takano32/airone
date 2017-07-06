@@ -1,3 +1,5 @@
+import importlib
+
 from django.db import models
 from django.db.models.signals import post_save
 from django.db.models.signals import pre_save
@@ -7,7 +9,7 @@ from django.dispatch import receiver
 
 from user.models import User
 
-from airone.lib.acl import ACLType
+from airone.lib.acl import ACLType, ACLObjType
 
 
 # Add comparison operations to the Permission model
@@ -63,3 +65,19 @@ class ACLBase(models.Model):
 
     def _get_permission(self, acltype):
         return Permission.objects.get(codename="%s.%s" % (self.id, acltype))
+
+    def get_subclass_object(self):
+        # Use importlib to prevent circular import
+        if self.objtype == ACLObjType.Entity:
+            model = importlib.import_module('entity.models').Entity
+        elif self.objtype == ACLObjType.AttrBase:
+            model = importlib.import_module('entity.models').AttributeBase
+        elif self.objtype == ACLObjType.Entry:
+            model = importlib.import_module('entry.models').Entry
+        elif self.objtype == ACLObjType.Attr:
+            model = importlib.import_module('entry.models').Attribute
+        else:
+            # set ACLBase model
+            model = type(self)
+
+        return model.objects.get(id=self.id)

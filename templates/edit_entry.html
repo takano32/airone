@@ -45,6 +45,10 @@
           <td>
             {% if attr.referrals %}
             <select class="attr_value" attr_id="{{ attr.id }}">
+              {% if not attr.is_mandatory %}
+              <option value='0'>- NOT SET -</option>
+              {% endif %}
+
               {% for referral in attr.referrals %}
               <option value="{{ referral.id }}"{% if referral.id == attr.referral.id %} selected="selected" {% endif %}>{{ referral.name }}</option>
               {% endfor %}

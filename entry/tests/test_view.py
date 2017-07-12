@@ -325,6 +325,30 @@ class ViewTest(AironeViewTest):
         self.assertEqual(Attribute.objects.count(), 0)
         self.assertEqual(AttributeValue.objects.count(), 0)
 
+    def test_post_without_entry(self):
+        user = self.admin_login()
+
+        attr_base = AttributeBase.objects.create(name='ref_attr',
+                                                 created_user=user,
+                                                 type=AttrTypeObj,
+                                                 referral=self._entity,
+                                                 is_mandatory=False)
+        self._entity.attr_bases.add(attr_base)
+
+        params = {
+            'entry_name': 'new_entry',
+            'attrs': [
+                {'id': str(self._attr_base.id), 'value': 'hoge'},
+                {'id': str(attr_base.id), 'value': '0'},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Entry.objects.last().attrs.get(name='ref_attr').values.last().value, '')
+
     def test_get_edit_without_login(self):
         resp = self.client.get(reverse('entry:edit', args=[0]))
         self.assertEqual(resp.status_code, 303)
@@ -539,8 +563,7 @@ class ViewTest(AironeViewTest):
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
-                                json.dumps(params),
-                                'application/json')
+                                json.dumps(params), 'application/json')
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(entry.attrs.last().values.count(), 2)
@@ -548,3 +571,32 @@ class ViewTest(AironeViewTest):
         self.assertEqual(entry.attrs.last().values.first().referral.id, entry.id)
         self.assertEqual(entry.attrs.last().values.last().value, '')
         self.assertEqual(entry.attrs.last().values.last().referral.id, new_entry.id)
+
+    def test_post_edit_without_referral_value(self):
+        user = self.admin_login()
+
+        attr_base = AttributeBase.objects.create(name='attr_with_referral',
+                                                 created_user=user,
+                                                 type=AttrTypeObj,
+                                                 referral=self._entity,
+                                                 is_mandatory=False)
+        self._entity.attr_bases.add(attr_base)
+
+        entry = Entry.objects.create(name='entry', schema=self._entity, created_user=user)
+
+        attr = entry.add_attribute_from_base(attr_base, user)
+        attr_value = AttributeValue.objects.create(referral=entry, created_user=user)
+        attr.values.add(attr_value)
+
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(attr.id), 'value': '0'},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(attr.values.count(), 2)
+        self.assertEqual(attr.values.last().value, '')

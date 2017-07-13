@@ -99,7 +99,8 @@ def do_edit(request, entity_id, recv_data):
             attr_base = AttributeBase(name=attr['name'],
                                       type=int(attr['type']),
                                       is_mandatory=attr['is_mandatory'],
-                                      created_user=user)
+                                      created_user=user,
+                                      parent_entity=entity)
 
         # the case of an attribute that has referral entry
         if int(attr['type']) == AttrTypeObj:
@@ -163,7 +164,8 @@ def do_create(request, recv_data):
         attr_base = AttributeBase(name=attr['name'],
                                   type=int(attr['type']),
                                   is_mandatory=attr['is_mandatory'],
-                                  created_user=user)
+                                  created_user=user,
+                                  parent_entity=entity)
 
         if int(attr['type']) == AttrTypeObj:
             attr_base.referral = Entity.objects.get(id=attr['ref_id'])

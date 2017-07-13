@@ -8,6 +8,7 @@ class AttributeBase(ACLBase):
     type = models.IntegerField(default=0)
     is_mandatory = models.BooleanField(default=False)
     referral = models.ForeignKey(ACLBase, null=True, related_name='referred_attr_base')
+    parent_entity = models.ForeignKey('Entity')
 
     def __init__(self, *args, **kwargs):
         super(AttributeBase, self).__init__(*args, **kwargs)

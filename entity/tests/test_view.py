@@ -166,7 +166,8 @@ class ViewTest(AironeViewTest):
         attr = AttributeBase.objects.create(name='puyo',
                                             created_user=user,
                                             is_mandatory=True,
-                                            type=AttrTypeStr)
+                                            type=AttrTypeStr,
+                                            parent_entity=entity)
         entity.attr_bases.add(attr)
 
         params = {
@@ -194,7 +195,8 @@ class ViewTest(AironeViewTest):
         attrbase = AttributeBase.objects.create(name='puyo',
                                                 created_user=user,
                                                 is_mandatory=True,
-                                                type=AttrTypeStr)
+                                                type=AttrTypeStr,
+                                                parent_entity=entity)
         entity.attr_bases.add(attrbase)
 
         entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
@@ -221,7 +223,8 @@ class ViewTest(AironeViewTest):
         entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
         attr = AttributeBase.objects.create(name='puyo',
                                             type=AttrTypeStr,
-                                            created_user=user)
+                                            created_user=user,
+                                            parent_entity=entity)
         entity.attr_bases.add(attr)
 
         params = {
@@ -250,7 +253,8 @@ class ViewTest(AironeViewTest):
         attrbase = AttributeBase.objects.create(name='puyo',
                                                 type=AttrTypeObj,
                                                 referral=entity,
-                                                created_user=user)
+                                                created_user=user,
+                                                parent_entity=entity)
         entity.attr_bases.add(attrbase)
 
         entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
@@ -326,7 +330,8 @@ class ViewTest(AironeViewTest):
         for name in ['foo', 'bar']:
             entity.attr_bases.add(AttributeBase.objects.create(name=name,
                                                                type=AttrTypeStr,
-                                                               created_user=user))
+                                                               created_user=user,
+                                                               parent_entity=entity))
 
         entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
         [entry.add_attribute_from_base(x, user) for x in entity.attr_bases.all()]

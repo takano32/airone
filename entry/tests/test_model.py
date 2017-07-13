@@ -15,6 +15,15 @@ class ModelTest(TestCase):
         self._entity = Entity(name='entity', created_user=self._user)
         self._entity.save()
 
+        self._entry = Entry(name='entry', created_user=self._user, schema=self._entity)
+        self._entry.save()
+
+    def make_attr(self, name, user=None, entity=None, entry=None):
+        return Attribute(name=name,
+                         created_user=(user and user or self._user),
+                         parent_entity=(entity and entity or self._entity),
+                         parent_entry=(entry and entry or self._entry))
+
     def test_make_attribute_value(self):
         AttributeValue(value='hoge', created_user=self._user).save()
 
@@ -24,7 +33,7 @@ class ModelTest(TestCase):
         self.assertIsNotNone(AttributeValue.objects.last().created_time)
 
     def test_make_attribute(self):
-        attr = Attribute(name='attr', created_user=self._user)
+        attr = self.make_attr('attr')
         attr.save()
 
         value = AttributeValue(value='hoge', created_user=self._user)
@@ -43,12 +52,12 @@ class ModelTest(TestCase):
                       created_user=self._user)
         entry.save()
 
-        attr = Attribute(name='attr', created_user=self._user)
+        attr = self.make_attr('attr', entry=entry)
         attr.save()
 
         entry.attrs.add(attr)
 
-        self.assertEqual(Entry.objects.count(), 1)
+        self.assertEqual(Entry.objects.count(), 2)
         self.assertEqual(Entry.objects.last().created_user, self._user)
         self.assertEqual(Entry.objects.last().attrs.count(), 1)
         self.assertEqual(Entry.objects.last().attrs.last(), attr)
@@ -57,7 +66,9 @@ class ModelTest(TestCase):
         user = User.objects.create(username='hoge')
 
         entity = Entity.objects.create(name='entity', created_user=user)
-        attrbase = AttributeBase.objects.create(name='attr', created_user=user)
+        attrbase = AttributeBase.objects.create(name='attr',
+                                                created_user=user,
+                                                parent_entity=entity)
 
         # set a permission to the user
         user.permissions.add(attrbase.writable)
@@ -75,7 +86,9 @@ class ModelTest(TestCase):
         user.groups.add(group)
 
         entity = Entity.objects.create(name='entity', created_user=user)
-        attrbase = AttributeBase.objects.create(name='attr', created_user=user)
+        attrbase = AttributeBase.objects.create(name='attr',
+                                                created_user=user,
+                                                parent_entity=entity)
 
         # set a permission to the user
         group.permissions.add(attrbase.writable)
@@ -95,7 +108,8 @@ class ModelTest(TestCase):
 
         attrbase = AttributeBase.objects.create(name='attrbase',
                                                 type=AttrTypeStr.TYPE,
-                                                created_user=user)
+                                                created_user=user,
+                                                parent_entity=entity)
         entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
         attr = entry.add_attribute_from_base(attrbase, user)
 

@@ -36,9 +36,9 @@ def index(request, obj_id):
     parent_obj = None
     try:
         if isinstance(target_obj, Attribute):
-            parent_obj = next(x for x in Entry.objects.all() if x.attrs.filter(id=obj_id))
+            parent_obj = target_obj.parent_entry
         elif isinstance(target_obj, AttributeBase):
-            parent_obj = next(x for x in Entity.objects.all() if x.attr_bases.filter(id=obj_id))
+            parent_obj = target_obj.parent_entity
     except StopIteration:
         Logger.warning('failed to get related parent object')
 

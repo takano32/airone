@@ -34,11 +34,13 @@
         {% for attr in attributes %}
         <tr>
           <td>{{ attr.name }}</td>
-          {% if attr.referral %}
-            <td><a href='/entry/show/{{ attr.referral.id }}'>{{ attr.referral.name }}</a></td>
-          {% else %}
-            <td>{{ attr.last_value }}</td>
+          <td>
+          {% if attr.type == attr_type.str %}
+            {{ attr.last_value }}
+          {% elif attr.type == attr_type.entry and attr.referral %}
+            <a href='/entry/show/{{ attr.referral.id }}'>{{ attr.referral.name }}</a>
           {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </table>
@@ -61,7 +63,7 @@
           <td>{{ history.attr_name }}</td>
           {% if history.attr_type == attr_type.str %}
             <td>{{ history.attr_value }}</td>
-          {% elif history.attr_type == attr_type.entry %}
+          {% elif history.attr_type == attr_type.entry and history.attr_referral %}
             <td><a href='/entry/show/{{ history.attr_referral.id}}'>{{ history.attr_referral.name }}</a></td>
           {% else %}
             <td></td>

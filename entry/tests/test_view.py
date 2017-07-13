@@ -26,7 +26,8 @@ class ViewTest(AironeViewTest):
         self._attr_base = AttributeBase(name='test',
                                         type=AttrTypeStr,
                                         is_mandatory=True,
-                                        created_user=user)
+                                        created_user=user,
+                                        parent_entity=self._entity)
         self._attr_base.save()
         self._entity.attr_bases.add(self._attr_base)
 
@@ -206,8 +207,11 @@ class ViewTest(AironeViewTest):
 
         another_user = User.objects.create(username='hoge')
         entity = Entity.objects.create(name='hoge', is_public=False, created_user=another_user)
-        attr_base = AttributeBase.objects.create(name='test', type=AttrTypeStr,
-                                                 is_mandatory=True, created_user=another_user)
+        attr_base = AttributeBase.objects.create(name='test',
+                                                 type=AttrTypeStr,
+                                                 is_mandatory=True,
+                                                 parent_entity=entity,
+                                                 created_user=another_user)
         entity.attr_bases.add(attr_base)
 
         params = {
@@ -232,7 +236,8 @@ class ViewTest(AironeViewTest):
         self._attr_base_optional = AttributeBase(name='test-optional',
                                                  type=AttrTypeStr,
                                                  is_mandatory=False,
-                                                 created_user=user)
+                                                 created_user=user,
+                                                 parent_entity=self._entity)
         self._attr_base_optional.save()
         self._entity.attr_bases.add(self._attr_base_optional)
 
@@ -283,6 +288,7 @@ class ViewTest(AironeViewTest):
                                                  created_user=user,
                                                  type=AttrTypeObj,
                                                  referral=self._entity,
+                                                 parent_entity=self._entity,
                                                  is_mandatory=False)
         self._entity.attr_bases.add(attr_base)
 
@@ -332,6 +338,7 @@ class ViewTest(AironeViewTest):
                                                  created_user=user,
                                                  type=AttrTypeObj,
                                                  referral=self._entity,
+                                                 parent_entity=self._entity,
                                                  is_mandatory=False)
         self._entity.attr_bases.add(attr_base)
 
@@ -373,6 +380,8 @@ class ViewTest(AironeViewTest):
             attr = Attribute(name=attr_name,
                              type=AttrTypeStr,
                              is_mandatory=True,
+                             parent_entity=self._entity,
+                             parent_entry=entry,
                              created_user=user)
             attr.save()
 
@@ -405,6 +414,8 @@ class ViewTest(AironeViewTest):
         attr = Attribute(name='foo',
                          created_user=user,
                          is_mandatory=False,
+                         parent_entity=self._entity,
+                         parent_entry=entry,
                          type=AttrTypeStr)
         attr.save()
         entry.attrs.add(attr)
@@ -446,6 +457,8 @@ class ViewTest(AironeViewTest):
             attr = Attribute(name=attr_name,
                              created_user=user,
                              is_mandatory=True,
+                             parent_entity=self._entity,
+                             parent_entry=entry,
                              type=AttrTypeStr)
             attr.save()
 
@@ -485,6 +498,8 @@ class ViewTest(AironeViewTest):
             attr = Attribute(name=attr_name,
                              created_user=user,
                              is_mandatory=False,
+                             parent_entity=self._entity,
+                             parent_entry=entry,
                              type=AttrTypeStr)
             attr.save()
             entry.attrs.add(attr)
@@ -524,6 +539,8 @@ class ViewTest(AironeViewTest):
             attr = Attribute(name=attr_name,
                              created_user=user,
                              is_mandatory=True,
+                             parent_entity=self._entity,
+                             parent_entry=entry,
                              type=AttrTypeStr)
             attr.save()
 
@@ -545,6 +562,7 @@ class ViewTest(AironeViewTest):
                                                  created_user=user,
                                                  type=AttrTypeObj,
                                                  referral=self._entity,
+                                                 parent_entity=self._entity,
                                                  is_mandatory=False)
         self._entity.attr_bases.add(attr_base)
 
@@ -579,6 +597,7 @@ class ViewTest(AironeViewTest):
                                                  created_user=user,
                                                  type=AttrTypeObj,
                                                  referral=self._entity,
+                                                 parent_entity=self._entity,
                                                  is_mandatory=False)
         self._entity.attr_bases.add(attr_base)
 

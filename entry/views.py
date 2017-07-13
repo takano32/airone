@@ -15,6 +15,7 @@ def _get_latest_attributes(self, user):
 
         attrinfo['id'] = attr.id
         attrinfo['name'] = attr.name
+        attrinfo['type'] = attr.type
         attrinfo['is_mandatory'] = attr.is_mandatory
 
         # set Entries which are specified in the referral parameter
@@ -105,7 +106,8 @@ def do_create(request, entity_id, recv_data):
             if attr.type == AttrTypeStr:
                 attr_value.value = value=info['value']
             elif attr.type == AttrTypeObj and Entry.objects.filter(id=info['value']).count():
-                attr_value.referral = Entry.objects.get(id=info['value'])
+                # set None if the referral entry is not specified
+                attr_value.referral = info['value'] and Entry.objects.get(id=info['value']) or None
 
             attr_value.save()
 
@@ -156,10 +158,16 @@ def do_edit(request, entry_id, recv_data):
         if attr.values.count() == 0:
             return info['value']
 
-        if attr.type == AttrTypeStr and attr.values.last().value != info['value']:
+        last_attr = attr.values.last()
+        if attr.type == AttrTypeStr and last_attr.value != info['value']:
             return True
-        elif attr.type == AttrTypeObj and attr.values.last().referral.id != int(info['value']):
-            return True
+        elif attr.type == AttrTypeObj:
+            if not last_attr.referral and not int(info['value']):
+                return False
+            elif not last_attr.referral and int(info['value']):
+                return True
+            elif last_attr.referral.id != int(info['value']):
+                return True
 
         return False
 
@@ -178,7 +186,8 @@ def do_edit(request, entry_id, recv_data):
             if attr.type == AttrTypeStr:
                 attr_value.value = value=info['value']
             elif attr.type == AttrTypeObj and Entry.objects.filter(id=info['value']).count():
-                attr_value.referral = Entry.objects.get(id=info['value'])
+                # set None if the referral entry is not specified
+                attr_value.referral = info['value'] and Entry.objects.get(id=info['value']) or None
 
             attr_value.save()
 

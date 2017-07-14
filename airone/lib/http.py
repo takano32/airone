@@ -3,6 +3,7 @@ import json
 from django.http import HttpResponseRedirect
 from django.http import HttpResponse
 from django.shortcuts import render as django_render
+from django.utils.encoding import smart_str
 
 from entity import models as entity_models
 from acl.models import ACLBase
@@ -102,6 +103,12 @@ def render(request, template, context={}):
         context['attr_type'][attr_type.NAME] = attr_type.TYPE
 
     return django_render(request, template, context)
+
+def get_download_response(io_stream, fname):
+    response = HttpResponse(io_stream.getvalue(),
+                            content_type="application/force-download")
+    response["Content-Disposition"] = "attachment; filename=%s" % smart_str(fname)
+    return response
 
 def _is_valid(params, meta_info):
     if not isinstance(params, dict):

@@ -1,1 +1,2 @@
 six==1.10.0
+django-import-export==0.5.1

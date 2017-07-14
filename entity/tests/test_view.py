@@ -1,4 +1,5 @@
 import json
+import yaml
 
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -357,3 +358,47 @@ class ViewTest(AironeViewTest):
         self.assertEqual(entry.attrs.count(), 1)
         self.assertEqual(entity.attr_bases.last().name, 'foo')
         self.assertEqual(entry.attrs.last().name, 'foo')
+
+    def test_export_data(self):
+        user = self.admin_login()
+
+        entity1 = Entity.objects.create(name='entity1', note='hoge', created_user=user)
+        for name in ['foo', 'bar']:
+            entity1.attr_bases.add(AttributeBase.objects.create(name=name,
+                                                                type=AttrTypeStr,
+                                                                created_user=user,
+                                                                parent_entity=entity1))
+
+        entity2 = Entity.objects.create(name='entity2', created_user=user)
+        entity2.attr_bases.add(AttributeBase.objects.create(name='attr',
+                                                            type=AttrTypeObj,
+                                                            referral=entity1,
+                                                            created_user=user,
+                                                            parent_entity=entity2))
+
+        resp = self.client.get(reverse('entity:export'))
+        self.assertEqual(resp.status_code, 200)
+
+        obj = yaml.load(resp.content)
+        self.assertTrue(isinstance(obj, dict))
+        self.assertEqual(sorted(obj.keys()), ['AttributeBase', 'Entity'])
+        self.assertEqual(len(obj['AttributeBase']), 3)
+        self.assertEqual(len(obj['Entity']), 2)
+        self.assertTrue(list(filter(lambda x: (
+                x['name'] == 'foo' and
+                x['entity'] == 'entity1' and
+                x['type'] == AttrTypeStr and
+                x['referral__name'] == ''
+            ), obj['AttributeBase'])))
+        self.assertTrue(list(filter(lambda x: (
+                x['name'] == 'attr' and
+                x['entity'] == 'entity2' and
+                x['type'] == AttrTypeObj and
+                x['referral__name'] == 'entity1'
+            ), obj['AttributeBase'])))
+        self.assertTrue(list(filter(lambda x: (
+                x['name'] == 'entity1' and
+                x['note'] == 'hoge' and
+                x['attrs'] == 'foo,bar' and
+                x['created_user'] == 'admin'
+            ), obj['Entity'])))

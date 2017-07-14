@@ -105,14 +105,20 @@ class ModelTest(TestCase):
         user = User.objects.create(username='foo', email='hoge@fuga.com', password='fuga')
 
         # make objects to test
+        model_entity = import_module('entity.models')
+        model_entry = import_module('entry.models')
         kwargs = {
             'name': 'test-object',
             'created_user': user,
         }
-        entity = import_module('entity.models').Entity.objects.create(**kwargs)
-        attr_base = import_module('entity.models').AttributeBase.objects.create(**kwargs)
-        entry = import_module('entry.models').Entry.objects.create(schema_id=entity.id, **kwargs)
-        attr = import_module('entry.models').Attribute.objects.create(**kwargs)
+
+        entity = model_entity.Entity.objects.create(**kwargs)
+        attr_base = model_entity.AttributeBase.objects.create(parent_entity=entity,
+                                                              **kwargs)
+        entry = model_entry.Entry.objects.create(schema_id=entity.id, **kwargs)
+        attr = model_entry.Attribute.objects.create(parent_entity=entity,
+                                                    parent_entry=entry,
+                                                    **kwargs)
         base = ACLBase.objects.create(**kwargs)
 
         self.assertEqual(ACLBase.objects.get(id=entity.id).get_subclass_object(), entity)

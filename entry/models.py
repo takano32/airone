@@ -16,6 +16,7 @@ class Attribute(AttributeBase):
     values = models.ManyToManyField(AttributeValue)
     status = models.IntegerField(default=0)
     schema_id = models.IntegerField(default=0)
+    parent_entry = models.ForeignKey('Entry')
 
     def __init__(self, *args, **kwargs):
         super(Attribute, self).__init__(*args, **kwargs)
@@ -52,7 +53,9 @@ class Entry(ACLBase):
                                         is_mandatory=base.is_mandatory,
                                         referral=base.referral,
                                         schema_id=base.id,
-                                        created_user=user)
+                                        created_user=user,
+                                        parent_entity=base.parent_entity,
+                                        parent_entry=self)
 
         # inherites permissions of base object for user
         [[user.permissions.add(getattr(attr, acltype.name))

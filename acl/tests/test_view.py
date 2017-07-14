@@ -99,7 +99,10 @@ class ViewTest(AironeViewTest):
     def test_post_acl_set_attrbase(self):
         user = self.admin_login()
 
-        attrbase = AttributeBase.objects.create(name='hoge', created_user=user)
+        entity = Entity.objects.create(name='entity', created_user=user)
+        attrbase = AttributeBase.objects.create(name='hoge',
+                                                created_user=user,
+                                                parent_entity=entity)
         resp = self.send_set_request(attrbase, user)
 
         self.assertEqual(resp.status_code, 200)
@@ -119,7 +122,13 @@ class ViewTest(AironeViewTest):
     def test_post_acl_set_attribute(self):
         user = self.admin_login()
 
-        attr = Attribute.objects.create(name='hoge', created_user=user)
+        entity = Entity.objects.create(name='hoge', created_user=user)
+        entry = Entry.objects.create(name='hoge', created_user=user, schema=entity)
+
+        attr = Attribute.objects.create(name='hoge',
+                                        created_user=user,
+                                        parent_entity=entity,
+                                        parent_entry=entry)
         resp = self.send_set_request(attr, user)
 
         self.assertEqual(resp.status_code, 200)
@@ -268,7 +277,9 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
 
         entity = Entity.objects.create(name='hoge', created_user=user)
-        attrbase = AttributeBase.objects.create(name='attr1', created_user=user)
+        attrbase = AttributeBase.objects.create(name='attr1',
+                                                created_user=user,
+                                                parent_entity=entity)
 
         entry = Entry.objects.create(name='fuga', created_user=user, schema=entity)
         attr = entry.add_attribute_from_base(attrbase, user)

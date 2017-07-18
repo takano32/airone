@@ -37,5 +37,6 @@ class User(DjangoUser):
     def get_acls(self, aclobj):
         return self.permissions.filter(codename__regex=(r'^%d\.' % aclobj.id))
 
-    def set_active(self, is_active=True):
-        self.is_active = is_active
+    def inactivate(self):
+        self.username = "__deleted__" + self.username
+        self.is_active = False

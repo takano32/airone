@@ -5,6 +5,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from entity.models import Entity, AttributeBase
 from entry.models import Entry, Attribute
+from user.models import User
 from xml.etree import ElementTree
 from airone.lib.test import AironeViewTest
 from airone.lib.types import AttrTypeStr, AttrTypeObj
@@ -402,3 +403,40 @@ class ViewTest(AironeViewTest):
                 x['attrs'] == 'foo,bar' and
                 x['created_user'] == 'admin'
             ), obj['Entity'])))
+
+    def test_export_with_unpermitted_object(self):
+        user = self.admin_login()
+        user2 = User.objects.create(username='user2')
+
+        # create an entity object which is created by logined-user
+        entity1 = Entity.objects.create(name='entity1', created_user=user)
+        entity1.attr_bases.add(AttributeBase.objects.create(name='attr1',
+                                                            type=AttrTypeStr,
+                                                            created_user=user,
+                                                            parent_entity=entity1))
+
+        # create a public object which is created by the another_user
+        entity2 = Entity.objects.create(name='entity2', created_user=user2)
+        entity2.attr_bases.add(AttributeBase.objects.create(name='attr2',
+                                                            type=AttrTypeStr,
+                                                            created_user=user2,
+                                                            parent_entity=entity1))
+
+        # create private objects which is created by the another_user
+        for name in ['foo', 'bar']:
+            e = Entity.objects.create(name=name, created_user=user2, is_public=False)
+            e.attr_bases.add(AttributeBase.objects.create(name='private_attr',
+                                                          type=AttrTypeStr,
+                                                          created_user=user2,
+                                                          parent_entity=e,
+                                                          is_public=False))
+
+        resp = self.client.get(reverse('entity:export'))
+        self.assertEqual(resp.status_code, 200)
+
+        obj = yaml.load(resp.content)
+        self.assertEqual(len(obj['Entity']), 2)
+        self.assertEqual(len(obj['AttributeBase']), 2)
+        self.assertTrue([x for x in obj['Entity'] if x['name'] == entity1.name])
+        self.assertTrue([x for x in obj['Entity'] if x['name'] == entity2.name])
+        self.assertFalse([x for x in obj['AttributeBase'] if x['name'] == 'private_attr'])

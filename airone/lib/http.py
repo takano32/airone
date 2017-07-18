@@ -3,6 +3,7 @@ import json
 from django.http import HttpResponseRedirect
 from django.http import HttpResponse
 from django.shortcuts import render as django_render
+from django.utils.encoding import smart_str
 
 from entity import models as entity_models
 from acl.models import ACLBase
@@ -10,6 +11,7 @@ from user.models import User
 
 from airone.lib.types import AttrTypes
 from airone.lib.acl import ACLObjType
+from airone.lib.acl import has_object_permission
 
 
 class HttpResponseSeeOther(HttpResponseRedirect):
@@ -36,24 +38,15 @@ def check_permission(model, permission_level):
             if not model.objects.filter(id=object_id).count():
                 return HttpResponse('Failed to get entity of specified id', status=400)
 
+            user = User.objects.get(id=request.user.id)
             target_obj = model.objects.get(id=object_id)
             if not isinstance(target_obj, ACLBase):
                 return HttpResponse('[InternalError] "%s" has no permisison' % target_obj, status=500)
 
-            perm = getattr(target_obj, permission_level)
-            user = User.objects.get(id=request.user.id)
-
-            if (target_obj.is_public or
-                # checks that current uesr is created this document
-                target_obj.created_user == user or
-                # checks user permission
-                any([perm <= x for x in user.permissions.all() if target_obj.id == x.get_objid()]) or
-                # checks group permission
-                sum([[perm <= x for x in g.permissions.all() if target_obj.id == x.get_objid()]
-                    for g in user.groups.all()], [])):
-
+            if has_object_permission(user, target_obj, permission_level):
                 # only requests that have correct permission are executed
                 return func(*args, **kwargs)
+
             return HttpResponse('You don\'t have permission to access this object', status=400)
         return permission_checker
     return _decorator
@@ -102,6 +95,12 @@ def render(request, template, context={}):
         context['attr_type'][attr_type.NAME] = attr_type.TYPE
 
     return django_render(request, template, context)
+
+def get_download_response(io_stream, fname):
+    response = HttpResponse(io_stream.getvalue(),
+                            content_type="application/force-download")
+    response["Content-Disposition"] = "attachment; filename=%s" % smart_str(fname)
+    return response
 
 def _is_valid(params, meta_info):
     if not isinstance(params, dict):

@@ -1,5 +1,6 @@
 import json
 import re
+import io
 
 from django.http import HttpResponse
 from django.core.exceptions import PermissionDenied
@@ -8,12 +9,15 @@ from .models import Entity
 from .models import AttributeBase
 from user.models import User
 from entry.models import Entry, Attribute
+from entity.admin import EntityResource, AttrBaseResource
 
 from airone.lib.types import AttrTypes, AttrTypeObj
 from airone.lib.http import HttpResponseSeeOther
 from airone.lib.http import http_get, http_post
 from airone.lib.http import check_permission
 from airone.lib.http import render
+from airone.lib.http import get_download_response
+from airone.lib.acl import get_permitted_objects
 
 
 @http_get
@@ -174,3 +178,22 @@ def do_create(request, recv_data):
         entity.attr_bases.add(attr_base)
 
     return HttpResponseSeeOther('/entity/')
+
+@http_get
+def export(request):
+    user = User.objects.get(id=request.user.id)
+
+    output = io.StringIO()
+
+    output.write("Entity: \n")
+    output.write(EntityResource().export(get_permitted_objects(user,
+                                                               Entity,
+                                                               'readable')).yaml)
+
+    output.write("\n")
+    output.write("AttributeBase: \n")
+    output.write(AttrBaseResource().export(get_permitted_objects(user,
+                                                                 AttributeBase,
+                                                                 'readable')).yaml)
+
+    return get_download_response(output, 'entity.yaml')

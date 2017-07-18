@@ -134,6 +134,8 @@ class ViewTest(TestCase):
         # active user should be decreased
         self.assertEqual(self._get_active_user_count(), active_user_count-1)
 
+        # username should be "__deleted__" + name
+        user = User.objects.get(username="__deleted__"+name)
+        self.assertTrue(isinstance(user, User))
         # user should be inactive
-        user = User.objects.get(username=name)
         self.assertFalse(user.is_active)

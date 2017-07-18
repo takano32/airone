@@ -46,7 +46,7 @@ def do_create(request, recv_data):
 
 @http_post([
     {'name': 'name', 'type': str, 'checker': lambda x: (
-        x['name'] and not User.objects.filter(username=x['name']).count()
+        x['name'] and (User.objects.filter(username=x['name']).count() == 1)
     )},
 ])
 def do_delete(request, recv_data):

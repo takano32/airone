@@ -16,7 +16,7 @@ def index(request):
     context = {}
     context['groups'] = [{
         'name': x.name,
-        'members': User.objects.filter(groups__name=x.name),
+        'members': User.objects.filter(groups__name=x.name,is_active=True),
     } for x in Group.objects.all()]
 
     return render(request, 'list_group.html', context)
@@ -24,7 +24,7 @@ def index(request):
 @http_get
 def create(request):
     context = {
-        'users': User.objects.all(),
+        'users': User.objects.filter(is_active=True),
     }
     return render(request, 'create_group.html', context)
 

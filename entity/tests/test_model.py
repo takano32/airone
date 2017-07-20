@@ -34,3 +34,93 @@ class ModelTest(TestCase):
         attr_base.save()
 
         self.assertEqual(attr_base.parent_entity, entity)
+
+    def test_import_with_existed_object(self):
+        entity = Entity(name='test01', note='note1', created_user=self._test_user)
+        entity.save()
+
+        Entity.import_data({
+            'id': entity.id,
+            'name': entity.name,
+            'note': entity.note,
+            'created_user': entity.created_user.username
+        }, self._test_user)
+
+        self.assertEqual(Entity.objects.count(), 1)
+        self.assertEqual(Entity.objects.last().name, entity.name)
+        self.assertEqual(Entity.objects.last().note, entity.note)
+        self.assertEqual(Entity.objects.last().created_user, self._test_user)
+
+    def test_import_with_new_object(self):
+        Entity.import_data({
+            'name': 'foo',
+            'note': 'bar',
+            'created_user': self._test_user,
+        }, self._test_user)
+        self.assertEqual(Entity.objects.count(), 1)
+        self.assertEqual(Entity.objects.last().name, 'foo')
+        self.assertEqual(Entity.objects.last().note, 'bar')
+        self.assertEqual(Entity.objects.last().created_user, self._test_user)
+
+    def test_import_with_updating_object(self):
+        entity = Entity(name='test01', note='note1', created_user=self._test_user)
+        entity.save()
+
+        Entity.import_data({
+            'id': entity.id,
+            'name': 'changed_name',
+            'note': 'changed_note',
+            'created_user': entity.created_user.username
+        }, self._test_user)
+
+        self.assertEqual(Entity.objects.count(), 1)
+        self.assertEqual(Entity.objects.last().name, 'changed_name')
+        self.assertEqual(Entity.objects.last().note, 'changed_note')
+        self.assertEqual(Entity.objects.last().created_user, self._test_user)
+
+    def test_import_with_invalid_parameter(self):
+        with self.assertRaises(RuntimeError):
+            Entity.import_data({
+                'name': 'hoge',
+                'note': 'fuga',
+                'invalid_key': 'invalid_value',
+                'created_user': self._test_user.username,
+            }, self._test_user)
+
+        self.assertEqual(Entity.objects.count(), 0)
+
+    def test_import_without_mandatory_parameter(self):
+        with self.assertRaises(RuntimeError):
+            Entity.import_data({
+                'note': 'fuga',
+                'created_user': self._test_user.username,
+            }, self._test_user)
+
+        self.assertEqual(Entity.objects.count(), 0)
+
+    def test_import_with_spoofing_parameter(self):
+        user = User.objects.create(username='another_user')
+
+        Entity.import_data({
+            'name': 'entity',
+            'note': 'note',
+            'created_user': user
+        }, self._test_user)
+
+        self.assertEqual(Entity.objects.count(), 0)
+
+    def test_import_without_permission_parameter(self):
+        user = User.objects.create(username='another_user')
+
+        entity = Entity(name='origin_name', created_user=user, is_public=False)
+        entity.save()
+
+        Entity.import_data({
+            'id': entity.id,
+            'name': 'changed_name',
+            'note': 'changed_note',
+            'created_user': entity.created_user.username
+        }, self._test_user)
+
+        self.assertEqual(Entity.objects.count(), 1)
+        self.assertEqual(Entity.objects.last().name, 'origin_name')

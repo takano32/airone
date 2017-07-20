@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block title %}List Entities{% endblock %}
+
+{% block nav_sub_header %}
+<div class="conatiner-fluid">
+  <ul class="breadcrumb airone-breadcrumb">
+    <li class="breadcrumb-item"><a href="/">TOP</a></li>
+    <li class="breadcrumb-item"><a href='/entity/'>エンティティ一覧</a></li>
+    <li class="breadcrumb-item">エンティティのインポート</li>
+  </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<form action='/entity/do_import/' method='POST' enctype='multipart/form-data'>
+  {% csrf_token %}
+  <input type="file" name="file">
+  <input type="submit" value="アップロード">
+</form>
+{% endblock %}

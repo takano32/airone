@@ -17,7 +17,7 @@ def index(request):
         return HttpResponseSeeOther('/dashboard/login')
 
     context = {
-        'users': User.objects.all(),
+        'users': User.objects.filter(is_active=True),
     }
     return render(request, 'list_user.html', context)
 
@@ -43,3 +43,18 @@ def do_create(request, recv_data):
     user.save()
 
     return render(request, 'create_user.html')
+
+@http_post([
+    {'name': 'name', 'type': str, 'checker': lambda x: (
+        x['name'] and (User.objects.filter(username=x['name']).count() == 1)
+    )},
+])
+def do_delete(request, recv_data):
+    user = User.objects.get(username=recv_data['name'])
+
+    # inactivate user
+    user.set_active(False)
+    user.save()
+
+    # return empty response 
+    return HttpResponse()

@@ -155,6 +155,45 @@ class ViewTest(AironeViewTest):
         self.assertEqual(self._get_group_count(), group_count,
                          "group should not be created")
 
+    def test_delete_group(self):
+        self.admin_login()
+
+        group1 = self._create_group("group1")
+        group2 = self._create_group("group2")
+
+        group_count = self._get_group_count()
+
+        user1 = self._create_user("user1")
+        user1.groups.add(group1)
+        user1.groups.add(group2)
+
+        user2 = self._create_user("user2")
+        user2.groups.add(group1)
+
+        params = {
+            "name": "group1",
+        }
+        resp = self.client.post(reverse('group:do_delete'),
+                                json.dumps(params),
+                                'application/json')
+
+        
+        user1 = User.objects.get(username="user1")
+        user2 = User.objects.get(username="user2")
+        
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(self._get_group_count(), group_count - 1,
+                         "group should be decreased")
+        self.assertEqual(Group.objects.filter(name="group1").count(), 0,
+                         "group1 should not exist")
+        self.assertEqual(Group.objects.filter(name="group2").count(), 1,
+                         "group2 should exist")
+        self.assertEqual(user1.groups.count(), 1,
+                         "user1 should have 1 group")
+        self.assertEqual(user2.groups.count(), 0,
+                         "user2 should have 0 group")
+        
+        
     # utility functions
     def _create_user(self, name):
         user = User(username=name)

@@ -51,9 +51,10 @@ def do_create(request, recv_data):
     )},
 ])
 def do_delete(request, recv_data):
-    group = Group.objects.get(name=recv_data['name'])
+    name = recv_data['name']
+    group = Group.objects.get(name=name)
 
-    for user in User.objects.filter(groups__name=x.name):
+    for user in User.objects.filter(groups__name=name):
         user.groups.remove(group)
         user.save()
 

@@ -1,4 +1,5 @@
-import json
+import yaml
+import logging
 import re
 import io
 
@@ -17,7 +18,10 @@ from airone.lib.http import http_get, http_post
 from airone.lib.http import check_permission
 from airone.lib.http import render
 from airone.lib.http import get_download_response
+from airone.lib.http import http_file_upload
 from airone.lib.acl import get_permitted_objects
+
+Logger = logging.getLogger(__name__)
 
 
 @http_get
@@ -197,3 +201,28 @@ def export(request):
                                                                  'readable')).yaml)
 
     return get_download_response(output, 'entity.yaml')
+
+@http_get
+def import_data(request):
+    return render(request, 'import_entity.html', {})
+
+@http_file_upload
+def do_import_data(request, context):
+    user = User.objects.get(id=request.user.id)
+
+    try:
+        data = yaml.load(context)
+    except yaml.parser.ParserError:
+        return HttpResponse("Couldn't parse uploaded file", status=400)
+
+    def _do_import(model, iter_data):
+      for data in iter_data:
+          try:
+              model.import_data(data, user)
+          except RuntimeError as e:
+              Logger.warning(('(%s) %s ' % (model, data)) + str(e))
+
+    _do_import(Entity, data['Entity'])
+    _do_import(AttributeBase, data['AttributeBase'])
+
+    return HttpResponseSeeOther('/entity/')

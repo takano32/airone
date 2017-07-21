@@ -1,0 +1,11 @@
+Entity: 
+- {created_user: admin, id: 1, name: foo, note: bar}
+- {created_user: admin, id: 4, name: bar, note: abcd}
+- {created_user: admin, id: 6, name: baz, note: hoge}
+
+AttributeBase: 
+- {entity: foo, id: 2, name: attr1, refer: '', type: 2, created_user: admin}
+- {entity: foo, id: 3, name: attr2, refer: '', type: 2, created_user: admin}
+- {entity: bar, id: 5, name: attr3, refer: foo, type: 1, created_user: admin}
+- {entity: baz, id: 7, name: attr4, refer: '', type: 2, created_user: admin}
+- {entity: foo, id: , name: attr5, refer: '', type: 2, created_user: admin}

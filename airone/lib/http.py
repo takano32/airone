@@ -11,7 +11,6 @@ from user.models import User
 
 from airone.lib.types import AttrTypes
 from airone.lib.acl import ACLObjType
-from airone.lib.acl import has_object_permission
 
 
 class HttpResponseSeeOther(HttpResponseRedirect):
@@ -43,7 +42,7 @@ def check_permission(model, permission_level):
             if not isinstance(target_obj, ACLBase):
                 return HttpResponse('[InternalError] "%s" has no permisison' % target_obj, status=500)
 
-            if has_object_permission(user, target_obj, permission_level):
+            if user.has_permission(target_obj, permission_level):
                 # only requests that have correct permission are executed
                 return func(*args, **kwargs)
 
@@ -73,6 +72,23 @@ def http_post(validator):
             return func(*args, **kwargs)
         return http_post_handler
     return _decorator
+
+def http_file_upload(func):
+    def wrapper(*args, **kwargs):
+        request = args[0]
+
+        if request.method != 'POST':
+            return HttpResponse('Invalid HTTP method is specified', status=400)
+
+        try:
+            # get uploaded file data context and pass it to the arguemnt of HTTP handler
+            kwargs['context'] = ''.join([x.decode('utf-8') for x in request.FILES['file'].chunks()])
+
+            return func(*args, **kwargs)
+        except UnicodeDecodeError:
+            return HttpResponse('Uploaded file is invalid', status=400)
+
+    return wrapper
 
 def render(request, template, context={}):
     if User.objects.filter(id=request.user.id).count():

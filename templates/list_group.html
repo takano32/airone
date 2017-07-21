@@ -26,32 +26,36 @@
 
   <div class="row">
     <div class="col">
-      <form name="form" action="list_user.html" method="post">
-        <table class="table table-bordered">
-          <thead>
-            <tr>
-              <td></td>
-              <td>名前</td>
-              <td>メンバー</td>
-            </tr>
-          </thead>
-          <tbody>
-            {% for group in groups %}
-            <tr>
-              <td><label class="form-check-label"><input name="checkbox_select_0" type="checkbox" class="form-check-input" /></label></td>
-              <td>{{ group.name }}</td>
-              <td>
-                <ul>
-                  {% for member in group.members %}
-                  <li>{{ member.username }}</li>
-                  {% endfor %}
-                </ul>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </form>
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <td>名前</td>
+            <td>メンバー</td>
+            <td></td>
+          </tr>
+        </thead>
+        <tbody>
+          {% for group in groups %}
+          <tr>
+            <td>{{ group.name }}</td>
+            <td>
+              <ul>
+                {% for member in group.members %}
+                <li>{{ member.username }}</li>
+                {% endfor %}
+              </ul>
+            </td>
+            <td>
+              <form url="/group/do_delete" method="POST">
+                <input type="hidden" name="name" value="{{ group.name }}" />
+                {% csrf_token %}
+                <button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="HttpPost($(this).parent(), {})">del</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
 </div>

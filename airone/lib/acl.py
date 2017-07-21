@@ -31,20 +31,5 @@ class ACLType(Iteratable):
     def availables(cls):
         return [cls.Readable, cls.Writable, cls.Full]
 
-def has_object_permission(user, target_obj, permission_level):
-    perm = getattr(target_obj, permission_level)
-
-    if (target_obj.is_public or
-        # checks that current uesr is created this document
-        target_obj.created_user == user or
-        # checks user permission
-        any([perm <= x for x in user.permissions.all() if target_obj.id == x.get_objid()]) or
-        # checks group permission
-        sum([[perm <= x for x in g.permissions.all() if target_obj.id == x.get_objid()]
-            for g in user.groups.all()], [])):
-        return True
-    else:
-        return False
-
 def get_permitted_objects(user, model, permission_level):
-    return [x for x in model.objects.all() if has_object_permission(user, x, permission_level)]
+    return [x for x in model.objects.all() if user.has_permission(x, permission_level)]

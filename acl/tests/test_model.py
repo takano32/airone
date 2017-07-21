@@ -28,7 +28,7 @@ class ModelTest(TestCase):
 
         aclobj = ACLBase.objects.create(name='hoge', created_user=user, is_public=False)
 
-        self.assertTrue(user.has_permission(aclobj, 'invalid-permission-level'))
+        self.assertFalse(user.has_permission(aclobj, 'invalid-permission-level'))
 
     def test_fail_permission_check_with_invalid_level(self):
         user = User.objects.create(username='foo', email='foo@f.com', password='')

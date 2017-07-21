@@ -1,0 +1,8 @@
+Entity: 
+- {created_user: admin, id: 1, name: foo, note: bar}
+- {created_user: admin, id: 4, note: abcd}
+
+AttributeBase: 
+- {entity: foo, id: 2, name: attr1, refer: '', type: 2, created_user: admin}
+- {entity: foo, id: 3, name: attr2, refer: '', type: 2, created_user: admin}
+- {entity: foo, id: , name: attr3, refer: '', created_user: admin}

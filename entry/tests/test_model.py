@@ -18,6 +18,9 @@ class ModelTest(TestCase):
         self._entry = Entry(name='entry', created_user=self._user, schema=self._entity)
         self._entry.save()
 
+        self._attr = self.make_attr('attr')
+        self._attr.save()
+
     def make_attr(self, name, user=None, entity=None, entry=None):
         return Attribute(name=name,
                          created_user=(user and user or self._user),
@@ -25,7 +28,7 @@ class ModelTest(TestCase):
                          parent_entry=(entry and entry or self._entry))
 
     def test_make_attribute_value(self):
-        AttributeValue(value='hoge', created_user=self._user).save()
+        AttributeValue(value='hoge', created_user=self._user, parent_attr=self._attr).save()
 
         self.assertEqual(AttributeValue.objects.count(), 1)
         self.assertEqual(AttributeValue.objects.last().value, 'hoge')
@@ -33,13 +36,10 @@ class ModelTest(TestCase):
         self.assertIsNotNone(AttributeValue.objects.last().created_time)
 
     def test_make_attribute(self):
-        attr = self.make_attr('attr')
-        attr.save()
-
-        value = AttributeValue(value='hoge', created_user=self._user)
+        value = AttributeValue(value='hoge', created_user=self._user, parent_attr=self._attr)
         value.save()
 
-        attr.values.add(value)
+        self._attr.values.add(value)
 
         self.assertEqual(Attribute.objects.count(), 1)
         self.assertEqual(Attribute.objects.last().objtype, ACLObjType.Attr)

@@ -1,4 +1,5 @@
 import json
+import yaml
 
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -386,7 +387,7 @@ class ViewTest(AironeViewTest):
             attr.save()
 
             for value in ['hoge', 'fuga']:
-                attr_value = AttributeValue(value=value, created_user=user)
+                attr_value = AttributeValue(value=value, created_user=user, parent_attr=attr)
                 attr_value.save()
 
                 attr.values.add(attr_value)
@@ -462,7 +463,7 @@ class ViewTest(AironeViewTest):
                              type=AttrTypeStr)
             attr.save()
 
-            attr_value = AttributeValue(value='hoge', created_user=user)
+            attr_value = AttributeValue(value='hoge', created_user=user, parent_attr=attr)
             attr_value.save()
 
             attr.values.add(attr_value)
@@ -545,7 +546,7 @@ class ViewTest(AironeViewTest):
             attr.save()
 
             for value in ['hoge', 'fuga']:
-                attr_value = AttributeValue(value=value, created_user=user)
+                attr_value = AttributeValue(value=value, created_user=user, parent_attr=attr)
                 attr_value.save()
 
                 attr.values.add(attr_value)
@@ -569,7 +570,9 @@ class ViewTest(AironeViewTest):
         entry = Entry.objects.create(name='old_entry', schema=self._entity, created_user=user)
 
         attr = entry.add_attribute_from_base(attr_base, user)
-        attr_value = AttributeValue.objects.create(referral=entry, created_user=user)
+        attr_value = AttributeValue.objects.create(referral=entry,
+                                                   created_user=user,
+                                                   parent_attr=attr)
         attr.values.add(attr_value)
 
         new_entry = Entry.objects.create(name='new_entry', schema=self._entity, created_user=user)
@@ -604,7 +607,9 @@ class ViewTest(AironeViewTest):
         entry = Entry.objects.create(name='entry', schema=self._entity, created_user=user)
 
         attr = entry.add_attribute_from_base(attr_base, user)
-        attr_value = AttributeValue.objects.create(referral=entry, created_user=user)
+        attr_value = AttributeValue.objects.create(referral=entry,
+                                                   created_user=user,
+                                                   parent_attr=attr)
         attr.values.add(attr_value)
 
         params = {
@@ -619,3 +624,42 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(attr.values.count(), 2)
         self.assertEqual(attr.values.last().value, '')
+
+    def test_get_export(self):
+        user = self.admin_login()
+
+        entry = Entry(name='fuga', schema=self._entity, created_user=user)
+        entry.save()
+
+        for attr_name in ['foo', 'bar']:
+            attr = Attribute(name=attr_name,
+                             type=AttrTypeStr,
+                             is_mandatory=True,
+                             parent_entity=self._entity,
+                             parent_entry=entry,
+                             created_user=user)
+            attr.save()
+
+            for value in ['hoge', 'fuga']:
+                attr_value = AttributeValue(value=value, created_user=user, parent_attr=attr)
+                attr_value.save()
+
+                attr.values.add(attr_value)
+
+            entry.attrs.add(attr)
+
+        resp = self.client.get(reverse('entry:export', args=[self._entity.id]))
+        self.assertEqual(resp.status_code, 200)
+
+        obj = yaml.load(resp.content)
+        self.assertTrue('Entry' in obj)
+        self.assertTrue('Attribute' in obj)
+        self.assertTrue('AttributeValue' in obj)
+
+        self.assertEqual(len(obj['Entry']), 1)
+        self.assertEqual(obj['Entry'][0]['id'], entry.id)
+        self.assertEqual(obj['Entry'][0]['name'], entry.name)
+        self.assertEqual(obj['Entry'][0]['entity'], self._entity.name)
+
+        self.assertEqual(len(obj['Attribute']), 2)
+        self.assertEqual(len(obj['AttributeValue']), 4)

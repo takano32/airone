@@ -33,14 +33,13 @@
         <table class="table table-bordered">
           <thead>
             <tr>
-              <th></th>
               <th>エントリ名</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {% for entry in entries %}
             <tr>
-              <td><label class="form-check-label"><input name="checkbox_select_0" type="checkbox" class="form-check-input" /></label></td>
               <td><a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a></td>
             </tr>
             {% endfor %}

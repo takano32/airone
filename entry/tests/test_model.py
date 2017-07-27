@@ -61,7 +61,37 @@ class ModelTest(TestCase):
         self.assertEqual(Entry.objects.last().created_user, self._user)
         self.assertEqual(Entry.objects.last().attrs.count(), 1)
         self.assertEqual(Entry.objects.last().attrs.last(), attr)
+        self.assertEqual(Entry.objects.last().name, 'test')
+        self.assertEqual(Entry.objects.last().get_screen_name(), 'test')
+        self.assertEqual(Entry.objects.last().is_deleted(), False,
+                         "Entry should not be deleted after created")
 
+    def test_delete_entry(self):
+        entry = Entry(name='test',
+                      schema=self._entity,
+                      created_user=self._user)
+        entry.save()
+
+        attr = self.make_attr('attr', entry=entry)
+        attr.save()
+
+        entry.attrs.add(attr)
+
+        entry_count = Entry.objects.count()
+
+        entry.delete()
+        entry.save()
+        
+        self.assertEqual(Entry.objects.count(), entry_count,
+                         "number of entry should equal after delete")
+        self.assertEqual(Entry.objects.last().created_user, self._user)
+        self.assertEqual(Entry.objects.last().attrs.count(), 1)
+        self.assertEqual(Entry.objects.last().attrs.last(), attr)
+        self.assertEqual(Entry.objects.last().name, 'test')
+        self.assertEqual(Entry.objects.last().get_screen_name(), 'test(deleted)')
+        self.assertEqual(Entry.objects.last().is_deleted(), True,
+                         "Entry should be deleted")
+        
     def test_inherite_attribute_permission_of_user(self):
         user = User.objects.create(username='hoge')
 

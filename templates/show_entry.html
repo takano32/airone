@@ -37,8 +37,8 @@
           <td>
           {% if attr.type == attr_type.str %}
             {{ attr.last_value }}
-          {% elif attr.type == attr_type.entry and attr.referral %}
-            <a href='/entry/show/{{ attr.referral.id }}'>{{ attr.referral.name }}</a>
+          {% elif attr.type == attr_type.entry and attr.last_referral %}
+            <a href='/entry/show/{{ attr.last_referral.id }}'>{{ attr.last_referral.name }}</a>
           {% endif %}
           </td>
         </tr>

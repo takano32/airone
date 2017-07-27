@@ -11,10 +11,10 @@ class AttributeValue(models.Model):
     referral = models.ForeignKey(ACLBase, null=True, related_name='referred_attr_value')
     created_time = models.DateTimeField(auto_now=True)
     created_user = models.ForeignKey(User)
+    parent_attr = models.ForeignKey('Attribute')
 
 class Attribute(AttributeBase):
     values = models.ManyToManyField(AttributeValue)
-    status = models.IntegerField(default=0)
     schema_id = models.IntegerField(default=0)
     parent_entry = models.ForeignKey('Entry')
 

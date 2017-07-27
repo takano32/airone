@@ -18,21 +18,24 @@ def _get_latest_attributes(self, user):
         attrinfo['type'] = attr.type
         attrinfo['is_mandatory'] = attr.is_mandatory
 
-        # set Entries which are specified in the referral parameter
-        attrinfo['referrals'] = []
-        if attr.referral:
-            attrinfo['referrals'] = Entry.objects.filter(schema=attr.referral)
-
         # set last-value of current attributes
         attrinfo['last_value'] = ''
+        attrinfo['last_referral'] = None
         if attr.values.count() > 0:
             last_value = attr.values.last()
 
             if attr.type == AttrTypeStr:
                 attrinfo['last_value'] = last_value.value
             elif attr.type == AttrTypeObj and last_value.referral:
-                attrinfo['referral'] = last_value.referral
+                attrinfo['last_referral'] = last_value.referral
 
+        # set Entries which are specified in the referral parameter
+        attrinfo['referrals'] = []
+        if attr.referral:
+            attrinfo['referrals'] = Entry.objects.filter(schema=attr.referral,deleted=False)
+            if attrinfo['last_referral'] not in attrinfo['referrals']:
+                attrinfo['referrals'].append(attrinfo['last_referral'])
+                
         ret_attrs.append(attrinfo)
 
     return ret_attrs
@@ -46,7 +49,7 @@ def index(request, entity_id):
     entity = Entity.objects.get(id=entity_id)
     context = {
         'entity': entity,
-        'entries': Entry.objects.filter(schema=entity),
+        'entries': Entry.objects.filter(schema=entity,deleted=False),
     }
     return render(request, 'list_entry.html', context)
 
@@ -66,7 +69,7 @@ def create(request, entity_id):
             'type': x.type,
             'name': x.name,
             'is_mandatory': x.is_mandatory,
-            'referrals': x.referral and Entry.objects.filter(schema=x.referral) or [],
+            'referrals': x.referral and Entry.objects.filter(schema=x.referral,deleted=False) or [],
         } for x in entity.attr_bases.all() if user.has_permission(x, 'writable')]
     }
     return render(request, 'create_entry.html', context)
@@ -130,9 +133,6 @@ def edit(request, entry_id):
         'entry': entry,
         'attributes': _get_latest_attributes(entry, user),
     }
-
-    # set attribute information of target entry
-    context['attributes'] = _get_latest_attributes(entry, user)
 
     return render(request, 'edit_entry.html', context)
 
@@ -222,3 +222,16 @@ def show(request, entry_id):
         'value_history': sorted(value_history, key=lambda x: x['created_time']),
     }
     return render(request, 'show_entry.html', context)
+
+@http_post([]) # check only that request is POST, id will be given by url
+@check_permission(Entry, 'full')
+def do_delete(request, entry_id, recv_data):
+
+    if not Entry.objects.filter(id=entry_id).count():
+        return HttpResponse('Failed to get an Entry object of specified id', status=400)
+
+    # update name of Entry object
+    entry = Entry.objects.filter(id=entry_id)
+    entry.delete()
+    
+    return HttpResponse()

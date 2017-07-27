@@ -36,7 +36,8 @@ class Attribute(AttributeBase):
 class Entry(ACLBase):
     attrs = models.ManyToManyField(Attribute)
     schema = models.ForeignKey(Entity)
-
+    deleted = models.BooleanField(default=False)
+    
     def __init__(self, *args, **kwargs):
         super(Entry, self).__init__(*args, **kwargs)
         self.objtype = ACLObjType.Entry
@@ -70,3 +71,15 @@ class Entry(ACLBase):
 
         self.attrs.add(attr)
         return attr
+
+    def delete(self):
+        self.deleted = True
+    
+    def is_deleted(self):
+        return self.deleted
+
+    def get_screen_name(self):
+        if self.deleted:
+            return "%s(deleted)" % self.name
+        else:
+            return self.name

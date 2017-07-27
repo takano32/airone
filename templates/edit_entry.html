@@ -50,7 +50,7 @@
               {% endif %}
 
               {% for referral in attr.referrals %}
-              <option value="{{ referral.id }}"{% if referral.id == attr.referral.id %} selected="selected" {% endif %}>{{ referral.name }}</option>
+              <option value="{{ referral.id }}"{% if referral.id == attr.last_referral.id %} selected="selected" {% endif %}>{{ referral.name }}</option>
               {% endfor %}
             </select>
             {% else %}

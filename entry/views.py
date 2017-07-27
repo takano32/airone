@@ -1,10 +1,15 @@
+import io
+
 from django.http import HttpResponse
 
 from airone.lib.http import http_get, http_post, check_permission, render
+from airone.lib.http import get_download_response
 from airone.lib.types import AttrTypeStr, AttrTypeObj
+from airone.lib.acl import get_permitted_objects
 
 from entity.models import Entity, AttributeBase
 from entry.models import Entry, Attribute, AttributeValue
+from entry.admin import EntryResource, AttrResource, AttrValueResource
 from user.models import User
 
 
@@ -105,7 +110,7 @@ def do_create(request, entity_id, recv_data):
 
         # make an initial AttributeValue object if the initial value is specified
         for info in [x for x in recv_data['attrs'] if int(x['id']) == attr_base.id and x['value']]:
-            attr_value = AttributeValue(created_user=user)
+            attr_value = AttributeValue(created_user=user, parent_attr=attr)
             if attr.type == AttrTypeStr:
                 attr_value.value = value=info['value']
             elif attr.type == AttrTypeObj and Entry.objects.filter(id=info['value']).count():
@@ -180,7 +185,8 @@ def do_edit(request, entry_id, recv_data):
         # Check a new update value is specified, or not
         if is_updated(attr, info):
             # Add a new AttributeValue object only at updating value
-            attr_value = AttributeValue(created_user=User.objects.get(id=request.user.id))
+            attr_value = AttributeValue(created_user=User.objects.get(id=request.user.id),
+                                        parent_attr=attr)
 
             # set attribute value according to the attribute-type
             if attr.type == AttrTypeStr:
@@ -222,6 +228,30 @@ def show(request, entry_id):
         'value_history': sorted(value_history, key=lambda x: x['created_time']),
     }
     return render(request, 'show_entry.html', context)
+
+@http_get
+def export(request, entity_id):
+    output = io.StringIO()
+    user = User.objects.get(id=request.user.id)
+
+    if not Entity.objects.filter(id=entity_id).count():
+        return HttpResponse('Failed to get entity of specified id', status=400)
+
+    entity = Entity.objects.get(id=entity_id)
+
+    output.write("Entry: \n")
+    output.write(EntryResource().export(get_permitted_objects(user, Entry, 'readable')).yaml)
+
+    output.write("\n")
+    output.write("Attribute: \n")
+    output.write(AttrResource().export(get_permitted_objects(user, Attribute, 'readable')).yaml)
+
+    objs = [x for x in AttributeValue.objects.all() if user.has_permission(x.parent_attr, 'readable')]
+    output.write("\n")
+    output.write("AttributeValue: \n")
+    output.write(AttrValueResource().export(objs).yaml)
+
+    return get_download_response(output, 'entry_%s.yaml' % entity.name)
 
 @http_post([]) # check only that request is POST, id will be given by url
 @check_permission(Entry, 'full')

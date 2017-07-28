@@ -62,7 +62,6 @@ class ModelTest(TestCase):
         self.assertEqual(Entry.objects.last().attrs.count(), 1)
         self.assertEqual(Entry.objects.last().attrs.last(), attr)
         self.assertEqual(Entry.objects.last().name, 'test')
-        self.assertEqual(Entry.objects.last().get_screen_name(), 'test')
         self.assertEqual(Entry.objects.last().is_deleted(), False,
                          "Entry should not be deleted after created")
 
@@ -88,7 +87,6 @@ class ModelTest(TestCase):
         self.assertEqual(Entry.objects.last().attrs.count(), 1)
         self.assertEqual(Entry.objects.last().attrs.last(), attr)
         self.assertEqual(Entry.objects.last().name, 'test')
-        self.assertEqual(Entry.objects.last().get_screen_name(), 'test(deleted)')
         self.assertEqual(Entry.objects.last().is_deleted(), True,
                          "Entry should be deleted")
         

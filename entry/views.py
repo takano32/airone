@@ -1,6 +1,7 @@
 import io
 
 from django.http import HttpResponse
+from django.db.models import Q
 
 from airone.lib.http import http_get, http_post, check_permission, render
 from airone.lib.http import get_download_response
@@ -37,9 +38,10 @@ def _get_latest_attributes(self, user):
         # set Entries which are specified in the referral parameter
         attrinfo['referrals'] = []
         if attr.referral:
-            attrinfo['referrals'] = Entry.objects.filter(schema=attr.referral,deleted=False)
-            if attrinfo['last_referral'] not in attrinfo['referrals']:
-                attrinfo['referrals'].append(attrinfo['last_referral'])
+            query = Q(schema=attr.referral,deleted=False)
+            if attrinfo['last_referral']:
+                query = query | Q(id=attrinfo['last_referral'].id)
+            attrinfo['referrals'] = Entry.objects.filter(query)
                 
         ret_attrs.append(attrinfo)
 
@@ -261,7 +263,8 @@ def do_delete(request, entry_id, recv_data):
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
     # update name of Entry object
-    entry = Entry.objects.filter(id=entry_id)
+    entry = Entry.objects.filter(id=entry_id).get()
     entry.delete()
+    entry.save()
     
     return HttpResponse()

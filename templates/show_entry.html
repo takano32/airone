@@ -7,7 +7,7 @@
   <ul class="breadcrumb airone-breadcrumb">
     <li class="breadcrumb-item"><a href="/">TOP</a></li>
     <li class="breadcrumb-item"><a href='/entry/{{ entry.schema.id }}'>{{ entry.schema.name }}</a></li>
-    <li class="breadcrumb-item">{{ entry.name }}</li>
+    <li class="breadcrumb-item">{{ entry.name }}{% if entry.is_deleted %}(deleted){% endif %}</li>
   </ul>
 </div>
 {% endblock %}
@@ -19,7 +19,6 @@
       <div class="float-left">
         <button name="button_new" type="button" class="btn btn-primary" onclick="location.href='/entry/edit/{{ entry.id }}'">編集</button>
         <button name="button_new" type="button" class="btn btn-primary" onclick="location.href='/acl/{{ entry.id }}'">ACL 設定</button>
-        <button name="button_delete" type="button" class="btn btn-danger">削除</button>
       </div>
     </div>
   </div>
@@ -38,7 +37,7 @@
           {% if attr.type == attr_type.str %}
             {{ attr.last_value }}
           {% elif attr.type == attr_type.entry and attr.last_referral %}
-            <a href='/entry/show/{{ attr.last_referral.id }}'>{{ attr.last_referral.name }}</a>
+            <a href='/entry/show/{{ attr.last_referral.id }}'>{{ attr.last_referral.name }}</a>{% if attr.last_referral.deleted %}(deleted){% endif %}
           {% endif %}
           </td>
         </tr>

@@ -24,7 +24,7 @@
         <table class="table table-bordered">
           <tr>
             <td>エントリ名</td>
-            <td><input type="text" name="entry_name" value="{{ entry.name }}"/></td>
+            <td><input type="text" name="entry_name" value="{{ entry.name }}"/>{% if entry.deleted %}(deleted){% endif %}</td>
           </tr>
         </table>
       </div>

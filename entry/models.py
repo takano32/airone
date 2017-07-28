@@ -77,9 +77,3 @@ class Entry(ACLBase):
     
     def is_deleted(self):
         return self.deleted
-
-    def get_screen_name(self):
-        if self.deleted:
-            return "%s(deleted)" % self.name
-        else:
-            return self.name

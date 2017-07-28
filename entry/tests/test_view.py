@@ -663,3 +663,45 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(len(obj['Attribute']), 2)
         self.assertEqual(len(obj['AttributeValue']), 4)
+
+    def test_post_delete_entry(self):
+        user = self.admin_login()
+
+        entry = Entry(name='fuga', schema=self._entity, created_user=user)
+        entry.save()
+
+        entry_count = Entry.objects.count()
+
+        params = {}
+        
+        resp = self.client.post(reverse('entry:do_delete', args=[entry.id]),
+                                json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+
+        self.assertEqual(Entry.objects.count(), entry_count)
+
+        entry = Entry.objects.last()
+        self.assertTrue(entry.deleted)
+        
+    def test_post_delete_entry_without_permission(self):
+        user1 = self.admin_login()
+        user2 = User(username='nyaa')
+        user2.save()
+
+        entry = Entry(name='fuga', schema=self._entity, created_user=user2, is_public=False)
+        entry.save()
+
+        entry_count = Entry.objects.count()
+
+        params = {}
+        
+        resp = self.client.post(reverse('entry:do_delete', args=[entry.id]),
+                                json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+
+        self.assertEqual(Entry.objects.count(), entry_count)
+
+        entry = Entry.objects.last()
+        self.assertFalse(entry.deleted)

@@ -80,7 +80,7 @@ class ModelTest(TestCase):
 
         entry.is_active = False
         entry.save()
-        
+
         self.assertEqual(Entry.objects.count(), entry_count,
                          "number of entry should equal after delete")
         self.assertEqual(Entry.objects.last().created_user, self._user)
@@ -89,7 +89,7 @@ class ModelTest(TestCase):
         self.assertEqual(Entry.objects.last().name, 'test')
         self.assertEqual(Entry.objects.last().is_active, False,
                          "Entry should be deleted")
-        
+
     def test_inherite_attribute_permission_of_user(self):
         user = User.objects.create(username='hoge')
 

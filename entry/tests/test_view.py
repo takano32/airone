@@ -682,7 +682,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(Entry.objects.count(), entry_count)
 
         entry = Entry.objects.last()
-        self.assertTrue(entry.deleted)
+        self.assertFalse(entry.is_active)
         
     def test_post_delete_entry_without_permission(self):
         user1 = self.admin_login()
@@ -704,4 +704,4 @@ class ViewTest(AironeViewTest):
         self.assertEqual(Entry.objects.count(), entry_count)
 
         entry = Entry.objects.last()
-        self.assertFalse(entry.deleted)
+        self.assertTrue(entry.is_active)

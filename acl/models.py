@@ -32,10 +32,11 @@ class ACLBase(models.Model):
     name = models.CharField(max_length=200)
     is_public = models.BooleanField(default=True)
     created_user = models.ForeignKey(User)
+    is_active = models.BooleanField(default=True)
 
     # This fields describes the sub-class of this object
     objtype = models.IntegerField(default=0)
-
+    
     def save(self, *args, **kwargs):
         super(ACLBase, self).save(*args, **kwargs)
 

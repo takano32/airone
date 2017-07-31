@@ -36,7 +36,7 @@ class ACLBase(models.Model):
 
     # This fields describes the sub-class of this object
     objtype = models.IntegerField(default=0)
-    
+
     def save(self, *args, **kwargs):
         super(ACLBase, self).save(*args, **kwargs)
 

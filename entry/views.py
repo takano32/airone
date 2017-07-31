@@ -39,7 +39,7 @@ def _get_latest_attributes(self, user):
         attrinfo['referrals'] = []
         if attr.referral:
             # when an entry in referral attribute is deleted,
-            # user should be able to select new referral or keep it unchanged.  
+            # user should be able to select new referral or keep it unchanged.
             # so candidate entries of referral attribute are:
             # - active(not deleted) entries (new referral)
             # - last value even if the entry has been deleted (keep it unchanged)
@@ -47,7 +47,7 @@ def _get_latest_attributes(self, user):
             if attrinfo['last_referral']:
                 query = query | Q(id=attrinfo['last_referral'].id)
             attrinfo['referrals'] = Entry.objects.filter(query)
-                
+
         ret_attrs.append(attrinfo)
 
     return ret_attrs
@@ -271,5 +271,5 @@ def do_delete(request, entry_id, recv_data):
     entry = Entry.objects.filter(id=entry_id).get()
     entry.is_active=False
     entry.save()
-    
+
     return HttpResponse()

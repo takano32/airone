@@ -36,7 +36,7 @@ class Attribute(AttributeBase):
 class Entry(ACLBase):
     attrs = models.ManyToManyField(Attribute)
     schema = models.ForeignKey(Entity)
-    
+
     def __init__(self, *args, **kwargs):
         super(Entry, self).__init__(*args, **kwargs)
         self.objtype = ACLObjType.Entry
@@ -70,4 +70,3 @@ class Entry(ACLBase):
 
         self.attrs.add(attr)
         return attr
-

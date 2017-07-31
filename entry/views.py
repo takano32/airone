@@ -38,7 +38,12 @@ def _get_latest_attributes(self, user):
         # set Entries which are specified in the referral parameter
         attrinfo['referrals'] = []
         if attr.referral:
-            query = Q(schema=attr.referral,deleted=False)
+            # when an entry in referral attribute is deleted,
+            # user should be able to select new referral or keep it unchanged.  
+            # so candidate entries of referral attribute are:
+            # - active(not deleted) entries (new referral)
+            # - last value even if the entry has been deleted (keep it unchanged)
+            query = Q(schema=attr.referral,is_active=True)
             if attrinfo['last_referral']:
                 query = query | Q(id=attrinfo['last_referral'].id)
             attrinfo['referrals'] = Entry.objects.filter(query)
@@ -56,7 +61,7 @@ def index(request, entity_id):
     entity = Entity.objects.get(id=entity_id)
     context = {
         'entity': entity,
-        'entries': Entry.objects.filter(schema=entity,deleted=False),
+        'entries': Entry.objects.filter(schema=entity,is_active=True),
     }
     return render(request, 'list_entry.html', context)
 
@@ -76,7 +81,7 @@ def create(request, entity_id):
             'type': x.type,
             'name': x.name,
             'is_mandatory': x.is_mandatory,
-            'referrals': x.referral and Entry.objects.filter(schema=x.referral,deleted=False) or [],
+            'referrals': x.referral and Entry.objects.filter(schema=x.referral,is_active=True) or [],
         } for x in entity.attr_bases.all() if user.has_permission(x, 'writable')]
     }
     return render(request, 'create_entry.html', context)
@@ -264,7 +269,7 @@ def do_delete(request, entry_id, recv_data):
 
     # update name of Entry object
     entry = Entry.objects.filter(id=entry_id).get()
-    entry.delete()
+    entry.is_active=False
     entry.save()
     
     return HttpResponse()

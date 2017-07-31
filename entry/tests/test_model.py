@@ -62,7 +62,7 @@ class ModelTest(TestCase):
         self.assertEqual(Entry.objects.last().attrs.count(), 1)
         self.assertEqual(Entry.objects.last().attrs.last(), attr)
         self.assertEqual(Entry.objects.last().name, 'test')
-        self.assertEqual(Entry.objects.last().is_deleted(), False,
+        self.assertEqual(Entry.objects.last().is_active, True,
                          "Entry should not be deleted after created")
 
     def test_delete_entry(self):
@@ -78,7 +78,7 @@ class ModelTest(TestCase):
 
         entry_count = Entry.objects.count()
 
-        entry.delete()
+        entry.is_active = False
         entry.save()
         
         self.assertEqual(Entry.objects.count(), entry_count,
@@ -87,7 +87,7 @@ class ModelTest(TestCase):
         self.assertEqual(Entry.objects.last().attrs.count(), 1)
         self.assertEqual(Entry.objects.last().attrs.last(), attr)
         self.assertEqual(Entry.objects.last().name, 'test')
-        self.assertEqual(Entry.objects.last().is_deleted(), True,
+        self.assertEqual(Entry.objects.last().is_active, False,
                          "Entry should be deleted")
         
     def test_inherite_attribute_permission_of_user(self):

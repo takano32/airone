@@ -24,7 +24,7 @@
         <table class="table table-bordered">
           <tr>
             <td>エントリ名</td>
-            <td><input type="text" name="entry_name" value="{{ entry.name }}"/></td>
+            <td><input type="text" name="entry_name" value="{{ entry.name }}"/>{% if entry.deleted %}(deleted){% endif %}</td>
           </tr>
         </table>
       </div>
@@ -43,14 +43,14 @@
             {% if attr.is_mandatory %}<strong>(*)</strong>{% endif %}{{ attr.name }}
           </td>
           <td>
-            {% if attr.referrals %}
+            {% if attr.type == attr_type.entry %}
             <select class="attr_value" attr_id="{{ attr.id }}">
               {% if not attr.is_mandatory %}
               <option value='0'>- NOT SET -</option>
               {% endif %}
 
               {% for referral in attr.referrals %}
-              <option value="{{ referral.id }}"{% if referral.id == attr.referral.id %} selected="selected" {% endif %}>{{ referral.name }}</option>
+              <option value="{{ referral.id }}"{% if referral.id == attr.last_referral.id %} selected="selected" {% endif %}>{{ referral.name }}</option>
               {% endfor %}
             </select>
             {% else %}
@@ -64,7 +64,7 @@
       {% endfor %}
       </tbody>
     </table>
-    
+
     <strong>(*)</strong> は必須項目
     {% csrf_token %}
   </form>

@@ -1,10 +1,11 @@
 from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from airone.lib.acl import ACLObjType
+from airone.lib.resources import Importable
 from acl.models import ACLBase
 
 
-class AttributeBase(ACLBase):
+class AttributeBase(ACLBase, Importable):
     _IMPORT_INFO = {
         'header':               ['id', 'name', 'type', 'refer', 'entity', 'created_user', 'is_mandatory'],
         'mandatory_keys':       ['name', 'type', 'entity', 'created_user'],
@@ -21,7 +22,7 @@ class AttributeBase(ACLBase):
         super(AttributeBase, self).__init__(*args, **kwargs)
         self.objtype = ACLObjType.AttrBase
 
-class Entity(ACLBase):
+class Entity(ACLBase, Importable):
     _IMPORT_INFO = {
         'header':               ['id', 'name', 'note', 'created_user'],
         'mandatory_keys':       ['name', 'created_user'],

@@ -12,6 +12,7 @@ admin.site.register(Entity)
 
 class EntityResource(AironeModelResource):
     COMPARING_KEYS = ['name', 'note', 'created_user']
+    DISALLOW_UPDATE_KEYS = ['created_user']
 
     user = fields.Field(column_name='created_user', attribute='created_user',
                         widget=widgets.ForeignKeyWidget(User, 'username'))
@@ -23,6 +24,7 @@ class EntityResource(AironeModelResource):
 
 class AttrBaseResource(AironeModelResource):
     COMPARING_KEYS = ['name', 'is_mandatory', 'referral', 'parent_entity', 'created_user']
+    DISALLOW_UPDATE_KEYS = ['parent_entity', 'created_user']
 
     user = fields.Field(column_name='created_user', attribute='created_user',
                         widget=widgets.ForeignKeyWidget(User, 'username'))
@@ -37,10 +39,16 @@ class AttrBaseResource(AironeModelResource):
         fields = ('id', 'name', 'type', 'is_mandatory')
 
     def after_save_instance(self, instance, using_transactions, dry_run):
-        # If a new AttributeBase objects is created,
+        # If a new AttributeBase object is created,
         # this processing append it to the associated Entity object.
         if not dry_run:
             entity = instance.parent_entity
 
             if not entity.attr_bases.filter(id=instance.id):
                 entity.attr_bases.add(instance)
+
+    def import_obj(self, instance, data, dry_run):
+        if Entity.objects.filter(name=data['entity']).count() > 0:
+            super(AttrBaseResource, self).import_obj(instance, data, dry_run)
+        else:
+            raise RuntimeError('failed to identify entity object')

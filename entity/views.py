@@ -3,6 +3,7 @@ import re
 import io
 
 from django.http import HttpResponse
+from django.db.models import Q
 from django.core.exceptions import PermissionDenied
 
 from .models import Entity
@@ -28,14 +29,14 @@ def index(request):
     user = User.objects.get(id=request.user.id)
 
     context = {
-        'entities': [x for x in Entity.objects.all() if user.has_permission(x, 'readable')]
+        'entities': [x for x in Entity.objects.filter(is_active=True) if user.has_permission(x, 'readable')]
     }
     return render(request, 'list_entities.html', context)
 
 @http_get
 def create(request):
     context = {
-        'entities': Entity.objects.all(),
+        'entities': Entity.objects.filter(is_active=True),
         'attr_types': AttrTypes
     }
     return render(request, 'create_entity.html', context)
@@ -48,12 +49,35 @@ def edit(request, entity_id):
     if not Entity.objects.filter(id=entity_id).count():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
+    # entity to be editted is given by url
     entity = Entity.objects.get(id=entity_id)
+
+    # when an entity in referral attribute is deleted
+    # user should be able to select new entity or keep it unchanged
+    # candidate entites for referral are:
+    # - active(not deleted) entity 
+    # - current value of any attributes even if the entity has been deleted
+
+    # query of candidate entities for referral
+    query = Q(is_active=True) # active entity should be displayed
+    attr_bases = [] # AttributeBases of entity to be editted
+
+    for attr_base in entity.attr_bases.all():
+        # skip not-writable AttributeBase
+        if not user.has_permission(attr_base, 'writable'):
+            continue
+        # logical-OR current value of referral to query of candidate entites
+        if attr_base.referral:
+            query = query | Q(id=attr_base.referral.id)
+        attr_bases.append(attr_base)
+            
+    entities = Entity.objects.filter(query)
+    
     context = {
         'entity': entity,
-        'entities': Entity.objects.all(),
+        'entities': entities,
         'attr_types': AttrTypes,
-        'attributes': [x for x in entity.attr_bases.all() if user.has_permission(x, 'writable')],
+        'attributes': attr_bases,
     }
     return render(request, 'edit_entity.html', context)
 
@@ -200,3 +224,19 @@ def export(request):
                                                                  'readable')).yaml)
 
     return get_download_response(output, 'entity.yaml')
+
+@http_post([])
+@check_permission(Entity, 'full')
+def do_delete(request, entity_id, recv_data):
+    if not Entity.objects.filter(id=entity_id).count():
+        return HttpResponse('Failed to get entity of specified id', status=400)
+
+    entity = Entity.objects.get(id=entity_id)
+
+    if Entry.objects.filter(schema=entity,is_active=True).count() != 0:
+        return HttpResponse('cannot delete Entity because one or more Entries are not deleted', status=400)
+
+    entity.is_active=False
+    entity.save()
+
+    return HttpResponse()

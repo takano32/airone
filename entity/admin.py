@@ -11,6 +11,13 @@ admin.site.register(Entity)
 
 
 class EntityResource(AironeModelResource):
+    _IMPORT_INFO = {
+        'header':               ['id', 'name', 'note', 'created_user'],
+        'mandatory_keys':       ['name', 'created_user'],
+        'resource_module':      'entity.admin',
+        'resource_model_name':  'EntityResource',
+    }
+
     COMPARING_KEYS = ['name', 'note', 'created_user']
     DISALLOW_UPDATE_KEYS = ['created_user']
 
@@ -23,6 +30,14 @@ class EntityResource(AironeModelResource):
         export_order = ('id', 'name', 'note', 'user')
 
 class AttrBaseResource(AironeModelResource):
+    _IMPORT_INFO = {
+        'header':               ['id', 'name', 'type', 'refer', 'entity',
+                                 'created_user', 'is_mandatory'],
+        'mandatory_keys':       ['name', 'type', 'entity', 'created_user'],
+        'resource_module':      'entity.admin',
+        'resource_model_name':  'AttrBaseResource',
+    }
+
     COMPARING_KEYS = ['name', 'is_mandatory', 'referral', 'parent_entity', 'created_user']
     DISALLOW_UPDATE_KEYS = ['parent_entity', 'created_user']
 

@@ -14,6 +14,12 @@ admin.site.register(AttributeValue)
 
 
 class AttrValueResource(AironeModelResource):
+    _IMPORT_INFO = {
+        'header': ['id', 'refer', 'value', 'attribute_id', 'created_time', 'created_user'],
+        'mandatory_keys': ['attribute_id', 'created_user'],
+        'resource_module': 'entry.admin',
+        'resource_model_name': 'AttrValueResource',
+    }
     COMPARING_KEYS = ['value', 'referral', 'created_time']
     DISALLOW_UPDATE_KEYS = ['created_time', 'created_user', 'parent_attr']
 
@@ -38,6 +44,12 @@ class AttrValueResource(AironeModelResource):
                 attr.values.add(instance)
 
 class AttrResource(AironeModelResource):
+    _IMPORT_INFO = {
+        'header': ['id', 'name', 'entity', 'schema_id', 'entry_id', 'created_user'],
+        'mandatory_keys': ['name', 'entity', 'schema_id', 'entry_id', 'created_user'],
+        'resource_module': 'entry.admin',
+        'resource_model_name': 'AttrResource',
+    }
     COMPARING_KEYS = ['name', 'is_mandatory', 'referral', 'parent_entity', 'created_user']
     DISALLOW_UPDATE_KEYS = ['is_mandatory', 'parent_entity', 'created_user']
 
@@ -63,6 +75,12 @@ class AttrResource(AironeModelResource):
                 entry.attrs.add(instance)
 
 class EntryResource(AironeModelResource):
+    _IMPORT_INFO = {
+        'header': ['id', 'name', 'entity', 'created_user'],
+        'mandatory_keys': ['name', 'entity', 'created_user'],
+        'resource_module': 'entry.admin',
+        'resource_model_name': 'EntryResource',
+    }
     COMPARING_KEYS = ['name']
 
     entity = fields.Field(column_name='entity', attribute='schema',

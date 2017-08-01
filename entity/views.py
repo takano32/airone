@@ -1,4 +1,3 @@
-import yaml
 import logging
 import re
 import io
@@ -201,28 +200,3 @@ def export(request):
                                                                  'readable')).yaml)
 
     return get_download_response(output, 'entity.yaml')
-
-@http_get
-def import_data(request):
-    return render(request, 'import_entity.html', {})
-
-@http_file_upload
-def do_import_data(request, context):
-    user = User.objects.get(id=request.user.id)
-
-    try:
-        data = yaml.load(context)
-    except yaml.parser.ParserError:
-        return HttpResponse("Couldn't parse uploaded file", status=400)
-
-    def _do_import(model, iter_data):
-      for data in iter_data:
-          try:
-              model.import_data(data, user)
-          except RuntimeError as e:
-              Logger.warning(('(%s) %s ' % (model, data)) + str(e))
-
-    _do_import(Entity, data['Entity'])
-    _do_import(AttributeBase, data['AttributeBase'])
-
-    return HttpResponseSeeOther('/entity/')

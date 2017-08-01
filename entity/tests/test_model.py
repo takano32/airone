@@ -25,6 +25,7 @@ class ModelTest(TestCase):
         
         self.assertEqual(entity.name, 'test01')
         self.assertEqual(list(entity.attr_bases.all()), [])
+        self.assertTrue(entity.is_active)
 
     def test_set_parent(self):
         entity = Entity(name='test01', created_user=self._test_user)

@@ -2,6 +2,7 @@ from django.test import TestCase
 from user.models import User
 from entity.models import Entity
 from entity.models import AttributeBase
+from entity.admin import EntityResource
 
 
 class ModelTest(TestCase):
@@ -39,7 +40,7 @@ class ModelTest(TestCase):
         entity = Entity(name='test01', note='note1', created_user=self._test_user)
         entity.save()
 
-        Entity.import_data({
+        EntityResource.import_data_from_request({
             'id': entity.id,
             'name': entity.name,
             'note': entity.note,
@@ -52,7 +53,7 @@ class ModelTest(TestCase):
         self.assertEqual(Entity.objects.last().created_user, self._test_user)
 
     def test_import_with_new_object(self):
-        Entity.import_data({
+        EntityResource.import_data_from_request({
             'name': 'foo',
             'note': 'bar',
             'created_user': self._test_user,
@@ -66,7 +67,7 @@ class ModelTest(TestCase):
         entity = Entity(name='test01', note='note1', created_user=self._test_user)
         entity.save()
 
-        Entity.import_data({
+        EntityResource.import_data_from_request({
             'id': entity.id,
             'name': 'changed_name',
             'note': 'changed_note',
@@ -80,7 +81,7 @@ class ModelTest(TestCase):
 
     def test_import_with_invalid_parameter(self):
         with self.assertRaises(RuntimeError):
-            Entity.import_data({
+            EntityResource.import_data_from_request({
                 'name': 'hoge',
                 'note': 'fuga',
                 'invalid_key': 'invalid_value',
@@ -91,7 +92,7 @@ class ModelTest(TestCase):
 
     def test_import_without_mandatory_parameter(self):
         with self.assertRaises(RuntimeError):
-            Entity.import_data({
+            EntityResource.import_data_from_request({
                 'note': 'fuga',
                 'created_user': self._test_user.username,
             }, self._test_user)
@@ -101,7 +102,7 @@ class ModelTest(TestCase):
     def test_import_with_spoofing_parameter(self):
         user = User.objects.create(username='another_user')
 
-        Entity.import_data({
+        EntityResource.import_data_from_request({
             'name': 'entity',
             'note': 'note',
             'created_user': user
@@ -115,7 +116,7 @@ class ModelTest(TestCase):
         entity = Entity(name='origin_name', created_user=user, is_public=False)
         entity.save()
 
-        Entity.import_data({
+        EntityResource.import_data_from_request({
             'id': entity.id,
             'name': 'changed_name',
             'note': 'changed_note',

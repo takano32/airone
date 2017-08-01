@@ -7,12 +7,17 @@ from airone.lib.http import http_get
 from airone.lib.http import http_file_upload
 from airone.lib.http import HttpResponseSeeOther
 from user.models import User
+from entity.admin import EntityResource, AttrBaseResource
+from entry.admin import EntryResource, AttrResource, AttrValueResource
 from entity.models import Entity, AttributeBase
 from entry.models import Entry, Attribute, AttributeValue
 
-_IMPORT_MODELS = [
-    'Entity', 'AttributeBase',
-    'Entry', 'Attribute', 'AttributeValue',
+IMPORT_INFOS = [
+    {'model': 'Entity', 'resource': EntityResource},
+    {'model': 'AttributeBase', 'resource': AttrBaseResource},
+    {'model': 'Entry', 'resource': EntryResource},
+    {'model': 'Attribute', 'resource': AttrResource},
+    {'model': 'AttributeValue', 'resource': AttrValueResource},
 ]
 
 Logger = logging.getLogger(__name__)
@@ -34,15 +39,15 @@ def do_import_data(request, context):
     except yaml.parser.ParserError:
         return HttpResponse("Couldn't parse uploaded file", status=400)
 
-    def _do_import(model, iter_data):
-      for data in iter_data:
-          try:
-              model.import_data(data, user)
-          except RuntimeError as e:
-              Logger.warning(('(%s) %s ' % (model, data)) + str(e))
+    def _do_import(resource, iter_data):
+        for data in iter_data:
+            try:
+                resource.import_data_from_request(data, user)
+            except RuntimeError as e:
+                Logger.warning(('(%s) %s ' % (resource, data)) + str(e))
 
-    for model_str in _IMPORT_MODELS:
-        if model_str in data:
-            _do_import(eval(model_str), data[model_str])
+    for info in IMPORT_INFOS:
+        if info['model'] in data:
+            _do_import(info['resource'], data[info['model']])
 
     return HttpResponseSeeOther('/dashboard/')

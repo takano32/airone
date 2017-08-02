@@ -441,3 +441,77 @@ class ViewTest(AironeViewTest):
         self.assertTrue([x for x in obj['Entity'] if x['name'] == entity1.name])
         self.assertTrue([x for x in obj['Entity'] if x['name'] == entity2.name])
         self.assertFalse([x for x in obj['AttributeBase'] if x['name'] == 'private_attr'])
+
+    def test_post_delete(self):
+        user1 = self.admin_login()
+
+        entity1 = Entity.objects.create(name='entity1', created_user=user1)
+        entity1.save()
+
+        entity_count = Entity.objects.all().count()
+        
+        params = {}
+        resp = self.client.post(reverse('entity:do_delete', args=[entity1.id]),
+                                json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Entity.objects.all().count(), entity_count,
+                         "Entity should not be deleted from database")
+
+        entity1 = Entity.objects.get(name='entity1')
+        self.assertIsNotNone(entity1)
+        self.assertFalse(entity1.is_active)
+        
+
+    def test_post_delete_without_permission(self):
+        user1 = self.admin_login()
+        user2 = User.objects.create(username='mokeke')
+        
+        entity1 = Entity.objects.create(name='entity1', created_user=user2)
+        entity1.is_public = False
+        entity1.save()
+
+        entity_count = Entity.objects.all().count()
+        
+        params = {}
+        resp = self.client.post(reverse('entity:do_delete', args=[entity1.id]),
+                                json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(Entity.objects.all().count(), entity_count,
+                         "Entity should not be deleted from database")
+
+        entity1 = Entity.objects.get(name='entity1')
+        self.assertIsNotNone(entity1)
+        self.assertTrue(entity1.is_active)
+
+    def test_post_delete_with_active_entry(self):
+        user = self.admin_login()
+        
+        entity = Entity.objects.create(name='entity1', created_user=user)
+        entity.save()
+
+        attrbase = AttributeBase.objects.create(name='puyo',
+                                                created_user=user,
+                                                is_mandatory=True,
+                                                type=AttrTypeStr,
+                                                parent_entity=entity)
+        entity.attr_bases.add(attrbase)
+
+        entry = Entry.objects.create(name='entry1', schema=entity, created_user=user)
+        entry.add_attribute_from_base(attrbase, user)
+        entry.save()
+        
+        entity_count = Entity.objects.all().count()
+        
+        params = {}
+        resp = self.client.post(reverse('entity:do_delete', args=[entity.id]),
+                                json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(Entity.objects.all().count(), entity_count,
+                         "Entity should not be deleted from database")
+
+        entity = Entity.objects.get(name='entity1')
+        self.assertIsNotNone(entity)
+        self.assertTrue(entity.is_active)

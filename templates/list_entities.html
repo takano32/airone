@@ -25,39 +25,39 @@
         <button name="button_new" type="button" class="btn btn-primary" onclick="location.href='/entity/create'">新規作成</button>
         <button name="button_export" type="button" class="btn btn-secondary" onclick="location.href='/entity/export/'">エクスポート</button>
         <button name="button_import" type="button" class="btn btn-secondary" onclick="location.href='/dashboard/import/'">インポート</button>
-        <button name="button_delete" type="button" class="btn btn-danger">削除</button>
       </div>
       <div class="float-right">
-        <a href="list_entry.html" role="button" class="btn btn-secondary">エントリ一覧</a>
-        <button name="button_save" type="button" class="btn btn-primary">保存</button>
       </div>
     </div>
   </div>
 
   <div class="row">
     <div class="col">
-      <form name="form" action="list_entity.html" method="post">
-        <table class="table table-bordered">
-          <thead>
-            <tr>
-              <td></td>
-              <td>エンティティ名</td>
-              <td>備考</td>
-              <td></td>
-            </tr>
-          </thead>
-          <tbody>
-            {% for entity in entities %}
-            <tr>
-              <td><label class="form-check-label"><input name="checkbox_select_0" type="checkbox" class="form-check-input" /></label></td>
-              <td><a href="/entity/edit/{{ entity.id }}">{{ entity.name }}</a></td>
-              <td>{{ entity.note }}</td>
-              <td><a href='/acl/{{ entity.id }}'><button type='button' class='btn btn-info btn-sm'>ACL</button></a></td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </form>
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <td>エンティティ名</td>
+            <td>備考</td>
+            <td></td>
+            <td></td>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entity in entities %}
+          <tr>
+            <td><a href="/entity/edit/{{ entity.id }}">{{ entity.name }}</a></td>
+            <td>{{ entity.note }}</td>
+            <td><a href='/acl/{{ entity.id }}'><button type='button' class='btn btn-info btn-sm'>ACL</button></a></td>
+            <td>
+              <form url="/entity/do_delete/{{ entity.id }}" method="post">
+                {% csrf_token %}
+                <button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="HttpPost($(this).parent(), {})">del</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
 </div>

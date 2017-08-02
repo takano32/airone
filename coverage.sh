@@ -19,8 +19,9 @@ echo '{
   "files": {
     "'$GIST_FILENAME'" :{
        "content": "' > coverage.json
-echo 'build '$CILCLE_BUILD_URL'\n' >> coverage.json
-echo 'git   '$CILCLE_COMPARE_URL'\n' >> coverage.json
+echo 'build '$CIRCLE_BUILD_URL'\\n' >> coverage.json
+echo 'git   '$CIRCLE_COMPARE_URL'\\n' >> coverage.json
+echo '\\n' >> coverage.json
 sed -e 's/$/\\n/g' coverage.txt >> coverage.json
 echo '"
     }
@@ -31,7 +32,7 @@ curl --user "$GIST_USER:$GIST_TOKEN" -X POST --data @coverage.json $GIST_ENDPOIN
 
 GIST_URL=$(grep 'html_url' response.json | grep 'gist' | sed -e 's/.*: //g;s/[",]//g')
 
-rm coverage.json
+#rm coverage.json
 rm response.json
 
 # sumamry

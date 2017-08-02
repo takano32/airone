@@ -42,7 +42,7 @@ class ImportTest(AironeViewTest):
         self.assertEqual(len(warning_messages), 2)
         self.assertTrue(re.match(r'^.*Entity.*Unnecessary key is specified$',
                                  warning_messages[0]))
-        self.assertTrue(re.match(r'^.*AttributeBase.*Unnecessary key is specified$',
+        self.assertTrue(re.match(r'^.*AttrBase.*Unnecessary key is specified$',
                                  warning_messages[1]))
 
         self.assertEqual(Entity.objects.count(), 1)
@@ -67,7 +67,7 @@ class ImportTest(AironeViewTest):
         self.assertEqual(len(warning_messages), 2)
         self.assertTrue(re.match(r"^.*Entity.*Mandatory key doesn't exist$",
                                  warning_messages[0]))
-        self.assertTrue(re.match(r"^.*AttributeBase.*Mandatory key doesn't exist$",
+        self.assertTrue(re.match(r"^.*AttrBase.*Mandatory key doesn't exist$",
                                  warning_messages[1]))
 
         self.assertEqual(Entity.objects.count(), 1)

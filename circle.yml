@@ -8,7 +8,7 @@ machine:
 ## dependencies
 dependencies:
   override:
-    - pip install tox tox-pyenv
+    - pip install tox tox-pyenv coverage
     - cd /opt/circleci/.pyenv && git pull
     - |
       if [[ ! -d ~/.pyenv/versions/3.6.1 ]]; then
@@ -24,7 +24,9 @@ test:
     - tox
   post:
     - coverage report > coverage.txt
-    - head -n 1 coverage.txt > coverage-summary.txt && tail -n 1 coverage.txt >> coverage-summary.txt
+    - echo "build $CIRCLE_BUILD_URL" > coverage-summary.txt
+    - echo "git   $CIRCLE_COMPARE_URL" >> coverage-summary.txt
+    - head -n 1 coverage.txt >> coverage-summary.txt && tail -n 1 coverage.txt >> coverage-summary.txt
     - |
       echo '{"text":"' > coverage.json && cat coverage.txt >> coverage.json && echo '"}' >> coverage.json
     - |

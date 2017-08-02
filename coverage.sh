@@ -39,6 +39,7 @@ rm response.json
 echo "#$CIRCLE_BUILD_NUM" > coverage-summary.txt
 echo "build : $CIRCLE_BUILD_URL" >> coverage-summary.txt
 echo "git   : $CIRCLE_COMPARE_URL" >> coverage-summary.txt
+echo "" >> coverage-summary.txt
 head -n 1 coverage.txt >> coverage-summary.txt
 tail -n 1 coverage.txt >> coverage-summary.txt
 echo "detail: $GIST_URL" >> coverage-summary.txt

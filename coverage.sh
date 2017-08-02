@@ -27,9 +27,9 @@ echo '"
   }
 }' >> coverage.json
 
-curl --user "$GIST_USER:$GIST_TOKEN" -X POST --data @coverage.json $GIST_ENDPOINT > reponse.json
+curl --user "$GIST_USER:$GIST_TOKEN" -X POST --data @coverage.json $GIST_ENDPOINT > response.json
 
-GIST_URL=$(grep 'html_url' resp.json | grep 'gist' | sed -e 's/.*: //g;s/[",]//g')
+GIST_URL=$(grep 'html_url' response.json | grep 'gist' | sed -e 's/.*: //g;s/[",]//g')
 
 rm coverage.json
 rm response.json

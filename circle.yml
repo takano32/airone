@@ -25,6 +25,8 @@ test:
   post:
     - coverage report > coverage.txt
     - head -n 1 coverage.txt > coverage-summary.txt && tail -n 1 coverage.txt >> coverage-summary.txt
-    - echo '{"text":"' > coverage.json && cat coverage.txt >> coverage.json && echo '"}' >> coverage.json
-    - curl -s -S -H 'Content-type: application/json' -X POST --data "$(cat coverage.json)" $SLACK_ENDPOINT
+    - |
+      echo '{"text":"' > coverage.json && cat coverage.txt >> coverage.json && echo '"}' >> coverage.json
+    - |
+      curl -s -S -H 'Content-type: application/json' -X POST --data "$(cat coverage.json)" $SLACK_ENDPOINT
     

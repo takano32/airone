@@ -11,13 +11,12 @@ dependencies:
     - pip install tox tox-pyenv
     - cd /opt/circleci/.pyenv && git pull
     - |
-      if [[ ! -d /opt/circleci/.pyenv/versions/3.6.1 ]]; then
-        ls /opt/circleci/.pyenv/versions/
+      if [[ ! -d /opt/circleci/python/3.6.1 ]]; then
         pyenv install 3.6.1
       fi
     - cd ~ && pyenv local 2.7.10 3.4.3 3.5.0 3.6.1 system
   cache_directories:
-    - /opt/circleci/.pyenv/versions/3.6.1
+    - /opt/circleci/python/3.6.1
 
 ## test definition
 test:

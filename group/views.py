@@ -1,3 +1,4 @@
+import io
 import json
 
 from django.core.exceptions import ObjectDoesNotExist
@@ -7,8 +8,11 @@ from django.http import HttpResponse
 from airone.lib.http import HttpResponseSeeOther
 from airone.lib.http import http_get, http_post
 from airone.lib.http import render
+from airone.lib.http import get_download_response
 
 from user.models import User
+from user.admin import UserResource
+from .admin import GroupResource
 
 
 @http_get
@@ -61,3 +65,18 @@ def do_delete(request, recv_data):
     group.delete()
 
     return HttpResponse()
+
+@http_get
+def export(request):
+    user = User.objects.get(id=request.user.id)
+
+    output = io.StringIO()
+
+    output.write("Group: \n")
+    output.write(GroupResource().export().yaml)
+
+    output.write("\n")
+    output.write("User: \n")
+    output.write(UserResource().export().yaml)
+
+    return get_download_response(output, 'user_group.yaml')

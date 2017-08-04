@@ -1,4 +1,4 @@
-import json
+import json, yaml
 
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -192,7 +192,28 @@ class ViewTest(AironeViewTest):
                          "user1 should have 1 group")
         self.assertEqual(user2.groups.count(), 0,
                          "user2 should have 0 group")
-        
+
+    def test_export(self):
+        self.admin_login()
+
+        group1 = self._create_group("group1")
+        group2 = self._create_group("group2")
+
+        user1 = self._create_user("user1")
+        user1.groups.add(group1)
+        user1.groups.add(group2)
+
+        user2 = self._create_user("user2")
+        user2.groups.add(group1)
+
+        resp = self.client.get(reverse('group:export'))
+        self.assertEqual(resp.status_code, 200)
+
+        obj = yaml.load(resp.content)
+        self.assertTrue(isinstance(obj, dict))
+
+        self.assertEqual(len(obj['User']), 3)
+        self.assertEqual(len(obj['Group']), 2)
         
     # utility functions
     def _create_user(self, name):

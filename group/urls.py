@@ -7,4 +7,5 @@ urlpatterns = [
     url(r'^create$', views.create, name='create'),
     url(r'^do_create$', views.do_create, name='do_create'),
     url(r'^do_delete$', views.do_delete, name='do_delete'),
+    url(r'^export/$', views.export, name='export'),
 ]

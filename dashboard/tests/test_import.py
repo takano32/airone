@@ -21,6 +21,7 @@ class ImportTest(AironeViewTest):
         self.assertEqual(Entity.objects.count(), 3)
         self.assertEqual(Entity.objects.get(name='foo').id, 1)
         self.assertEqual(AttributeBase.objects.last().name, 'attr5')
+        self.assertEqual(AttributeBase.objects.last().type, 2)
         self.assertEqual(Entity.objects.get(name='foo').attr_bases.count(), 3)
 
     def test_import_entity_with_unnecessary_param(self):
@@ -107,6 +108,8 @@ class ImportTest(AironeViewTest):
         # checks that after_save_instance processing was normally worked
         self.assertEqual(Entry.objects.last().attrs.count(), 3)
         self.assertEqual(Entry.objects.last().attrs.get(name='aa').values.count(), 1)
+        self.assertEqual(Entry.objects.last().attrs.get(name='aa').type, 2)
 
         # checks that a new AttribueValue was created by import-data
         self.assertEqual(Attribute.objects.get(name='bb').values.count(), 2)
+        self.assertEqual(Attribute.objects.get(name='bb').type, 2)

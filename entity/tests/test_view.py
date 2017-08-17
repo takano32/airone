@@ -10,7 +10,7 @@ from entry.models import Entry, Attribute
 from user.models import User
 from xml.etree import ElementTree
 from airone.lib.test import AironeViewTest
-from airone.lib.types import AttrTypeStr, AttrTypeObj
+from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeArrStr, AttrTypeArrObj
 from airone.lib.acl import ACLType
 from django.contrib.auth.models import Permission
 
@@ -63,7 +63,7 @@ class ViewTest(AironeViewTest):
             'note': 'fuga',
             'attrs': [
                 {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True},
-                {'name': 'bar', 'type': str(AttrTypeStr), 'is_mandatory': False},
+                {'name': 'baz', 'type': str(AttrTypeArrStr), 'is_mandatory': False},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -288,6 +288,35 @@ class ViewTest(AironeViewTest):
         self.assertTrue(Attribute.objects.get(id=attr.id).is_mandatory)
         self.assertIsNone(Attribute.objects.get(id=attr.id).referral)
 
+    def test_post_edit_to_array_referral_attribute(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
+        attr = AttributeBase.objects.create(name='puyo',
+                                            type=AttrTypeStr,
+                                            created_user=user,
+                                            parent_entity=entity)
+        entity.attr_bases.add(attr)
+
+        params = {
+            'name': 'foo',
+            'note': 'bar',
+            'attrs': [{
+                'name': 'baz',
+                'type': str(AttrTypeArrObj),
+                'ref_id': entity.id,
+                'is_mandatory': True,
+                'id': attr.id
+            }],
+        }
+        resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(AttributeBase.objects.get(id=attr.id).type, AttrTypeArrObj)
+        self.assertEqual(AttributeBase.objects.get(id=attr.id).referral.id, entity.id)
+
     def test_post_create_with_invalid_referral_attr(self):
         self.admin_login()
 
@@ -315,6 +344,7 @@ class ViewTest(AironeViewTest):
             'note': 'fuga',
             'attrs': [
                 {'name': 'a', 'type': str(AttrTypeObj), 'ref_id': entity.id, 'is_mandatory': False},
+                {'name': 'b', 'type': str(AttrTypeArrObj), 'ref_id': entity.id, 'is_mandatory': False},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -323,11 +353,12 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 303)
         self.assertEqual(Entity.objects.last().name, 'hoge')
-        self.assertEqual(AttributeBase.objects.last().name, 'a')
-        self.assertIsNotNone(AttributeBase.objects.last().referral)
-        self.assertEqual(AttributeBase.objects.last().referral.id, entity.id)
 
-    def test_post_edit_delete_attribute(self):
+        attrs = AttributeBase.objects.all()
+        self.assertEqual(len(attrs), 2)
+        self.assertTrue(all([x.referral.id == entity.id for x in attrs]))
+
+    def test_post_delete_attribute(self):
         user = self.admin_login()
 
         entity = Entity.objects.create(name='entity', created_user=user)

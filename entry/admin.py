@@ -1,4 +1,5 @@
 from airone.lib.resources import AironeModelResource
+from airone.lib.types import AttrTypeValue
 from django.contrib import admin
 from import_export import fields, widgets
 from user.models import User
@@ -15,13 +16,15 @@ admin.site.register(AttributeValue)
 
 class AttrValueResource(AironeModelResource):
     _IMPORT_INFO = {
-        'header': ['id', 'refer', 'value', 'attribute_id', 'created_time', 'created_user'],
-        'mandatory_keys': ['attribute_id', 'created_user'],
+        'header': ['id', 'refer', 'value', 'attribute_id', 'created_time',
+                   'created_user', 'status', 'data_array'],
+        'mandatory_keys': ['attribute_id', 'created_user', 'status'],
         'resource_module': 'entry.admin',
         'resource_model_name': 'AttrValueResource',
     }
-    COMPARING_KEYS = ['value', 'referral', 'created_time']
-    DISALLOW_UPDATE_KEYS = ['created_time', 'created_user', 'parent_attr']
+    COMPARING_KEYS = []
+    DISALLOW_UPDATE_KEYS = ['created_time', 'created_user', 'parent_attr',
+                            'value', 'referral', 'data_array', 'status']
 
     attr_id = fields.Field(column_name='attribute_id', attribute='parent_attr',
                         widget=widgets.ForeignKeyWidget(model=Attribute, field='id'))
@@ -32,21 +35,29 @@ class AttrValueResource(AironeModelResource):
 
     class Meta:
         model = AttributeValue
-        fields = ('id', 'name', 'value', 'created_time')
+        fields = ('id', 'name', 'value', 'created_time', 'status', 'data_array')
 
     def after_save_instance(self, instance, using_transactions, dry_run):
         # If a new AttributeValue object is created,
         # this processing append it to the associated Entity object.
+        self._saved_instance = None
         if not dry_run:
             attr = instance.parent_attr
 
-            if not attr.values.filter(id=instance.id):
+            if (not attr.values.filter(id=instance.id) and
+                (not attr.type & AttrTypeValue['array'] or
+                 (attr.type & AttrTypeValue['array'] and
+                  instance.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)))):
                 attr.values.add(instance)
+
+            self._saved_instance = instance
 
 class AttrResource(AironeModelResource):
     _IMPORT_INFO = {
-        'header': ['id', 'name', 'entity', 'schema_id', 'entry_id', 'created_user'],
-        'mandatory_keys': ['name', 'entity', 'schema_id', 'entry_id', 'created_user'],
+        'header': ['id', 'name', 'entity', 'schema_id', 'entry_id', 'created_user',
+                   'type', 'is_mandatory'],
+        'mandatory_keys': ['name', 'entity', 'schema_id', 'entry_id', 'created_user',
+                           'type'],
         'resource_module': 'entry.admin',
         'resource_model_name': 'AttrResource',
     }
@@ -63,7 +74,7 @@ class AttrResource(AironeModelResource):
 
     class Meta:
         model = Attribute
-        fields = ('id', 'name', 'schema_id')
+        fields = ('id', 'name', 'schema_id', 'type', 'is_mandatory')
 
     def after_save_instance(self, instance, using_transactions, dry_run):
         # If a new Attribute object is created,

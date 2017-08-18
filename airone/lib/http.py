@@ -9,7 +9,7 @@ from entity import models as entity_models
 from acl.models import ACLBase
 from user.models import User
 
-from airone.lib.types import AttrTypes
+from airone.lib.types import AttrTypes, AttrTypeValue
 from airone.lib.acl import ACLObjType
 
 
@@ -109,6 +109,7 @@ def render(request, template, context={}):
     context['attr_type'] = {}
     for attr_type in AttrTypes:
         context['attr_type'][attr_type.NAME] = attr_type.TYPE
+    context['attr_type_value'] = AttrTypeValue
 
     return django_render(request, template, context)
 

@@ -34,10 +34,27 @@
         <tr>
           <td>{{ attr.name }}</td>
           <td>
-          {% if attr.type == attr_type.str %}
+          {% if attr.type == attr_type.string %}
             {{ attr.last_value }}
           {% elif attr.type == attr_type.entry and attr.last_referral %}
             <a href='/entry/show/{{ attr.last_referral.id }}'>{{ attr.last_referral.name }}</a>{% if attr.last_referral.deleted %}(deleted){% endif %}
+          {% elif attr.type == attr_type.array_string %}
+            <ul class='list-group'>
+            {% for value in attr.last_value %}
+              <li class='list-group-item'>{{ value }}</li>
+            {% endfor %}
+            </ul>
+          {% elif attr.type == attr_type.array_entry %}
+            <ul class='list-group'>
+            {% for refer in attr.last_value %}
+              <li class='list-group-item'>
+                <a href='/entry/show/{{ refer.id }}'>
+                  {{ refer.name }}
+                </a>
+                {% if attr.last_referral.deleted %}(deleted){% endif %}
+              </li>
+            {% endfor %}
+            </ul>
           {% endif %}
           </td>
         </tr>
@@ -60,10 +77,31 @@
         {% for history in value_history %}
         <tr>
           <td>{{ history.attr_name }}</td>
-          {% if history.attr_type == attr_type.str %}
+          {% if history.attr_type == attr_type.string %}
             <td>{{ history.attr_value }}</td>
           {% elif history.attr_type == attr_type.entry and history.attr_referral %}
             <td><a href='/entry/show/{{ history.attr_referral.id}}'>{{ history.attr_referral.name }}</a></td>
+          {% elif history.attr_type == attr_type.array_string %}
+            <td>
+              <ul class='list-group'>
+              {% for attrv in history.attr_value_array %}
+                <li class='list-group-item'>{{ attrv }}</li>
+              {% endfor %}
+              </ul>
+            </td>
+
+          {% elif history.attr_type == attr_type.array_entry %}
+            <td>
+              <ul class='list-group'>
+              {% for attrv in history.attr_value_array %}
+                <li class='list-group-item'>
+                  <a href='/entry/show/{{ attrv.id }}'>
+                    {{ attrv.name }}
+                  </a>
+                </li>
+              {% endfor %}
+              </ul>
+            </td>
           {% else %}
             <td></td>
           {% endif %}

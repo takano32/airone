@@ -9,6 +9,7 @@ from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeArrStr, AttrTypeA
 from airone.lib.acl import get_permitted_objects
 
 from entity.models import Entity, AttributeBase
+from entity.admin import EntityResource
 from entry.models import Entry, Attribute, AttributeValue
 from entry.admin import EntryResource, AttrResource, AttrValueResource
 from user.models import User
@@ -297,6 +298,10 @@ def export(request, entity_id):
 
     entity = Entity.objects.get(id=entity_id)
 
+    output.write("Entity: \n")
+    output.write(EntityResource().export(get_permitted_objects(user, Entity, 'readable')).yaml)
+
+    output.write("\n")
     output.write("Entry: \n")
     output.write(EntryResource().export(get_permitted_objects(user, Entry, 'readable')).yaml)
 

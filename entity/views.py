@@ -12,7 +12,7 @@ from user.models import User
 from entry.models import Entry, Attribute
 from entity.admin import EntityResource, AttrBaseResource
 
-from airone.lib.types import AttrTypes, AttrTypeObj
+from airone.lib.types import AttrTypes, AttrTypeObj, AttrTypeValue
 from airone.lib.http import HttpResponseSeeOther
 from airone.lib.http import http_get, http_post
 from airone.lib.http import check_permission
@@ -90,9 +90,10 @@ def edit(request, entity_id):
         )},
         {'name': 'type', 'type': str, 'checker': lambda x: (
             any([y == int(x['type']) for y in AttrTypes]) and (
-                int(x['type']) != AttrTypeObj or (
-                    int(x['type']) == AttrTypeObj and
-                    'ref_id' in x and Entity.objects.filter(id=x['ref_id']).count()
+                int(x['type']) & AttrTypeValue['string'] or (
+                    int(x['type']) & AttrTypeValue['object'] and
+                    'ref_id' in x and
+                    Entity.objects.filter(id=x['ref_id']).count()
                 )
             )
         )},
@@ -134,7 +135,7 @@ def do_edit(request, entity_id, recv_data):
                                       parent_entity=entity)
 
         # the case of an attribute that has referral entry
-        if int(attr['type']) == AttrTypeObj:
+        if int(attr['type']) & AttrTypeValue['object']:
             attr_base.referral = Entity.objects.get(id=attr['ref_id'])
         else:
             attr_base.referral = None
@@ -172,9 +173,10 @@ def do_edit(request, entity_id, recv_data):
         )},
         {'name': 'type', 'type': str, 'checker': lambda x: (
             any([y == int(x['type']) for y in AttrTypes]) and (
-                int(x['type']) != AttrTypeObj or (
-                    int(x['type']) == AttrTypeObj and
-                    'ref_id' in x and Entity.objects.filter(id=x['ref_id']).count()
+                int(x['type']) & AttrTypeValue['string'] or (
+                    int(x['type']) & AttrTypeValue['object'] and
+                    'ref_id' in x and
+                    Entity.objects.filter(id=x['ref_id']).count()
                 )
             )
         )},
@@ -198,7 +200,7 @@ def do_create(request, recv_data):
                                   created_user=user,
                                   parent_entity=entity)
 
-        if int(attr['type']) == AttrTypeObj:
+        if int(attr['type']) & AttrTypeValue['object']:
             attr_base.referral = Entity.objects.get(id=attr['ref_id'])
 
         attr_base.save()

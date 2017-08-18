@@ -13,6 +13,7 @@
 {% endblock %}
 
 {% block content %}
+{% load bitwise_tags %}
 <div class="container-fluid">
   <form url="/entry/do_create/{{ entity.id }}/" method="post">
     <div class="row">
@@ -42,21 +43,72 @@
           {% else %}
           <td>{{ attr.name }}</td>
           {% endif %}
-          {% if attr.type == attr_type.entry %}
           <td>
-            <select class='attr_value' attr_id='{{ attr.id }}'>
-              {% if not attr.is_mandatory %}
-              <option value='0'>- NOT SET -</option>
-              {% endif %}
+            {% if attr.type|bitwise_and:attr_type_value.array %}
+              <div class='container'>
+                <button type="button" class="btn btn-primary btn-sm" name='add_attr'>add row</button>
+                <div class='row'>
+                  <div class='col-4'>
+                    <div>
+                    {% if attr.type == attr_type.array_entry %}
+                      <select class='attr_value' attr_id='{{ attr.id }}'>
+                        {% if not attr.is_mandatory %}
+                        <option value='0'>- NOT SET -</option>
+                        {% endif %}
 
-              {% for referral in attr.referrals %}
-              <option value='{{ referral.id }}'>{{ referral.name }}</option>
-              {% endfor %}
-            </select>
+                        {% for referral in attr.referrals %}
+                        <option value='{{ referral.id }}'>{{ referral.name }}</option>
+                        {% endfor %}
+                      </select>
+                    {% else %}
+                      <input type='text' class='attr_value' attr_id='{{ attr.id }}' />
+                    {% endif %}
+                    </div>
+                  </div>
+
+                  <div class='col'>
+                    <button type="button" class="btn btn-danger btn-sm" name="del_attr">del</button>
+                  </div>
+                </div>
+
+                <!-- template of attribute value column -->
+                <div style="display:none" name='attr_value_template'>
+                  <div class='col-4'>
+                    {% if attr.type == attr_type.array_entry %}
+                      <select class='attr_value' attr_id='{{ attr.id }}'>
+                        {% if not attr.is_mandatory %}
+                        <option value='0'>- NOT SET -</option>
+                        {% endif %}
+
+                        {% for referral in attr.referrals %}
+                        <option value='{{ referral.id }}'>{{ referral.name }}</option>
+                        {% endfor %}
+                      </select>
+                    {% else %}
+                      <input type='text' class='attr_value' attr_id='{{ attr.id }}' />
+                    {% endif %}
+                  </div>
+                  <div class='col'>
+                    <button type="button" class="btn btn-danger btn-sm" name="del_attr">del</button>
+                  </div>
+                </div>
+              </div>
+            {% else %}
+              {% if attr.type == attr_type.entry %}
+                <select class='attr_value' attr_id='{{ attr.id }}'>
+                  {% if not attr.is_mandatory %}
+                  <option value='0'>- NOT SET -</option>
+                  {% endif %}
+
+                  {% for referral in attr.referrals %}
+                  <option value='{{ referral.id }}'>{{ referral.name }}</option>
+                  {% endfor %}
+                </select>
+              {% else %}
+                <input type='text' class='attr_value' attr_id='{{ attr.id }}' />
+              {% endif %}
+            {% endif %}
           </td>
-          {% else %}
-          <td><input type='text' class='attr_value' attr_id='{{ attr.id }}' /></td>
-          {% endif %}
         </tr>
         {% endfor %}
       </tbody>
@@ -78,6 +130,17 @@ $('form').submit(function(){
     });
   });
   HttpPost($(this), {'attrs': attrs});
+
+  return false;
+});
+
+$('button[name=add_attr]').on('click', function() {
+  var container = $(this).parent();
+  var new_column = $('<div class="row" />');
+
+  new_column.append($.parseHTML($(this).parent().find('div[name="attr_value_template"]').html()));
+
+  container.append(new_column);
 
   return false;
 });

@@ -1,6 +1,5 @@
-
 var toggle_referral = function() {
-  if($(this).val() == '1') {
+  if($(this).val() & ATTR_TYPE.object) {
     $(this).parent().find('.attr_referral').show();
   } else {
     $(this).parent().find('.attr_referral').hide();

@@ -48,9 +48,13 @@ class AironeModelResource(ModelResource):
 
         return False
 
+    # event handler at calling after completion of import processing
+    @classmethod
+    def after_import_completion(self, results):
+        pass
+
     @classmethod
     def import_data_from_request(self, data, request_user):
-        #print('[onix/AironeModelResource] (import_data_from_request) data: %s' % str(data))
         resource = getattr(importlib.import_module(self._IMPORT_INFO['resource_module']),
                            self._IMPORT_INFO['resource_model_name'])()
         if not resource:

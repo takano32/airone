@@ -40,11 +40,17 @@ def do_import_data(request, context):
         return HttpResponse("Couldn't parse uploaded file", status=400)
 
     def _do_import(resource, iter_data):
+        results = []
         for data in iter_data:
             try:
-                resource.import_data_from_request(data, user)
+                result = resource.import_data_from_request(data, user)
+
+                results.append({'result': result, 'data': data})
             except RuntimeError as e:
                 Logger.warning(('(%s) %s ' % (resource, data)) + str(e))
+
+        if results:
+            resource.after_import_completion(results)
 
     for info in IMPORT_INFOS:
         if info['model'] in data:

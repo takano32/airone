@@ -17,25 +17,27 @@ admin.site.register(AttributeValue)
 class AttrValueResource(AironeModelResource):
     _IMPORT_INFO = {
         'header': ['id', 'refer', 'value', 'attribute_id', 'created_time',
-                   'created_user', 'status', 'data_array'],
-        'mandatory_keys': ['attribute_id', 'created_user', 'status'],
+                   'created_user', 'status', 'data_arr'],
+        'mandatory_keys': ['id', 'attribute_id', 'created_user', 'status'],
         'resource_module': 'entry.admin',
         'resource_model_name': 'AttrValueResource',
     }
     COMPARING_KEYS = []
     DISALLOW_UPDATE_KEYS = ['created_time', 'created_user', 'parent_attr',
-                            'value', 'referral', 'data_array', 'status']
+                            'value', 'referral', 'status']
 
     attr_id = fields.Field(column_name='attribute_id', attribute='parent_attr',
-                        widget=widgets.ForeignKeyWidget(model=Attribute, field='id'))
+                           widget=widgets.ForeignKeyWidget(model=Attribute, field='id'))
     refer = fields.Field(column_name='refer', attribute='referral',
                          widget=widgets.ForeignKeyWidget(model=ACLBase, field='id'))
     user = fields.Field(column_name='created_user', attribute='created_user',
                         widget=widgets.ForeignKeyWidget(User, 'username'))
+    data_arr = fields.Field(column_name='data_arr', attribute='data_array',
+                            widget=widgets.ManyToManyWidget(model=AttributeValue, field='id'))
 
     class Meta:
         model = AttributeValue
-        fields = ('id', 'name', 'value', 'created_time', 'status', 'data_array')
+        fields = ('id', 'name', 'value', 'created_time', 'status')
 
     def after_save_instance(self, instance, using_transactions, dry_run):
         # If a new AttributeValue object is created,
@@ -51,6 +53,20 @@ class AttrValueResource(AironeModelResource):
                 attr.values.add(instance)
 
             self._saved_instance = instance
+
+    @classmethod
+    def after_import_completion(self, results):
+        # make relation between the array of AttributeValue
+        for data in [x['data'] for x in results
+                if x['data']['status'] & AttributeValue.STATUS_DATA_ARRAY_PARENT]:
+
+            attr_value = AttributeValue.objects.get(id=data['id'])
+            for child_id in [int(x) for x in  data['data_arr'].split(',')]:
+                if (AttributeValue.objects.filter(id=child_id).count() and
+                    not attr_value.data_array.filter(id=child_id).count()):
+
+                    # append related AttributeValue if it's not existed
+                    attr_value.data_array.add(AttributeValue.objects.get(id=child_id))
 
 class AttrResource(AironeModelResource):
     _IMPORT_INFO = {

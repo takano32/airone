@@ -5,7 +5,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import Group
 
-from entity.models import Entity, AttributeBase
+from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
 
@@ -15,7 +15,7 @@ from xml.etree import ElementTree
 
 
 class ViewTest(AironeViewTest):
-    # override 'admin_login' method to create initial Entity/AttributeBase objects
+    # override 'admin_login' method to create initial Entity/EntityAttr objects
     def admin_login(self):
         user = super(ViewTest, self).admin_login()
 
@@ -23,14 +23,14 @@ class ViewTest(AironeViewTest):
         self._entity = Entity(name='hoge', created_user=user)
         self._entity.save()
 
-        # set AttributeBase for the test Entity object
-        self._attr_base = AttributeBase(name='test',
-                                        type=AttrTypeStr,
-                                        is_mandatory=True,
-                                        created_user=user,
-                                        parent_entity=self._entity)
-        self._attr_base.save()
-        self._entity.attr_bases.add(self._attr_base)
+        # set EntityAttr for the test Entity object
+        self._entity_attr = EntityAttr(name='test',
+                                       type=AttrTypeStr,
+                                       is_mandatory=True,
+                                       created_user=user,
+                                       parent_entity=self._entity)
+        self._entity_attr.save()
+        self._entity.attrs.add(self._entity_attr)
 
         return user
 
@@ -185,7 +185,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(self._attr_base.id), 'value': 'hoge'},
+                {'id': str(self._entity_attr.id), 'value': 'hoge'},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -208,12 +208,12 @@ class ViewTest(AironeViewTest):
 
         another_user = User.objects.create(username='hoge')
         entity = Entity.objects.create(name='hoge', is_public=False, created_user=another_user)
-        attr_base = AttributeBase.objects.create(name='test',
+        attr_base = EntityAttr.objects.create(name='test',
                                                  type=AttrTypeStr,
                                                  is_mandatory=True,
                                                  parent_entity=entity,
                                                  created_user=another_user)
-        entity.attr_bases.add(attr_base)
+        entity.attrs.add(attr_base)
 
         params = {
             'entry_name': 'entry',
@@ -233,20 +233,20 @@ class ViewTest(AironeViewTest):
     def test_post_with_optional_parameter(self):
         user = self.admin_login()
 
-        # add an optional AttributeBase to the test Entity object
-        self._attr_base_optional = AttributeBase(name='test-optional',
+        # add an optional EntityAttr to the test Entity object
+        self._entity_attr_optional = EntityAttr(name='test-optional',
                                                  type=AttrTypeStr,
                                                  is_mandatory=False,
                                                  created_user=user,
                                                  parent_entity=self._entity)
-        self._attr_base_optional.save()
-        self._entity.attr_bases.add(self._attr_base_optional)
+        self._entity_attr_optional.save()
+        self._entity.attrs.add(self._entity_attr_optional)
 
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(self._attr_base.id), 'value': 'hoge'},
-                {'id': str(self._attr_base_optional.id), 'value': ''},
+                {'id': str(self._entity_attr.id), 'value': 'hoge'},
+                {'id': str(self._entity_attr_optional.id), 'value': ''},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -270,7 +270,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': '',
             'attrs': [
-                {'id': str(self._attr_base.id), 'value': 'hoge'},
+                {'id': str(self._entity_attr.id), 'value': 'hoge'},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -285,20 +285,20 @@ class ViewTest(AironeViewTest):
     def test_post_create_with_referral(self):
         user = self.admin_login()
 
-        attr_base = AttributeBase.objects.create(name='attr_with_referral',
+        attr_base = EntityAttr.objects.create(name='attr_with_referral',
                                                  created_user=user,
                                                  type=AttrTypeObj,
                                                  referral=self._entity,
                                                  parent_entity=self._entity,
                                                  is_mandatory=False)
-        self._entity.attr_bases.add(attr_base)
+        self._entity.attrs.add(attr_base)
 
         entry = Entry.objects.create(name='entry', schema=self._entity, created_user=user)
 
         params = {
             'entry_name': 'new_entry',
             'attrs': [
-                {'id': str(self._attr_base.id), 'value': 'hoge'},
+                {'id': str(self._entity_attr.id), 'value': 'hoge'},
                 {'id': str(attr_base.id), 'value': str(entry.id)},
             ],
         }
@@ -320,7 +320,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(self._attr_base.id), 'value': 'hoge'},
+                {'id': str(self._entity_attr.id), 'value': 'hoge'},
                 {'id': '9999', 'value': 'invalid value'},
             ],
         }
@@ -336,18 +336,18 @@ class ViewTest(AironeViewTest):
     def test_post_without_entry(self):
         user = self.admin_login()
 
-        attr_base = AttributeBase.objects.create(name='ref_attr',
+        attr_base = EntityAttr.objects.create(name='ref_attr',
                                                  created_user=user,
                                                  type=AttrTypeObj,
                                                  referral=self._entity,
                                                  parent_entity=self._entity,
                                                  is_mandatory=False)
-        self._entity.attr_bases.add(attr_base)
+        self._entity.attrs.add(attr_base)
 
         params = {
             'entry_name': 'new_entry',
             'attrs': [
-                {'id': str(self._attr_base.id), 'value': 'hoge'},
+                {'id': str(self._entity_attr.id), 'value': 'hoge'},
                 {'id': str(attr_base.id), 'value': '0'},
             ],
         }
@@ -382,7 +382,6 @@ class ViewTest(AironeViewTest):
             attr = Attribute(name=attr_name,
                              type=AttrTypeStr,
                              is_mandatory=True,
-                             parent_entity=self._entity,
                              parent_entry=entry,
                              created_user=user)
             attr.save()
@@ -409,7 +408,6 @@ class ViewTest(AironeViewTest):
         attr = Attribute(name='foo',
                          created_user=user,
                          is_mandatory=False,
-                         parent_entity=self._entity,
                          parent_entry=entry,
                          type=AttrTypeStr)
         attr.save()
@@ -448,7 +446,6 @@ class ViewTest(AironeViewTest):
             attr = Attribute(name=attr_name,
                              created_user=user,
                              is_mandatory=True,
-                             parent_entity=self._entity,
                              parent_entry=entry,
                              type=AttrTypeStr)
             attr.save()
@@ -489,7 +486,6 @@ class ViewTest(AironeViewTest):
             attr = Attribute(name=attr_name,
                              created_user=user,
                              is_mandatory=False,
-                             parent_entity=self._entity,
                              parent_entry=entry,
                              type=AttrTypeStr)
             attr.save()
@@ -523,7 +519,6 @@ class ViewTest(AironeViewTest):
         attr = Attribute.objects.create(name='attr',
                                         type=AttrTypeArrStr,
                                         created_user=user,
-                                        parent_entity=entity,
                                         parent_entry=entry)
 
         attr_value = AttributeValue.objects.create(created_user=user, parent_attr=attr)
@@ -574,7 +569,6 @@ class ViewTest(AironeViewTest):
         attr = Attribute.objects.create(name='attr',
                                         type=AttrTypeArrObj,
                                         created_user=user,
-                                        parent_entity=entity,
                                         parent_entry=entry,
                                         referral=entity)
 
@@ -631,7 +625,6 @@ class ViewTest(AironeViewTest):
             attr = Attribute(name=attr_name,
                              created_user=user,
                              is_mandatory=True,
-                             parent_entity=self._entity,
                              parent_entry=entry,
                              type=AttrTypeStr)
             attr.save()
@@ -650,13 +643,13 @@ class ViewTest(AironeViewTest):
     def test_post_edit_with_referral(self):
         user = self.admin_login()
 
-        attr_base = AttributeBase.objects.create(name='attr_with_referral',
+        attr_base = EntityAttr.objects.create(name='attr_with_referral',
                                                  created_user=user,
                                                  type=AttrTypeObj,
                                                  referral=self._entity,
                                                  parent_entity=self._entity,
                                                  is_mandatory=False)
-        self._entity.attr_bases.add(attr_base)
+        self._entity.attrs.add(attr_base)
 
         entry = Entry.objects.create(name='old_entry', schema=self._entity, created_user=user)
 
@@ -687,13 +680,13 @@ class ViewTest(AironeViewTest):
     def test_post_edit_without_referral_value(self):
         user = self.admin_login()
 
-        attr_base = AttributeBase.objects.create(name='attr_with_referral',
+        attr_base = EntityAttr.objects.create(name='attr_with_referral',
                                                  created_user=user,
                                                  type=AttrTypeObj,
                                                  referral=self._entity,
                                                  parent_entity=self._entity,
                                                  is_mandatory=False)
-        self._entity.attr_bases.add(attr_base)
+        self._entity.attrs.add(attr_base)
 
         entry = Entry.objects.create(name='entry', schema=self._entity, created_user=user)
 
@@ -726,7 +719,6 @@ class ViewTest(AironeViewTest):
             attr = Attribute(name=attr_name,
                              type=AttrTypeStr,
                              is_mandatory=True,
-                             parent_entity=self._entity,
                              parent_entry=entry,
                              created_user=user)
             attr.save()
@@ -804,12 +796,12 @@ class ViewTest(AironeViewTest):
         entity = Entity.objects.create(name='entity-test',
                                        created_user=user)
 
-        attr_base = AttributeBase.objects.create(name='attr-test',
+        attr_base = EntityAttr.objects.create(name='attr-test',
                                                  type=AttrTypeArrStr,
                                                  is_mandatory=False,
                                                  created_user=user,
                                                  parent_entity=self._entity)
-        entity.attr_bases.add(attr_base)
+        entity.attrs.add(attr_base)
 
         params = {
             'entry_name': 'entry-test',
@@ -850,13 +842,13 @@ class ViewTest(AironeViewTest):
         entity = Entity.objects.create(name='entity-test',
                                        created_user=user)
 
-        attr_base = AttributeBase.objects.create(name='attr-ref-test',
+        attr_base = EntityAttr.objects.create(name='attr-ref-test',
                                                  created_user=user,
                                                  type=AttrTypeArrObj,
                                                  referral=self._entity,
                                                  parent_entity=self._entity,
                                                  is_mandatory=False)
-        entity.attr_bases.add(attr_base)
+        entity.attrs.add(attr_base)
 
         referral = Entry.objects.create(name='entry0', schema=self._entity, created_user=user)
 

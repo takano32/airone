@@ -7,7 +7,7 @@ from django.contrib.auth.models import Group, Permission
 from airone.lib.acl import ACLType, ACLObjType
 from airone.lib.http import http_get, http_post, render
 
-from entity.models import Entity, AttributeBase
+from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute
 from user.models import User
 from .models import ACLBase
@@ -20,7 +20,7 @@ def index(request, obj_id):
     if not ACLBase.objects.filter(id=obj_id).count():
         return HttpResponse('Failed to find target object to set ACL', status=400)
 
-    # This is an Entity or AttributeBase
+    # This is an Entity or EntityAttr
     target_obj = ACLBase.objects.get(id=obj_id).get_subclass_object()
 
     # get ACLTypeID of target_obj if a permission is set
@@ -37,7 +37,7 @@ def index(request, obj_id):
     try:
         if isinstance(target_obj, Attribute):
             parent_obj = target_obj.parent_entry
-        elif isinstance(target_obj, AttributeBase):
+        elif isinstance(target_obj, EntityAttr):
             parent_obj = target_obj.parent_entity
     except StopIteration:
         Logger.warning('failed to get related parent object')
@@ -104,7 +104,7 @@ def set(request, recv_data):
             # update flag of aclbase object
             Entry.objects.filter(schema=acl_obj).update(is_public=acl_obj.is_public)
 
-        elif isinstance(acl_obj, AttributeBase):
+        elif isinstance(acl_obj, EntityAttr):
             # update permissions of members
             [_set_permission(member, x, acl_type)
                     for x in Attribute.objects.filter(schema_id=acl_obj.id)]
@@ -119,9 +119,9 @@ def _get_acl_model(object_id):
         return Entity
     if int(object_id) == ACLObjType.Entry:
         return Entry
-    elif int(object_id) == ACLObjType.AttrBase:
-        return AttributeBase
-    elif int(object_id) == ACLObjType.Attr:
+    elif int(object_id) == ACLObjType.EntityAttr:
+        return EntityAttr
+    elif int(object_id) == ACLObjType.EntryAttr:
         return Attribute
     else:
         return ACLBase

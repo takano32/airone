@@ -1,8 +1,16 @@
-Entity: 
-- {created_user: admin, id: 1, name: foo, note: bar}
-- {created_user: admin, id: 4, name: bar, note: abcd, invalid_param: bbb}
+Entity:
+- {created_user: admin, id: 1, name: entity1, note: ''}
+# This includes unnecessary parameter 'invalid_param'
+- {created_user: admin, id: 2, name: entity2, note: '', invalid_param: bbb}
+- {created_user: admin, id: 3, name: entity, note: note1}
 
-AttributeBase: 
-- {entity: foo, id: 2, name: attr1, refer: '', type: 2, created_user: admin}
-- {entity: foo, id: 3, name: attr2, refer: '', type: 2, created_user: admin}
-- {entity: foo, id: , name: attr3, refer: '', type: 2, created_user: admin, invalid_param: aaa}
+EntityAttr:
+- {created_user: admin, entity: entity, is_mandatory: '0', name: attr-str, refer: '',
+  type: 2}
+- {created_user: admin, entity: entity, id: 5, is_mandatory: '1', name: attr-obj, refer: entity1,
+  type: 1}
+- {created_user: admin, entity: entity, id: 6, is_mandatory: '0', name: attr-arr-str,
+  refer: '', type: 1026}
+# This includes unnecessary parameter 'invalid_param'
+- {created_user: admin, entity: entity, id: 7, is_mandatory: '0', name: attr-arr-obj,
+  refer: entity2, type: 1025, invalid_param: aaa}

@@ -5,7 +5,7 @@ from airone.lib.test import AironeViewTest
 from airone.lib import types as atype
 from datetime import datetime
 from django.urls import reverse
-from entity.models import Entity, AttributeBase
+from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
 
@@ -21,24 +21,24 @@ class ImportTest(AironeViewTest):
 
         # checks each objects are created safety
         self.assertEqual(Entity.objects.count(), 3)
-        self.assertEqual(AttributeBase.objects.count(), 4)
+        self.assertEqual(EntityAttr.objects.count(), 4)
 
         # checks keeping the correspondence relationship with id and name
         self.assertEqual(Entity.objects.get(id='1').name, 'entity1')
-        self.assertEqual(AttributeBase.objects.get(id='5').name, 'attr-obj')
+        self.assertEqual(EntityAttr.objects.get(id='5').name, 'attr-obj')
 
         # checks contains required attributes (for Entity)
         entity = Entity.objects.get(name='entity')
         self.assertEqual(entity.note, 'note1')
 
-        # checks contains required attributes (for AttributeBase)
-        self.assertEqual(entity.attr_bases.count(), 4)
-        self.assertEqual(entity.attr_bases.get(name='attr-str').type, atype.AttrTypeStr)
-        self.assertEqual(entity.attr_bases.get(name='attr-obj').type, atype.AttrTypeObj)
-        self.assertEqual(entity.attr_bases.get(name='attr-arr-str').type, atype.AttrTypeArrStr)
-        self.assertEqual(entity.attr_bases.get(name='attr-arr-obj').type, atype.AttrTypeArrObj)
-        self.assertFalse(entity.attr_bases.get(name='attr-str').is_mandatory)
-        self.assertTrue(entity.attr_bases.get(name='attr-obj').is_mandatory)
+        # checks contains required attributes (for EntityAttr)
+        self.assertEqual(entity.attrs.count(), 4)
+        self.assertEqual(entity.attrs.get(name='attr-str').type, atype.AttrTypeStr)
+        self.assertEqual(entity.attrs.get(name='attr-obj').type, atype.AttrTypeObj)
+        self.assertEqual(entity.attrs.get(name='attr-arr-str').type, atype.AttrTypeArrStr)
+        self.assertEqual(entity.attrs.get(name='attr-arr-obj').type, atype.AttrTypeArrObj)
+        self.assertFalse(entity.attrs.get(name='attr-str').is_mandatory)
+        self.assertTrue(entity.attrs.get(name='attr-obj').is_mandatory)
 
     def test_import_entity_with_unnecessary_param(self):
         user = self.admin_login()
@@ -59,13 +59,14 @@ class ImportTest(AironeViewTest):
         self.assertEqual(len(warning_messages), 2)
         self.assertTrue(re.match(r'^.*Entity.*Unnecessary key is specified$',
                                  warning_messages[0]))
-        self.assertTrue(re.match(r'^.*AttrBase.*Unnecessary key is specified$',
+        self.assertTrue(re.match(r'^.*EntityAttr.*Unnecessary key is specified$',
                                  warning_messages[1]))
 
-        self.assertEqual(Entity.objects.count(), 1)
-        self.assertEqual(AttributeBase.objects.count(), 2)
+        self.assertEqual(Entity.objects.count(), 2)
+        self.assertEqual(EntityAttr.objects.count(), 3)
 
-    def test_import_entity_without_mandatory_param(self):
+    @mock.patch('import_export.resources.logging')
+    def test_import_entity_without_mandatory_param(self, mock_logger):
         user = self.admin_login()
         warning_messages = []
 
@@ -75,20 +76,25 @@ class ImportTest(AironeViewTest):
                 warning_messages.append(message)
 
             lg_mock.warning = mock.Mock(side_effect=side_effect)
+            mock_logger.exception = mock.Mock(side_effect=side_effect)
 
             resp = self.client.post(reverse('dashboard:do_import'), {'file': fp})
             self.assertEqual(resp.status_code, 303)
         fp.close()
 
         # checks that warning messagees were outputted
-        self.assertEqual(len(warning_messages), 2)
+        self.assertEqual(len(warning_messages), 3)
         self.assertTrue(re.match(r"^.*Entity.*Mandatory key doesn't exist$",
                                  warning_messages[0]))
-        self.assertTrue(re.match(r"^.*AttrBase.*Mandatory key doesn't exist$",
+        self.assertTrue(re.match(r"^.*EntityAttr.*Mandatory key doesn't exist$",
                                  warning_messages[1]))
+        self.assertEqual(str(warning_messages[2]), "refer to invalid entity object")
 
-        self.assertEqual(Entity.objects.count(), 1)
-        self.assertEqual(AttributeBase.objects.count(), 2)
+        self.assertEqual(Entity.objects.count(), 2)
+
+        # checks not to create EntityAttr that refers invalid object
+        self.assertEqual(EntityAttr.objects.count(), 2)
+        self.assertEqual(EntityAttr.objects.filter(name='attr-arr-obj').count(), 0)
 
     def test_import_entity_with_spoofing_user(self):
         admin = self.admin_login()
@@ -119,9 +125,9 @@ class ImportTest(AironeViewTest):
         entity = Entity.objects.get(id=3)
         self.assertEqual(entity.name, 'baz-original')
 
-        # checks that the AttributeBase objects which refers invalid Entity won't create
-        self.assertEqual(entity.attr_bases.count(), 0)
-        self.assertEqual(AttributeBase.objects.filter(name='attr-str').count(), 0)
+        # checks that the EntityAttr objects which refers invalid Entity won't create
+        self.assertEqual(entity.attrs.count(), 0)
+        self.assertEqual(EntityAttr.objects.filter(name='attr-str').count(), 0)
 
     def test_import_entry(self):
         user = self.admin_login()

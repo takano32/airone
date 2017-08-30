@@ -72,11 +72,11 @@ class ACLBase(models.Model):
         # Use importlib to prevent circular import
         if self.objtype == ACLObjType.Entity:
             model = importlib.import_module('entity.models').Entity
-        elif self.objtype == ACLObjType.AttrBase:
-            model = importlib.import_module('entity.models').AttributeBase
+        elif self.objtype == ACLObjType.EntityAttr:
+            model = importlib.import_module('entity.models').EntityAttr
         elif self.objtype == ACLObjType.Entry:
             model = importlib.import_module('entry.models').Entry
-        elif self.objtype == ACLObjType.Attr:
+        elif self.objtype == ACLObjType.EntryAttr:
             model = importlib.import_module('entry.models').Attribute
         else:
             # set ACLBase model

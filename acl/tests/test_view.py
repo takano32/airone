@@ -6,7 +6,7 @@ from django.core import exceptions
 
 from user.models import User
 from acl.models import ACLBase
-from entity.models import Entity, AttributeBase
+from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute
 
 from airone.lib.acl import ACLType
@@ -100,14 +100,14 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
 
         entity = Entity.objects.create(name='entity', created_user=user)
-        attrbase = AttributeBase.objects.create(name='hoge',
-                                                created_user=user,
-                                                parent_entity=entity)
+        attrbase = EntityAttr.objects.create(name='hoge',
+                                             created_user=user,
+                                             parent_entity=entity)
         resp = self.send_set_request(attrbase, user)
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(user.permissions.last(), attrbase.writable)
-        self.assertFalse(AttributeBase.objects.get(id=attrbase.id).is_public)
+        self.assertFalse(EntityAttr.objects.get(id=attrbase.id).is_public)
 
     def test_post_acl_set_entity(self):
         user = self.admin_login()
@@ -125,10 +125,7 @@ class ViewTest(AironeViewTest):
         entity = Entity.objects.create(name='hoge', created_user=user)
         entry = Entry.objects.create(name='hoge', created_user=user, schema=entity)
 
-        attr = Attribute.objects.create(name='hoge',
-                                        created_user=user,
-                                        parent_entity=entity,
-                                        parent_entry=entry)
+        attr = Attribute.objects.create(name='hoge', created_user=user, parent_entry=entry)
         resp = self.send_set_request(attr, user)
 
         self.assertEqual(resp.status_code, 200)
@@ -277,7 +274,7 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
 
         entity = Entity.objects.create(name='hoge', created_user=user)
-        attrbase = AttributeBase.objects.create(name='attr1',
+        attrbase = EntityAttr.objects.create(name='attr1',
                                                 created_user=user,
                                                 parent_entity=entity)
 
@@ -290,5 +287,5 @@ class ViewTest(AironeViewTest):
         self.assertEqual(user.permissions.count(), 2)
         self.assertEqual(user.permissions.first(), attrbase.full)
         self.assertEqual(user.permissions.last(), attr.full)
-        self.assertFalse(AttributeBase.objects.get(id=attrbase.id).is_public)
+        self.assertFalse(EntityAttr.objects.get(id=attrbase.id).is_public)
         self.assertFalse(Attribute.objects.get(id=attr.id).is_public)

@@ -7,10 +7,10 @@ from django.db.models import Q
 from django.core.exceptions import PermissionDenied
 
 from .models import Entity
-from .models import AttributeBase
+from .models import EntityAttr
 from user.models import User
 from entry.models import Entry, Attribute
-from entity.admin import EntityResource, AttrBaseResource
+from entity.admin import EntityResource, EntityAttrResource
 
 from airone.lib.types import AttrTypes, AttrTypeObj, AttrTypeValue
 from airone.lib.http import HttpResponseSeeOther
@@ -55,29 +55,29 @@ def edit(request, entity_id):
     # when an entity in referral attribute is deleted
     # user should be able to select new entity or keep it unchanged
     # candidate entites for referral are:
-    # - active(not deleted) entity 
+    # - active(not deleted) entity
     # - current value of any attributes even if the entity has been deleted
 
     # query of candidate entities for referral
     query = Q(is_active=True) # active entity should be displayed
-    attr_bases = [] # AttributeBases of entity to be editted
+    attrs = [] # EntityAttrs of entity to be editted
 
-    for attr_base in entity.attr_bases.all():
-        # skip not-writable AttributeBase
+    for attr_base in entity.attrs.all():
+        # skip not-writable EntityAttr
         if not user.has_permission(attr_base, 'writable'):
             continue
         # logical-OR current value of referral to query of candidate entites
         if attr_base.referral:
             query = query | Q(id=attr_base.referral.id)
-        attr_bases.append(attr_base)
-            
+        attrs.append(attr_base)
+
     entities = Entity.objects.filter(query)
-    
+
     context = {
         'entity': entity,
         'entities': entities,
         'attr_types': AttrTypes,
-        'attributes': attr_bases,
+        'attributes': attrs,
     }
     return render(request, 'edit_entity.html', context)
 
@@ -115,9 +115,9 @@ def do_edit(request, entity_id, recv_data):
 
     for attr in recv_data['attrs']:
         is_deleted = is_new_attr_base = False
-        if 'id' in attr and AttributeBase.objects.filter(id=attr['id']).count():
+        if 'id' in attr and EntityAttr.objects.filter(id=attr['id']).count():
             # update attributes which is already created
-            attr_base = AttributeBase.objects.get(id=attr['id'])
+            attr_base = EntityAttr.objects.get(id=attr['id'])
 
             attr_base.name = attr['name']
             attr_base.type = attr['type']
@@ -128,7 +128,7 @@ def do_edit(request, entity_id, recv_data):
         else:
             # add an new attributes
             is_new_attr_base = True
-            attr_base = AttributeBase(name=attr['name'],
+            attr_base = EntityAttr(name=attr['name'],
                                       type=int(attr['type']),
                                       is_mandatory=attr['is_mandatory'],
                                       created_user=user,
@@ -141,12 +141,12 @@ def do_edit(request, entity_id, recv_data):
             attr_base.referral = None
 
         if not is_deleted:
-            # create or update an AttributeBase and related Attributes
+            # create or update an EntityAttr and related Attributes
             attr_base.save()
 
             if is_new_attr_base:
                 # add a new attribute on the existed Entries
-                entity.attr_bases.add(attr_base)
+                entity.attrs.add(attr_base)
 
                 for entry in Entry.objects.filter(schema=entity):
                     entry.add_attribute_from_base(attr_base, user)
@@ -155,7 +155,7 @@ def do_edit(request, entity_id, recv_data):
                 [x.update_from_base(attr_base)
                         for x in Attribute.objects.filter(schema_id=attr_base.id)]
         else:
-            # delete all related Attributes of target AttributeBase
+            # delete all related Attributes of target EntityAttr
             [x.delete() for x in Attribute.objects.filter(schema_id=attr_base.id)]
 
             attr_base.delete()
@@ -187,14 +187,14 @@ def do_create(request, recv_data):
     # get user object that current access
     user = User.objects.get(id=request.user.id)
 
-    # create AttributeBase objects
+    # create EntityAttr objects
     entity = Entity(name=recv_data['name'],
                     note=recv_data['note'],
                     created_user=user)
     entity.save()
 
     for attr in recv_data['attrs']:
-        attr_base = AttributeBase(name=attr['name'],
+        attr_base = EntityAttr(name=attr['name'],
                                   type=int(attr['type']),
                                   is_mandatory=attr['is_mandatory'],
                                   created_user=user,
@@ -204,7 +204,7 @@ def do_create(request, recv_data):
             attr_base.referral = Entity.objects.get(id=attr['ref_id'])
 
         attr_base.save()
-        entity.attr_bases.add(attr_base)
+        entity.attrs.add(attr_base)
 
     return HttpResponseSeeOther('/entity/')
 
@@ -220,9 +220,9 @@ def export(request):
                                                                'readable')).yaml)
 
     output.write("\n")
-    output.write("AttributeBase: \n")
-    output.write(AttrBaseResource().export(get_permitted_objects(user,
-                                                                 AttributeBase,
+    output.write("EntityAttr: \n")
+    output.write(EntityAttrResource().export(get_permitted_objects(user,
+                                                                 EntityAttr,
                                                                  'readable')).yaml)
 
     return get_download_response(output, 'entity.yaml')

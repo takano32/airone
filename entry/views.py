@@ -87,7 +87,7 @@ def create(request, entity_id):
             'name': x.name,
             'is_mandatory': x.is_mandatory,
             'referrals': x.referral and Entry.objects.filter(schema=x.referral,is_active=True) or [],
-        } for x in entity.attr_bases.all() if user.has_permission(x, 'writable')]
+        } for x in entity.attrs.all() if user.has_permission(x, 'writable')]
     }
     return render(request, 'create_entry.html', context)
 
@@ -119,7 +119,7 @@ def do_create(request, entity_id, recv_data):
         return [x['value'] for x in data if int(x['id']) == attr.id and x['value']]
 
     # Create new Attributes objects based on the specified value
-    for attr_base in entity.attr_bases.all():
+    for attr_base in entity.attrs.all():
         # create Attibute object that contains AttributeValues
         attr = entry.add_attribute_from_base(attr_base, user)
 

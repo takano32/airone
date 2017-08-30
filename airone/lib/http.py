@@ -101,8 +101,8 @@ def render(request, template, context={}):
             'acl_objtype': {
                 'entity': ACLObjType.Entity,
                 'entry': ACLObjType.Entry,
-                'attrbase': ACLObjType.AttrBase,
-                'attr': ACLObjType.Attr,
+                'attrbase': ACLObjType.EntityAttr,
+                'attr': ACLObjType.EntryAttr,
             }
         }
 

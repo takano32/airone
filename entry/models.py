@@ -31,12 +31,14 @@ class AttributeValue(models.Model):
 
 class Attribute(AttributeBase):
     values = models.ManyToManyField(AttributeValue)
+
+    # This parameter is needed to make a relationship with corresponding EntityAttr
     schema_id = models.IntegerField(default=0)
     parent_entry = models.ForeignKey('Entry')
 
     def __init__(self, *args, **kwargs):
         super(Attribute, self).__init__(*args, **kwargs)
-        self.objtype = ACLObjType.Attr
+        self.objtype = ACLObjType.EntryAttr
 
     def update_from_base(self, base):
         if not isinstance(base, AttributeBase):
@@ -140,7 +142,6 @@ class Entry(ACLBase):
                                         referral=base.referral,
                                         schema_id=base.id,
                                         created_user=user,
-                                        parent_entity=base.parent_entity,
                                         parent_entry=self)
 
         # inherites permissions of base object for user

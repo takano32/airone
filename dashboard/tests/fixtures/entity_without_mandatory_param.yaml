@@ -1,8 +1,16 @@
-Entity: 
-- {created_user: admin, id: 1, name: foo, note: bar}
-- {created_user: admin, id: 4, note: abcd}
+Entity:
+- {created_user: admin, id: 1, name: entity1, note: ''}
+# Drop mandatory parameter of 'name'
+- {created_user: admin, id: 2, note: ''}
+- {created_user: admin, id: 3, name: entity, note: note1}
 
-AttributeBase: 
-- {entity: foo, id: 2, name: attr1, refer: '', type: 2, created_user: admin}
-- {entity: foo, id: 3, name: attr2, refer: '', type: 2, created_user: admin}
-- {entity: foo, id: , name: attr3, refer: '', created_user: admin}
+EntityAttr:
+- {created_user: admin, entity: entity, is_mandatory: '0', name: attr-str, refer: '',
+  type: 2}
+# Drop mandatory parameter of 'type'
+- {created_user: admin, entity: entity, id: 5, is_mandatory: '1', name: attr-obj, refer: entity1}
+- {created_user: admin, entity: entity, id: 6, is_mandatory: '0', name: attr-arr-str,
+  refer: '', type: 1026}
+# This is not created because of referring invalid object
+- {created_user: admin, entity: entity, id: 7, is_mandatory: '0', name: attr-arr-obj,
+  refer: entity2, type: 1025}

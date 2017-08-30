@@ -6,12 +6,12 @@ class Iteratable(object):
 
 class ACLObjType(Iteratable):
     Entity = (1 << 0)
-    AttrBase = (1 << 1)
-    Attr = (1 << 2)
-    Entry = (1 << 3)
+    EntityAttr = (1 << 1)
+    Entry = (1 << 2)
+    EntryAttr = (1 << 3)
 
     def __init__(self):
-        self._types = [self.Entity, self.Entry, self.AttrBase, self.Attr]
+        self._types = [self.Entity, self.Entry, self.EntityAttr, self.EntryAttr]
 
 class ACLType(Iteratable):
     Nothing = type('ACLTypeNone', (object,),

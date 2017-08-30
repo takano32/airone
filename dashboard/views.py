@@ -7,14 +7,14 @@ from airone.lib.http import http_get
 from airone.lib.http import http_file_upload
 from airone.lib.http import HttpResponseSeeOther
 from user.models import User
-from entity.admin import EntityResource, AttrBaseResource
+from entity.admin import EntityResource, EntityAttrResource
 from entry.admin import EntryResource, AttrResource, AttrValueResource
 from entity.models import Entity, AttributeBase
 from entry.models import Entry, Attribute, AttributeValue
 
 IMPORT_INFOS = [
     {'model': 'Entity', 'resource': EntityResource},
-    {'model': 'AttributeBase', 'resource': AttrBaseResource},
+    {'model': 'EntityAttr', 'resource': EntityAttrResource},
     {'model': 'Entry', 'resource': EntryResource},
     {'model': 'Attribute', 'resource': AttrResource},
     {'model': 'AttributeValue', 'resource': AttrValueResource},

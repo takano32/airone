@@ -70,23 +70,20 @@ class AttrValueResource(AironeModelResource):
 
 class AttrResource(AironeModelResource):
     _IMPORT_INFO = {
-        'header': ['id', 'name', 'entity', 'schema_id', 'entry_id', 'created_user',
+        'header': ['id', 'name', 'schema_id', 'entry_id', 'created_user',
                    'type', 'is_mandatory'],
-        'mandatory_keys': ['name', 'entity', 'schema_id', 'entry_id', 'created_user',
+        'mandatory_keys': ['name', 'schema_id', 'entry_id', 'created_user',
                            'type'],
         'resource_module': 'entry.admin',
         'resource_model_name': 'AttrResource',
     }
-    COMPARING_KEYS = ['name', 'is_mandatory', 'referral', 'parent_entity', 'created_user']
-    DISALLOW_UPDATE_KEYS = ['is_mandatory', 'parent_entity', 'created_user']
+    COMPARING_KEYS = ['name', 'is_mandatory', 'referral', 'created_user']
+    DISALLOW_UPDATE_KEYS = ['is_mandatory', 'created_user']
 
     entry = fields.Field(column_name='entry_id', attribute='parent_entry',
                          widget=widgets.ForeignKeyWidget(model=Entry, field='id'))
     user = fields.Field(column_name='created_user', attribute='created_user',
                         widget=widgets.ForeignKeyWidget(User, 'username'))
-    entity = fields.Field(column_name='entity',
-                          attribute='parent_entity',
-                          widget=widgets.ForeignKeyWidget(model=Entity, field='name'))
 
     class Meta:
         model = Attribute

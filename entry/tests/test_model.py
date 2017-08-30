@@ -1,6 +1,6 @@
 from django.contrib.auth.models import Group
 from django.test import TestCase
-from entity.models import Entity, AttributeBase
+from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
 from airone.lib.acl import ACLObjType
@@ -25,7 +25,6 @@ class ModelTest(TestCase):
         return Attribute(name=name,
                          type=attrtype,
                          created_user=(user and user or self._user),
-                         parent_entity=(entity and entity or self._entity),
                          parent_entry=(entry and entry or self._entry))
 
     def test_make_attribute_value(self):
@@ -43,7 +42,7 @@ class ModelTest(TestCase):
         self._attr.values.add(value)
 
         self.assertEqual(Attribute.objects.count(), 1)
-        self.assertEqual(Attribute.objects.last().objtype, ACLObjType.Attr)
+        self.assertEqual(Attribute.objects.last().objtype, ACLObjType.EntryAttr)
         self.assertEqual(Attribute.objects.last().values.count(), 1)
         self.assertEqual(Attribute.objects.last().values.last(), value)
 
@@ -95,7 +94,7 @@ class ModelTest(TestCase):
         user = User.objects.create(username='hoge')
 
         entity = Entity.objects.create(name='entity', created_user=user)
-        attrbase = AttributeBase.objects.create(name='attr',
+        attrbase = EntityAttr.objects.create(name='attr',
                                                 created_user=user,
                                                 parent_entity=entity)
 
@@ -115,7 +114,7 @@ class ModelTest(TestCase):
         user.groups.add(group)
 
         entity = Entity.objects.create(name='entity', created_user=user)
-        attrbase = AttributeBase.objects.create(name='attr',
+        attrbase = EntityAttr.objects.create(name='attr',
                                                 created_user=user,
                                                 parent_entity=entity)
 
@@ -135,7 +134,7 @@ class ModelTest(TestCase):
         # test objects to be handled as referral
         entity = Entity.objects.create(name='entity', created_user=user)
 
-        attrbase = AttributeBase.objects.create(name='attrbase',
+        attrbase = EntityAttr.objects.create(name='attrbase',
                                                 type=AttrTypeStr.TYPE,
                                                 created_user=user,
                                                 parent_entity=entity)

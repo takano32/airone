@@ -5,7 +5,7 @@ import re
 
 from django.test import TestCase, Client
 from django.urls import reverse
-from entity.models import Entity, AttributeBase
+from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute
 from user.models import User
 from xml.etree import ElementTree
@@ -72,7 +72,7 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 303)
         self.assertEqual(Entity.objects.first().name, 'hoge')
-        self.assertEqual(len(AttributeBase.objects.all()), 2)
+        self.assertEqual(len(EntityAttr.objects.all()), 2)
 
     def test_create_post_without_name_param(self):
         self.admin_login()
@@ -167,12 +167,12 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
 
         entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
-        attr = AttributeBase.objects.create(name='puyo',
+        attr = EntityAttr.objects.create(name='puyo',
                                             created_user=user,
                                             is_mandatory=True,
                                             type=AttrTypeStr,
                                             parent_entity=entity)
-        entity.attr_bases.add(attr)
+        entity.attrs.add(attr)
 
         params = {
             'name': 'foo',
@@ -188,20 +188,20 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 303)
         self.assertEqual(Entity.objects.get(id=entity.id).name, 'foo')
         self.assertEqual(Entity.objects.get(id=entity.id).note, 'bar')
-        self.assertEqual(Entity.objects.get(id=entity.id).attr_bases.count(), 2)
-        self.assertEqual(Entity.objects.get(id=entity.id).attr_bases.get(id=attr.id).name, 'foo')
-        self.assertEqual(Entity.objects.get(id=entity.id).attr_bases.last().name, 'bar')
+        self.assertEqual(Entity.objects.get(id=entity.id).attrs.count(), 2)
+        self.assertEqual(Entity.objects.get(id=entity.id).attrs.get(id=attr.id).name, 'foo')
+        self.assertEqual(Entity.objects.get(id=entity.id).attrs.last().name, 'bar')
 
     def test_post_edit_after_creating_entry(self):
         user = self.admin_login()
 
         entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
-        attrbase = AttributeBase.objects.create(name='puyo',
+        attrbase = EntityAttr.objects.create(name='puyo',
                                                 created_user=user,
                                                 is_mandatory=True,
                                                 type=AttrTypeStr,
                                                 parent_entity=entity)
-        entity.attr_bases.add(attrbase)
+        entity.attrs.add(attrbase)
 
         entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
         entry.add_attribute_from_base(attrbase, user)
@@ -225,11 +225,11 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
 
         entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
-        attr = AttributeBase.objects.create(name='puyo',
+        attr = EntityAttr.objects.create(name='puyo',
                                             type=AttrTypeStr,
                                             created_user=user,
                                             parent_entity=entity)
-        entity.attr_bases.add(attr)
+        entity.attrs.add(attr)
 
         params = {
             'name': 'foo',
@@ -247,19 +247,19 @@ class ViewTest(AironeViewTest):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 303)
-        self.assertEqual(AttributeBase.objects.get(id=attr.id).type, AttrTypeObj)
-        self.assertEqual(AttributeBase.objects.get(id=attr.id).referral.id, entity.id)
+        self.assertEqual(EntityAttr.objects.get(id=attr.id).type, AttrTypeObj)
+        self.assertEqual(EntityAttr.objects.get(id=attr.id).referral.id, entity.id)
 
     def test_post_edit_referral_attribute(self):
         user = self.admin_login()
 
         entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
-        attrbase = AttributeBase.objects.create(name='puyo',
+        attrbase = EntityAttr.objects.create(name='puyo',
                                                 type=AttrTypeObj,
                                                 referral=entity,
                                                 created_user=user,
                                                 parent_entity=entity)
-        entity.attr_bases.add(attrbase)
+        entity.attrs.add(attrbase)
 
         entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
         attr = entry.add_attribute_from_base(attrbase, user)
@@ -279,8 +279,8 @@ class ViewTest(AironeViewTest):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 303)
-        self.assertEqual(AttributeBase.objects.get(id=attrbase.id).type, AttrTypeStr)
-        self.assertIsNone(AttributeBase.objects.get(id=attrbase.id).referral)
+        self.assertEqual(EntityAttr.objects.get(id=attrbase.id).type, AttrTypeStr)
+        self.assertIsNone(EntityAttr.objects.get(id=attrbase.id).referral)
 
         # checks that the related Attribute is also changed
         self.assertEqual(Attribute.objects.get(id=attr.id).name, 'baz')
@@ -292,11 +292,11 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
 
         entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
-        attr = AttributeBase.objects.create(name='puyo',
+        attr = EntityAttr.objects.create(name='puyo',
                                             type=AttrTypeStr,
                                             created_user=user,
                                             parent_entity=entity)
-        entity.attr_bases.add(attr)
+        entity.attrs.add(attr)
 
         params = {
             'name': 'foo',
@@ -314,8 +314,8 @@ class ViewTest(AironeViewTest):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 303)
-        self.assertEqual(AttributeBase.objects.get(id=attr.id).type, AttrTypeArrObj)
-        self.assertEqual(AttributeBase.objects.get(id=attr.id).referral.id, entity.id)
+        self.assertEqual(EntityAttr.objects.get(id=attr.id).type, AttrTypeArrObj)
+        self.assertEqual(EntityAttr.objects.get(id=attr.id).referral.id, entity.id)
 
     def test_post_create_with_invalid_referral_attr(self):
         self.admin_login()
@@ -354,7 +354,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 303)
         self.assertEqual(Entity.objects.last().name, 'hoge')
 
-        attrs = AttributeBase.objects.all()
+        attrs = EntityAttr.objects.all()
         self.assertEqual(len(attrs), 2)
         self.assertTrue(all([x.referral.id == entity.id for x in attrs]))
 
@@ -363,22 +363,22 @@ class ViewTest(AironeViewTest):
 
         entity = Entity.objects.create(name='entity', created_user=user)
         for name in ['foo', 'bar']:
-            entity.attr_bases.add(AttributeBase.objects.create(name=name,
+            entity.attrs.add(EntityAttr.objects.create(name=name,
                                                                type=AttrTypeStr,
                                                                created_user=user,
                                                                parent_entity=entity))
 
         entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
-        [entry.add_attribute_from_base(x, user) for x in entity.attr_bases.all()]
+        [entry.add_attribute_from_base(x, user) for x in entity.attrs.all()]
 
         permission_count = Permission.objects.count()
         params = {
             'name': 'new-entity',
             'note': 'hoge',
             'attrs': [
-                {'name': 'foo', 'type': str(AttrTypeStr), 'id': entity.attr_bases.first().id,
+                {'name': 'foo', 'type': str(AttrTypeStr), 'id': entity.attrs.first().id,
                  'is_mandatory': False},
-                {'name': 'bar', 'type': str(AttrTypeStr), 'id': entity.attr_bases.last().id,
+                {'name': 'bar', 'type': str(AttrTypeStr), 'id': entity.attrs.last().id,
                  'is_mandatory': False, 'deleted': True},
             ],
         }
@@ -388,9 +388,9 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 303)
         self.assertEqual(Permission.objects.count(),
                          permission_count - len(ACLType.availables()) * 2)
-        self.assertEqual(entity.attr_bases.count(), 1)
+        self.assertEqual(entity.attrs.count(), 1)
         self.assertEqual(entry.attrs.count(), 1)
-        self.assertEqual(entity.attr_bases.last().name, 'foo')
+        self.assertEqual(entity.attrs.last().name, 'foo')
         self.assertEqual(entry.attrs.last().name, 'foo')
 
     def test_export_data(self):
@@ -398,13 +398,13 @@ class ViewTest(AironeViewTest):
 
         entity1 = Entity.objects.create(name='entity1', note='hoge', created_user=user)
         for name in ['foo', 'bar']:
-            entity1.attr_bases.add(AttributeBase.objects.create(name=name,
+            entity1.attrs.add(EntityAttr.objects.create(name=name,
                                                                 type=AttrTypeStr,
                                                                 created_user=user,
                                                                 parent_entity=entity1))
 
         entity2 = Entity.objects.create(name='entity2', created_user=user)
-        entity2.attr_bases.add(AttributeBase.objects.create(name='attr',
+        entity2.attrs.add(EntityAttr.objects.create(name='attr',
                                                             type=AttrTypeObj,
                                                             referral=entity1,
                                                             created_user=user,
@@ -415,21 +415,21 @@ class ViewTest(AironeViewTest):
 
         obj = yaml.load(resp.content)
         self.assertTrue(isinstance(obj, dict))
-        self.assertEqual(sorted(obj.keys()), ['AttributeBase', 'Entity'])
-        self.assertEqual(len(obj['AttributeBase']), 3)
+        self.assertEqual(sorted(obj.keys()), ['Entity', 'EntityAttr'])
+        self.assertEqual(len(obj['EntityAttr']), 3)
         self.assertEqual(len(obj['Entity']), 2)
         self.assertTrue(list(filter(lambda x: (
                 x['name'] == 'foo' and
                 x['entity'] == 'entity1' and
                 x['type'] == AttrTypeStr and
                 x['refer'] == ''
-            ), obj['AttributeBase'])))
+            ), obj['EntityAttr'])))
         self.assertTrue(list(filter(lambda x: (
                 x['name'] == 'attr' and
                 x['entity'] == 'entity2' and
                 x['type'] == AttrTypeObj and
                 x['refer'] == 'entity1'
-            ), obj['AttributeBase'])))
+            ), obj['EntityAttr'])))
         self.assertTrue(list(filter(lambda x: (
                 x['name'] == 'entity1' and
                 x['note'] == 'hoge' and
@@ -442,14 +442,14 @@ class ViewTest(AironeViewTest):
 
         # create an entity object which is created by logined-user
         entity1 = Entity.objects.create(name='entity1', created_user=user)
-        entity1.attr_bases.add(AttributeBase.objects.create(name='attr1',
+        entity1.attrs.add(EntityAttr.objects.create(name='attr1',
                                                             type=AttrTypeStr,
                                                             created_user=user,
                                                             parent_entity=entity1))
 
         # create a public object which is created by the another_user
         entity2 = Entity.objects.create(name='entity2', created_user=user2)
-        entity2.attr_bases.add(AttributeBase.objects.create(name='attr2',
+        entity2.attrs.add(EntityAttr.objects.create(name='attr2',
                                                             type=AttrTypeStr,
                                                             created_user=user2,
                                                             parent_entity=entity1))
@@ -457,7 +457,7 @@ class ViewTest(AironeViewTest):
         # create private objects which is created by the another_user
         for name in ['foo', 'bar']:
             e = Entity.objects.create(name=name, created_user=user2, is_public=False)
-            e.attr_bases.add(AttributeBase.objects.create(name='private_attr',
+            e.attrs.add(EntityAttr.objects.create(name='private_attr',
                                                           type=AttrTypeStr,
                                                           created_user=user2,
                                                           parent_entity=e,
@@ -468,10 +468,10 @@ class ViewTest(AironeViewTest):
 
         obj = yaml.load(resp.content)
         self.assertEqual(len(obj['Entity']), 2)
-        self.assertEqual(len(obj['AttributeBase']), 2)
+        self.assertEqual(len(obj['EntityAttr']), 2)
         self.assertTrue([x for x in obj['Entity'] if x['name'] == entity1.name])
         self.assertTrue([x for x in obj['Entity'] if x['name'] == entity2.name])
-        self.assertFalse([x for x in obj['AttributeBase'] if x['name'] == 'private_attr'])
+        self.assertFalse([x for x in obj['EntityAttr'] if x['name'] == 'private_attr'])
 
     def test_post_delete(self):
         user1 = self.admin_login()
@@ -522,12 +522,12 @@ class ViewTest(AironeViewTest):
         entity = Entity.objects.create(name='entity1', created_user=user)
         entity.save()
 
-        attrbase = AttributeBase.objects.create(name='puyo',
+        attrbase = EntityAttr.objects.create(name='puyo',
                                                 created_user=user,
                                                 is_mandatory=True,
                                                 type=AttrTypeStr,
                                                 parent_entity=entity)
-        entity.attr_bases.add(attrbase)
+        entity.attrs.add(attrbase)
 
         entry = Entry.objects.create(name='entry1', schema=entity, created_user=user)
         entry.add_attribute_from_base(attrbase, user)

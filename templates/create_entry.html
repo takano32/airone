@@ -134,15 +134,26 @@ $('form').submit(function(){
   return false;
 });
 
+var del_column = function() {
+  // remove selected column
+  $(this).parent().parent().remove();
+
+  return false;
+}
+
 $('button[name=add_attr]').on('click', function() {
   var container = $(this).parent();
   var new_column = $('<div class="row" />');
 
   new_column.append($.parseHTML($(this).parent().find('div[name="attr_value_template"]').html()));
+  new_column.find('button[name=del_attr]').on('click', del_column);
 
   container.append(new_column);
 
   return false;
 });
+
+$('button[name=del_attr]').on('click', del_column);
+
 </script>
 {% endblock %}

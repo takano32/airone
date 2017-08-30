@@ -132,11 +132,11 @@ class ImportTest(AironeViewTest):
         fp.close()
 
         # checks that imported objects were normally created
-        self.assertEqual(Entry.objects.count(), 5)
+        self.assertEqual(Entry.objects.count(), 7)
         self.assertEqual(Attribute.objects.count(), 4)
 
         # checks that after_save_instance processing was normally worked
-        entry = Entry.objects.get(name='entry1')
+        entry = Entry.objects.get(name='srv001')
         self.assertEqual(entry.attrs.count(), 4)
         self.assertEqual(entry.attrs.get(name='attr-str').type, atype.AttrTypeStr)
         self.assertEqual(entry.attrs.get(name='attr-obj').type, atype.AttrTypeObj)
@@ -145,10 +145,16 @@ class ImportTest(AironeViewTest):
 
         # checks that a new AttribueValue was created by import-data
         self.assertEqual(Attribute.objects.get(name='attr-str').values.count(), 2)
+        self.assertEqual(Attribute.objects.get(name='attr-obj').values.count(), 1)
+        self.assertEqual(Attribute.objects.get(name='attr-arr-str').values.count(), 1)
+        self.assertEqual(Attribute.objects.get(name='attr-arr-obj').values.count(), 1)
 
         # checks for the Array String attributes
-        attr = Attribute.objects.get(name='attr-arr-str')
-        self.assertEqual(attr.values.count(), 1)
-
-        attr_value = attr.values.last()
+        attr_value = Attribute.objects.get(name='attr-arr-str').values.first()
         self.assertTrue(attr_value.status & AttributeValue.STATUS_DATA_ARRAY_PARENT)
+        self.assertEqual(attr_value.data_array.count(), 2)
+
+        # checks for the Array Object attributes
+        attr_value = Attribute.objects.get(name='attr-arr-obj').values.first()
+        self.assertTrue(attr_value.status & AttributeValue.STATUS_DATA_ARRAY_PARENT)
+        self.assertEqual(attr_value.data_array.count(), 2)

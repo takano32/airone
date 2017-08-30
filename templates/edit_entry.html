@@ -116,8 +116,6 @@ $('form').submit(function(){
   });
   {% endfor %}
 
-  console.log(attrs)
-
   HttpPost($(this), {'attrs': attrs});
 
   return false;
@@ -134,15 +132,27 @@ var append_column = function(container, template, value_setter) {
   container.append(new_column);
 };
 
+var del_column = function() {
+  // remove selected column
+  $(this).parent().parent().remove();
+
+  return false;
+}
+
 $('button[name=add_attr]').on('click', function() {
   var container = $(this).parent();
   var new_column = $('<div class="row" />');
 
   new_column.append($.parseHTML($(this).parent().find('.attr_value_template').html()));
+  new_column.find('button[name=del_attr]').on('click', del_column);
 
   container.append(new_column);
 
   return false;
+});
+
+$(function() {
+  $('button[name=del_attr]').on('click', del_column);
 });
 
 // Initiate array values

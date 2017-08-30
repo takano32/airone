@@ -114,7 +114,8 @@ class Attribute(AttributeBase):
         if self.type == AttrTypeArrStr:
             return [x for x in last_value.data_array.all() if x.value in values]
         elif self.type == AttrTypeArrObj:
-            return [x for x in last_value.data_array.all() if x.referral.id in values]
+            return [x for x in last_value.data_array.all() if x.referral.id in
+                    map(lambda y: int(y), values)]
 
         return []
 

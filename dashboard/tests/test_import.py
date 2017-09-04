@@ -155,6 +155,12 @@ class ImportTest(AironeViewTest):
         self.assertEqual(Attribute.objects.get(name='attr-arr-str').values.count(), 1)
         self.assertEqual(Attribute.objects.get(name='attr-arr-obj').values.count(), 1)
 
+        # checks that attr has corrected referral
+        self.assertIsNone(Attribute.objects.get(name='attr-str').referral)
+        self.assertEqual(Attribute.objects.get(name='attr-obj').referral.name, 'Entity1')
+        self.assertIsNone(Attribute.objects.get(name='attr-arr-str').referral)
+        self.assertEqual(Attribute.objects.get(name='attr-arr-obj').referral.name, 'Entity2')
+
         # checks for the Array String attributes
         attr_value = Attribute.objects.get(name='attr-arr-str').values.first()
         self.assertTrue(attr_value.status & AttributeValue.STATUS_DATA_ARRAY_PARENT)

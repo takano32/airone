@@ -753,6 +753,11 @@ class ViewTest(AironeViewTest):
         entry = Entry(name='fuga', schema=self._entity, created_user=user)
         entry.save()
 
+        entry.attrs.add(Attribute.objects.create(name='attr-test',
+                                                 type=AttrTypeStr,
+                                                 parent_entry=entry,
+                                                 created_user=user))
+
         entry_count = Entry.objects.count()
 
         params = {}
@@ -766,6 +771,7 @@ class ViewTest(AironeViewTest):
 
         entry = Entry.objects.last()
         self.assertFalse(entry.is_active)
+        self.assertFalse(Attribute.objects.get(name='attr-test').is_active)
 
     def test_post_delete_entry_without_permission(self):
         user1 = self.admin_login()

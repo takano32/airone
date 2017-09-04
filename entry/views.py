@@ -328,4 +328,9 @@ def do_delete(request, entry_id, recv_data):
     entry.is_active=False
     entry.save()
 
+    # Delete all attributes which target Entry have
+    for attr in entry.attrs.all():
+        attr.is_active = False
+        attr.save()
+
     return HttpResponse()

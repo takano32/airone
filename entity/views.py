@@ -241,4 +241,9 @@ def do_delete(request, entity_id, recv_data):
     entity.is_active=False
     entity.save()
 
+    # Delete all attributes which target Entity have
+    for attr in entity.attrs.all():
+        attr.is_active = False
+        attr.save()
+
     return HttpResponse()

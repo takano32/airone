@@ -473,11 +473,36 @@ class ViewTest(AironeViewTest):
         self.assertTrue([x for x in obj['Entity'] if x['name'] == entity2.name])
         self.assertFalse([x for x in obj['EntityAttr'] if x['name'] == 'private_attr'])
 
+    def test_export_with_deleted_object(self):
+        user = self.admin_login()
+
+        entity1 = Entity.objects.create(name='entity1', created_user=user)
+        entity1.attrs.add(EntityAttr.objects.create(name='attr1',
+                                                    type=AttrTypeStr,
+                                                    created_user=user,
+                                                    parent_entity=entity1))
+
+        entity1 = Entity.objects.create(name='entity2', created_user=user, is_active=False)
+
+        resp = self.client.get(reverse('entity:export'))
+        self.assertEqual(resp.status_code, 200)
+
+        obj = yaml.load(resp.content)
+        self.assertEqual(len(obj['Entity']), 1)
+        self.assertEqual(obj['Entity'][0]['name'], 'entity1')
+
     def test_post_delete(self):
         user1 = self.admin_login()
 
         entity1 = Entity.objects.create(name='entity1', created_user=user1)
         entity1.save()
+
+        attr = EntityAttr.objects.create(name='attr-test',
+                                         created_user=user1,
+                                         is_mandatory=True,
+                                         type=AttrTypeStr,
+                                         parent_entity=entity1)
+        entity1.attrs.add(attr)
 
         entity_count = Entity.objects.all().count()
         
@@ -492,7 +517,7 @@ class ViewTest(AironeViewTest):
         entity1 = Entity.objects.get(name='entity1')
         self.assertIsNotNone(entity1)
         self.assertFalse(entity1.is_active)
-        
+        self.assertFalse(EntityAttr.objects.get(name='attr-test').is_active)
 
     def test_post_delete_without_permission(self):
         user1 = self.admin_login()
@@ -523,10 +548,10 @@ class ViewTest(AironeViewTest):
         entity.save()
 
         attrbase = EntityAttr.objects.create(name='puyo',
-                                                created_user=user,
-                                                is_mandatory=True,
-                                                type=AttrTypeStr,
-                                                parent_entity=entity)
+                                             created_user=user,
+                                             is_mandatory=True,
+                                             type=AttrTypeStr,
+                                             parent_entity=entity)
         entity.attrs.add(attrbase)
 
         entry = Entry.objects.create(name='entry1', schema=entity, created_user=user)
@@ -546,3 +571,4 @@ class ViewTest(AironeViewTest):
         entity = Entity.objects.get(name='entity1')
         self.assertIsNotNone(entity)
         self.assertTrue(entity.is_active)
+        self.assertTrue(EntityAttr.objects.get(name='puyo').is_active)

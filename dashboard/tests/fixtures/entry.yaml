@@ -16,11 +16,11 @@ Attribute:
 - {created_user: admin, entry_id: 14, id: 15, is_mandatory: '0', name: attr-str,
   schema_id: 4, type: 2}
 - {created_user: admin, entry_id: 14, id: 16, is_mandatory: '1', name: attr-obj,
-  schema_id: 5, type: 1}
+  schema_id: 5, type: 1, refer: 1}
 - {created_user: admin, entry_id: 14, id: 17, is_mandatory: '0', name: attr-arr-str,
   schema_id: 6, type: 1026}
 - {created_user: admin, entry_id: 14, id: 18, is_mandatory: '0', name: attr-arr-obj,
-  schema_id: 7, type: 1025}
+  schema_id: 7, type: 1025, refer: 2}
 
 AttributeValue:
 - {attribute_id: 15, created_time: '2017-08-29 03:07:21', created_user: admin, data_arr: '',

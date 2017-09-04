@@ -71,7 +71,7 @@ class AttrValueResource(AironeModelResource):
 class AttrResource(AironeModelResource):
     _IMPORT_INFO = {
         'header': ['id', 'name', 'schema_id', 'entry_id', 'created_user',
-                   'type', 'is_mandatory'],
+                   'type', 'is_mandatory', 'refer'],
         'mandatory_keys': ['name', 'schema_id', 'entry_id', 'created_user',
                            'type'],
         'resource_module': 'entry.admin',
@@ -84,6 +84,8 @@ class AttrResource(AironeModelResource):
                          widget=widgets.ForeignKeyWidget(model=Entry, field='id'))
     user = fields.Field(column_name='created_user', attribute='created_user',
                         widget=widgets.ForeignKeyWidget(User, 'username'))
+    refer = fields.Field(column_name='refer', attribute='referral',
+                         widget=widgets.ForeignKeyWidget(model=ACLBase, field='id'))
 
     class Meta:
         model = Attribute

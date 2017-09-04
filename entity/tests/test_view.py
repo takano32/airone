@@ -482,6 +482,7 @@ class ViewTest(AironeViewTest):
                                                     created_user=user,
                                                     parent_entity=entity1))
 
+        # This Entity object won't be exported because this is logically deleted
         entity1 = Entity.objects.create(name='entity2', created_user=user, is_active=False)
 
         resp = self.client.get(reverse('entity:export'))

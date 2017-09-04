@@ -32,4 +32,6 @@ class ACLType(Iteratable):
         return [cls.Readable, cls.Writable, cls.Full]
 
 def get_permitted_objects(user, model, permission_level):
-    return [x for x in model.objects.all() if user.has_permission(x, permission_level)]
+    # This method assumes that model is a subclass of ACLBase
+    return [x for x in model.objects.all()
+                if user.has_permission(x, permission_level) and x.is_active]

@@ -170,3 +170,26 @@ class ImportTest(AironeViewTest):
         attr_value = Attribute.objects.get(name='attr-arr-obj').values.first()
         self.assertTrue(attr_value.status & AttributeValue.STATUS_DATA_ARRAY_PARENT)
         self.assertEqual(attr_value.data_array.count(), 2)
+
+    def test_import_entry_without_mandatory_values(self):
+        user = self.admin_login()
+        warns = []
+
+        fp = self.open_fixture_file('entry_without_mandatory_values.yaml')
+        with mock.patch('dashboard.views.Logger') as lg_mock:
+            def side_effect(message):
+                warns.append(message)
+
+            lg_mock.warning = mock.Mock(side_effect=side_effect)
+            resp = self.client.post(reverse('dashboard:do_import'), {'file': fp})
+            self.assertEqual(resp.status_code, 303)
+            fp.close()
+
+        # checks for the output wanring messages
+        self.assertEqual(len(warns), 2)
+        self.assertTrue(any([re.match(r".*The value of .* is needed", x) for x in warns]))
+        self.assertTrue(any([re.match(r".*Mandatory key doesn't exist", x) for x in warns]))
+
+        # checks for the imported objects successfully
+        self.assertEqual(Entity.objects.count(), 1)
+        self.assertEqual(Entry.objects.count(), 1)

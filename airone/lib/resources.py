@@ -67,6 +67,12 @@ class AironeModelResource(ModelResource):
         if not all([x in data for x in self._IMPORT_INFO['mandatory_keys']]):
             raise RuntimeError("Mandatory key doesn't exist")
 
+        # check that mandatory values is set
+        if ('mandatory_values' in self._IMPORT_INFO and
+            any(not data[x] for x in self._IMPORT_INFO['mandatory_values'])):
+            raise RuntimeError("The value of '%s' is needed" %
+                               str(self._IMPORT_INFO['mandatory_values']))
+
         # check unnecessary parameters are specified, or not
         if not all([x in self._IMPORT_INFO['header'] for x in data.keys()]):
             raise RuntimeError("Unnecessary key is specified")

@@ -104,6 +104,7 @@ class EntryResource(AironeModelResource):
     _IMPORT_INFO = {
         'header': ['id', 'name', 'entity', 'created_user'],
         'mandatory_keys': ['name', 'entity', 'created_user'],
+        'mandatory_values': ['name'],
         'resource_module': 'entry.admin',
         'resource_model_name': 'EntryResource',
     }

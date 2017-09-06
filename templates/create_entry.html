@@ -13,7 +13,6 @@
 {% endblock %}
 
 {% block content %}
-{% load bitwise_tags %}
 <div class="container-fluid">
   <form url="/entry/do_create/{{ entity.id }}/" method="post">
     <div class="row">
@@ -36,81 +35,7 @@
         <th>属性値</th>
       </thead>
       <tbody>
-        {% for attr in attributes %}
-        <tr>
-          {% if attr.is_mandatory %}
-          <td><strong>(*)</strong> {{ attr.name }} </td>
-          {% else %}
-          <td>{{ attr.name }}</td>
-          {% endif %}
-          <td>
-            {% if attr.type|bitwise_and:attr_type_value.array %}
-              <div class='container'>
-                <button type="button" class="btn btn-primary btn-sm" name='add_attr'>add row</button>
-                <div class='row'>
-                  <div class='col-4'>
-                    <div>
-                    {% if attr.type == attr_type.array_entry %}
-                      <select class='attr_value' attr_id='{{ attr.id }}'>
-                        {% if not attr.is_mandatory %}
-                        <option value='0'>- NOT SET -</option>
-                        {% endif %}
-
-                        {% for referral in attr.referrals %}
-                        <option value='{{ referral.id }}'>{{ referral.name }}</option>
-                        {% endfor %}
-                      </select>
-                    {% else %}
-                      <input type='text' class='attr_value' attr_id='{{ attr.id }}' />
-                    {% endif %}
-                    </div>
-                  </div>
-
-                  <div class='col'>
-                    <button type="button" class="btn btn-danger btn-sm" name="del_attr">del</button>
-                  </div>
-                </div>
-
-                <!-- template of attribute value column -->
-                <div style="display:none" name='attr_value_template'>
-                  <div class='col-4'>
-                    {% if attr.type == attr_type.array_entry %}
-                      <select class='attr_value' attr_id='{{ attr.id }}'>
-                        {% if not attr.is_mandatory %}
-                        <option value='0'>- NOT SET -</option>
-                        {% endif %}
-
-                        {% for referral in attr.referrals %}
-                        <option value='{{ referral.id }}'>{{ referral.name }}</option>
-                        {% endfor %}
-                      </select>
-                    {% else %}
-                      <input type='text' class='attr_value' attr_id='{{ attr.id }}' />
-                    {% endif %}
-                  </div>
-                  <div class='col'>
-                    <button type="button" class="btn btn-danger btn-sm" name="del_attr">del</button>
-                  </div>
-                </div>
-              </div>
-            {% else %}
-              {% if attr.type == attr_type.entry %}
-                <select class='attr_value' attr_id='{{ attr.id }}'>
-                  {% if not attr.is_mandatory %}
-                  <option value='0'>- NOT SET -</option>
-                  {% endif %}
-
-                  {% for referral in attr.referrals %}
-                  <option value='{{ referral.id }}'>{{ referral.name }}</option>
-                  {% endfor %}
-                </select>
-              {% else %}
-                <input type='text' class='attr_value' attr_id='{{ attr.id }}' />
-              {% endif %}
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
+        {% include 'edit_entry_attrs.html' %}
       </tbody>
     </table>
     <strong>(*)</strong> は必須項目

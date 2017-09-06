@@ -38,7 +38,11 @@
         <tbody>
           {% for entry in entries %}
           <tr>
-            <td><a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a></td>
+            {% if entry.name %}
+              <td><a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a></td>
+            {% else %}
+              <td><a href='/entry/show/{{ entry.id }}'>(NO NAME)</a></td>
+            {% endif %}
             <td>
               <form url="/entry/do_delete/{{ entry.id }}/" method="post">
                 {% csrf_token %}

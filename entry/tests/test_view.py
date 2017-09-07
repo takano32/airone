@@ -737,7 +737,11 @@ class ViewTest(AironeViewTest):
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
                                 json.dumps(params),
                                 'application/json')
+
         self.assertEqual(resp.status_code, 200)
+        self.assertEqual(attr.values.count(), 2)
+        self.assertEqual(attr.values.first(), attr_value)
+        self.assertIsNone(attr.values.last().referral)
 
     def test_get_export(self):
         user = self.admin_login()

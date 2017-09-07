@@ -209,7 +209,10 @@ def do_edit(request, entry_id, recv_data):
 
         if not attr.type & AttrTypeValue['array']:
             # expand attr value when it has only one value
-            info['value'] = info['value'][0]
+            if info['value']:
+                info['value'] = info['value'][0]
+            else:
+                info['value'] = ''
 
         # Check a new update value is specified, or not
         if attr.is_updated(info['value']):
@@ -219,9 +222,13 @@ def do_edit(request, entry_id, recv_data):
             # set attribute value according to the attribute-type
             if attr.type == AttrTypeStr:
                 attr_value.value = value=info['value']
-            elif attr.type == AttrTypeObj and Entry.objects.filter(id=info['value']).count():
+            elif attr.type == AttrTypeObj:
                 # set None if the referral entry is not specified
-                attr_value.referral = info['value'] and Entry.objects.get(id=info['value']) or None
+                if info['value'] and Entry.objects.filter(id=info['value']).count():
+                    attr_value.referral = Entry.objects.get(id=info['value'])
+                else:
+                    attr_value.referral = None
+
             elif attr.type & AttrTypeValue['array']:
                 # set status of parent data_array
                 attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)

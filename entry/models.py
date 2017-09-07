@@ -63,8 +63,10 @@ class Attribute(AttributeBase):
             return True
 
         elif self.type == AttrTypeObj:
-            if not last_value.referral and not int(recv_value):
+            if not last_value.referral and not recv_value:
                 return False
+            elif last_value.referral and not recv_value:
+                return True
             elif not last_value.referral and int(recv_value):
                 return True
             elif last_value.referral.id != int(recv_value):

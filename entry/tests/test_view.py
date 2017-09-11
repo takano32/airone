@@ -962,7 +962,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': 'A' * (1 << 16)},
+                {'id': str(self._entity_attr.id), 'value': 'A' * AttributeValue.MAXIMUM_VALUE_SIZE},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -975,7 +975,7 @@ class ViewTest(AironeViewTest):
         entry = Entry.objects.last()
         self.assertEqual(entry.attrs.count(), 1)
         self.assertEqual(entry.attrs.last().values.count(), 1)
-        self.assertEqual(len(entry.attrs.last().values.last().value), (1 << 16))
+        self.assertEqual(len(entry.attrs.last().values.last().value), AttributeValue.MAXIMUM_VALUE_SIZE)
 
     def test_post_edit_just_limit_of_value(self):
         user = self.admin_login()
@@ -986,7 +986,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(attr.id), 'value': ['A' * (1 << 16)]},
+                {'id': str(attr.id), 'value': ['A' * AttributeValue.MAXIMUM_VALUE_SIZE]},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -995,7 +995,7 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(attr.values.count(), 1)
-        self.assertEqual(len(attr.values.last().value), (1 << 16))
+        self.assertEqual(len(attr.values.last().value), AttributeValue.MAXIMUM_VALUE_SIZE)
 
     def test_post_create_exceeding_limit_of_value(self):
         user = self.admin_login()

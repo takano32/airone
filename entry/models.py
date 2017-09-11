@@ -11,6 +11,7 @@ from airone.lib.types import AttrTypeValue
 class AttributeValue(models.Model):
     # This is a constant that indicates target object binds multiple AttributeValue objects.
     STATUS_DATA_ARRAY_PARENT = 1 << 0
+    MAXIMUM_VALUE_SIZE = (1 << 16)
 
     value = models.TextField()
     referral = models.ForeignKey(ACLBase, null=True, related_name='referred_attr_value')

@@ -9,7 +9,9 @@ from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
 
-from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeArrStr, AttrTypeArrObj
+from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
+from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
+from airone.lib.types import AttrTypeValue
 from airone.lib.test import AironeViewTest
 from xml.etree import ElementTree
 
@@ -921,3 +923,35 @@ class ViewTest(AironeViewTest):
         self.assertIsNone(attr_value.referral)
         self.assertEqual(attr_value.data_array.count(), 2)
         self.assertTrue(all([x.referral.id == referral.id for x in attr_value.data_array.all()]))
+
+    def test_post_text_area_value(self):
+        user = self.admin_login()
+
+        textattr = EntityAttr.objects.create(name='attr-text',
+                                             type=AttrTypeText,
+                                             created_user=user,
+                                             parent_entity=self._entity)
+        self._entity.attrs.add(textattr)
+
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(self._entity_attr.id), 'value': 'hoge'},
+                {'id': str(textattr.id), 'value': 'fuga'},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Entry.objects.count(), 1)
+        self.assertEqual(Attribute.objects.count(), 2)
+        self.assertEqual(AttributeValue.objects.count(), 2)
+
+        entry = Entry.objects.last()
+        self.assertEqual(entry.attrs.count(), 2)
+        self.assertTrue(any([
+            (x.values.last().value == 'hoge' or x.values.last().value == 'fuga')
+            for x in entry.attrs.all()
+        ]))

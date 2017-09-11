@@ -89,13 +89,7 @@ def edit(request, entity_id):
             x['name'] and not re.match(r'^\s*$', x['name'])
         )},
         {'name': 'type', 'type': str, 'checker': lambda x: (
-            any([y == int(x['type']) for y in AttrTypes]) and (
-                int(x['type']) & AttrTypeValue['string'] or (
-                    int(x['type']) & AttrTypeValue['object'] and
-                    'ref_id' in x and
-                    Entity.objects.filter(id=x['ref_id']).count()
-                )
-            )
+            any([y == int(x['type']) for y in AttrTypes])
         )},
         {'name': 'is_mandatory', 'type': bool}
     ]}
@@ -114,6 +108,10 @@ def do_edit(request, entity_id, recv_data):
     entity.save()
 
     for attr in recv_data['attrs']:
+        if (int(attr['type']) & AttrTypeValue['object'] and
+            ('ref_id' not in attr or not Entity.objects.filter(id=attr['ref_id']).count())):
+            return HttpResponse('Failed to get entity that is referred', status=400)
+
         is_deleted = is_new_attr_base = False
         if 'id' in attr and EntityAttr.objects.filter(id=attr['id']).count():
             # update attributes which is already created
@@ -172,13 +170,7 @@ def do_edit(request, entity_id, recv_data):
             x['name'] and not re.match(r'^\s*$', x['name'])
         )},
         {'name': 'type', 'type': str, 'checker': lambda x: (
-            any([y == int(x['type']) for y in AttrTypes]) and (
-                int(x['type']) & AttrTypeValue['string'] or (
-                    int(x['type']) & AttrTypeValue['object'] and
-                    'ref_id' in x and
-                    Entity.objects.filter(id=x['ref_id']).count()
-                )
-            )
+            any([y == int(x['type']) for y in AttrTypes])
         )},
         {'name': 'is_mandatory', 'type': bool}
     ]}
@@ -194,6 +186,10 @@ def do_create(request, recv_data):
     entity.save()
 
     for attr in recv_data['attrs']:
+        if (int(attr['type']) & AttrTypeValue['object'] and
+            ('ref_id' not in attr or not Entity.objects.filter(id=attr['ref_id']).count())):
+            return HttpResponse('Failed to get entity that is referred', status=400)
+
         attr_base = EntityAttr(name=attr['name'],
                                   type=int(attr['type']),
                                   is_mandatory=attr['is_mandatory'],

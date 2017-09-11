@@ -5,7 +5,9 @@ from django.db.models import Q
 
 from airone.lib.http import http_get, http_post, check_permission, render
 from airone.lib.http import get_download_response
-from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeArrStr, AttrTypeArrObj, AttrTypeValue
+from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
+from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
+from airone.lib.types import AttrTypeValue
 from airone.lib.acl import get_permitted_objects
 
 from entity.models import Entity, AttributeBase
@@ -31,7 +33,7 @@ def _get_latest_attributes(self, user):
         if attr.values.count() > 0:
             last_value = attr.values.last()
 
-            if attr.type == AttrTypeStr:
+            if attr.type == AttrTypeStr or attr.type == AttrTypeText:
                 attrinfo['last_value'] = last_value.value
             elif attr.type == AttrTypeObj and last_value.referral:
                 attrinfo['last_referral'] = last_value.referral
@@ -127,7 +129,7 @@ def do_create(request, entity_id, recv_data):
         recv_values = get_attr_values(attr_base, recv_data['attrs'])
         if recv_values:
             attr_value = AttributeValue.objects.create(created_user=user, parent_attr=attr)
-            if attr.type == AttrTypeStr:
+            if attr.type == AttrTypeStr or attr.type == AttrTypeText:
                 # set attribute value
                 attr_value.value = value=recv_values[0]
             elif attr.type == AttrTypeObj:
@@ -220,7 +222,7 @@ def do_edit(request, entry_id, recv_data):
             attr_value = AttributeValue.objects.create(created_user=user, parent_attr=attr)
 
             # set attribute value according to the attribute-type
-            if attr.type == AttrTypeStr:
+            if attr.type == AttrTypeStr or attr.type == AttrTypeText:
                 attr_value.value = value=info['value']
             elif attr.type == AttrTypeObj:
                 # set None if the referral entry is not specified

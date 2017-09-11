@@ -1003,7 +1003,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': 'A' * (1 << 16) + 'A'},
+                {'id': str(self._entity_attr.id), 'value': 'A' * AttributeValue.MAXIMUM_VALUE_SIZE + 'A'},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -1021,7 +1021,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(attr.id), 'value': ['A' * (1 << 16) + 'A']},
+                {'id': str(attr.id), 'value': ['A' * AttributeValue.MAXIMUM_VALUE_SIZE + 'A']},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),

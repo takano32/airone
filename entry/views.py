@@ -117,6 +117,11 @@ def do_create(request, entity_id, recv_data):
                   schema=entity)
     entry.save()
 
+    # Checks specified value exceeds the limit of AttributeValue
+    if any([len(x['value'].encode('utf-8')) > AttributeValue.MAXIMUM_VALUE_SIZE
+            for x in recv_data['attrs']]):
+        return HttpResponse('Passed value is exceeded the limit', status=400)
+
     def get_attr_values(attr, data):
         return [x['value'] for x in data if int(x['id']) == attr.id and x['value']]
 
@@ -202,6 +207,12 @@ def edit(request, entry_id):
 @check_permission(Entry, 'writable')
 def do_edit(request, entry_id, recv_data):
     user = User.objects.get(id=request.user.id)
+
+    # Checks specified value exceeds the limit of AttributeValue
+    if any([any([len(str(y).encode('utf-8')) > AttributeValue.MAXIMUM_VALUE_SIZE
+                 for y in x['value']])
+            for x in recv_data['attrs']]):
+        return HttpResponse('Passed value is exceeded the limit', status=400)
 
     # update name of Entry object
     Entry.objects.filter(id=entry_id).update(name=recv_data['entry_name'])

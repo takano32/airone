@@ -955,3 +955,36 @@ class ViewTest(AironeViewTest):
             (x.values.last().value == 'hoge' or x.values.last().value == 'fuga')
             for x in entry.attrs.all()
         ]))
+
+    def test_post_create_exceeding_limit_of_value(self):
+        user = self.admin_login()
+
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(self._entity_attr.id), 'value': 'A' * (1 << 16) + 'A'},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+
+    def test_post_edit_exceeding_limit_of_value(self):
+        user = self.admin_login()
+
+        entry = Entry.objects.create(name='entry', created_user=user, schema=self._entity)
+        attr = entry.add_attribute_from_base(self._entity_attr, user)
+
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(attr.id), 'value': ['A' * (1 << 16) + 'A']},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)

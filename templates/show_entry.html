@@ -36,6 +36,8 @@
           <td>
           {% if attr.type == attr_type.string %}
             {{ attr.last_value }}
+          {% elif attr.type == attr_type.textarea %}
+            <pre>{{ attr.last_value }}</pre>
           {% elif attr.type == attr_type.entry and attr.last_referral %}
             <a href='/entry/show/{{ attr.last_referral.id }}'>{{ attr.last_referral.name }}</a>{% if attr.last_referral.deleted %}(deleted){% endif %}
           {% elif attr.type == attr_type.array_string %}
@@ -79,6 +81,8 @@
           <td>{{ history.attr_name }}</td>
           {% if history.attr_type == attr_type.string %}
             <td>{{ history.attr_value }}</td>
+          {% elif history.attr_type == attr_type.textarea %}
+            <td><pre>{{ history.attr_value }}</pre></td>
           {% elif history.attr_type == attr_type.entry and history.attr_referral %}
             <td><a href='/entry/show/{{ history.attr_referral.id}}'>{{ history.attr_referral.name }}</a></td>
           {% elif history.attr_type == attr_type.array_string %}

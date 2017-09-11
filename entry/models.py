@@ -3,12 +3,15 @@ from entity.models import AttributeBase, Entity
 from user.models import User
 from acl.models import ACLBase
 from airone.lib.acl import ACLObjType, ACLType
-from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeArrStr, AttrTypeArrObj, AttrTypeValue
+from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
+from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
+from airone.lib.types import AttrTypeValue
 
 
 class AttributeValue(models.Model):
     # This is a constant that indicates target object binds multiple AttributeValue objects.
     STATUS_DATA_ARRAY_PARENT = 1 << 0
+    MAXIMUM_VALUE_SIZE = (1 << 16)
 
     value = models.TextField()
     referral = models.ForeignKey(ACLBase, null=True, related_name='referred_attr_value')
@@ -59,7 +62,8 @@ class Attribute(AttributeBase):
             return recv_value
 
         last_value = self.values.last()
-        if self.type == AttrTypeStr and last_value.value != recv_value:
+        if ((self.type == AttrTypeStr or self.type == AttrTypeText) and
+            last_value.value != recv_value):
             return True
 
         elif self.type == AttrTypeObj:

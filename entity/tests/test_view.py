@@ -10,7 +10,9 @@ from entry.models import Entry, Attribute
 from user.models import User
 from xml.etree import ElementTree
 from airone.lib.test import AironeViewTest
-from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeArrStr, AttrTypeArrObj
+from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
+from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
+from airone.lib.types import AttrTypeValue
 from airone.lib.acl import ACLType
 from django.contrib.auth.models import Permission
 
@@ -63,6 +65,7 @@ class ViewTest(AironeViewTest):
             'note': 'fuga',
             'attrs': [
                 {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True},
+                {'name': 'bar', 'type': str(AttrTypeText), 'is_mandatory': True},
                 {'name': 'baz', 'type': str(AttrTypeArrStr), 'is_mandatory': False},
             ],
         }
@@ -72,7 +75,7 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 303)
         self.assertEqual(Entity.objects.first().name, 'hoge')
-        self.assertEqual(len(EntityAttr.objects.all()), 2)
+        self.assertEqual(len(EntityAttr.objects.all()), 3)
 
     def test_create_post_without_name_param(self):
         self.admin_login()

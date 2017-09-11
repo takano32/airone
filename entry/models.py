@@ -3,7 +3,9 @@ from entity.models import AttributeBase, Entity
 from user.models import User
 from acl.models import ACLBase
 from airone.lib.acl import ACLObjType, ACLType
-from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeArrStr, AttrTypeArrObj, AttrTypeValue
+from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
+from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
+from airone.lib.types import AttrTypeValue
 
 
 class AttributeValue(models.Model):
@@ -59,7 +61,8 @@ class Attribute(AttributeBase):
             return recv_value
 
         last_value = self.values.last()
-        if self.type == AttrTypeStr and last_value.value != recv_value:
+        if ((self.type == AttrTypeStr or self.type == AttrTypeText) and
+            last_value.value != recv_value):
             return True
 
         elif self.type == AttrTypeObj:

@@ -42,6 +42,8 @@
         <option value="{{ referral.id }}"{% if referral.id == attr.last_referral.id %} selected="selected" {% endif %}>{{ referral.name }}</option>
         {% endfor %}
       </select>
+      {% elif attr.type == attr_type.textarea %}
+      <textarea class="attr_value" attr_id="{{ attr.id }}" cols="80" rows="10">{{ attr.last_value }}</textarea>
       {% else %}
       <input type="text" class="attr_value" attr_id="{{ attr.id }}" value="{{ attr.last_value }}"/>
       {% endif %}

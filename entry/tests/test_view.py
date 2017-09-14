@@ -664,7 +664,7 @@ class ViewTest(AironeViewTest):
         new_entry = Entry.objects.create(name='new_entry', schema=self._entity, created_user=user)
 
         params = {
-            'entry_name': 'new_entry',
+            'entry_name': 'old_entry',
             'attrs': [
                 {'id': str(attr.id), 'value': [str(new_entry.id)]},
             ],
@@ -1025,6 +1025,45 @@ class ViewTest(AironeViewTest):
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+
+    def test_try_to_create_duplicate_name_of_entry(self):
+        user = self.admin_login()
+
+        entry = Entry.objects.create(name='entry', created_user=user, schema=self._entity)
+        attr = entry.add_attribute_from_base(self._entity_attr, user)
+
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(self._entity_attr.id), 'value': 'hoge'},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+
+    def test_try_to_edit_duplicate_name_of_entry(self):
+        user = self.admin_login()
+
+        entry = Entry.objects.create(name='entry', created_user=user, schema=self._entity)
+        attr = entry.add_attribute_from_base(self._entity_attr, user)
+
+        dup_entry = Entry.objects.create(name='dup_entry', created_user=user, schema=self._entity)
+        dup_attr = entry.add_attribute_from_base(self._entity_attr, user)
+
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(dup_attr.id), 'value': ['hoge']},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[dup_entry.id]),
                                 json.dumps(params),
                                 'application/json')
 

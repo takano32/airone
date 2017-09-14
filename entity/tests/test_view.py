@@ -64,9 +64,9 @@ class ViewTest(AironeViewTest):
             'name': 'hoge',
             'note': 'fuga',
             'attrs': [
-                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True},
-                {'name': 'bar', 'type': str(AttrTypeText), 'is_mandatory': True},
-                {'name': 'baz', 'type': str(AttrTypeArrStr), 'is_mandatory': False},
+                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True, 'row_index': '1'},
+                {'name': 'bar', 'type': str(AttrTypeText), 'is_mandatory': True, 'row_index': '2'},
+                {'name': 'baz', 'type': str(AttrTypeArrStr), 'is_mandatory': False, 'row_index': '3'},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -83,8 +83,8 @@ class ViewTest(AironeViewTest):
         params = {
             'note': 'fuga',
             'attrs': [
-                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True},
-                {'name': 'bar', 'type': str(AttrTypeStr), 'is_mandatory': False},
+                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True, 'row_index': '1'},
+                {'name': 'bar', 'type': str(AttrTypeStr), 'is_mandatory': False, 'row_index': '2'},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -101,8 +101,20 @@ class ViewTest(AironeViewTest):
             'name': 'hoge',
             'note': 'fuga',
             'attrs': [
-                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True},
-                {'name': '', 'type': str(AttrTypeStr), 'is_mandatory': True},
+                {'name': '', 'type': str(AttrTypeStr), 'is_mandatory': True, 'row_index': '1'},
+            ],
+        }
+        resp = self.client.post(reverse('entity:do_create'),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+
+        params = {
+            'name': 'hoge',
+            'note': 'fuga',
+            'attrs': [
+                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True, 'row_index': 'abcd'},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -158,7 +170,7 @@ class ViewTest(AironeViewTest):
             'name': 'hoge',
             'note': 'fuga',
             'attrs': [
-                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True},
+                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True, 'row_index': '1'},
             ],
         }
         resp = self.client.post(reverse('entity:do_edit', args=[999]),
@@ -171,18 +183,18 @@ class ViewTest(AironeViewTest):
 
         entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
         attr = EntityAttr.objects.create(name='puyo',
-                                            created_user=user,
-                                            is_mandatory=True,
-                                            type=AttrTypeStr,
-                                            parent_entity=entity)
+                                         created_user=user,
+                                         is_mandatory=True,
+                                         type=AttrTypeStr,
+                                         parent_entity=entity)
         entity.attrs.add(attr)
 
         params = {
             'name': 'foo',
             'note': 'bar',
             'attrs': [
-                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True, 'id': attr.id},
-                {'name': 'bar', 'type': str(AttrTypeStr), 'is_mandatory': True},
+                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True, 'id': attr.id, 'row_index': '1'},
+                {'name': 'bar', 'type': str(AttrTypeStr), 'is_mandatory': True, 'row_index': '2'},
             ],
         }
         resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
@@ -213,8 +225,8 @@ class ViewTest(AironeViewTest):
             'name': 'foo',
             'note': 'bar',
             'attrs': [
-                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True, 'id': attrbase.id},
-                {'name': 'bar', 'type': str(AttrTypeStr), 'is_mandatory': True},
+                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True, 'id': attrbase.id, 'row_index': '1'},
+                {'name': 'bar', 'type': str(AttrTypeStr), 'is_mandatory': True, 'row_index': '2'},
             ],
         }
         resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
@@ -242,6 +254,7 @@ class ViewTest(AironeViewTest):
                 'type': str(AttrTypeObj),
                 'ref_id': entity.id,
                 'is_mandatory': True,
+                'row_index': '1',
                 'id': attr.id
             }],
         }
@@ -274,6 +287,7 @@ class ViewTest(AironeViewTest):
                 'name': 'baz',
                 'type': str(AttrTypeStr),
                 'is_mandatory': True,
+                'row_index': '1',
                 'id': attrbase.id
             }],
         }
@@ -309,6 +323,7 @@ class ViewTest(AironeViewTest):
                 'type': str(AttrTypeArrObj),
                 'ref_id': entity.id,
                 'is_mandatory': True,
+                'row_index': '1',
                 'id': attr.id
             }],
         }
@@ -327,7 +342,7 @@ class ViewTest(AironeViewTest):
             'name': 'hoge',
             'note': 'fuga',
             'attrs': [
-                {'name': 'a', 'type': str(AttrTypeObj), 'is_mandatory': False},
+                {'name': 'a', 'type': str(AttrTypeObj), 'is_mandatory': False, 'row_index': '1'},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -346,8 +361,8 @@ class ViewTest(AironeViewTest):
             'name': 'hoge',
             'note': 'fuga',
             'attrs': [
-                {'name': 'a', 'type': str(AttrTypeObj), 'ref_id': entity.id, 'is_mandatory': False},
-                {'name': 'b', 'type': str(AttrTypeArrObj), 'ref_id': entity.id, 'is_mandatory': False},
+                {'name': 'a', 'type': str(AttrTypeObj), 'ref_id': entity.id, 'is_mandatory': False, 'row_index': '1'},
+                {'name': 'b', 'type': str(AttrTypeArrObj), 'ref_id': entity.id, 'is_mandatory': False, 'row_index': '2'},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -380,9 +395,9 @@ class ViewTest(AironeViewTest):
             'note': 'hoge',
             'attrs': [
                 {'name': 'foo', 'type': str(AttrTypeStr), 'id': entity.attrs.first().id,
-                 'is_mandatory': False},
+                 'is_mandatory': False, 'row_index': '1'},
                 {'name': 'bar', 'type': str(AttrTypeStr), 'id': entity.attrs.last().id,
-                 'is_mandatory': False, 'deleted': True},
+                 'is_mandatory': False, 'deleted': True, 'row_index': '2'},
             ],
         }
         resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),

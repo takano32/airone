@@ -6,9 +6,28 @@ var toggle_referral = function() {
   }
 }
 
+// This function update index of row for sorting them
+var update_row_index = function() {
+  $('#sortdata').find(".attr:not([deleted='true'])").each(function(index) {
+    $(this).find('.row_index').val(index + 1);
+  });
+}
+
+var del_attr = function() {
+  var parent = $(this).parents(".attr");
+  if(parent.attr('attr_id')) {
+    parent.attr('deleted', true);
+    parent.hide();
+  } else {
+    parent.remove();
+  }
+
+  // Re-sort row indexes
+  update_row_index();
+}
+
 $('button[name=add_attr]').on('click', function() {
   append_attr_column();
-  bind_del_attr();
   return false;
 });
 
@@ -19,6 +38,7 @@ $('form').submit(function(){
       'type': $(this).find('.attr_type').val(),
       'is_mandatory': $(this).find('.is_mandatory:checked').val() != undefined ? true : false,
       'ref_id': $(this).find('.attr_referral').val(),
+      'row_index': $(this).find('.row_index').val(),
     };
     if($(this).attr('attr_id')) {
       ret['id'] = $(this).attr('attr_id');
@@ -41,12 +61,16 @@ var append_attr_column = function() {
 
   new_column.append($.parseHTML(table_column));
   new_column.find('.attr_type').on('change', toggle_referral);
+  new_column.find('button[name=del_attr]').on('click', del_attr);
 
   $('[name=attributes]').append(new_column);
+
+  // Re-sort row indexes
+  update_row_index();
 }
 
 
-var bind_del_attr = function() {
+var bind_del_attr = function(column) {
   $("button[name=del_attr]").on('click', function() {
     var parent = $(this).parents(".attr");
     if(parent.attr('attr_id')) {
@@ -55,7 +79,13 @@ var bind_del_attr = function() {
     } else {
       parent.remove();
     }
+
+    // Re-sort row indexes
+    update_row_index();
   });
 };
 
-bind_del_attr();
+$('#sortdata').sortable();
+
+$('#sortdata').on('sortstop', update_row_index);
+$("button[name=del_attr]").on('click', del_attr);

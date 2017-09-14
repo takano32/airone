@@ -62,7 +62,7 @@ def edit(request, entity_id):
     query = Q(is_active=True) # active entity should be displayed
     attrs = [] # EntityAttrs of entity to be editted
 
-    for attr_base in entity.attrs.all():
+    for attr_base in entity.attrs.order_by('index').all():
         # skip not-writable EntityAttr
         if not user.has_permission(attr_base, 'writable'):
             continue
@@ -91,7 +91,10 @@ def edit(request, entity_id):
         {'name': 'type', 'type': str, 'checker': lambda x: (
             any([y == int(x['type']) for y in AttrTypes])
         )},
-        {'name': 'is_mandatory', 'type': bool}
+        {'name': 'is_mandatory', 'type': bool},
+        {'name': 'row_index', 'type': str, 'checker': lambda x: (
+            re.match(r"^[0-9]*$", x['row_index'])
+        )}
     ]}
 ])
 @check_permission(Entity, 'writable')
@@ -120,6 +123,7 @@ def do_edit(request, entity_id, recv_data):
             attr_base.name = attr['name']
             attr_base.type = attr['type']
             attr_base.is_mandatory = attr['is_mandatory']
+            attr_base.index = int(attr['row_index'])
 
             if 'deleted' in attr:
                 is_deleted = True
@@ -129,6 +133,7 @@ def do_edit(request, entity_id, recv_data):
             attr_base = EntityAttr(name=attr['name'],
                                       type=int(attr['type']),
                                       is_mandatory=attr['is_mandatory'],
+                                      index=int(attr['row_index']),
                                       created_user=user,
                                       parent_entity=entity)
 
@@ -172,8 +177,11 @@ def do_edit(request, entity_id, recv_data):
         {'name': 'type', 'type': str, 'checker': lambda x: (
             any([y == int(x['type']) for y in AttrTypes])
         )},
-        {'name': 'is_mandatory', 'type': bool}
-    ]}
+        {'name': 'is_mandatory', 'type': bool},
+        {'name': 'row_index', 'type': str, 'checker': lambda x: (
+            re.match(r"^[0-9]*$", x['row_index'])
+        )}
+    ]},
 ])
 def do_create(request, recv_data):
     # get user object that current access
@@ -194,7 +202,8 @@ def do_create(request, recv_data):
                                   type=int(attr['type']),
                                   is_mandatory=attr['is_mandatory'],
                                   created_user=user,
-                                  parent_entity=entity)
+                                  parent_entity=entity,
+                                  index=int(attr['row_index']))
 
         if int(attr['type']) & AttrTypeValue['object']:
             attr_base.referral = Entity.objects.get(id=attr['ref_id'])

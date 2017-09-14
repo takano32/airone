@@ -111,6 +111,10 @@ def do_create(request, entity_id, recv_data):
     user = User.objects.get(id=request.user.id)
     entity = Entity.objects.get(id=entity_id)
 
+    # checks that a same name entry corresponding to the entity is existed, or not.
+    if Entry.objects.filter(schema=entity_id, name=recv_data['entry_name']).count():
+        return HttpResponse('Duplicate name entry is existed', status=400)
+
     # Create a new Entry object
     entry = Entry(name=recv_data['entry_name'],
                   created_user=user,
@@ -207,6 +211,12 @@ def edit(request, entry_id):
 @check_permission(Entry, 'writable')
 def do_edit(request, entry_id, recv_data):
     user = User.objects.get(id=request.user.id)
+    entry = Entry.objects.get(id=entry_id)
+
+    # checks that a same name entry corresponding to the entity is existed.
+    query = Q(schema=entry.schema, name=recv_data['entry_name']) & ~Q(id=entry.id)
+    if Entry.objects.filter(query).count():
+        return HttpResponse('Duplicate name entry is existed', status=400)
 
     # Checks specified value exceeds the limit of AttributeValue
     if any([any([len(str(y).encode('utf-8')) > AttributeValue.MAXIMUM_VALUE_SIZE
@@ -215,7 +225,8 @@ def do_edit(request, entry_id, recv_data):
         return HttpResponse('Passed value is exceeded the limit', status=400)
 
     # update name of Entry object
-    Entry.objects.filter(id=entry_id).update(name=recv_data['entry_name'])
+    entry.name = recv_data['entry_name']
+    entry.save()
 
     for info in recv_data['attrs']:
         attr = Attribute.objects.get(id=info['id'])

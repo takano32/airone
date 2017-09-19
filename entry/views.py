@@ -19,7 +19,7 @@ from user.models import User
 
 def _get_latest_attributes(self, user):
     ret_attrs = []
-    for attr in [x for x in self.attrs.all() if user.has_permission(x, 'readable')]:
+    for attr in [x for x in self.attrs.order_by('index').all() if user.has_permission(x, 'readable')]:
         attrinfo = {}
 
         attrinfo['id'] = attr.id
@@ -89,7 +89,7 @@ def create(request, entity_id):
             'name': x.name,
             'is_mandatory': x.is_mandatory,
             'referrals': x.referral and Entry.objects.filter(schema=x.referral,is_active=True) or [],
-        } for x in entity.attrs.all() if user.has_permission(x, 'writable')]
+        } for x in entity.attrs.order_by('index').all() if user.has_permission(x, 'writable')]
     }
     return render(request, 'create_entry.html', context)
 
@@ -310,7 +310,7 @@ def show(request, entry_id):
         'attr_referral': attr_value.referral,
         'created_time': attr_value.created_time,
         'created_user': attr_value.created_user.username,
-    } for attr_value in attr.values.all()] for attr in entry.attrs.all() if user.has_permission(attr, 'readable')], [])
+    } for attr_value in attr.values.all()] for attr in entry.attrs.order_by('index').all() if user.has_permission(attr, 'readable')], [])
 
     context = {
         'entry': entry,

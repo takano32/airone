@@ -8,6 +8,7 @@ class AttributeBase(ACLBase):
     type = models.IntegerField(default=0)
     is_mandatory = models.BooleanField(default=False)
     referral = models.ForeignKey(ACLBase, null=True, related_name='referred_attr_base')
+    index = models.IntegerField(default=0)
 
 class EntityAttr(AttributeBase):
     # This parameter is needed to make a relationship to the corresponding Entity at importing

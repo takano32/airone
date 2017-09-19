@@ -38,8 +38,9 @@
             <th>必須</th>
             <th></th>
           </thead>
-          <tbody name="attributes">
+          <tbody name="attributes" id='sortdata'>
             <tr class="attr">
+              <input type='hidden' class="row_index" value='1' />
               <td><input type="text" class="attr_name" /></td>
               <td>
                 <select class="attr_type">
@@ -92,6 +93,7 @@
               <td>
                 <button type="button" class="btn btn-danger btn-sm" name="del_attr">del</button>
               </td>
+              <input type='hidden' class="row_index" />
             </tr>
           </tfoot>
         </table>

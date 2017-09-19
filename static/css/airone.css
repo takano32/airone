@@ -24,3 +24,8 @@ body {
 .airone-breadcrumb {
     border-radius: 0;
 }
+
+/* This is a configuration for the page of create/edit Entity */
+#sortdata tr {
+    cursor: pointer;
+}

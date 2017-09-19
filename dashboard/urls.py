@@ -9,4 +9,5 @@ urlpatterns = [
     url(r'^logout/$', auth_views.logout, {'template_name': 'logout.html'}, name='logout'),
     url(r'^import/$', views.import_data, name='import'),
     url(r'^do_import/$', views.do_import_data, name='do_import'),
+    url(r'^search/$', views.search, name='search'),
 ]

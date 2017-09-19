@@ -32,6 +32,21 @@ class AttributeValue(models.Model):
     def get_status(self, val):
         return self.status & val
 
+    @classmethod
+    def search(kls, query):
+        results = []
+        for obj in kls.objects.filter(value__icontains=query):
+            attr = obj.parent_attr
+            entry = attr.parent_entry
+
+            results.append({
+                'type': entry.__class__.__name__,
+                'object': entry,
+                'hint': "attribute '%s' has '%s'" % (attr.name, obj.value)
+            })
+
+        return results
+
 class Attribute(AttributeBase):
     values = models.ManyToManyField(AttributeValue)
 

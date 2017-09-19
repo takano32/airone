@@ -6,11 +6,12 @@ from airone.lib.http import render
 from airone.lib.http import http_get
 from airone.lib.http import http_file_upload
 from airone.lib.http import HttpResponseSeeOther
-from user.models import User
+from django.http import HttpResponse
 from entity.admin import EntityResource, EntityAttrResource
 from entry.admin import EntryResource, AttrResource, AttrValueResource
-from entity.models import Entity, AttributeBase
+from entity.models import Entity
 from entry.models import Entry, Attribute, AttributeValue
+from user.models import User
 
 IMPORT_INFOS = [
     {'model': 'Entity', 'resource': EntityResource},
@@ -57,3 +58,16 @@ def do_import_data(request, context):
             _do_import(info['resource'], data[info['model']])
 
     return HttpResponseSeeOther('/dashboard/')
+
+@http_get
+def search(request):
+    results = []
+    target_models = [Entry, AttributeValue]
+
+    query = request.GET.get('query')
+    if not query:
+        return HttpResponse("Invalid query parameter is specified", status=400)
+
+    return render(request, 'show_search_results.html', {
+        'results': sum([x.search(query) for x in target_models], [])
+    })

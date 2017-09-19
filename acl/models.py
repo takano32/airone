@@ -86,3 +86,15 @@ class ACLBase(models.Model):
 
     def is_same_object(self, comp):
         return all([self[x] == comp[x] for x in self._IMPORT_INFO['header']])
+
+    @classmethod
+    def search(kls, query):
+        results = []
+        for obj in kls.objects.filter(name__icontains=query):
+            results.append({
+                'type': kls.__name__,
+                'object': obj,
+                'hint': kls.__name__,
+            })
+
+        return results

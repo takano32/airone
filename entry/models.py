@@ -51,6 +51,7 @@ class Attribute(AttributeBase):
         self.type = base.type
         self.referral = base.referral
         self.is_mandatory = base.is_mandatory
+        self.index = base.index
 
         self.save()
 
@@ -147,6 +148,7 @@ class Entry(ACLBase):
                                         is_mandatory=base.is_mandatory,
                                         referral=base.referral,
                                         schema_id=base.id,
+                                        index=base.index,
                                         created_user=user,
                                         parent_entry=self)
 

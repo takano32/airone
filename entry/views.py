@@ -166,7 +166,14 @@ def do_create(request, entity_id, recv_data):
                     _attr_value = AttributeValue.objects.create(created_user=user,
                                                                 parent_attr=attr,
                                                                 referral=referral)
+
+                    # Set a flag that means this is the latest value
+                    _attr_value.set_status(AttributeValue.STATUS_LATEST)
+
                     attr_value.data_array.add(_attr_value)
+
+            # Set a flag that means this is the latest value
+            attr_value.set_status(AttributeValue.STATUS_LATEST)
 
             attr_value.save()
 
@@ -240,8 +247,21 @@ def do_edit(request, entry_id, recv_data):
 
         # Check a new update value is specified, or not
         if attr.is_updated(info['value']):
+
+            # Clear the flag that means target AttrValues are latet from the Values
+            # that are already created.
+            for old_value in attr.values.all():
+                old_value.del_status(AttributeValue.STATUS_LATEST)
+
+                if attr.type & AttrTypeValue['array']:
+                    # also clear the latest flags on the values in data_array
+                    [x.del_status(AttributeValue.STATUS_LATEST) for x in old_value.data_array.all()]
+
             # Add a new AttributeValue object only at updating value
             attr_value = AttributeValue.objects.create(created_user=user, parent_attr=attr)
+
+            # Set a flag that means this is the latest value
+            attr_value.set_status(AttributeValue.STATUS_LATEST)
 
             # set attribute value according to the attribute-type
             if attr.type == AttrTypeStr or attr.type == AttrTypeText:
@@ -270,6 +290,9 @@ def do_edit(request, entry_id, recv_data):
                         attrv.value = value
                     elif attr.type == AttrTypeArrObj:
                         attrv.referral = Entry.objects.get(id=value)
+
+                    # Set a flag that means this is the latest value
+                    attrv.set_status(AttributeValue.STATUS_LATEST)
 
                     attrv.save()
                     attr_value.data_array.add(attrv)
@@ -316,6 +339,7 @@ def show(request, entry_id):
         'entry': entry,
         'attributes': _get_latest_attributes(entry, user),
         'value_history': sorted(value_history, key=lambda x: x['created_time']),
+        'referred_objects': entry.get_referred_objects(),
     }
     return render(request, 'show_entry.html', context)
 

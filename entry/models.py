@@ -11,6 +11,7 @@ from airone.lib.types import AttrTypeValue
 class AttributeValue(models.Model):
     # This is a constant that indicates target object binds multiple AttributeValue objects.
     STATUS_DATA_ARRAY_PARENT = 1 << 0
+    STATUS_LATEST = 1 << 1
     MAXIMUM_VALUE_SIZE = (1 << 16)
 
     value = models.TextField()
@@ -143,6 +144,12 @@ class Attribute(AttributeBase):
 
         return []
 
+    def get_latest_value(self):
+        if self.type & AttrTypeValue['array']:
+            return self.values.extra(where=['status & 1 = 1']).order_by('created_time').last()
+        else:
+            return self.values.extra(where=['status & 1 = 0']).order_by('created_time').last()
+
 class Entry(ACLBase):
     attrs = models.ManyToManyField(Attribute)
     schema = models.ForeignKey(Entity)
@@ -180,3 +187,18 @@ class Entry(ACLBase):
 
         self.attrs.add(attr)
         return attr
+
+    def get_referred_objects(self):
+        """
+        This returns objects that refer current Entry in the AttributeValue
+        """
+        ret = []
+        for attrvalue in AttributeValue.objects.filter(referral=self):
+            if not attrvalue.get_status(AttributeValue.STATUS_LATEST):
+                continue
+
+            referred_obj = attrvalue.parent_attr.parent_entry
+            if referred_obj not in ret and referred_obj != self:
+                ret.append(referred_obj)
+
+        return ret

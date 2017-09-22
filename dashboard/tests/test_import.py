@@ -171,6 +171,14 @@ class ImportTest(AironeViewTest):
         self.assertTrue(attr_value.status & AttributeValue.STATUS_DATA_ARRAY_PARENT)
         self.assertEqual(attr_value.data_array.count(), 2)
 
+        # checks latest flags are correctly set for each AttributeValues
+        # - 1 is the latest value of attr 'attr-str'
+        # - 1 is the latest value of attr 'attr-obj'
+        # - 3 is the latest value of attr 'attr-arr-str'
+        # - 3 is the latest value of attr 'attr-arr-obj'
+        self.assertEqual(AttributeValue.objects.extra(where=['status & 2 = 2']).count(),
+                         1 + 1 + 3 + 3)
+
     def test_import_entry_without_mandatory_values(self):
         user = self.admin_login()
         warns = []

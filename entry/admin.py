@@ -68,6 +68,18 @@ class AttrValueResource(AironeModelResource):
                     # append related AttributeValue if it's not existed
                     attr_value.data_array.add(AttributeValue.objects.get(id=child_id))
 
+        # set latest status for each attributes
+        for attr in Attribute.objects.all():
+            # first of all, clear the latest flag for each values
+            [x.del_status(AttributeValue.STATUS_LATEST) for x in attr.values.all()]
+
+            # reset latest status flag
+            latest_value = attr.get_latest_value()
+
+            latest_value.set_status(AttributeValue.STATUS_LATEST)
+            if latest_value.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT):
+                [v.set_status(AttributeValue.STATUS_LATEST) for v in latest_value.data_array.all()]
+
 class AttrResource(AironeModelResource):
     _IMPORT_INFO = {
         'header': ['id', 'name', 'schema_id', 'entry_id', 'created_user',

@@ -203,7 +203,10 @@ class ViewTest(AironeViewTest):
         self.assertEqual(entry.attrs.count(), 1)
         self.assertEqual(entry.attrs.last(), Attribute.objects.last())
         self.assertEqual(entry.attrs.last().values.count(), 1)
-        self.assertEqual(entry.attrs.last().values.last(), AttributeValue.objects.last())
+
+        attrvalue = AttributeValue.objects.last()
+        self.assertEqual(entry.attrs.last().values.last(), attrvalue)
+        self.assertTrue(attrvalue.get_status(AttributeValue.STATUS_LATEST))
 
     def test_post_create_entry_without_permission(self):
         self.admin_login()
@@ -453,6 +456,7 @@ class ViewTest(AironeViewTest):
             attr.save()
 
             attr_value = AttributeValue(value='hoge', created_user=user, parent_attr=attr)
+            attr_value.set_status(AttributeValue.STATUS_LATEST)
             attr_value.save()
 
             attr.values.add(attr_value)
@@ -476,6 +480,15 @@ class ViewTest(AironeViewTest):
         self.assertEqual(Attribute.objects.get(name='foo').values.last().value, 'hoge')
         self.assertEqual(Attribute.objects.get(name='bar').values.last().value, 'fuga')
         self.assertEqual(Entry.objects.get(id=entry.id).name, 'hoge')
+
+        # checks to set corrected status-flag
+        foo_value_first = Attribute.objects.get(name='foo').values.first()
+        bar_value_first = Attribute.objects.get(name='bar').values.first()
+        bar_value_last = Attribute.objects.get(name='bar').values.last()
+
+        self.assertTrue(foo_value_first.get_status(AttributeValue.STATUS_LATEST))
+        self.assertFalse(bar_value_first.get_status(AttributeValue.STATUS_LATEST))
+        self.assertTrue(bar_value_last.get_status(AttributeValue.STATUS_LATEST))
 
     def test_post_edit_with_optional_params(self):
         user = self.admin_login()
@@ -548,10 +561,16 @@ class ViewTest(AironeViewTest):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 200)
-        # status=0 means leaf value
-        self.assertEqual(AttributeValue.objects.filter(status=0).count(), 3)
-        # status=1 means parent value
-        self.assertEqual(AttributeValue.objects.filter(status=1).count(), 2)
+
+        # checks to set correct status flags
+        leaf_values = [x for x in AttributeValue.objects.all()
+                       if not x.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)]
+
+        parent_values = [x for x in AttributeValue.objects.all()
+                         if x.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)]
+        self.assertEqual(len(leaf_values), 3)
+        self.assertEqual(len(parent_values), 2)
+
         self.assertEqual(attr.values.count(), 2)
         self.assertTrue(attr.values.last().status & AttributeValue.STATUS_DATA_ARRAY_PARENT)
 
@@ -599,10 +618,16 @@ class ViewTest(AironeViewTest):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 200)
-        # status=0 means leaf value
-        self.assertEqual(AttributeValue.objects.filter(status=0).count(), 3)
-        # status=1 means parent value
-        self.assertEqual(AttributeValue.objects.filter(status=1).count(), 2)
+
+        # checks to set correct status flags
+        leaf_values = [x for x in AttributeValue.objects.all()
+                       if not x.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)]
+
+        parent_values = [x for x in AttributeValue.objects.all()
+                         if x.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)]
+        self.assertEqual(len(leaf_values), 3)
+        self.assertEqual(len(parent_values), 2)
+
         self.assertEqual(attr.values.count(), 2)
         self.assertTrue(attr.values.last().status & AttributeValue.STATUS_DATA_ARRAY_PARENT)
 

@@ -65,6 +65,20 @@
     </div>
   </div>
 
+  {% if referred_objects %}
+  <div class="row" id='referred_objects'>
+    <div class="col">
+      <hr/>
+      <h3>参照オブジェクトの一覧</h3>
+      <div class='list-group'>
+        {% for object in referred_objects %}
+        <a class="list-group-item" href="/entry/show/{{ object.id }}">{{ object.name }} ({{ object.schema.name }})</a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <div class="row">
     <div class="col">
       <hr/>

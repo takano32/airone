@@ -1,8 +1,8 @@
 Entity:
-- {created_user: admin, id: 1, name: entity1, note: ''}
+- {created_user: admin, id: 1, name: entity1, note: '', status: 0}
 # This includes unnecessary parameter 'invalid_param'
-- {created_user: admin, id: 2, name: entity2, note: '', invalid_param: bbb}
-- {created_user: admin, id: 3, name: entity, note: note1}
+- {created_user: admin, id: 2, name: entity2, note: '', invalid_param: bbb, status: 0}
+- {created_user: admin, id: 3, name: entity, note: note1, status: 0}
 
 EntityAttr:
 - {created_user: admin, entity: entity, is_mandatory: '0', name: attr-str, refer: '',

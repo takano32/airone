@@ -1,7 +1,7 @@
 Entity:
-- {created_user: admin, id: 1, name: entity1, note: ''}
-- {created_user: admin, id: 2, name: entity2, note: ''}
-- {created_user: admin, id: 3, name: entity, note: note1}
+- {created_user: admin, id: 1, name: entity1, note: '', status: 0}
+- {created_user: admin, id: 2, name: entity2, note: '', status: 0}
+- {created_user: admin, id: 3, name: entity, note: note1, status: 1}
 
 EntityAttr:
 - {created_user: admin, entity: entity, is_mandatory: '0', name: attr-str, refer: '',

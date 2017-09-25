@@ -84,6 +84,7 @@ def edit(request, entity_id):
 @http_post([
     {'name': 'name', 'type': str, 'checker': lambda x: x['name']},
     {'name': 'note', 'type': str},
+    {'name': 'is_toplevel', 'type': bool},
     {'name': 'attrs', 'type': list, 'meta': [
         {'name': 'name', 'type': str, 'checker': lambda x: (
             x['name'] and not re.match(r'^\s*$', x['name'])
@@ -105,6 +106,12 @@ def do_edit(request, entity_id, recv_data):
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     entity = Entity.objects.get(id=entity_id)
+
+    # update status parameters
+    if recv_data['is_toplevel']:
+        entity.set_status(Entity.STATUS_TOP_LEVEL)
+    else:
+        entity.del_status(Entity.STATUS_TOP_LEVEL)
 
     entity.name = recv_data['name']
     entity.note = recv_data['note']
@@ -170,6 +177,7 @@ def do_edit(request, entity_id, recv_data):
         x['name'] and not Entity.objects.filter(name=x['name']).count()
     )},
     {'name': 'note', 'type': str},
+    {'name': 'is_toplevel', 'type': bool},
     {'name': 'attrs', 'type': list, 'meta': [
         {'name': 'name', 'type': str, 'checker': lambda x: (
             x['name'] and not re.match(r'^\s*$', x['name'])
@@ -191,6 +199,11 @@ def do_create(request, recv_data):
     entity = Entity(name=recv_data['name'],
                     note=recv_data['note'],
                     created_user=user)
+
+    # set status parameters
+    if recv_data['is_toplevel']:
+        entity.set_status(Entity.STATUS_TOP_LEVEL)
+
     entity.save()
 
     for attr in recv_data['attrs']:

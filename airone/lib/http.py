@@ -111,6 +111,10 @@ def render(request, template, context={}):
         context['attr_type'][attr_type.NAME] = attr_type.TYPE
     context['attr_type_value'] = AttrTypeValue
 
+    # set Construct for Entity status
+    context['STATUS_ENTITY'] = {}
+    context['STATUS_ENTITY']['TOP_LEVEL'] = entity_models.Entity.STATUS_TOP_LEVEL
+
     return django_render(request, template, context)
 
 def get_download_response(io_stream, fname):

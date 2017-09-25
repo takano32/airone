@@ -1,5 +1,5 @@
 Entity:
-- {created_user: admin, id: 1, name: Entity1, note: ''}
+- {created_user: admin, id: 1, name: Entity1, note: '', status: 1}
 
 Entry:
 - {created_user: admin, entity: Entity1, id: 2, name: entry1}

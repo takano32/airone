@@ -33,9 +33,21 @@ class ACLBase(models.Model):
     is_public = models.BooleanField(default=True)
     created_user = models.ForeignKey(User)
     is_active = models.BooleanField(default=True)
+    status = models.IntegerField(default=0)
 
     # This fields describes the sub-class of this object
     objtype = models.IntegerField(default=0)
+
+    def set_status(self, val):
+        self.status |= val
+        self.save()
+
+    def del_status(self, val):
+        self.status &= ~val
+        self.save()
+
+    def get_status(self, val):
+        return self.status & val
 
     def save(self, *args, **kwargs):
         super(ACLBase, self).save(*args, **kwargs)

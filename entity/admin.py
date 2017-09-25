@@ -12,13 +12,13 @@ admin.site.register(Entity)
 
 class EntityResource(AironeModelResource):
     _IMPORT_INFO = {
-        'header':               ['id', 'name', 'note', 'created_user'],
+        'header':               ['id', 'name', 'note', 'created_user', 'status'],
         'mandatory_keys':       ['name', 'created_user'],
         'resource_module':      'entity.admin',
         'resource_model_name':  'EntityResource',
     }
 
-    COMPARING_KEYS = ['name', 'note', 'created_user']
+    COMPARING_KEYS = ['name', 'note', 'created_user', 'status']
     DISALLOW_UPDATE_KEYS = ['created_user']
 
     user = fields.Field(column_name='created_user', attribute='created_user',
@@ -26,7 +26,7 @@ class EntityResource(AironeModelResource):
 
     class Meta:
         model = Entity
-        fields = ('id', 'name', 'note')
+        fields = ('id', 'name', 'note', 'status')
         export_order = ('id', 'name', 'note', 'user')
 
 class EntityAttrResource(AironeModelResource):

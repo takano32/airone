@@ -30,6 +30,11 @@ class ImportTest(AironeViewTest):
         # checks contains required attributes (for Entity)
         entity = Entity.objects.get(name='entity')
         self.assertEqual(entity.note, 'note1')
+        self.assertTrue(entity.status & Entity.STATUS_TOP_LEVEL)
+
+        entity1 = Entity.objects.get(name='entity1')
+        self.assertEqual(entity1.note, '')
+        self.assertFalse(entity1.status & Entity.STATUS_TOP_LEVEL)
 
         # checks contains required attributes (for EntityAttr)
         self.assertEqual(entity.attrs.count(), 4)

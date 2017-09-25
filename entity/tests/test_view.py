@@ -63,6 +63,7 @@ class ViewTest(AironeViewTest):
         params = {
             'name': 'hoge',
             'note': 'fuga',
+            'is_toplevel': True,
             'attrs': [
                 {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True, 'row_index': '1'},
                 {'name': 'bar', 'type': str(AttrTypeText), 'is_mandatory': True, 'row_index': '2'},
@@ -74,7 +75,13 @@ class ViewTest(AironeViewTest):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 303)
-        self.assertEqual(Entity.objects.first().name, 'hoge')
+
+        # tests for Entity object
+        entity = Entity.objects.first()
+        self.assertEqual(entity.name, 'hoge')
+        self.assertTrue(entity.status & Entity.STATUS_TOP_LEVEL)
+
+        # tests for EntityAttribute objects
         self.assertEqual(len(EntityAttr.objects.all()), 3)
 
     def test_create_post_without_name_param(self):
@@ -82,6 +89,7 @@ class ViewTest(AironeViewTest):
 
         params = {
             'note': 'fuga',
+            'is_toplevel': False,
             'attrs': [
                 {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True, 'row_index': '1'},
                 {'name': 'bar', 'type': str(AttrTypeStr), 'is_mandatory': False, 'row_index': '2'},
@@ -100,6 +108,7 @@ class ViewTest(AironeViewTest):
         params = {
             'name': 'hoge',
             'note': 'fuga',
+            'is_toplevel': False,
             'attrs': [
                 {'name': '', 'type': str(AttrTypeStr), 'is_mandatory': True, 'row_index': '1'},
             ],
@@ -113,6 +122,7 @@ class ViewTest(AironeViewTest):
         params = {
             'name': 'hoge',
             'note': 'fuga',
+            'is_toplevel': False,
             'attrs': [
                 {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True, 'row_index': 'abcd'},
             ],
@@ -130,6 +140,7 @@ class ViewTest(AironeViewTest):
         params = {
             'name': 'hoge',
             'note': 'fuga',
+            'is_toplevel': False,
             'attrs': 'puyo',
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -169,6 +180,7 @@ class ViewTest(AironeViewTest):
         params = {
             'name': 'hoge',
             'note': 'fuga',
+            'is_toplevel': False,
             'attrs': [
                 {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True, 'row_index': '1'},
             ],
@@ -192,6 +204,7 @@ class ViewTest(AironeViewTest):
         params = {
             'name': 'foo',
             'note': 'bar',
+            'is_toplevel': True,
             'attrs': [
                 {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True, 'id': attr.id, 'row_index': '1'},
                 {'name': 'bar', 'type': str(AttrTypeStr), 'is_mandatory': True, 'row_index': '2'},
@@ -206,6 +219,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(Entity.objects.get(id=entity.id).attrs.count(), 2)
         self.assertEqual(Entity.objects.get(id=entity.id).attrs.get(id=attr.id).name, 'foo')
         self.assertEqual(Entity.objects.get(id=entity.id).attrs.last().name, 'bar')
+        self.assertTrue(Entity.objects.get(id=entity.id).status & Entity.STATUS_TOP_LEVEL)
 
     def test_post_edit_after_creating_entry(self):
         user = self.admin_login()
@@ -224,6 +238,7 @@ class ViewTest(AironeViewTest):
         params = {
             'name': 'foo',
             'note': 'bar',
+            'is_toplevel': False,
             'attrs': [
                 {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True, 'id': attrbase.id, 'row_index': '1'},
                 {'name': 'bar', 'type': str(AttrTypeStr), 'is_mandatory': True, 'row_index': '2'},
@@ -249,6 +264,7 @@ class ViewTest(AironeViewTest):
         params = {
             'name': 'foo',
             'note': 'bar',
+            'is_toplevel': False,
             'attrs': [{
                 'name': 'baz',
                 'type': str(AttrTypeObj),
@@ -283,6 +299,7 @@ class ViewTest(AironeViewTest):
         params = {
             'name': 'foo',
             'note': 'bar',
+            'is_toplevel': False,
             'attrs': [{
                 'name': 'baz',
                 'type': str(AttrTypeStr),
@@ -318,6 +335,7 @@ class ViewTest(AironeViewTest):
         params = {
             'name': 'foo',
             'note': 'bar',
+            'is_toplevel': False,
             'attrs': [{
                 'name': 'baz',
                 'type': str(AttrTypeArrObj),
@@ -341,6 +359,7 @@ class ViewTest(AironeViewTest):
         params = {
             'name': 'hoge',
             'note': 'fuga',
+            'is_toplevel': False,
             'attrs': [
                 {'name': 'a', 'type': str(AttrTypeObj), 'is_mandatory': False, 'row_index': '1'},
             ],
@@ -360,6 +379,7 @@ class ViewTest(AironeViewTest):
         params = {
             'name': 'hoge',
             'note': 'fuga',
+            'is_toplevel': False,
             'attrs': [
                 {'name': 'a', 'type': str(AttrTypeObj), 'ref_id': entity.id, 'is_mandatory': False, 'row_index': '1'},
                 {'name': 'b', 'type': str(AttrTypeArrObj), 'ref_id': entity.id, 'is_mandatory': False, 'row_index': '2'},
@@ -393,6 +413,7 @@ class ViewTest(AironeViewTest):
         params = {
             'name': 'new-entity',
             'note': 'hoge',
+            'is_toplevel': False,
             'attrs': [
                 {'name': 'foo', 'type': str(AttrTypeStr), 'id': entity.attrs.first().id,
                  'is_mandatory': False, 'row_index': '1'},

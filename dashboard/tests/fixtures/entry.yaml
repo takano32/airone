@@ -1,7 +1,7 @@
 Entity:
-- {created_user: admin, id: 1, name: Entity1, note: ''}
-- {created_user: admin, id: 2, name: Entity2, note: ''}
-- {created_user: admin, id: 3, name: Server, note: note of Server}
+- {created_user: admin, id: 1, name: Entity1, note: '', status: 0}
+- {created_user: admin, id: 2, name: Entity2, note: '', status: 0}
+- {created_user: admin, id: 3, name: Server, note: note of Server, status: 1}
 
 Entry:
 - {created_user: admin, entity: Entity1, id: 8, name: entry11}

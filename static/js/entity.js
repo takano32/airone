@@ -32,24 +32,27 @@ $('button[name=add_attr]').on('click', function() {
 });
 
 $('form').submit(function(){
-  var attrs = $('.attr').map(function(index, elem){
-    var ret = {
-      'name': $(this).find('.attr_name').val(),
-      'type': $(this).find('.attr_type').val(),
-      'is_mandatory': $(this).find('.is_mandatory:checked').val() != undefined ? true : false,
-      'ref_id': $(this).find('.attr_referral').val(),
-      'row_index': $(this).find('.row_index').val(),
-    };
-    if($(this).attr('attr_id')) {
-      ret['id'] = $(this).attr('attr_id');
-      if($(this).attr('deleted')) {
-        ret['deleted'] = true;
+  var post_data = {
+    'attrs': $('.attr').map(function(index, elem){
+      var ret = {
+        'name': $(this).find('.attr_name').val(),
+        'type': $(this).find('.attr_type').val(),
+        'is_mandatory': $(this).find('.is_mandatory:checked').val() != undefined ? true : false,
+        'ref_id': $(this).find('.attr_referral').val(),
+        'row_index': $(this).find('.row_index').val(),
+      };
+      if($(this).attr('attr_id')) {
+        ret['id'] = $(this).attr('attr_id');
+        if($(this).attr('deleted')) {
+          ret['deleted'] = true;
+        }
       }
-    }
-    return ret;
-  });
+      return ret;
+    }).get(),
+    'is_toplevel': $('input[name=is_toplevel]').is(':checked')
+  };
 
-  HttpPost($(this), {'attrs': attrs.get()});
+  HttpPost($(this), post_data);
 
   return false;
 });

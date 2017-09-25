@@ -19,6 +19,8 @@ class EntityAttr(AttributeBase):
         self.objtype = ACLObjType.EntityAttr
 
 class Entity(ACLBase):
+    STATUS_TOP_LEVEL = 1 << 0
+
     note = models.CharField(max_length=200)
     attrs = models.ManyToManyField(EntityAttr)
 

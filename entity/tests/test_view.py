@@ -18,6 +18,10 @@ from django.contrib.auth.models import Permission
 
 
 class ViewTest(AironeViewTest):
+    """
+    This has simple tests that check basic functionality
+    """
+
     def test_index_without_login(self):
         resp = self.client.get(reverse('entity:index'))
         self.assertEqual(resp.status_code, 303)

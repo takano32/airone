@@ -11,17 +11,77 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<style type="text/css">
+<!--
+tr:nth-child(even){
+      background:#F2F2F2;
+}
+-->
+</style>
+
+<div class="container">
   <div class="row">
+    <div class="col">
+      <p><a class="btn btn-secondary" href="/entity" role="button">エンティティ・エントリ一覧 &#x000bb;</a></p>
+    </div>
     <div class="col">
       <p><a class="btn btn-secondary" href="/user" role="button">ユーザ管理 &#x000bb;</a></p>
     </div>
     <div class="col">
       <p><a class="btn btn-secondary" href="/group" role="button">グループ管理 &#x000bb;</a></p>
     </div>
+  </div>
+  {% if last_entries %}
+  <div class="row">
     <div class="col">
-      <p><a class="btn btn-secondary" href="/entity" role="button">エンティティ・エントリ一覧 &#x000bb;</a></p>
+      <hr/>
+      <h2>変更履歴</h2>
+      <table class='table'>
+        <thead>
+          <tr>
+            <th>エントリ</th>
+            <th>更新属性</th>
+            <th></th>
+            <th>更新ユーザ</th>
+            <th>更新時刻</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for value in last_entries %}
+          <tr>
+            <td>[{{ value.schema.name }}] <a href='/entry/show/{{ value.id }}'>{{ value.name }}</td>
+            <td>{{ value.attr_name }}：</td>
+            {% if value.attr_type == attr_type.string %}
+              <td>{{ value.attr_value }}</td>
+            {% elif value.attr_type == attr_type.textarea %}
+              <td><pre>{{ value.attr_value }}</pre></td>
+            {% elif value.attr_type == attr_type.entry%}
+              <td><a href="/entry/show/{{ value.attr_referral.id}}">{{ value.attr_referral.name }}</a></td>
+            {% elif value.attr_type == attr_type.array_string %}
+              <td>
+                <ul class='list-group'>
+                  {% for co_value in value.attr_value_array %}
+                  <li class='list-group-item'>{{ co_value }}</li>
+                  {% endfor %}
+                </ul>
+              </td>
+            {% elif value.attr_type == attr_type.array_entry %}
+              <td>
+                <ul class='list-group'>
+                  {% for co_value in value.attr_value_array %}
+                  <li class='list-group-item'><a href="/entry/show/{{ co_value.id }}">{{ co_value.name }}</a></li>
+                  {% endfor %}
+                </ul>
+              </td>
+            {% endif %}
+            <td>{{ value.created_user }}</td>
+            <td>{{ value.created_time }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
+  {% endif %}
 </div>
 {% endblock %}

@@ -12,6 +12,7 @@ from entry.admin import EntryResource, AttrResource, AttrValueResource
 from entity.models import Entity
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
+from .settings import CONFIG
 
 IMPORT_INFOS = [
     {'model': 'Entity', 'resource': EntityResource},
@@ -25,7 +26,16 @@ Logger = logging.getLogger(__name__)
 
 
 def index(request):
-    return render(request, 'dashboard_user_top.html')
+    context = {}
+    if request.user.is_authenticated():
+      user = User.objects.get(id=request.user.id)
+
+      history = sorted(sum([x.get_value_history(user) for x in Entry.objects.all()], []),
+                       key=lambda x: x['created_time'], reverse=True)
+
+      context['last_entries'] = history[:CONFIG.LAST_ENTRY_HISTORY]
+
+    return render(request, 'dashboard_user_top.html', context)
 
 @http_get
 def import_data(request):

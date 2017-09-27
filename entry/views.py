@@ -314,31 +314,10 @@ def show(request, entry_id):
 
     entry = Entry.objects.get(id=entry_id)
 
-    def export_data_array(attrv):
-        attr = attrv.parent_attr
-
-        if attr.type == AttrTypeArrStr:
-            return [x.value for x in attrv.data_array.all()]
-        elif attr.type == AttrTypeArrObj:
-            return [x.referral for x in attrv.data_array.all()]
-
-        return []
-
-    # get history of Entry object
-    value_history = sum([[{
-        'attr_name': attr.name,
-        'attr_type': attr.type,
-        'attr_value': attr_value.value,
-        'attr_value_array': export_data_array(attr_value),
-        'attr_referral': attr_value.referral,
-        'created_time': attr_value.created_time,
-        'created_user': attr_value.created_user.username,
-    } for attr_value in attr.values.all()] for attr in entry.attrs.order_by('index').all() if user.has_permission(attr, 'readable')], [])
-
     context = {
         'entry': entry,
         'attributes': _get_latest_attributes(entry, user),
-        'value_history': sorted(value_history, key=lambda x: x['created_time']),
+        'value_history': sorted(entry.get_value_history(user), key=lambda x: x['created_time']),
         'referred_objects': entry.get_referred_objects(),
     }
     return render(request, 'show_entry.html', context)

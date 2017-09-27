@@ -1,5 +1,6 @@
 from airone.lib.test import AironeViewTest
 from django.urls import reverse
+from django.contrib.auth.models import User as DjangoUser
 
 from entry.models import Entry, AttributeValue
 
@@ -42,3 +43,22 @@ class ViewTest(AironeViewTest):
 
         root = ElementTree.fromstring(resp.content.decode('utf-8'))
         self.assertEquals(len(root.findall('.//table/tr')), 0)
+
+    def test_show_dashboard_with_django_user(self):
+        # create test user which is authenticated by Django, not AirOne
+        user = DjangoUser(username='django-user')
+        user.set_password('passwd')
+        user.save()
+
+        # login as the django-user
+        self.client.login(username='django-user', password='passwd')
+
+        resp = self.client.get(reverse('dashboard:index'))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_show_dashboard_with_anonymous(self):
+        # logout test-user, this means current user is Anonymous
+        self.client.logout()
+
+        resp = self.client.get(reverse('dashboard:index'))
+        self.assertEqual(resp.status_code, 200)

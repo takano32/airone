@@ -27,13 +27,13 @@ Logger = logging.getLogger(__name__)
 
 def index(request):
     context = {}
-    if request.user.is_authenticated():
-      user = User.objects.get(id=request.user.id)
+    if request.user.is_authenticated() and User.objects.filter(id=request.user.id).count():
+        user = User.objects.get(id=request.user.id)
 
-      history = sorted(sum([x.get_value_history(user) for x in Entry.objects.all()], []),
-                       key=lambda x: x['created_time'], reverse=True)
+        history = sorted(sum([x.get_value_history(user) for x in Entry.objects.all()], []),
+                         key=lambda x: x['created_time'], reverse=True)
 
-      context['last_entries'] = history[:CONFIG.LAST_ENTRY_HISTORY]
+        context['last_entries'] = history[:CONFIG.LAST_ENTRY_HISTORY]
 
     return render(request, 'dashboard_user_top.html', context)
 

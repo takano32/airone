@@ -17,7 +17,7 @@ class AttributeValue(models.Model):
     value = models.TextField()
     referral = models.ForeignKey(ACLBase, null=True, related_name='referred_attr_value')
     data_array = models.ManyToManyField('AttributeValue')
-    created_time = models.DateTimeField(auto_now=True)
+    created_time = models.DateTimeField(auto_now_add=True)
     created_user = models.ForeignKey(User)
     parent_attr = models.ForeignKey('Attribute')
     status = models.IntegerField(default=0)
@@ -202,3 +202,28 @@ class Entry(ACLBase):
                 ret.append(referred_obj)
 
         return ret
+
+    def get_value_history(self, user):
+        def export_data_array(attrv):
+            attr = attrv.parent_attr
+
+            if attr.type == AttrTypeArrStr:
+                return [x.value for x in attrv.data_array.all()]
+            elif attr.type == AttrTypeArrObj:
+                return [x.referral for x in attrv.data_array.all()]
+            return []
+
+        return sum([[{
+            'id': self.id,
+            'name': self.name,
+            'schema': self.schema,
+            'attr_name': attr.name,
+            'attr_type': attr.type,
+            'attr_value': attr_value.value,
+            'attr_value_array': export_data_array(attr_value),
+            'attr_referral': attr_value.referral,
+            'created_time': attr_value.created_time,
+            'created_user': attr_value.created_user.username,
+        } for attr_value in attr.values.all()]
+            for attr in self.attrs.order_by('index').all()
+                if user.has_permission(attr, 'readable')], [])

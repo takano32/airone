@@ -9,7 +9,7 @@ from django.core.exceptions import PermissionDenied
 from .models import Entity
 from .models import EntityAttr
 from user.models import User
-from entry.models import Entry, Attribute
+from entry.models import Entry, Attribute, AttributeValue
 from entity.admin import EntityResource, EntityAttrResource
 
 from airone.lib.types import AttrTypes, AttrTypeObj, AttrTypeValue
@@ -159,7 +159,20 @@ def do_edit(request, entity_id, recv_data):
                 entity.attrs.add(attr_base)
 
                 for entry in Entry.objects.filter(schema=entity):
-                    entry.add_attribute_from_base(attr_base, user)
+                    newattr = entry.add_attribute_from_base(attr_base, user)
+
+                    if newattr.type & AttrTypeValue['array']:
+                        # Create a initial AttributeValue for editing processing
+                        attr_value = AttributeValue.objects.create(created_user=user,
+                                                                   parent_attr=newattr)
+
+                        # Set a flag that means this is the latest value
+                        attr_value.set_status(AttributeValue.STATUS_LATEST)
+
+                        # Set status of parent data_array
+                        attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
+
+                        newattr.values.add(attr_value)
             else:
                 # update Attributes which are already created
                 [x.update_from_base(attr_base)

@@ -7,6 +7,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute
+from history.models import History
 from user.models import User
 from xml.etree import ElementTree
 from airone.lib.test import AironeViewTest
@@ -88,6 +89,9 @@ class ViewTest(AironeViewTest):
         # tests for EntityAttribute objects
         self.assertEqual(len(EntityAttr.objects.all()), 3)
 
+        # checks that change history is recorded
+        self.assertEqual(History.objects.filter(operation=History.OP_ADD_ENTITY).count(), 1)
+
     def test_create_post_without_name_param(self):
         self.admin_login()
 
@@ -105,6 +109,9 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 400)
         self.assertIsNone(Entity.objects.first())
+
+        # checks that change history is not recorded
+        self.assertEqual(History.objects.filter(operation=History.OP_ADD_ENTITY).count(), 0)
 
     def test_create_post_with_invalid_attrs(self):
         self.admin_login()
@@ -137,6 +144,9 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 400)
         self.assertIsNone(Entity.objects.first())
+
+        # checks that change history is not recorded
+        self.assertEqual(History.objects.filter(operation=History.OP_ADD_ENTITY).count(), 0)
 
     def test_create_port_with_invalid_params(self):
         self.admin_login()
@@ -194,6 +204,9 @@ class ViewTest(AironeViewTest):
                                 'application/json')
         self.assertEqual(resp.status_code, 400)
 
+        # checks that change history is not recorded
+        self.assertEqual(History.objects.filter(operation=History.OP_MOD_ENTITY).count(), 0)
+
     def test_post_edit_with_valid_params(self):
         user = self.admin_login()
 
@@ -224,6 +237,9 @@ class ViewTest(AironeViewTest):
         self.assertEqual(Entity.objects.get(id=entity.id).attrs.get(id=attr.id).name, 'foo')
         self.assertEqual(Entity.objects.get(id=entity.id).attrs.last().name, 'bar')
         self.assertTrue(Entity.objects.get(id=entity.id).status & Entity.STATUS_TOP_LEVEL)
+
+        # checks that change history is recorded
+        self.assertEqual(History.objects.filter(operation=History.OP_MOD_ENTITY).count(), 1)
 
     def test_post_edit_after_creating_entry(self):
         user = self.admin_login()
@@ -563,6 +579,9 @@ class ViewTest(AironeViewTest):
         self.assertFalse(entity1.is_active)
         self.assertFalse(EntityAttr.objects.get(name='attr-test').is_active)
 
+        # checks that change history is recorded
+        self.assertEqual(History.objects.filter(operation=History.OP_DEL_ENTITY).count(), 1)
+
     def test_post_delete_without_permission(self):
         user1 = self.admin_login()
         user2 = User.objects.create(username='mokeke')
@@ -584,6 +603,9 @@ class ViewTest(AironeViewTest):
         entity1 = Entity.objects.get(name='entity1')
         self.assertIsNotNone(entity1)
         self.assertTrue(entity1.is_active)
+
+        # checks that change history is not recorded
+        self.assertEqual(History.objects.filter(operation=History.OP_DEL_ENTITY).count(), 0)
 
     def test_post_delete_with_active_entry(self):
         user = self.admin_login()

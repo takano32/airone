@@ -11,6 +11,7 @@ from .models import EntityAttr
 from user.models import User
 from entry.models import Entry, Attribute, AttributeValue
 from entity.admin import EntityResource, EntityAttrResource
+from history.models import History
 
 from airone.lib.types import AttrTypes, AttrTypeObj, AttrTypeValue
 from airone.lib.http import HttpResponseSeeOther
@@ -106,6 +107,11 @@ def do_edit(request, entity_id, recv_data):
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     entity = Entity.objects.get(id=entity_id)
+
+    # record operaitno history
+    history = History.mod_entity(entity, user)
+    history.detail += ' (変更後 "%s")' % recv_data['name']
+    history.save()
 
     # update status parameters
     if recv_data['is_toplevel']:
@@ -219,6 +225,9 @@ def do_create(request, recv_data):
 
     entity.save()
 
+    # record operaitno history
+    History.add_entity(target=entity, user=user)
+
     for attr in recv_data['attrs']:
         if (int(attr['type']) & AttrTypeValue['object'] and
             ('ref_id' not in attr or not Entity.objects.filter(id=attr['ref_id']).count())):
@@ -265,6 +274,9 @@ def do_delete(request, entity_id, recv_data):
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     entity = Entity.objects.get(id=entity_id)
+
+    # record operaitno history
+    History.del_entity(entity, User.objects.get(id=request.user.id))
 
     if Entry.objects.filter(schema=entity,is_active=True).count() != 0:
         return HttpResponse('cannot delete Entity because one or more Entries are not deleted', status=400)

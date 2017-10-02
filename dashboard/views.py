@@ -30,10 +30,19 @@ def index(request):
     if request.user.is_authenticated() and User.objects.filter(id=request.user.id).count():
         user = User.objects.get(id=request.user.id)
 
-        history = sorted(sum([x.get_value_history(user) for x in Entry.objects.all()], []),
-                         key=lambda x: x['created_time'], reverse=True)
+        history = []
+        for attr_value in AttributeValue.objects.order_by('created_time').reverse()[:CONFIG.LAST_ENTRY_HISTORY]:
+            parent_attr = attr_value.parent_attr
+            parent_entry = parent_attr.parent_entry
 
-        context['last_entries'] = history[:CONFIG.LAST_ENTRY_HISTORY]
+            history.append({
+                'entry': parent_entry,
+                'attr_type': parent_attr,
+                'attr_value': attr_value,
+                'attr_value_array': attr_value.data_array.all(),
+            })
+
+        context['last_entries'] = history
 
     return render(request, 'dashboard_user_top.html', context)
 

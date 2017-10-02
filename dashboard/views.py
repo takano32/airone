@@ -6,6 +6,7 @@ from airone.lib.http import render
 from airone.lib.http import http_get
 from airone.lib.http import http_file_upload
 from airone.lib.http import HttpResponseSeeOther
+from airone.lib.profile import airone_profile
 from django.http import HttpResponse
 from entity.admin import EntityResource, EntityAttrResource
 from entry.admin import EntryResource, AttrResource, AttrValueResource
@@ -25,6 +26,7 @@ IMPORT_INFOS = [
 Logger = logging.getLogger(__name__)
 
 
+@airone_profile
 def index(request):
     context = {}
     if request.user.is_authenticated() and User.objects.filter(id=request.user.id).count():

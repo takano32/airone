@@ -9,6 +9,7 @@ from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
 from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
 from airone.lib.types import AttrTypeValue
 from airone.lib.acl import get_permitted_objects
+from airone.lib.profile import airone_profile
 
 from entity.models import Entity, AttributeBase
 from entity.admin import EntityResource
@@ -59,6 +60,7 @@ def _get_latest_attributes(self, user):
 
     return ret_attrs
 
+@airone_profile
 @http_get
 @check_permission(Entity, 'readable')
 def index(request, entity_id):

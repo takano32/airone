@@ -21,10 +21,12 @@ from airone.lib.http import render
 from airone.lib.http import get_download_response
 from airone.lib.http import http_file_upload
 from airone.lib.acl import get_permitted_objects
+from airone.lib.profile import airone_profile
 
 Logger = logging.getLogger(__name__)
 
 
+@airone_profile
 @http_get
 def index(request):
     user = User.objects.get(id=request.user.id)

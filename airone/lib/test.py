@@ -2,12 +2,16 @@ import inspect
 import os
 
 from django.test import TestCase, Client
+from django.conf import settings
 from user.models import User
 
 
 class AironeViewTest(TestCase):
     def setUp(self):
         self.client = Client()
+
+        if hasattr(settings, 'AIRONE') and 'ENABLE_PROFILE' in settings.AIRONE:
+            settings.AIRONE['ENABLE_PROFILE'] = False
 
     def admin_login(self):
         # create test user to authenticate

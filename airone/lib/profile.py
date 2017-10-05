@@ -1,36 +1,35 @@
-from profilehooks import profile
-from profilehooks import FuncProfile
-from profilehooks import AVAILABLE_PROFILERS
+import atexit
 
-class AirOneProfiler(FuncProfile):
-    Profiles = []
+from django.conf import settings
+from time import time
 
-    @classmethod
-    def show_result(kls):
-        for p in kls.Profiles:
-            p.print_stats()
 
-    @classmethod
-    def reset(kls):
-        kls.Profiles.clear()
+class SimpleProfiler(object):
+    def __init__(self):
+        self.start_time = time()
 
-    def __init__(self, *args, **kwargs):
-        super(AirOneProfiler, self).__init__(*args, **kwargs)
-        self.Profiles.append(self)
+    def check(self, msg=''):
+        if self._is_enable():
+            print('[Profiling result] (%f) %s' % (time() - self.start_time, msg))
+
+    def _is_enable(self):
+        if (hasattr(settings, 'AIRONE') and
+            'ENABLE_PROFILE' in settings.AIRONE and
+            settings.AIRONE['ENABLE_PROFILE']):
+            return True
+
+        return False
 
 def airone_profile(func):
     def wrapper(*args, **kwargs):
         # reset Profiling status
-        AirOneProfiler.reset()
+        prof = SimpleProfiler()
 
-        pf = profile(profiler=('airone_profiler'))(func)(*args, **kwargs)
+        ret = func(*args, **kwargs)
 
         # show the profiling results
-        AirOneProfiler.show_result()
+        prof.check("Total time of the request: %s" % args[0].path)
 
-        return pf
+        return ret
 
     return wrapper
-
-
-AVAILABLE_PROFILERS['airone_profiler'] = AirOneProfiler

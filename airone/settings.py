@@ -135,3 +135,8 @@ STATICFILES_DIRS = [
 ]
 
 LOGIN_REDIRECT_URL='/dashboard/'
+
+# global settins for AirOne
+AIRONE = {
+    'ENABLE_PROFILE': True,
+}

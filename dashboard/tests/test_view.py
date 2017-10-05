@@ -1,6 +1,11 @@
+import mock
+import re
+import sys
+
 from airone.lib.test import AironeViewTest
 from django.urls import reverse
 from django.contrib.auth.models import User as DjangoUser
+from io import StringIO
 
 from entry.models import Entry, AttributeValue
 
@@ -62,3 +67,20 @@ class ViewTest(AironeViewTest):
 
         resp = self.client.get(reverse('dashboard:index'))
         self.assertEqual(resp.status_code, 200)
+
+    def test_enable_profiler(self):
+        self.client.logout()
+
+        # set StringIO to capteure stdout context
+        sys.stdout = StringIO()
+        with mock.patch('airone.lib.profile.settings') as st_mock:
+            # set to enable AirOne Profiler
+            st_mock.AIRONE = {'ENABLE_PROFILE': True}
+
+            resp = self.client.get(reverse('dashboard:index'))
+            self.assertEqual(resp.status_code, 200)
+            self.assertTrue(re.match("^\[Profiling result\] \(([0-9\.]*)\) .*$",
+                                     sys.stdout.getvalue()))
+
+        # reset stdout setting
+        sys.stdout = sys.__stdout__

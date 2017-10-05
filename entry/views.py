@@ -70,7 +70,7 @@ def index(request, entity_id):
     entity = Entity.objects.get(id=entity_id)
     context = {
         'entity': entity,
-        'entries': Entry.objects.filter(schema=entity,is_active=True),
+        'entries': Entry.objects.order_by('name').filter(schema=entity,is_active=True),
     }
     return render(request, 'list_entry.html', context)
 

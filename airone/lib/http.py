@@ -95,9 +95,9 @@ def render(request, template, context={}):
         user = User.objects.get(id=request.user.id)
 
         # added default parameters for navigate
+        entity_objects = entity_models.Entity.objects.order_by('name').filter(is_active=True)
         context['navigator'] = {
-            'entities': [x for x in entity_models.Entity.objects.filter(is_active=True)
-                         if user.has_permission(x, 'readable')],
+            'entities': [x for x in entity_objects if user.has_permission(x, 'readable')],
             'acl_objtype': {
                 'entity': ACLObjType.Entity,
                 'entry': ACLObjType.Entry,

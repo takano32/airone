@@ -31,8 +31,9 @@ Logger = logging.getLogger(__name__)
 def index(request):
     user = User.objects.get(id=request.user.id)
 
+    entity_objects = Entity.objects.order_by('name').filter(is_active=True)
     context = {
-        'entities': [x for x in Entity.objects.filter(is_active=True) if user.has_permission(x, 'readable')]
+        'entities': [x for x in entity_objects if user.has_permission(x, 'readable')]
     }
     return render(request, 'list_entities.html', context)
 

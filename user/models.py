@@ -11,6 +11,11 @@ class User(DjangoUser):
         return self.user_permissions
 
     def has_permission(self, target_obj, permission_level):
+        # A bypass processing to rapidly return.
+        # This condition is effective when the public objects are majority.
+        if target_obj.is_public:
+            return True
+
         if not hasattr(target_obj, permission_level):
             return False
 

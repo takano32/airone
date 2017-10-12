@@ -130,3 +130,17 @@ class EntryResource(AironeModelResource):
     class Meta:
         model = Entry
         fields = ('id', 'name')
+
+    def import_obj(self, instance, data, dry_run):
+        # will not import entry which refers invalid entity
+        if not Entity.objects.filter(name=data['entity']).count():
+            raise RuntimeError("Specified entity(%s) doesn't exist" % data['entity'])
+
+        # will not import entry which has same name and refers same entity
+        entity = Entity.objects.get(name=data['entity'])
+        if Entry.objects.filter(schema=entity, name=data['name']).count():
+            entry = Entry.objects.get(schema=entity, name=data['name'])
+            if 'id' not in data or not data['id'] or entry.id != data['id']:
+                raise RuntimeError('There is a duplicate entry object')
+
+        super(EntryResource, self).import_obj(instance, data, dry_run)

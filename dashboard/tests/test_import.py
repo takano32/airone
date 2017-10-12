@@ -206,3 +206,72 @@ class ImportTest(AironeViewTest):
         # checks for the imported objects successfully
         self.assertEqual(Entity.objects.count(), 1)
         self.assertEqual(Entry.objects.count(), 1)
+
+    def test_import_entity_with_duplicate_entity(self):
+        user = self.admin_login()
+        warning_messages = []
+
+        fp = self.open_fixture_file('entity_with_duplication.yaml')
+        with mock.patch('import_export.resources.logging') as lg_mock:
+            def side_effect(message):
+                warning_messages.append(str(message))
+
+            lg_mock.exception = mock.Mock(side_effect=side_effect)
+
+            resp = self.client.post(reverse('dashboard:do_import'), {'file': fp})
+            self.assertEqual(resp.status_code, 303)
+        fp.close()
+
+        # checks that the duplicate object wouldn't be created
+        self.assertEqual(Entity.objects.count(), 3)
+        self.assertEqual(EntityAttr.objects.count(), 4)
+        self.assertEqual(Entity.objects.get(name='entity').note, 'note1')
+
+        # checks that an exception caused by the duplicate entity is occurred
+        self.assertEqual(len(warning_messages), 1)
+        self.assertTrue("There is a duplicate entity object (entity)" == warning_messages[0])
+
+    def test_import_entry_with_duplicate_entry(self):
+        user = self.admin_login()
+        warning_messages = []
+
+        fp = self.open_fixture_file('entry_with_duplication.yaml')
+        with mock.patch('import_export.resources.logging') as lg_mock:
+            def side_effect(message):
+                warning_messages.append(str(message))
+
+            lg_mock.exception = mock.Mock(side_effect=side_effect)
+
+            resp = self.client.post(reverse('dashboard:do_import'), {'file': fp})
+            self.assertEqual(resp.status_code, 303)
+        fp.close()
+
+        entity = Entity.objects.get(name='Server')
+
+        # checks that the duplicate object wouldn't be created
+        self.assertEqual(Entry.objects.count(), 3)
+        self.assertEqual(Entry.objects.filter(schema=entity, name='srv001').count(), 1)
+        self.assertEqual(Entry.objects.get(schema=entity, name='srv001').id, 14)
+
+        self.assertEqual(len(warning_messages), 1)
+        self.assertTrue("There is a duplicate entry object" == warning_messages[0])
+
+    def test_import_entry_referring_invalid_schema(self):
+        user = self.admin_login()
+        warning_messages = []
+
+        fp = self.open_fixture_file('entry_with_invalid_schema.yaml')
+        with mock.patch('import_export.resources.logging') as lg_mock:
+            def side_effect(message):
+                warning_messages.append(str(message))
+
+            lg_mock.exception = mock.Mock(side_effect=side_effect)
+
+            resp = self.client.post(reverse('dashboard:do_import'), {'file': fp})
+            self.assertEqual(resp.status_code, 303)
+        fp.close()
+
+        # checks that the duplicate object wouldn't be created
+        self.assertEqual(Entry.objects.count(), 2)
+        self.assertEqual(len(warning_messages), 1)
+        self.assertTrue("Specified entity(invalid_schema) doesn't exist" == warning_messages[0])

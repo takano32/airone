@@ -29,6 +29,15 @@ class EntityResource(AironeModelResource):
         fields = ('id', 'name', 'note', 'status')
         export_order = ('id', 'name', 'note', 'user')
 
+    def import_obj(self, instance, data, dry_run):
+        # will not import duplicate entity
+        if Entity.objects.filter(name=data['name']).count():
+            entity = Entity.objects.filter(name=data['name']).get()
+            if 'id' not in data or not data['id'] or entity.id != data['id']:
+                raise RuntimeError('There is a duplicate entity object (%s)' % data['name'])
+
+        super(EntityResource, self).import_obj(instance, data, dry_run)
+
 class EntityAttrResource(AironeModelResource):
     _IMPORT_INFO = {
         'header':               ['id', 'name', 'type', 'refer', 'entity',

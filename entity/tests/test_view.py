@@ -638,3 +638,18 @@ class ViewTest(AironeViewTest):
         self.assertIsNotNone(entity)
         self.assertTrue(entity.is_active)
         self.assertTrue(EntityAttr.objects.get(name='puyo').is_active)
+
+    def test_post_create_entity_with_guest(self):
+        self.guest_login()
+
+        params = {
+            'name': 'hoge',
+            'note': 'fuga',
+            'is_toplevel': True,
+            'attrs': [],
+        }
+        resp = self.client.post(reverse('entity:do_create'),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)

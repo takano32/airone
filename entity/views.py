@@ -20,6 +20,7 @@ from airone.lib.http import check_permission
 from airone.lib.http import render
 from airone.lib.http import get_download_response
 from airone.lib.http import http_file_upload
+from airone.lib.http import check_admin
 from airone.lib.acl import get_permitted_objects
 from airone.lib.acl import ACLType
 from airone.lib.profile import airone_profile
@@ -214,6 +215,7 @@ def do_edit(request, entity_id, recv_data):
         )}
     ]},
 ])
+@check_admin
 def do_create(request, recv_data):
     # get user object that current access
     user = User.objects.get(id=request.user.id)

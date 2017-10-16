@@ -13,15 +13,21 @@ class AironeViewTest(TestCase):
         if hasattr(settings, 'AIRONE') and 'ENABLE_PROFILE' in settings.AIRONE:
             settings.AIRONE['ENABLE_PROFILE'] = False
 
-    def admin_login(self):
+    def _do_login(self, uname, is_admin=False):
         # create test user to authenticate
-        user = User(username='admin')
-        user.set_password('admin')
+        user = User(username=uname, is_superuser=is_admin)
+        user.set_password(uname)
         user.save()
 
-        self.client.login(username='admin', password='admin')
+        self.client.login(username=uname, password=uname)
 
         return user
+
+    def admin_login(self):
+        return self._do_login('admin', True)
+
+    def guest_login(self):
+        return self._do_login('guest')
 
     def open_fixture_file(self, fname):
         test_file_path = inspect.getfile(self.__class__)

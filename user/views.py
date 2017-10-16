@@ -7,7 +7,7 @@ from django.db import utils
 from airone.lib.http import HttpResponseSeeOther
 from airone.lib.http import http_get, http_post
 from airone.lib.http import render
-from airone.lib.http import check_admin
+from airone.lib.http import check_superuser
 
 from .models import User
 
@@ -35,7 +35,7 @@ def create(request):
     )},
     {'name': 'passwd', 'type': str, 'checker': lambda x: x['passwd']},
 ])
-@check_admin
+@check_superuser
 def do_create(request, recv_data):
     is_admin = False
     if 'is_admin' in recv_data:
@@ -56,7 +56,7 @@ def do_create(request, recv_data):
         x['name'] and (User.objects.filter(username=x['name']).count() == 1)
     )},
 ])
-@check_admin
+@check_superuser
 def do_delete(request, recv_data):
     user = User.objects.get(username=recv_data['name'])
 

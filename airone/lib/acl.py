@@ -1,3 +1,5 @@
+from six import with_metaclass
+
 __all__ = ['ACLType', 'ACLObjType']
 
 class Iteratable(object):
@@ -13,14 +15,39 @@ class ACLObjType(Iteratable):
     def __init__(self):
         self._types = [self.Entity, self.Entry, self.EntityAttr, self.EntryAttr]
 
+class MetaACLType(type):
+    def __eq__(cls, comp):
+        if isinstance(comp, int):
+            return cls.id == comp
+        elif isinstance(comp, str):
+            return cls.name == comp
+        elif issubclass(comp, ACLTypeBase):
+            return cls.id == comp.id
+        else:
+            return False
+
+    def __ne__(cls, comp):
+        return not cls == comp
+
+    def __le__(cls, comp):
+        if isinstance(comp, int):
+            return cls.id <= comp
+        elif issubclass(comp, ACLTypeBase):
+            return cls.id <= comp.id
+        else:
+            return False
+
+class ACLTypeBase(with_metaclass(MetaACLType)):
+    pass
+
 class ACLType(Iteratable):
-    Nothing = type('ACLTypeNone', (object,),
+    Nothing = type('ACLTypeNone', (ACLTypeBase,),
                    {'id': (1 << 0), 'name': 'nothing', 'label': 'Nothing'})
-    Readable = type('ACLTypeReadable', (object,),
+    Readable = type('ACLTypeReadable', (ACLTypeBase,),
                     {'id': (1 << 1), 'name': 'readable','label': 'Readable'})
-    Writable = type('ACLTypeWritable', (object,),
+    Writable = type('ACLTypeWritable', (ACLTypeBase,),
                     {'id': (1 << 2), 'name': 'writable', 'label': 'Writable'})
-    Full = type('ACLTypeFull', (object,),
+    Full = type('ACLTypeFull', (ACLTypeBase,),
                 {'id': (1 << 3), 'name': 'full', 'label': 'Full Controllable'})
 
     @classmethod

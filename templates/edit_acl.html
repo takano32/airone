@@ -49,7 +49,24 @@
         {% csrf_token %}
         <input type="hidden" name="object_id" value="{{ object.id }}" />
         <input type="hidden" name="object_type" value="{{ object.objtype }}" />
-        公開：<input type="checkbox" name="is_public" {% if object.is_public %}checked="checked"{% endif %}/>
+        <div class="container">
+          <div class="row">
+            <div class="col">
+            公開：<input type="checkbox" name="is_public" {% if object.is_public %}checked="checked"{% endif %}/>
+            </div>
+          </div>
+          <div class="row default_permission" {% if object.is_public %}style="display: none"{% endif %}>
+            <!-- show interfaces to set default permissions -->
+            {% for acltype in acltypes %}
+            <div class="col">
+              <div class="radio">
+                <label><input type="radio" name="default_permission" value="{{ acltype.id }}" {% if object.default_permission == acltype.id %}checked="checked"{% endif %} />：{{ acltype.name }}</label>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <hr />
         <table class="table table-bordered">
           <thead>
             <tr>
@@ -62,12 +79,12 @@
             <tr>
               <td>{{ member.name }}</td>
               <td>
-                <select name='acl' member_id='{{ member.id }}' member_type='{{ member.type }}'>
+                <select name="acl" member_id="{{ member.id }}" member_type="{{ member.type }}">
                   {% for acltype in acltypes %}
                     {% if acltype.id == member.current_permission %}
-                      <option value='{{ acltype.id }}' selected='selected'>{{ acltype.name }}</option>
+                      <option value="{{ acltype.id }}" selected="selected">{{ acltype.name }}</option>
                     {% else %}
-                      <option value='{{ acltype.id }}'>{{ acltype.name }}</option>
+                      <option value="{{ acltype.id }}">{{ acltype.name }}</option>
                     {% endif %}
                   {% endfor %}
                 </select>
@@ -84,6 +101,14 @@
 
 {% block script %}
 <script>
+  $("input[name=is_public]").change(function() {
+    if (this.checked) {
+      $('.default_permission').hide();
+    } else {
+      $('.default_permission').show();
+    }
+  });
+
   $("#submit").click(function() {
     var acl = [];
   

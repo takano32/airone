@@ -4,6 +4,7 @@ import tablib
 from django.db.models import fields
 from import_export.resources import ModelResource
 from acl.models import ACLBase
+from airone.lib.acl import ACLType
 
 
 class AironeModelResource(ModelResource):
@@ -39,7 +40,7 @@ class AironeModelResource(ModelResource):
         # the case of instance is updated
         elif self._is_updated(instance, original):
             # the case user try to update but he doen't have writable permition
-            if not self.request_user.has_permission(instance, 'writable'):
+            if not self.request_user.has_permission(instance, ACLType.Writable):
                 return True
 
             # the case user try to change params which are disallow to update

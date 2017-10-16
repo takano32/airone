@@ -34,6 +34,7 @@ class ACLBase(models.Model):
     created_user = models.ForeignKey(User)
     is_active = models.BooleanField(default=True)
     status = models.IntegerField(default=0)
+    default_permission = models.IntegerField(default=ACLType.Nothing.id)
 
     # This fields describes the sub-class of this object
     objtype = models.IntegerField(default=0)

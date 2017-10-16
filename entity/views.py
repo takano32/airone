@@ -21,6 +21,7 @@ from airone.lib.http import render
 from airone.lib.http import get_download_response
 from airone.lib.http import http_file_upload
 from airone.lib.acl import get_permitted_objects
+from airone.lib.acl import ACLType
 from airone.lib.profile import airone_profile
 
 Logger = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ def index(request):
 
     entity_objects = Entity.objects.order_by('name').filter(is_active=True)
     context = {
-        'entities': [x for x in entity_objects if user.has_permission(x, 'readable')]
+        'entities': [x for x in entity_objects if user.has_permission(x, ACLType.Readable)]
     }
     return render(request, 'list_entities.html', context)
 
@@ -46,7 +47,7 @@ def create(request):
     return render(request, 'create_entity.html', context)
 
 @http_get
-@check_permission(Entity, 'writable')
+@check_permission(Entity, ACLType.Writable)
 def edit(request, entity_id):
     user = User.objects.get(id=request.user.id)
 
@@ -68,7 +69,7 @@ def edit(request, entity_id):
 
     for attr_base in entity.attrs.order_by('index').all():
         # skip not-writable EntityAttr
-        if not user.has_permission(attr_base, 'writable'):
+        if not user.has_permission(attr_base, ACLType.Writable):
             continue
         # logical-OR current value of referral to query of candidate entites
         if attr_base.referral:
@@ -102,7 +103,7 @@ def edit(request, entity_id):
         )}
     ]}
 ])
-@check_permission(Entity, 'writable')
+@check_permission(Entity, ACLType.Writable)
 def do_edit(request, entity_id, recv_data):
     user = User.objects.get(id=request.user.id)
 
@@ -260,18 +261,18 @@ def export(request):
     output.write("Entity: \n")
     output.write(EntityResource().export(get_permitted_objects(user,
                                                                Entity,
-                                                               'readable')).yaml)
+                                                               ACLType.Readable)).yaml)
 
     output.write("\n")
     output.write("EntityAttr: \n")
     output.write(EntityAttrResource().export(get_permitted_objects(user,
-                                                                 EntityAttr,
-                                                                 'readable')).yaml)
+                                                                   EntityAttr,
+                                                                   ACLType.Readable)).yaml)
 
     return get_download_response(output, 'entity.yaml')
 
 @http_post([])
-@check_permission(Entity, 'full')
+@check_permission(Entity, ACLType.Full)
 def do_delete(request, entity_id, recv_data):
     if not Entity.objects.filter(id=entity_id).count():
         return HttpResponse('Failed to get entity of specified id', status=400)

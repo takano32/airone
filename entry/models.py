@@ -226,4 +226,4 @@ class Entry(ACLBase):
             'created_user': attr_value.created_user.username,
         } for attr_value in attr.values.all()]
             for attr in self.attrs.order_by('index').all()
-                if user.has_permission(attr, 'readable')], [])
+                if user.has_permission(attr, ACLType.Readable)], [])

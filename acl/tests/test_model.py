@@ -3,6 +3,7 @@ from django.contrib.auth.models import Group, Permission
 from acl.models import ACLBase
 from user.models import User
 from importlib import import_module
+from airone.lib.acl import ACLType
 
 
 class ModelTest(TestCase):
@@ -22,7 +23,7 @@ class ModelTest(TestCase):
     def test_pass_permission_check_with_public_obj(self):
         aclobj = ACLBase.objects.create(name='hoge', created_user=self.user, is_public=True)
 
-        self.assertTrue(self.user.has_permission(aclobj, 'readable'))
+        self.assertTrue(self.user.has_permission(aclobj, ACLType.Readable))
 
     def test_pass_permission_check_with_created_user(self):
         aclobj = ACLBase.objects.create(name='hoge', created_user=self.user, is_public=False)
@@ -42,7 +43,7 @@ class ModelTest(TestCase):
         # set correct permission
         self.user.permissions.add(aclobj.readable)
 
-        self.assertTrue(self.user.has_permission(aclobj, 'readable'))
+        self.assertTrue(self.user.has_permission(aclobj, ACLType.Readable))
 
     def test_pass_permission_check_with_surperior_permissoin(self):
         aclobj = ACLBase.objects.create(name='hoge', created_user=self.user, is_public=False)
@@ -50,7 +51,7 @@ class ModelTest(TestCase):
         # set surperior permission
         self.user.permissions.add(aclobj.writable)
 
-        self.assertTrue(self.user.has_permission(aclobj, 'readable'))
+        self.assertTrue(self.user.has_permission(aclobj, ACLType.Readable))
 
     def test_fail_permission_check_with_inferior_permissoin(self):
         another_user = User.objects.create(username='bar', email='bar@f.com', password='')
@@ -60,7 +61,7 @@ class ModelTest(TestCase):
         # set inferior permission
         self.user.permissions.add(aclobj.readable)
 
-        self.assertFalse(another_user.has_permission(aclobj, 'writable'))
+        self.assertFalse(another_user.has_permission(aclobj, ACLType.Writable))
 
     def test_pass_permission_check_with_group_permissoin(self):
         another_user = User.objects.create(username='bar', email='bar@f.com', password='')
@@ -72,7 +73,7 @@ class ModelTest(TestCase):
         group.permissions.add(aclobj.readable)
         another_user.groups.add(group)
 
-        self.assertTrue(another_user.has_permission(aclobj, 'readable'))
+        self.assertTrue(another_user.has_permission(aclobj, ACLType.Readable))
 
     def test_get_registered_user_permissoins(self):
         aclobj = ACLBase.objects.create(name='hoge', created_user=self.user, is_public=False)
@@ -128,3 +129,35 @@ class ModelTest(TestCase):
         self.assertTrue(entity.get_status(TEST_FLAG_0))
         self.assertFalse(entity.get_status(TEST_FLAG_1))
         self.assertFalse(entity.get_status(TEST_FLAG_2))
+
+    def test_operation_for_acltype(self):
+        type_readable = ACLType.Readable
+
+        self.assertTrue(type_readable == ACLType.Readable)
+        self.assertTrue(type_readable == ACLType.Readable.id)
+        self.assertTrue(type_readable == ACLType.Readable.name)
+
+        self.assertFalse(type_readable != ACLType.Readable)
+        self.assertFalse(type_readable != ACLType.Readable.id)
+        self.assertFalse(type_readable != ACLType.Readable.name)
+        self.assertTrue(type_readable != ACLType.Writable)
+
+        self.assertTrue(type_readable <= ACLType.Writable)
+        self.assertFalse(type_readable <= ACLType.Nothing)
+
+    def test_default_permission(self):
+        another_user = User.objects.create(username='bar', email='bar@f.com', password='')
+        aclobj = ACLBase.objects.create(name='hoge',
+                                        created_user=another_user,
+                                        is_public=False,
+                                        default_permission=ACLType.Readable.id)
+
+        self.assertTrue(self.user.has_permission(aclobj, ACLType.Nothing))
+        self.assertTrue(self.user.has_permission(aclobj, ACLType.Readable))
+        self.assertFalse(self.user.has_permission(aclobj, ACLType.Writable))
+        self.assertFalse(self.user.has_permission(aclobj, ACLType.Full))
+
+        self.assertTrue(another_user.has_permission(aclobj, ACLType.Nothing))
+        self.assertTrue(another_user.has_permission(aclobj, ACLType.Readable))
+        self.assertTrue(another_user.has_permission(aclobj, ACLType.Writable))
+        self.assertTrue(another_user.has_permission(aclobj, ACLType.Full))

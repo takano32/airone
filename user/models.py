@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User as DjangoUser
+from airone.lib.acl import ACLType, ACLTypeBase
 
 
 class User(DjangoUser):
@@ -16,10 +17,22 @@ class User(DjangoUser):
         if target_obj.is_public:
             return True
 
-        if not hasattr(target_obj, permission_level):
+        # This try-catch syntax is needed because the 'issubclass' may occur a
+        # TypeError exception when permission_level is not object.
+        try:
+            if not issubclass(permission_level, ACLTypeBase):
+                return False
+        except TypeError:
             return False
 
-        perm = getattr(target_obj, permission_level)
+        # Checks that the default permission permits to access, or not
+        if permission_level <= target_obj.default_permission:
+            return True
+
+        if not hasattr(target_obj, permission_level.name):
+            return False
+
+        perm = getattr(target_obj, permission_level.name)
         if (target_obj.is_public or
             # checks that current uesr is created this document
             target_obj.created_user == self or

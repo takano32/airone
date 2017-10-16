@@ -9,6 +9,7 @@ from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
 from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
 from airone.lib.types import AttrTypeValue
 from airone.lib.acl import get_permitted_objects
+from airone.lib.acl import ACLType
 from airone.lib.profile import airone_profile
 
 from entity.models import Entity, AttributeBase
@@ -20,7 +21,7 @@ from user.models import User
 
 def _get_latest_attributes(self, user):
     ret_attrs = []
-    for attr in [x for x in self.attrs.order_by('index').all() if user.has_permission(x, 'readable')]:
+    for attr in [x for x in self.attrs.order_by('index').all() if user.has_permission(x, ACLType.Readable)]:
         attrinfo = {}
 
         attrinfo['id'] = attr.id
@@ -62,7 +63,7 @@ def _get_latest_attributes(self, user):
 
 @airone_profile
 @http_get
-@check_permission(Entity, 'readable')
+@check_permission(Entity, ACLType.Readable)
 def index(request, entity_id):
     if not Entity.objects.filter(id=entity_id).count():
         return HttpResponse('Failed to get entity of specified id', status=400)
@@ -75,7 +76,7 @@ def index(request, entity_id):
     return render(request, 'list_entry.html', context)
 
 @http_get
-@check_permission(Entity, 'writable')
+@check_permission(Entity, ACLType.Writable)
 def create(request, entity_id):
     user = User.objects.get(id=request.user.id)
 
@@ -91,7 +92,7 @@ def create(request, entity_id):
             'name': x.name,
             'is_mandatory': x.is_mandatory,
             'referrals': x.referral and Entry.objects.filter(schema=x.referral,is_active=True) or [],
-        } for x in entity.attrs.order_by('index').all() if user.has_permission(x, 'writable')]
+        } for x in entity.attrs.order_by('index').all() if user.has_permission(x, ACLType.Writable)]
     }
     return render(request, 'create_entry.html', context)
 
@@ -107,7 +108,7 @@ def create(request, entity_id):
          )},
     ]}
 ])
-@check_permission(Entity, 'writable')
+@check_permission(Entity, ACLType.Writable)
 def do_create(request, entity_id, recv_data):
     # get objects to be referred in the following processing
     user = User.objects.get(id=request.user.id)
@@ -185,7 +186,7 @@ def do_create(request, entity_id, recv_data):
     return HttpResponse('')
 
 @http_get
-@check_permission(Entry, 'writable')
+@check_permission(Entry, ACLType.Writable)
 def edit(request, entry_id):
     user = User.objects.get(id=request.user.id)
 
@@ -217,7 +218,7 @@ def edit(request, entry_id):
          )},
     ]},
 ])
-@check_permission(Entry, 'writable')
+@check_permission(Entry, ACLType.Writable)
 def do_edit(request, entry_id, recv_data):
     user = User.objects.get(id=request.user.id)
     entry = Entry.objects.get(id=entry_id)
@@ -307,7 +308,7 @@ def do_edit(request, entry_id, recv_data):
     return HttpResponse('')
 
 @http_get
-@check_permission(Entry, 'readable')
+@check_permission(Entry, ACLType.Readable)
 def show(request, entry_id):
     user = User.objects.get(id=request.user.id)
 
@@ -345,7 +346,7 @@ def export(request, entity_id):
     output.write("Attribute: \n")
     output.write(AttrResource().export(get_permitted_objects(user, Attribute, 'readable')).yaml)
 
-    objs = [x for x in AttributeValue.objects.all() if user.has_permission(x.parent_attr, 'readable')]
+    objs = [x for x in AttributeValue.objects.all() if user.has_permission(x.parent_attr, ACLType.Readable)]
     output.write("\n")
     output.write("AttributeValue: \n")
     output.write(AttrValueResource().export(objs).yaml)
@@ -353,7 +354,7 @@ def export(request, entity_id):
     return get_download_response(output, 'entry_%s.yaml' % entity.name)
 
 @http_post([]) # check only that request is POST, id will be given by url
-@check_permission(Entry, 'full')
+@check_permission(Entry, ACLType.Full)
 def do_delete(request, entry_id, recv_data):
 
     if not Entry.objects.filter(id=entry_id).count():

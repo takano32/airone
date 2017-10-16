@@ -10,7 +10,7 @@ from acl.models import ACLBase
 from user.models import User
 
 from airone.lib.types import AttrTypes, AttrTypeValue
-from airone.lib.acl import ACLObjType
+from airone.lib.acl import ACLObjType, ACLType
 
 
 class HttpResponseSeeOther(HttpResponseRedirect):
@@ -97,7 +97,7 @@ def render(request, template, context={}):
         # added default parameters for navigate
         entity_objects = entity_models.Entity.objects.order_by('name').filter(is_active=True)
         context['navigator'] = {
-            'entities': [x for x in entity_objects if user.has_permission(x, 'readable')],
+            'entities': [x for x in entity_objects if user.has_permission(x, ACLType.Readable)],
             'acl_objtype': {
                 'entity': ACLObjType.Entity,
                 'entry': ACLObjType.Entry,

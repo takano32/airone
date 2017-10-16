@@ -13,9 +13,9 @@ class AironeViewTest(TestCase):
         if hasattr(settings, 'AIRONE') and 'ENABLE_PROFILE' in settings.AIRONE:
             settings.AIRONE['ENABLE_PROFILE'] = False
 
-    def _do_login(self, uname, is_admin=False):
+    def _do_login(self, uname, is_superuser=False):
         # create test user to authenticate
-        user = User(username=uname, is_superuser=is_admin)
+        user = User(username=uname, is_superuser=is_superuser)
         user.set_password(uname)
         user.save()
 

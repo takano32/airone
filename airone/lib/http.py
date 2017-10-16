@@ -50,7 +50,7 @@ def check_permission(model, permission_level):
         return permission_checker
     return _decorator
 
-def check_admin(func):
+def check_superuser(func):
     def wrapper(*args, **kwargs):
         request = args[0]
 

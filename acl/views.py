@@ -70,8 +70,11 @@ def index(request, obj_id):
              [k.objects.filter(id=x['member_id']).count() for k in [User, Group]]
           )},
         {'name': 'value', 'type': (str, type(None)),
-         'checker': lambda x: [y for y in ACLType.all() if int(x['value']) == y.id]},
+         'checker': lambda x: [y for y in ACLType.all() if int(x['value']) == y]},
     ]},
+    {'name': 'default_permission', 'type': str, 'checker': lambda x: any(
+        [y == int(x['default_permission']) for y in ACLType.all()]
+    )},
 ])
 def set(request, recv_data):
     acl_obj = getattr(_get_acl_model(recv_data['object_type']),
@@ -80,6 +83,8 @@ def set(request, recv_data):
     acl_obj.is_public = False
     if 'is_public' in recv_data:
         acl_obj.is_public = True
+
+    acl_obj.default_permission = int(recv_data['default_permission'])
 
     # update the Public/Private flag parameter
     acl_obj.save()
@@ -90,7 +95,7 @@ def set(request, recv_data):
         else:
             member = Group.objects.get(id=acl_data['member_id'])
 
-        acl_type = [x for x in ACLType.all() if x.id == int(acl_data['value'])][0]
+        acl_type = [x for x in ACLType.all() if x == int(acl_data['value'])][0]
 
         # update permissios for the target ACLBased object
         _set_permission(member, acl_obj, acl_type)
@@ -129,9 +134,9 @@ def _get_acl_model(object_id):
 def _set_permission(member, acl_obj, acl_type):
     # clear unset permissions of target ACLbased object
     for _acltype in ACLType.all():
-        if _acltype != acl_type and _acltype.id != ACLType.Nothing.id:
+        if _acltype != acl_type and _acltype != ACLType.Nothing:
             member.permissions.remove(getattr(acl_obj, _acltype.name))
 
     # set new permissoin to be specified except for 'Nothing' permission
-    if acl_type.id != ACLType.Nothing.id:
+    if acl_type != ACLType.Nothing:
         member.permissions.add(getattr(acl_obj, acl_type.name))

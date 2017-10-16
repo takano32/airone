@@ -33,7 +33,8 @@ class ViewTest(AironeViewTest):
                     'member_id': str(user.id),
                     'member_type': 'user',
                     'value': str(aclid)},
-            ]
+            ],
+            'default_permission': str(ACLType.Nothing.id),
         }
         return self.client.post(reverse('acl:set'), json.dumps(params), 'application/json')
 
@@ -81,7 +82,8 @@ class ViewTest(AironeViewTest):
                     'member_id': str(user.id),
                     'member_type': 'user',
                     'value': str(ACLType.Writable.id)},
-            ]
+            ],
+            'default_permission': str(ACLType.Nothing.id),
         }
         resp = self.client.post(reverse('acl:set'), json.dumps(params), 'application/json')
 
@@ -154,7 +156,8 @@ class ViewTest(AironeViewTest):
                     'member_id': str(user.id),
                     'member_type': 'user',
                     'value': str(ACLType.Nothing.id)},
-            ]
+            ],
+            'default_permission': str(ACLType.Nothing.id),
         }
         resp = self.client.post(reverse('acl:set'), json.dumps(params), 'application/json')
 
@@ -179,7 +182,8 @@ class ViewTest(AironeViewTest):
                     'member_type': 'group',
                     'value': str(ACLType.Readable.id)
                 }
-            ]
+            ],
+            'default_permission': str(ACLType.Nothing.id),
         }
         resp = self.client.post(reverse('acl:set'), json.dumps(params), 'application/json')
         self.assertEqual(resp.status_code, 200)
@@ -205,7 +209,8 @@ class ViewTest(AironeViewTest):
                     'member_type': 'group',
                     'value': str(ACLType.Nothing.id)
                 }
-            ]
+            ],
+            'default_permission': str(ACLType.Nothing.id),
         }
         resp = self.client.post(reverse('acl:set'), json.dumps(params), 'application/json')
         self.assertEqual(resp.status_code, 200)

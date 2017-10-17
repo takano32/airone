@@ -9,6 +9,7 @@ from airone.lib.http import HttpResponseSeeOther
 from airone.lib.http import http_get, http_post
 from airone.lib.http import render
 from airone.lib.http import get_download_response
+from airone.lib.http import check_superuser
 
 from user.models import User
 from user.admin import UserResource
@@ -40,6 +41,7 @@ def create(request):
         x['users'] and all([User.objects.filter(id=u).count() for u in x['users']])
     )}
 ])
+@check_superuser
 def do_create(request, recv_data):
     new_group = Group(name=recv_data['name'])
     new_group.save()
@@ -54,6 +56,7 @@ def do_create(request, recv_data):
         x['name'] and (Group.objects.filter(name=x['name']).count() == 1)
     )},
 ])
+@check_superuser
 def do_delete(request, recv_data):
     name = recv_data['name']
     group = Group.objects.get(name=name)

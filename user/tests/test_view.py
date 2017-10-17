@@ -9,15 +9,19 @@ from xml.etree import ElementTree
 class ViewTest(TestCase):
     def setUp(self):
         self._client = Client()
-        self._create_user('admin')
+        self._create_user('guest')
+        self._create_user('admin', True)
 
-    def _create_user(self, name):
-        user = User(username=name)
+    def _create_user(self, name, is_superuser=False):
+        user = User(username=name, is_superuser=is_superuser)
         user.set_password(name)
         user.save()
 
     def _admin_login(self):
         self.client.login(username='admin', password='admin')
+
+    def _guest_login(self):
+        self.client.login(username='guest', password='guest')
 
     def _get_active_user_count(self):
         return User.objects.filter(is_active=True).count()
@@ -80,6 +84,7 @@ class ViewTest(TestCase):
         self.assertEqual(User.objects.count(), count+1) # user should be created
         self.assertEqual(User.objects.last().username, 'hoge')
         self.assertNotEqual(User.objects.last().password, 'puyo')
+        self.assertFalse(User.objects.last().is_superuser)
 
     def test_create_user_without_mandatory_param(self):
         count = User.objects.count()
@@ -137,3 +142,50 @@ class ViewTest(TestCase):
         # user should be inactive
         user = User.objects.get(username=name)
         self.assertFalse(user.is_active)
+
+    def test_create_user_by_guest_user(self):
+        self._guest_login()
+
+        params = {
+            'name': 'hoge',
+            'email': 'hoge@fuga.com',
+            'passwd': 'puyo',
+        }
+        resp = self.client.post(reverse('user:do_create'),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+
+    def test_create_admin_user(self):
+        self._admin_login()
+
+        params = {
+            'name': 'hoge',
+            'email': 'hoge@fuga.com',
+            'passwd': 'puyo',
+            'is_admin': 'on',
+        }
+        resp = self.client.post(reverse('user:do_create'),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(User.objects.last().is_superuser)
+
+    def test_delete_post_by_guest_user(self):
+        self._guest_login()
+
+        self._create_user('testuser')
+        user_count = User.objects.count()
+        active_user_count = self._get_active_user_count()
+
+        params = {
+            'name': 'testuser'
+        }
+        resp = self.client.post(reverse('user:do_delete'),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertTrue(User.objects.get(username='testuser').is_active)

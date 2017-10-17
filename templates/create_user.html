@@ -36,6 +36,10 @@
             <th>パスワード</th>
             <td><input type="password" name="passwd"></input><br/></td>
           </tr>
+          <tr>
+            <th>管理者権限を付与</th>
+            <td><input type="checkbox" name="is_superuser"></input><br/></td>
+          </tr>
         </table>
         {% csrf_token %}
       </form>

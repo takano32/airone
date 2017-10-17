@@ -50,6 +50,19 @@ def check_permission(model, permission_level):
         return permission_checker
     return _decorator
 
+def check_superuser(func):
+    def wrapper(*args, **kwargs):
+        request = args[0]
+
+        if not request.user.is_authenticated():
+            return HttpResponseSeeOther('/dashboard/login')
+
+        if not request.user.is_superuser:
+            return HttpResponse('This page needs Admnistrator permission to access', status=400)
+
+        return func(*args, **kwargs)
+    return wrapper
+
 def http_post(validator):
     def _decorator(func):
         def http_post_handler(*args, **kwargs):

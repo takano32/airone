@@ -214,6 +214,37 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(len(obj['User']), 3)
         self.assertEqual(len(obj['Group']), 2)
+
+    def test_create_group_by_guest_user(self):
+        user = self.guest_login()
+
+        params = {
+            'name': 'test-group',
+            'users': [user.id],
+        }
+        resp = self.client.post(reverse('group:do_create'),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(Group.objects.filter(name='test-group').count(), 0)
+
+    def test_delete_group_by_guest_user(self):
+        user = self.guest_login()
+        group = self._create_group("test-group")
+
+        user.groups.add(group)
+
+        params = {
+            "name": "test-group",
+        }
+        resp = self.client.post(reverse('group:do_delete'),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(Group.objects.filter(name='test-group').count(), 1)
+        self.assertTrue(user.groups.filter(name='test-group').count(), 1)
         
     # utility functions
     def _create_user(self, name):

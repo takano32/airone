@@ -29,8 +29,23 @@ def index(request):
 @http_get
 def create(request):
     context = {
-        'users': User.objects.filter(is_active=True),
+        'default_group_id': 0,
     }
+
+    # set group members for each groups
+    context['groups'] = [{
+        'id': x.id,
+        'name': x.name,
+        'members': User.objects.filter(groups__name=x.name,is_active=True),
+    } for x in Group.objects.all()]
+
+    # set all user
+    context['groups'].insert(0, {
+        'id': 0,
+        'name': '-- ALL --',
+        'members': User.objects.filter(is_active=True),
+    })
+
     return render(request, 'create_group.html', context)
 
 @http_post([

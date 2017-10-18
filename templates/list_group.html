@@ -37,7 +37,7 @@
         <tbody>
           {% for group in groups %}
           <tr>
-            <td>{{ group.name }}</td>
+            <td><a href="/group/edit/{{ group.id }}">{{ group.name }}</a></td>
             <td>
               <ul>
                 {% for member in group.members %}

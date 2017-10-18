@@ -20,23 +20,35 @@ from .admin import GroupResource
 def index(request):
     context = {}
     context['groups'] = [{
+        'id': x.id,
         'name': x.name,
-        'members': User.objects.filter(groups__name=x.name,is_active=True),
+        'members': User.objects.filter(groups__name=x.name, is_active=True).order_by('username'),
     } for x in Group.objects.all()]
 
     return render(request, 'list_group.html', context)
 
 @http_get
-def create(request):
+@check_superuser
+def edit(request, group_id):
+    if not Group.objects.filter(id=group_id).count():
+        return HttpResponse('Failed to get group of specified id', status=400)
+
+    group = Group.objects.get(id=group_id)
+
+    # set selected group information
     context = {
-        'default_group_id': 0,
+        'default_group_id': int(group_id),
+        'current_group_name': group.name,
+        'current_group_members': User.objects.filter(groups__id=group.id,
+                                                     is_active=True).order_by('username'),
+        'submit_ref': '/group/do_edit/%s' % group_id,
     }
 
     # set group members for each groups
     context['groups'] = [{
         'id': x.id,
         'name': x.name,
-        'members': User.objects.filter(groups__name=x.name,is_active=True),
+        'members': User.objects.filter(groups__id=x.id, is_active=True).order_by('username'),
     } for x in Group.objects.all()]
 
     # set all user
@@ -46,7 +58,67 @@ def create(request):
         'members': User.objects.filter(is_active=True),
     })
 
-    return render(request, 'create_group.html', context)
+    return render(request, 'edit_group.html', context)
+
+@http_post([
+    {'name': 'name', 'type': str, 'checker': lambda x: x['name']},
+    {'name': 'users', 'type': list, 'checker': lambda x: (
+        x['users'] and all([User.objects.filter(id=u).count() for u in x['users']])
+    )}
+])
+@check_superuser
+def do_edit(request, group_id, recv_data):
+    if not Group.objects.filter(id=group_id).count():
+        return HttpResponse('Failed to get group of specified id', status=400)
+
+    group = Group.objects.get(id=group_id)
+    if Group.objects.filter(name=recv_data['name']).count():
+        same_name_group = Group.objects.get(name=recv_data['name'])
+
+        if group.id != same_name_group.id:
+            return HttpResponse('Failed to update because there is another group of same name',
+                                status=400)
+
+    # get users who are belonged to the selected group for updating
+    old_users = [str(x.id) for x in User.objects.filter(groups__id=group_id, is_active=True)]
+
+    # update group_name with specified one
+    group.name = recv_data['name']
+    group.save()
+
+    # the processing for deleted users
+    for user in [User.objects.get(id=x) for x in set(old_users) - set(recv_data['users'])]:
+        user.groups.remove(group)
+
+    # the processing for added users
+    for user in [User.objects.get(id=x) for x in set(recv_data['users']) - set(old_users)]:
+        user.groups.add(group)
+
+    return HttpResponse('')
+
+@http_get
+@check_superuser
+def create(request):
+    context = {
+        'default_group_id': 0,
+        'submit_ref': '/group/do_create',
+    }
+
+    # set group members for each groups
+    context['groups'] = [{
+        'id': x.id,
+        'name': x.name,
+        'members': User.objects.filter(groups__id=x.id, is_active=True).order_by('username'),
+    } for x in Group.objects.all()]
+
+    # set all user
+    context['groups'].insert(0, {
+        'id': 0,
+        'name': '-- ALL --',
+        'members': User.objects.filter(is_active=True),
+    })
+
+    return render(request, 'edit_group.html', context)
 
 @http_post([
     {'name': 'name', 'type': str, 'checker': lambda x: (

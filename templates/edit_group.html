@@ -13,12 +13,12 @@
 
 {% block content %}
 <div class="container">
-<form url='/group/do_create' method='post'>
+<form url='{{ submit_ref }}' method='post'>
   {% csrf_token %}
   <div class="form-row">
     <div class="form-group col-md-11">
       <label class="col-form-label">グループ名</label>
-      <input type="text" name="name" class="form-control" id="group-name" />
+      <input type="text" name="name" class="form-control" id="group-name" value="{{ current_group_name }}"/>
     </div>
   </div>
   <div class="form-row">
@@ -26,7 +26,11 @@
       <label class="col-form-label">ユーザ一覧</label>
       <select id="group" class="form-control">
         {% for group in groups %}
-        <option value='airone-group-{{ group.id }}'>{{ group.name }}</option>
+          {% if group.id == default_group_id %}
+            <option value='airone-group-{{ group.id }}' selected="on">{{ group.name }}</option>
+          {% else %}
+            <option value='airone-group-{{ group.id }}'>{{ group.name }}</option>
+          {% endif %}
         {% endfor %}
       </select>
       {% for group in groups %}
@@ -53,6 +57,9 @@
     <div class="form-group col-md-5">
       <label class="col-form-label">グループに登録するユーザ</label>
       <select multiple="on" id="selected_users" class="form-control" size="15">
+        {% for user in current_group_members %}
+          <option value='{{ user.id }}'>{{ user.username }}</option>
+        {% endfor %}
       </select>
     </div>
   </div>
@@ -63,7 +70,11 @@
     <div class="form-group col-md-4">
     </div>
   </div>
-  <button type="submit" class="btn btn-primary">作成</button>
+  {% if 'create' in submit_ref %}
+    <button type="submit" class="btn btn-primary">作成</button>
+  {% else %}
+    <button type="submit" class="btn btn-primary">更新</button>
+  {% endif %}
 </form>
 </div>
 

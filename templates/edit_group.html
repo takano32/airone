@@ -70,7 +70,11 @@
     <div class="form-group col-md-4">
     </div>
   </div>
-  <button type="submit" class="btn btn-primary">{{ submit_label }}</button>
+  {% if 'create' in submit_ref %}
+    <button type="submit" class="btn btn-primary">作成</button>
+  {% else %}
+    <button type="submit" class="btn btn-primary">更新</button>
+  {% endif %}
 </form>
 </div>
 

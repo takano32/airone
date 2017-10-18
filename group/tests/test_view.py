@@ -245,6 +245,99 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(Group.objects.filter(name='test-group').count(), 1)
         self.assertTrue(user.groups.filter(name='test-group').count(), 1)
+
+    def test_get_edit_page(self):
+        self.admin_login()
+
+        group = self._create_group('testg')
+
+        resp = self.client.get(reverse('group:edit', args=[group.id]))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_get_edit_page_by_guest(self):
+        self.guest_login()
+
+        group = self._create_group('testg')
+
+        resp = self.client.get(reverse('group:edit', args=[group.id]))
+        self.assertEqual(resp.status_code, 400)
+
+    def test_post_edit(self):
+        user = self.admin_login()
+
+        # initialize group and user
+        group = self._create_group('testg')
+        user1 = self._create_user('user1')
+        user1.groups.add(group)
+
+        params = {
+            'name': 'testg-update',
+            'users': [user.id],
+        }
+        resp = self.client.post(reverse('group:do_edit', args=[group.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+
+        # get updated group object from database
+        group = Group.objects.get(id=group.id)
+        self.assertEqual(group.name, 'testg-update')
+
+        # checks being have added/deleted group from user and user1 information
+        self.assertEqual(user.groups.count(), 1)
+        self.assertEqual(user1.groups.count(), 0)
+        self.assertTrue(group in user.groups.all())
+        self.assertFalse(group in user1.groups.all())
+
+    def test_post_edit_to_duplicate_name(self):
+        user = self.admin_login()
+
+        # initialize group and user
+        group1 = self._create_group('testg1')
+        group2 = self._create_group('testg2')
+
+        params = {
+            'name': 'testg2',  # This is same with group2, so it may cause an error.
+            'users': [],
+        }
+        resp = self.client.post(reverse('group:do_edit', args=[group1.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+
+        # checks group name is not changed
+        self.assertEqual(Group.objects.get(id=group1.id).name, group1.name)
+
+    def test_post_edit_with_invalid_group_id(self):
+        user = self.admin_login()
+
+        params = {
+            'name': 'testg',
+            'users': [],
+        }
+        # send request with an invalid group-id
+        resp = self.client.post(reverse('group:do_edit', args=[12345]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+
+    def test_post_edit_by_guest(self):
+        user = self.guest_login()
+
+        # initialize group to update
+        group = self._create_group('testg')
+        params = {
+            'name': 'testg-update',
+            'users': [],
+        }
+        resp = self.client.post(reverse('group:do_edit', args=[group.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
         
     # utility functions
     def _create_user(self, name):

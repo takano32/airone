@@ -41,7 +41,6 @@ def edit(request, group_id):
         'current_group_name': group.name,
         'current_group_members': User.objects.filter(groups__id=group.id,
                                                      is_active=True).order_by('username'),
-        'submit_label': '更新',
         'submit_ref': '/group/do_edit/%s' % group_id,
     }
 
@@ -102,7 +101,6 @@ def do_edit(request, group_id, recv_data):
 def create(request):
     context = {
         'default_group_id': 0,
-        'submit_label': '作成',
         'submit_ref': '/group/do_create',
     }
 

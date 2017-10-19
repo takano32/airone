@@ -61,10 +61,8 @@ class ACLBase(models.Model):
                 Permission(name=acltype.name, codename=codename, content_type=content_type).save()
 
     def delete(self, *args, **kwargs):
-        for acltype in ACLType.availables():
-            Permission.objects.filter(codename__regex=r'%d\.' % self.id).delete()
-
-        super(ACLBase, self).delete(*args, **kwargs)
+        self.is_active = False
+        self.save()
 
     @property
     def readable(self):

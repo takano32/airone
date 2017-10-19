@@ -7,8 +7,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute
-from history.models import History
-from user.models import User
+from user.models import User, History
 from xml.etree import ElementTree
 from airone.lib.test import AironeViewTest
 from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
@@ -89,8 +88,10 @@ class ViewTest(AironeViewTest):
         # tests for EntityAttribute objects
         self.assertEqual(len(EntityAttr.objects.all()), 3)
 
-        # checks that change history is recorded
-        self.assertEqual(History.objects.filter(operation=History.OP_ADD_ENTITY).count(), 1)
+        # tests for operation history is registered correctly
+        self.assertEqual(History.objects.count(), 4)
+        self.assertEqual(History.objects.filter(operation=History.ADD_ENTITY).count(), 1)
+        self.assertEqual(History.objects.filter(operation=History.ADD_ATTR).count(), 3)
 
     def test_create_post_without_name_param(self):
         self.admin_login()
@@ -109,9 +110,6 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 400)
         self.assertIsNone(Entity.objects.first())
-
-        # checks that change history is not recorded
-        self.assertEqual(History.objects.filter(operation=History.OP_ADD_ENTITY).count(), 0)
 
     def test_create_post_with_invalid_attrs(self):
         self.admin_login()
@@ -144,9 +142,6 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 400)
         self.assertIsNone(Entity.objects.first())
-
-        # checks that change history is not recorded
-        self.assertEqual(History.objects.filter(operation=History.OP_ADD_ENTITY).count(), 0)
 
     def test_create_port_with_invalid_params(self):
         self.admin_login()
@@ -204,9 +199,6 @@ class ViewTest(AironeViewTest):
                                 'application/json')
         self.assertEqual(resp.status_code, 400)
 
-        # checks that change history is not recorded
-        self.assertEqual(History.objects.filter(operation=History.OP_MOD_ENTITY).count(), 0)
-
     def test_post_edit_with_valid_params(self):
         user = self.admin_login()
 
@@ -238,18 +230,21 @@ class ViewTest(AironeViewTest):
         self.assertEqual(Entity.objects.get(id=entity.id).attrs.last().name, 'bar')
         self.assertTrue(Entity.objects.get(id=entity.id).status & Entity.STATUS_TOP_LEVEL)
 
-        # checks that change history is recorded
-        self.assertEqual(History.objects.filter(operation=History.OP_MOD_ENTITY).count(), 1)
+        # tests for operation history is registered correctly
+        self.assertEqual(History.objects.count(), 3)
+        self.assertEqual(History.objects.filter(operation=History.MOD_ENTITY).count(), 1)
+        self.assertEqual(History.objects.filter(operation=History.ADD_ATTR).count(), 1)
+        self.assertEqual(History.objects.filter(operation=History.MOD_ATTR).count(), 1)
 
     def test_post_edit_after_creating_entry(self):
         user = self.admin_login()
 
         entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
         attrbase = EntityAttr.objects.create(name='puyo',
-                                                created_user=user,
-                                                is_mandatory=True,
-                                                type=AttrTypeStr,
-                                                parent_entity=entity)
+                                             created_user=user,
+                                             is_mandatory=True,
+                                             type=AttrTypeStr,
+                                             parent_entity=entity)
         entity.attrs.add(attrbase)
 
         entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
@@ -276,9 +271,9 @@ class ViewTest(AironeViewTest):
 
         entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
         attr = EntityAttr.objects.create(name='puyo',
-                                            type=AttrTypeStr,
-                                            created_user=user,
-                                            parent_entity=entity)
+                                         type=AttrTypeStr,
+                                         created_user=user,
+                                         parent_entity=entity)
         entity.attrs.add(attr)
 
         params = {
@@ -307,10 +302,10 @@ class ViewTest(AironeViewTest):
 
         entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
         attrbase = EntityAttr.objects.create(name='puyo',
-                                                type=AttrTypeObj,
-                                                referral=entity,
-                                                created_user=user,
-                                                parent_entity=entity)
+                                             type=AttrTypeObj,
+                                             referral=entity,
+                                             created_user=user,
+                                             parent_entity=entity)
         entity.attrs.add(attrbase)
 
         entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
@@ -422,9 +417,9 @@ class ViewTest(AironeViewTest):
         entity = Entity.objects.create(name='entity', created_user=user)
         for name in ['foo', 'bar']:
             entity.attrs.add(EntityAttr.objects.create(name=name,
-                                                               type=AttrTypeStr,
-                                                               created_user=user,
-                                                               parent_entity=entity))
+                                                       type=AttrTypeStr,
+                                                       created_user=user,
+                                                       parent_entity=entity))
 
         entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
         [entry.add_attribute_from_base(x, user) for x in entity.attrs.all()]
@@ -445,12 +440,17 @@ class ViewTest(AironeViewTest):
                                 json.dumps(params), 'application/json')
 
         self.assertEqual(resp.status_code, 303)
-        self.assertEqual(Permission.objects.count(),
-                         permission_count - len(ACLType.availables()) * 2)
-        self.assertEqual(entity.attrs.count(), 1)
-        self.assertEqual(entry.attrs.count(), 1)
-        self.assertEqual(entity.attrs.last().name, 'foo')
-        self.assertEqual(entry.attrs.last().name, 'foo')
+
+        # Note: delete() method won't actual delete only set delete flag
+        self.assertEqual(Permission.objects.count(), permission_count)
+        self.assertEqual(entity.attrs.count(), 2)
+        self.assertEqual(entry.attrs.count(), 2)
+
+        # tests for operation history is registered correctly
+        self.assertEqual(History.objects.count(), 3)
+        self.assertEqual(History.objects.filter(operation=History.MOD_ENTITY).count(), 1)
+        self.assertEqual(History.objects.filter(operation=History.MOD_ATTR).count(), 1)
+        self.assertEqual(History.objects.filter(operation=History.DEL_ATTR).count(), 1)
 
     def test_export_data(self):
         user = self.admin_login()
@@ -458,9 +458,9 @@ class ViewTest(AironeViewTest):
         entity1 = Entity.objects.create(name='entity1', note='hoge', created_user=user)
         for name in ['foo', 'bar']:
             entity1.attrs.add(EntityAttr.objects.create(name=name,
-                                                                type=AttrTypeStr,
-                                                                created_user=user,
-                                                                parent_entity=entity1))
+                                                        type=AttrTypeStr,
+                                                        created_user=user,
+                                                        parent_entity=entity1))
 
         entity2 = Entity.objects.create(name='entity2', created_user=user)
         entity2.attrs.add(EntityAttr.objects.create(name='attr',
@@ -502,25 +502,25 @@ class ViewTest(AironeViewTest):
         # create an entity object which is created by logined-user
         entity1 = Entity.objects.create(name='entity1', created_user=user)
         entity1.attrs.add(EntityAttr.objects.create(name='attr1',
-                                                            type=AttrTypeStr,
-                                                            created_user=user,
-                                                            parent_entity=entity1))
+                                                    type=AttrTypeStr,
+                                                    created_user=user,
+                                                    parent_entity=entity1))
 
         # create a public object which is created by the another_user
         entity2 = Entity.objects.create(name='entity2', created_user=user2)
         entity2.attrs.add(EntityAttr.objects.create(name='attr2',
-                                                            type=AttrTypeStr,
-                                                            created_user=user2,
-                                                            parent_entity=entity1))
+                                                    type=AttrTypeStr,
+                                                    created_user=user2,
+                                                    parent_entity=entity1))
 
         # create private objects which is created by the another_user
         for name in ['foo', 'bar']:
             e = Entity.objects.create(name=name, created_user=user2, is_public=False)
             e.attrs.add(EntityAttr.objects.create(name='private_attr',
-                                                          type=AttrTypeStr,
-                                                          created_user=user2,
-                                                          parent_entity=e,
-                                                          is_public=False))
+                                                  type=AttrTypeStr,
+                                                  created_user=user2,
+                                                  parent_entity=e,
+                                                  is_public=False))
 
         resp = self.client.get(reverse('entity:export'))
         self.assertEqual(resp.status_code, 200)
@@ -579,9 +579,6 @@ class ViewTest(AironeViewTest):
         self.assertFalse(entity1.is_active)
         self.assertFalse(EntityAttr.objects.get(name='attr-test').is_active)
 
-        # checks that change history is recorded
-        self.assertEqual(History.objects.filter(operation=History.OP_DEL_ENTITY).count(), 1)
-
     def test_post_delete_without_permission(self):
         user1 = self.admin_login()
         user2 = User.objects.create(username='mokeke')
@@ -603,9 +600,6 @@ class ViewTest(AironeViewTest):
         entity1 = Entity.objects.get(name='entity1')
         self.assertIsNotNone(entity1)
         self.assertTrue(entity1.is_active)
-
-        # checks that change history is not recorded
-        self.assertEqual(History.objects.filter(operation=History.OP_DEL_ENTITY).count(), 0)
 
     def test_post_delete_with_active_entry(self):
         user = self.admin_login()

@@ -8,7 +8,7 @@ from django.core.exceptions import PermissionDenied
 
 from .models import Entity
 from .models import EntityAttr
-from user.models import User
+from user.models import User, History
 from entry.models import Entry, Attribute, AttributeValue
 from entity.admin import EntityResource, EntityAttrResource
 
@@ -67,7 +67,7 @@ def edit(request, entity_id):
     query = Q(is_active=True) # active entity should be displayed
     attrs = [] # EntityAttrs of entity to be editted
 
-    for attr_base in entity.attrs.order_by('index').all():
+    for attr_base in entity.attrs.filter(is_active=True).order_by('index'):
         # skip not-writable EntityAttr
         if not user.has_permission(attr_base, ACLType.Writable):
             continue
@@ -105,33 +105,30 @@ def edit(request, entity_id):
 ])
 @check_permission(Entity, ACLType.Writable)
 def do_edit(request, entity_id, recv_data):
-    # This is the variable to describe update detail of Entity to register the History
-    mod_details = []
     user = User.objects.get(id=request.user.id)
 
     if not Entity.objects.filter(id=entity_id).count():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     entity = Entity.objects.get(id=entity_id)
+
+    # register history to modify Entity
+    history = user.seth_entity_mod(entity)
+
+    # check operation history detail
+    if entity.name != recv_data['name']:
+        history.mod_entity(entity, 'old name: "%s"' % (entity.name))
+
     # update status parameters
     if recv_data['is_toplevel']:
         entity.set_status(Entity.STATUS_TOP_LEVEL)
     else:
         entity.del_status(Entity.STATUS_TOP_LEVEL)
 
-    # check operation history detail
-    if entity.name != recv_data['name']:
-        mod_details.append('Name is changed ("%s" -> "%s")' % (entity.name, recv_data['name']))
-    if entity.note != recv_data['note']:
-        mod_details.append('Note is changed ("%s" -> "%s")' % (entity.note, recv_data['note']))
-
     # update entity metatada informations to new ones
     entity.name = recv_data['name']
     entity.note = recv_data['note']
     entity.save()
-
-    # register history to modify Entity
-    user.seth_entity_mod(entity, "\n".join(mod_details))
 
     # update processing for each attrs
     for attr in recv_data['attrs']:
@@ -151,17 +148,20 @@ def do_edit(request, entity_id, recv_data):
             attr_obj.delete()
 
             # register History to register deleting EntityAttr
-            user.seth_attr_del(attr_obj)
+            history.del_attr(attr_obj)
 
         elif 'id' in attr and EntityAttr.objects.filter(id=attr['id']).count():
-            # update attributes which is already created
-            update_detail = []
             attr_obj = EntityAttr.objects.get(id=attr['id'])
 
-            # check operation history detail
+            # register operaion history if the parameters are changed
             if attr_obj.name != attr['name']:
-                update_detail.append('Attr-name of %s is changed ("%s" -> "%s")' % \
-                                     (recv_data['name'], attr_obj.name, attr['name']))
+                history.mod_attr(attr_obj, 'old name: "%s"' % (attr_obj.name))
+
+            if attr_obj.is_mandatory != attr['is_mandatory']:
+                if attr['is_mandatory']:
+                    history.mod_attr(attr_obj, 'set mandatory flag')
+                else:
+                    history.mod_attr(attr_obj, 'unset mandatory flag')
 
             attr_obj.name = attr['name']
             attr_obj.type = attr['type']
@@ -178,9 +178,6 @@ def do_edit(request, entity_id, recv_data):
 
             # update Attributes which are already created
             [x.update_from_base(attr_obj) for x in Attribute.objects.filter(schema_id=attr_obj.id)]
-
-            # register History to register updating EntityAttr
-            user.seth_attr_mod(attr_obj, '\n'.join(update_detail))
 
         else:
             referral = None
@@ -199,7 +196,7 @@ def do_edit(request, entity_id, recv_data):
             entity.attrs.add(attr_obj)
 
             # register History to register adding EntityAttr
-            user.seth_attr_add(attr_obj)
+            history.add_attr(attr_obj)
 
             # also add new Attribute for each existed Entry
             for entry in Entry.objects.filter(schema=entity):
@@ -257,7 +254,7 @@ def do_create(request, recv_data):
     entity.save()
 
     # register history to modify Entity
-    user.seth_entity_add(entity)
+    history = user.seth_entity_add(entity)
 
     for attr in recv_data['attrs']:
         if (int(attr['type']) & AttrTypeValue['object'] and
@@ -278,7 +275,7 @@ def do_create(request, recv_data):
         entity.attrs.add(attr_base)
 
         # register history to modify Entity
-        user.seth_attr_add(attr_base)
+        history.add_attr(attr_base)
 
     return HttpResponseSeeOther('/entity/')
 
@@ -315,11 +312,28 @@ def do_delete(request, entity_id, recv_data):
         return HttpResponse('cannot delete Entity because one or more Entries are not deleted', status=400)
 
     entity.delete()
-    user.seth_entity_del(entity)
+    history = user.seth_entity_del(entity)
 
     # Delete all attributes which target Entity have
     for attr in entity.attrs.all():
         attr.delete()
-        user.seth_attr_del(attr)
+        history.del_attr(attr)
 
     return HttpResponse()
+
+@http_get
+def history(request, entity_id):
+    user = User.objects.get(id=request.user.id)
+
+    if not Entity.objects.filter(id=entity_id).count():
+        return HttpResponse('Failed to get entity of specified id', status=400)
+
+    # entity to be editted is given by url
+    entity = Entity.objects.get(id=entity_id)
+
+    context = {
+        'entity': entity,
+        'history': History.objects.filter(target_obj=entity, is_detail=False).order_by('-time'),
+    }
+
+    return render(request, 'history_entity.html', context)

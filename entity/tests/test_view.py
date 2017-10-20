@@ -215,7 +215,7 @@ class ViewTest(AironeViewTest):
             'note': 'bar',
             'is_toplevel': True,
             'attrs': [
-                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True, 'id': attr.id, 'row_index': '1'},
+                {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': False, 'id': attr.id, 'row_index': '1'},
                 {'name': 'bar', 'type': str(AttrTypeStr), 'is_mandatory': True, 'row_index': '2'},
             ],
         }
@@ -231,10 +231,10 @@ class ViewTest(AironeViewTest):
         self.assertTrue(Entity.objects.get(id=entity.id).status & Entity.STATUS_TOP_LEVEL)
 
         # tests for operation history is registered correctly
-        self.assertEqual(History.objects.count(), 3)
-        self.assertEqual(History.objects.filter(operation=History.MOD_ENTITY).count(), 1)
+        self.assertEqual(History.objects.count(), 5)
+        self.assertEqual(History.objects.filter(operation=History.MOD_ENTITY).count(), 2)
         self.assertEqual(History.objects.filter(operation=History.ADD_ATTR).count(), 1)
-        self.assertEqual(History.objects.filter(operation=History.MOD_ATTR).count(), 1)
+        self.assertEqual(History.objects.filter(operation=History.MOD_ATTR).count(), 2)
 
     def test_post_edit_after_creating_entry(self):
         user = self.admin_login()
@@ -448,8 +448,7 @@ class ViewTest(AironeViewTest):
 
         # tests for operation history is registered correctly
         self.assertEqual(History.objects.count(), 3)
-        self.assertEqual(History.objects.filter(operation=History.MOD_ENTITY).count(), 1)
-        self.assertEqual(History.objects.filter(operation=History.MOD_ATTR).count(), 1)
+        self.assertEqual(History.objects.filter(operation=History.MOD_ENTITY).count(), 2)
         self.assertEqual(History.objects.filter(operation=History.DEL_ATTR).count(), 1)
 
     def test_export_data(self):

@@ -29,36 +29,46 @@ class ModelTest(TestCase):
         self.assertIsNotNone(user.date_joined)
         self.assertFalse(user.is_active)
 
-    def test_set_history_of_entity(self):
+    def test_set_history(self):
         entity = Entity.objects.create(name='test-entity', created_user=self.user)
+        entry = Entry.objects.create(name='test-attr', created_user=self.user, schema=entity)
 
         self.user.seth_entity_add(entity)
         self.user.seth_entity_mod(entity)
         self.user.seth_entity_del(entity)
+        self.user.seth_entry_del(entry)
 
-        self.assertEqual(History.objects.count(), 3)
+        self.assertEqual(History.objects.count(), 4)
         self.assertEqual(History.objects.filter(operation=History.ADD_ENTITY).count(), 1)
         self.assertEqual(History.objects.filter(operation=History.MOD_ENTITY).count(), 1)
         self.assertEqual(History.objects.filter(operation=History.DEL_ENTITY).count(), 1)
+        self.assertEqual(History.objects.filter(operation=History.DEL_ENTRY).count(), 1)
 
-    def test_set_history_of_attr(self):
+    def test_set_history_with_detail(self):
         entity = Entity.objects.create(name='test-entity', created_user=self.user)
         attr = EntityAttr.objects.create(name='test-attr', created_user=self.user, parent_entity=entity)
 
-        self.user.seth_attr_add(attr)
-        self.user.seth_attr_mod(attr)
-        self.user.seth_attr_del(attr)
+        history = self.user.seth_entity_add(entity)
 
-        self.assertEqual(History.objects.count(), 3)
+        history.add_attr(attr)
+        history.mod_attr(attr, 'changed points ...')
+        history.del_attr(attr)
+        history.mod_entity(entity, 'changed points ...')
+
+        self.assertEqual(History.objects.count(), 5)
+        self.assertEqual(History.objects.filter(user=self.user).count(), 5)
         self.assertEqual(History.objects.filter(operation=History.ADD_ATTR).count(), 1)
         self.assertEqual(History.objects.filter(operation=History.MOD_ATTR).count(), 1)
         self.assertEqual(History.objects.filter(operation=History.DEL_ATTR).count(), 1)
+        self.assertEqual(History.objects.filter(operation=History.ADD_ENTITY).count(), 1)
+        self.assertEqual(History.objects.filter(operation=History.MOD_ENTITY).count(), 1)
 
-    def test_set_history_of_entry(self):
-        entity = Entity.objects.create(name='test-entity', created_user=self.user)
-        entry = Entry.objects.create(name='test-attr', created_user=self.user, schema=entity)
-
-        self.user.seth_entry_del(entry)
+        # checks detail histories are registered correctly
+        self.assertEqual(history.details.count(), 4)
+        self.assertEqual(history.details.filter(operation=History.ADD_ATTR).count(), 1)
+        self.assertEqual(history.details.filter(operation=History.MOD_ATTR).count(), 1)
+        self.assertEqual(history.details.filter(operation=History.DEL_ATTR).count(), 1)
+        self.assertEqual(history.details.filter(operation=History.MOD_ENTITY).count(), 1)
 
     def test_set_history_of_invalid_type_entry(self):
         class InvalidType(object):
@@ -71,5 +81,6 @@ class ModelTest(TestCase):
             self.user.seth_entity_add(invalid_obj)
             self.user.seth_entity_mod(invalid_obj)
             self.user.seth_entity_del(invalid_obj)
+            self.user.seth_entry_del(invalid_obj)
 
         self.assertEqual(History.objects.count(), 0)

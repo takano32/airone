@@ -8,10 +8,9 @@ from django.core.exceptions import PermissionDenied
 
 from .models import Entity
 from .models import EntityAttr
-from user.models import User
+from user.models import User, History
 from entry.models import Entry, Attribute, AttributeValue
 from entity.admin import EntityResource, EntityAttrResource
-from history.models import History
 
 from airone.lib.types import AttrTypes, AttrTypeObj, AttrTypeValue
 from airone.lib.http import HttpResponseSeeOther
@@ -68,7 +67,7 @@ def edit(request, entity_id):
     query = Q(is_active=True) # active entity should be displayed
     attrs = [] # EntityAttrs of entity to be editted
 
-    for attr_base in entity.attrs.order_by('index').all():
+    for attr_base in entity.attrs.filter(is_active=True).order_by('index'):
         # skip not-writable EntityAttr
         if not user.has_permission(attr_base, ACLType.Writable):
             continue
@@ -113,10 +112,12 @@ def do_edit(request, entity_id, recv_data):
 
     entity = Entity.objects.get(id=entity_id)
 
-    # record operaitno history
-    history = History.mod_entity(entity, user)
-    history.detail += ' (変更後 "%s")' % recv_data['name']
-    history.save()
+    # register history to modify Entity
+    history = user.seth_entity_mod(entity)
+
+    # check operation history detail
+    if entity.name != recv_data['name']:
+        history.mod_entity(entity, 'old name: "%s"' % (entity.name))
 
     # update status parameters
     if recv_data['is_toplevel']:
@@ -124,75 +125,96 @@ def do_edit(request, entity_id, recv_data):
     else:
         entity.del_status(Entity.STATUS_TOP_LEVEL)
 
+    # update entity metatada informations to new ones
     entity.name = recv_data['name']
     entity.note = recv_data['note']
     entity.save()
 
+    # update processing for each attrs
     for attr in recv_data['attrs']:
+        # This is the variable to describe update detail of EntityAttr to register the History
+        detail_attr = []
+
         if (int(attr['type']) & AttrTypeValue['object'] and
             ('ref_id' not in attr or not Entity.objects.filter(id=attr['ref_id']).count())):
             return HttpResponse('Failed to get entity that is referred', status=400)
 
-        is_deleted = is_new_attr_base = False
-        if 'id' in attr and EntityAttr.objects.filter(id=attr['id']).count():
-            # update attributes which is already created
-            attr_base = EntityAttr.objects.get(id=attr['id'])
+        if 'deleted' in attr:
+            attr_obj = EntityAttr.objects.get(id=attr['id'])
 
-            attr_base.name = attr['name']
-            attr_base.type = attr['type']
-            attr_base.is_mandatory = attr['is_mandatory']
-            attr_base.index = int(attr['row_index'])
-
-            if 'deleted' in attr:
-                is_deleted = True
-        else:
-            # add an new attributes
-            is_new_attr_base = True
-            attr_base = EntityAttr(name=attr['name'],
-                                      type=int(attr['type']),
-                                      is_mandatory=attr['is_mandatory'],
-                                      index=int(attr['row_index']),
-                                      created_user=user,
-                                      parent_entity=entity)
-
-        # the case of an attribute that has referral entry
-        if int(attr['type']) & AttrTypeValue['object']:
-            attr_base.referral = Entity.objects.get(id=attr['ref_id'])
-        else:
-            attr_base.referral = None
-
-        if not is_deleted:
-            # create or update an EntityAttr and related Attributes
-            attr_base.save()
-
-            if is_new_attr_base:
-                # add a new attribute on the existed Entries
-                entity.attrs.add(attr_base)
-
-                for entry in Entry.objects.filter(schema=entity):
-                    newattr = entry.add_attribute_from_base(attr_base, user)
-
-                    if newattr.type & AttrTypeValue['array']:
-                        # Create a initial AttributeValue for editing processing
-                        attr_value = AttributeValue.objects.create(created_user=user,
-                                                                   parent_attr=newattr)
-
-                        # Set a flag that means this is the latest value
-                        attr_value.set_status(AttributeValue.STATUS_LATEST)
-
-                        # Set status of parent data_array
-                        attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
-
-                        newattr.values.add(attr_value)
-            else:
-                # update Attributes which are already created
-                [x.update_from_base(attr_base)
-                        for x in Attribute.objects.filter(schema_id=attr_base.id)]
-        else:
             # delete all related Attributes of target EntityAttr
-            [x.delete() for x in Attribute.objects.filter(schema_id=attr_base.id)]
+            [x.delete() for x in Attribute.objects.filter(schema_id=attr_obj.id)]
 
-            attr_base.delete()
+            attr_obj.delete()
+
+            # register History to register deleting EntityAttr
+            history.del_attr(attr_obj)
+
+        elif 'id' in attr and EntityAttr.objects.filter(id=attr['id']).count():
+            attr_obj = EntityAttr.objects.get(id=attr['id'])
+
+            # register operaion history if the parameters are changed
+            if attr_obj.name != attr['name']:
+                history.mod_attr(attr_obj, 'old name: "%s"' % (attr_obj.name))
+
+            if attr_obj.is_mandatory != attr['is_mandatory']:
+                if attr['is_mandatory']:
+                    history.mod_attr(attr_obj, 'set mandatory flag')
+                else:
+                    history.mod_attr(attr_obj, 'unset mandatory flag')
+
+            attr_obj.name = attr['name']
+            attr_obj.type = attr['type']
+            attr_obj.is_mandatory = attr['is_mandatory']
+            attr_obj.index = int(attr['row_index'])
+
+            # the case of an attribute that has referral entry
+            if int(attr['type']) & AttrTypeValue['object']:
+                attr_obj.referral = Entity.objects.get(id=attr['ref_id'])
+            else:
+                attr_obj.referral = None
+
+            attr_obj.save()
+
+            # update Attributes which are already created
+            [x.update_from_base(attr_obj) for x in Attribute.objects.filter(schema_id=attr_obj.id)]
+
+        else:
+            referral = None
+            if int(attr['type']) & AttrTypeValue['object']:
+                referral = Entity.objects.get(id=attr['ref_id'])
+
+            attr_obj = EntityAttr.objects.create(name=attr['name'],
+                                                 type=int(attr['type']),
+                                                 is_mandatory=attr['is_mandatory'],
+                                                 index=int(attr['row_index']),
+                                                 created_user=user,
+                                                 parent_entity=entity,
+                                                 referral=referral)
+
+            # add a new attribute on the existed Entries
+            entity.attrs.add(attr_obj)
+
+            # register History to register adding EntityAttr
+            history.add_attr(attr_obj)
+
+            # also add new Attribute for each existed Entry
+            for entry in Entry.objects.filter(schema=entity):
+                newattr = entry.add_attribute_from_base(attr_obj, user)
+
+                if newattr.type & AttrTypeValue['array']:
+                    # Create a initial AttributeValue for editing processing
+                    attr_value = AttributeValue.objects.create(created_user=user,
+                                                               parent_attr=newattr)
+
+                    # Set a flag that means this is the latest value
+                    attr_value.set_status(AttributeValue.STATUS_LATEST)
+
+                    # Set status of parent data_array
+                    attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
+
+                    newattr.values.add(attr_value)
+
 
     return HttpResponseSeeOther('/entity/')
 
@@ -231,8 +253,8 @@ def do_create(request, recv_data):
 
     entity.save()
 
-    # record operaitno history
-    History.add_entity(target=entity, user=user)
+    # register history to modify Entity
+    history = user.seth_entity_add(entity)
 
     for attr in recv_data['attrs']:
         if (int(attr['type']) & AttrTypeValue['object'] and
@@ -240,17 +262,20 @@ def do_create(request, recv_data):
             return HttpResponse('Failed to get entity that is referred', status=400)
 
         attr_base = EntityAttr(name=attr['name'],
-                                  type=int(attr['type']),
-                                  is_mandatory=attr['is_mandatory'],
-                                  created_user=user,
-                                  parent_entity=entity,
-                                  index=int(attr['row_index']))
+                               type=int(attr['type']),
+                               is_mandatory=attr['is_mandatory'],
+                               created_user=user,
+                               parent_entity=entity,
+                               index=int(attr['row_index']))
 
         if int(attr['type']) & AttrTypeValue['object']:
             attr_base.referral = Entity.objects.get(id=attr['ref_id'])
 
         attr_base.save()
         entity.attrs.add(attr_base)
+
+        # register history to modify Entity
+        history.add_attr(attr_base)
 
     return HttpResponseSeeOther('/entity/')
 
@@ -276,23 +301,39 @@ def export(request):
 @http_post([])
 @check_permission(Entity, ACLType.Full)
 def do_delete(request, entity_id, recv_data):
+    user = User.objects.get(id=request.user.id)
+
     if not Entity.objects.filter(id=entity_id).count():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     entity = Entity.objects.get(id=entity_id)
 
-    # record operaitno history
-    History.del_entity(entity, User.objects.get(id=request.user.id))
-
     if Entry.objects.filter(schema=entity,is_active=True).count() != 0:
         return HttpResponse('cannot delete Entity because one or more Entries are not deleted', status=400)
 
-    entity.is_active=False
-    entity.save()
+    entity.delete()
+    history = user.seth_entity_del(entity)
 
     # Delete all attributes which target Entity have
     for attr in entity.attrs.all():
-        attr.is_active = False
-        attr.save()
+        attr.delete()
+        history.del_attr(attr)
 
     return HttpResponse()
+
+@http_get
+def history(request, entity_id):
+    user = User.objects.get(id=request.user.id)
+
+    if not Entity.objects.filter(id=entity_id).count():
+        return HttpResponse('Failed to get entity of specified id', status=400)
+
+    # entity to be editted is given by url
+    entity = Entity.objects.get(id=entity_id)
+
+    context = {
+        'entity': entity,
+        'history': History.objects.filter(target_obj=entity, is_detail=False).order_by('-time'),
+    }
+
+    return render(request, 'history_entity.html', context)

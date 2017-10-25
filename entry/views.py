@@ -21,7 +21,7 @@ from user.models import User
 
 def _get_latest_attributes(self, user):
     ret_attrs = []
-    for attr in [x for x in self.attrs.order_by('index').all() if user.has_permission(x, ACLType.Readable)]:
+    for attr in [x for x in self.attrs.filter(is_active=True).order_by('index') if user.has_permission(x, ACLType.Readable)]:
         attrinfo = {}
 
         attrinfo['id'] = attr.id
@@ -92,7 +92,7 @@ def create(request, entity_id):
             'name': x.name,
             'is_mandatory': x.is_mandatory,
             'referrals': x.referral and Entry.objects.filter(schema=x.referral,is_active=True) or [],
-        } for x in entity.attrs.order_by('index').all() if user.has_permission(x, ACLType.Writable)]
+        } for x in entity.attrs.filter(is_active=True).order_by('index') if user.has_permission(x, ACLType.Writable)]
     }
     return render(request, 'create_entry.html', context)
 
@@ -133,7 +133,7 @@ def do_create(request, entity_id, recv_data):
         return [x['value'] for x in data if int(x['id']) == attr.id and x['value']]
 
     # Create new Attributes objects based on the specified value
-    for attr_base in entity.attrs.all():
+    for attr_base in entity.attrs.filter(is_active=True):
         # create Attibute object that contains AttributeValues
         attr = entry.add_attribute_from_base(attr_base, user)
 
@@ -356,18 +356,20 @@ def export(request, entity_id):
 @http_post([]) # check only that request is POST, id will be given by url
 @check_permission(Entry, ACLType.Full)
 def do_delete(request, entry_id, recv_data):
+    user = User.objects.get(id=request.user.id)
 
     if not Entry.objects.filter(id=entry_id).count():
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
     # update name of Entry object
     entry = Entry.objects.filter(id=entry_id).get()
-    entry.is_active=False
-    entry.save()
+    entry.delete()
+
+    # register operation History for deleting entry
+    user.seth_entry_del(entry)
 
     # Delete all attributes which target Entry have
     for attr in entry.attrs.all():
-        attr.is_active = False
-        attr.save()
+        attr.delete()
 
     return HttpResponse()

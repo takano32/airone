@@ -1,3 +1,5 @@
+from importlib import import_module
+
 from django.db import models
 from django.contrib.auth.models import User as DjangoUser
 from airone.lib.acl import ACLType, ACLTypeBase
@@ -50,3 +52,104 @@ class User(DjangoUser):
 
     def set_active(self, is_active=True):
         self.is_active = is_active
+
+    # operations for registering History
+    def seth_entity_add(self, target):
+        return History.register(self, target, History.ADD_ENTITY)
+    def seth_entity_mod(self, target):
+        return History.register(self, target, History.MOD_ENTITY)
+    def seth_entity_del(self, target):
+        return History.register(self, target, History.DEL_ENTITY)
+    def seth_entry_del(self, target):
+        return History.register(self, target, History.DEL_ENTRY)
+
+class History(models.Model):
+    """
+    These constants describe operations of History and bit-map construct following
+    * The last 3-bits (0000xxx)[2]: describe operation flag
+      - 001 : ADD
+      - 010 : MOD
+      - 100 : DEL
+    * The last 4-bit or later (xxxx000)[2] describe operation target
+      - 001 : Entity
+      - 010 : EntityAttr
+      - 100 : Entry
+    """
+    OP_ADD = 1 << 0
+    OP_MOD = 1 << 1
+    OP_DEL = 1 << 2
+
+    TARGET_ENTITY = 1 << 3
+    TARGET_ATTR = 1 << 4
+    TARGET_ENTRY = 1 << 5
+
+    ADD_ENTITY  = OP_ADD + TARGET_ENTITY
+    ADD_ATTR    = OP_ADD + TARGET_ATTR
+    MOD_ENTITY  = OP_MOD + TARGET_ENTITY
+    MOD_ATTR    = OP_MOD + TARGET_ATTR
+    DEL_ENTITY  = OP_DEL + TARGET_ENTITY
+    DEL_ATTR    = OP_DEL + TARGET_ATTR
+    DEL_ENTRY   = OP_DEL + TARGET_ENTRY
+
+    target_obj = models.ForeignKey(import_module('acl.models').ACLBase,
+                                   related_name='referred_target_obj')
+    time = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(User)
+    operation = models.IntegerField(default=0)
+    text = models.CharField(max_length=512)
+    is_detail = models.BooleanField(default=False)
+
+    # This parameter is needed to record related operation histories
+    details = models.ManyToManyField('History')
+
+    def add_attr(self, target, text=''):
+        detail = History.register(target=target,
+                                  operation=History.ADD_ATTR,
+                                  user=self.user,
+                                  text=text,
+                                  is_detail=True)
+        self.details.add(detail)
+
+    def mod_attr(self, target, text=''):
+        detail = History.register(target=target,
+                                  operation=History.MOD_ATTR,
+                                  user=self.user,
+                                  text=text,
+                                  is_detail=True)
+        self.details.add(detail)
+
+    def del_attr(self, target, text=''):
+        detail = History.register(target=target,
+                                  operation=History.DEL_ATTR,
+                                  user=self.user,
+                                  text=text,
+                                  is_detail=True)
+        self.details.add(detail)
+
+    def mod_entity(self, target, text=''):
+        detail = History.register(target=target,
+                                  operation=History.MOD_ENTITY,
+                                  user=self.user,
+                                  text=text,
+                                  is_detail=True)
+        self.details.add(detail)
+
+    @classmethod
+    def register(kls, user, target, operation, is_detail=False, text=''):
+        if kls._type_check(target, operation):
+            return kls.objects.create(target_obj=target,
+                                      user=user,
+                                      operation=operation,
+                                      text=text,
+                                      is_detail=is_detail)
+        else:
+            raise TypeError("Couldn't register history '%s' because of invalid type" % str(target))
+
+    @classmethod
+    def _type_check(kls, target, operation):
+        if ((operation & kls.TARGET_ENTITY and isinstance(target, import_module('entity.models').Entity) or
+            (operation & kls.TARGET_ATTR and isinstance(target, import_module('entity.models').EntityAttr)) or
+            (operation & kls.TARGET_ENTRY and isinstance(target, import_module('entry.models').Entry)))):
+            return True
+        else:
+            return False

@@ -7,7 +7,7 @@ from django.utils.encoding import smart_str
 
 from entity import models as entity_models
 from acl.models import ACLBase
-from user.models import User
+from user.models import User, History
 
 from airone.lib.types import AttrTypes, AttrTypeValue
 from airone.lib.acl import ACLObjType, ACLType
@@ -118,6 +118,17 @@ def render(request, template, context={}):
                 'attr': ACLObjType.EntryAttr,
             }
         }
+
+    # set constants for operation history
+    context['OPERATION_HISTORY'] = {
+        'ADD_ENTITY': History.ADD_ENTITY,
+        'ADD_ATTR': History.ADD_ATTR,
+        'MOD_ENTITY': History.MOD_ENTITY,
+        'MOD_ATTR': History.MOD_ATTR,
+        'DEL_ENTITY': History.DEL_ENTITY,
+        'DEL_ATTR': History.DEL_ATTR,
+        'DEL_ENTRY': History.DEL_ENTRY,
+    }
 
     context['attr_type'] = {}
     for attr_type in AttrTypes:

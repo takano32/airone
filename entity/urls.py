@@ -10,4 +10,5 @@ urlpatterns = [
     url(r'^do_edit/(\d+)$', views.do_edit, name='do_edit'),
     url(r'^export/$', views.export, name='export'),
     url(r'^do_delete/(\d+)$', views.do_delete, name='do_delete'),
+    url(r'^history/(\d+)$', views.history, name='history'),
 ]

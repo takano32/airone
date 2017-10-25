@@ -2,6 +2,8 @@ from airone.lib.resources import AironeModelResource
 from airone.lib.types import AttrTypeValue
 from django.contrib import admin
 from import_export import fields, widgets
+from import_export.instance_loaders import CachedInstanceLoader
+from import_export.admin import ImportExportModelAdmin
 from user.models import User
 from .models import Entry
 from .models import Attribute, AttributeValue
@@ -38,6 +40,8 @@ class AttrValueResource(AironeModelResource):
     class Meta:
         model = AttributeValue
         fields = ('id', 'name', 'value', 'created_time', 'status')
+        skip_unchanged = True
+        instance_loader_class = CachedInstanceLoader
 
     def after_save_instance(self, instance, using_transactions, dry_run):
         # If a new AttributeValue object is created,
@@ -102,6 +106,8 @@ class AttrResource(AironeModelResource):
     class Meta:
         model = Attribute
         fields = ('id', 'name', 'schema_id', 'type', 'is_mandatory')
+        skip_unchanged = True
+        instance_loader_class = CachedInstanceLoader
 
     def after_save_instance(self, instance, using_transactions, dry_run):
         # If a new Attribute object is created,
@@ -130,6 +136,8 @@ class EntryResource(AironeModelResource):
     class Meta:
         model = Entry
         fields = ('id', 'name')
+        skip_unchanged = True
+        instance_loader_class = CachedInstanceLoader
 
     def import_obj(self, instance, data, dry_run):
         # will not import entry which refers invalid entity
@@ -144,3 +152,15 @@ class EntryResource(AironeModelResource):
                 raise RuntimeError('There is a duplicate entry object')
 
         super(EntryResource, self).import_obj(instance, data, dry_run)
+
+class EntryAdmin(ImportExportModelAdmin):
+    resource_class = EntryResource
+    skip_admin_log = True
+
+class AttrAdmin(ImportExportModelAdmin):
+    resource_class = AttrResource
+    skip_admin_log = True
+
+class AttrValueAdmin(ImportExportModelAdmin):
+    resource_class = AttrValueResource
+    skip_admin_log = True

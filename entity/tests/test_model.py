@@ -44,8 +44,7 @@ class ModelTest(TestCase):
         EntityResource.import_data_from_request({
             'id': entity.id,
             'name': entity.name,
-            'note': entity.note,
-            'created_user': entity.created_user.username
+            'note': entity.note
         }, self._test_user)
 
         self.assertEqual(Entity.objects.count(), 1)
@@ -56,8 +55,7 @@ class ModelTest(TestCase):
     def test_import_with_new_object(self):
         EntityResource.import_data_from_request({
             'name': 'foo',
-            'note': 'bar',
-            'created_user': self._test_user,
+            'note': 'bar'
         }, self._test_user)
         self.assertEqual(Entity.objects.count(), 1)
         self.assertEqual(Entity.objects.last().name, 'foo')
@@ -71,8 +69,7 @@ class ModelTest(TestCase):
         EntityResource.import_data_from_request({
             'id': entity.id,
             'name': 'changed_name',
-            'note': 'changed_note',
-            'created_user': entity.created_user.username
+            'note': 'changed_note'
         }, self._test_user)
 
         self.assertEqual(Entity.objects.count(), 1)
@@ -85,8 +82,7 @@ class ModelTest(TestCase):
             EntityResource.import_data_from_request({
                 'name': 'hoge',
                 'note': 'fuga',
-                'invalid_key': 'invalid_value',
-                'created_user': self._test_user.username,
+                'invalid_key': 'invalid_value'
             }, self._test_user)
 
         self.assertEqual(Entity.objects.count(), 0)
@@ -94,35 +90,7 @@ class ModelTest(TestCase):
     def test_import_without_mandatory_parameter(self):
         with self.assertRaises(RuntimeError):
             EntityResource.import_data_from_request({
-                'note': 'fuga',
-                'created_user': self._test_user.username,
+                'note': 'fuga'
             }, self._test_user)
 
         self.assertEqual(Entity.objects.count(), 0)
-
-    def test_import_with_spoofing_parameter(self):
-        user = User.objects.create(username='another_user')
-
-        EntityResource.import_data_from_request({
-            'name': 'entity',
-            'note': 'note',
-            'created_user': user
-        }, self._test_user)
-
-        self.assertEqual(Entity.objects.count(), 0)
-
-    def test_import_without_permission_parameter(self):
-        user = User.objects.create(username='another_user')
-
-        entity = Entity(name='origin_name', created_user=user, is_public=False)
-        entity.save()
-
-        EntityResource.import_data_from_request({
-            'id': entity.id,
-            'name': 'changed_name',
-            'note': 'changed_note',
-            'created_user': entity.created_user.username
-        }, self._test_user)
-
-        self.assertEqual(Entity.objects.count(), 1)
-        self.assertEqual(Entity.objects.last().name, 'origin_name')

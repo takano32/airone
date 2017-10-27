@@ -4,7 +4,6 @@ from django.contrib import admin
 from import_export import fields, widgets
 from import_export.instance_loaders import CachedInstanceLoader
 from import_export.admin import ImportExportModelAdmin
-from user.models import User
 from .models import Entry
 from .models import Attribute, AttributeValue
 from acl.models import ACLBase
@@ -18,22 +17,19 @@ admin.site.register(AttributeValue)
 
 class AttrValueResource(AironeModelResource):
     _IMPORT_INFO = {
-        'header': ['id', 'refer', 'value', 'attribute_id', 'created_time',
-                   'created_user', 'status', 'data_arr'],
-        'mandatory_keys': ['id', 'attribute_id', 'created_user', 'status'],
+        'header': ['id', 'refer', 'value', 'attribute_id', 'created_time', 'status', 'data_arr'],
+        'mandatory_keys': ['id', 'attribute_id', 'status'],
         'resource_module': 'entry.admin',
         'resource_model_name': 'AttrValueResource',
     }
     COMPARING_KEYS = []
-    DISALLOW_UPDATE_KEYS = ['created_time', 'created_user', 'parent_attr',
+    DISALLOW_UPDATE_KEYS = ['created_time', 'parent_attr',
                             'value', 'referral', 'status']
 
     attr_id = fields.Field(column_name='attribute_id', attribute='parent_attr',
                            widget=widgets.ForeignKeyWidget(model=Attribute, field='id'))
     refer = fields.Field(column_name='refer', attribute='referral',
                          widget=widgets.ForeignKeyWidget(model=ACLBase, field='id'))
-    user = fields.Field(column_name='created_user', attribute='created_user',
-                        widget=widgets.ForeignKeyWidget(User, 'username'))
     data_arr = fields.Field(column_name='data_arr', attribute='data_array',
                             widget=widgets.ManyToManyWidget(model=AttributeValue, field='id'))
 
@@ -42,6 +38,11 @@ class AttrValueResource(AironeModelResource):
         fields = ('id', 'name', 'value', 'created_time', 'status')
         skip_unchanged = True
         instance_loader_class = CachedInstanceLoader
+
+    def import_obj(self, instance, data, dry_run):
+        instance.created_user = self.request_user
+
+        super(AttrValueResource, self).import_obj(instance, data, dry_run)
 
     def after_save_instance(self, instance, using_transactions, dry_run):
         # If a new AttributeValue object is created,
@@ -86,20 +87,16 @@ class AttrValueResource(AironeModelResource):
 
 class AttrResource(AironeModelResource):
     _IMPORT_INFO = {
-        'header': ['id', 'name', 'schema_id', 'entry_id', 'created_user',
-                   'type', 'is_mandatory', 'refer'],
-        'mandatory_keys': ['name', 'schema_id', 'entry_id', 'created_user',
-                           'type'],
+        'header': ['id', 'name', 'schema_id', 'entry_id', 'type', 'is_mandatory', 'refer'],
+        'mandatory_keys': ['name', 'schema_id', 'entry_id', 'type'],
         'resource_module': 'entry.admin',
         'resource_model_name': 'AttrResource',
     }
-    COMPARING_KEYS = ['name', 'is_mandatory', 'referral', 'created_user']
-    DISALLOW_UPDATE_KEYS = ['is_mandatory', 'created_user']
+    COMPARING_KEYS = ['name', 'is_mandatory', 'referral']
+    DISALLOW_UPDATE_KEYS = ['is_mandatory']
 
     entry = fields.Field(column_name='entry_id', attribute='parent_entry',
                          widget=widgets.ForeignKeyWidget(model=Entry, field='id'))
-    user = fields.Field(column_name='created_user', attribute='created_user',
-                        widget=widgets.ForeignKeyWidget(User, 'username'))
     refer = fields.Field(column_name='refer', attribute='referral',
                          widget=widgets.ForeignKeyWidget(model=ACLBase, field='id'))
 
@@ -108,6 +105,11 @@ class AttrResource(AironeModelResource):
         fields = ('id', 'name', 'schema_id', 'type', 'is_mandatory')
         skip_unchanged = True
         instance_loader_class = CachedInstanceLoader
+
+    def import_obj(self, instance, data, dry_run):
+        instance.created_user = self.request_user
+
+        super(AttrResource, self).import_obj(instance, data, dry_run)
 
     def after_save_instance(self, instance, using_transactions, dry_run):
         # If a new Attribute object is created,
@@ -120,8 +122,8 @@ class AttrResource(AironeModelResource):
 
 class EntryResource(AironeModelResource):
     _IMPORT_INFO = {
-        'header': ['id', 'name', 'entity', 'created_user'],
-        'mandatory_keys': ['name', 'entity', 'created_user'],
+        'header': ['id', 'name', 'entity'],
+        'mandatory_keys': ['name', 'entity'],
         'mandatory_values': ['name'],
         'resource_module': 'entry.admin',
         'resource_model_name': 'EntryResource',
@@ -130,8 +132,6 @@ class EntryResource(AironeModelResource):
 
     entity = fields.Field(column_name='entity', attribute='schema',
                           widget=widgets.ForeignKeyWidget(model=Entity, field='name'))
-    user = fields.Field(column_name='created_user', attribute='created_user',
-                        widget=widgets.ForeignKeyWidget(User, 'username'))
 
     class Meta:
         model = Entry
@@ -140,16 +140,20 @@ class EntryResource(AironeModelResource):
         instance_loader_class = CachedInstanceLoader
 
     def import_obj(self, instance, data, dry_run):
-        # will not import entry which refers invalid entity
-        if not Entity.objects.filter(name=data['entity']).count():
-            raise RuntimeError("Specified entity(%s) doesn't exist" % data['entity'])
+        # set created user as the user who send request to import
+        instance.created_user = self.request_user
 
-        # will not import entry which has same name and refers same entity
-        entity = Entity.objects.get(name=data['entity'])
-        if Entry.objects.filter(schema=entity, name=data['name']).count():
-            entry = Entry.objects.get(schema=entity, name=data['name'])
-            if 'id' not in data or not data['id'] or entry.id != data['id']:
-                raise RuntimeError('There is a duplicate entry object')
+        if not self.request_user.is_superuser:
+            # will not import entry which refers invalid entity
+            if not Entity.objects.filter(name=data['entity']).count():
+                raise RuntimeError("Specified entity(%s) doesn't exist" % data['entity'])
+
+            # will not import entry which has same name and refers same entity
+            entity = Entity.objects.get(name=data['entity'])
+            if Entry.objects.filter(schema=entity, name=data['name']).count():
+                entry = Entry.objects.get(schema=entity, name=data['name'])
+                if 'id' not in data or not data['id'] or entry.id != data['id']:
+                    raise RuntimeError('There is a duplicate entry object')
 
         super(EntryResource, self).import_obj(instance, data, dry_run)
 

@@ -15,8 +15,18 @@ class ComplexViewTest(AironeViewTest):
     This has complex tests that combine multiple requests across the inter-applicational
     """
 
-    # This is the test to confirm the fix of the problem of #152.
     def test_add_attr_after_creating_entry(self):
+        """
+        This test executes followings
+        - create a new Entity(entity) with an EntityAttr(attr)
+        - create a new Entry for entity
+        - update entity to append new EntityAttrs(arr-str, arr-obj)
+
+        Then, this checks following
+        - created additional Attributes which are corresponding to the added EntityAttrs
+          automatically for accessing show page.
+        - enable to edit entry correctly because #152 is fixed
+        """
         user = self.admin_login()
 
         # create an Entity
@@ -84,6 +94,17 @@ class ComplexViewTest(AironeViewTest):
                                 json.dumps(params),
                                 'application/json')
         self.assertEqual(resp.status_code, 303)
+
+        # Checks that the Attributes associated to the added EntityAttrs are not created
+        self.assertEqual(entity.attrs.count(), 3)
+        self.assertEqual(entry.attrs.count(), 1)
+
+        resp = self.client.get(reverse('entry:show', args=[entry.id]))
+        self.assertEqual(resp.status_code, 200)
+
+        # Checks that the new Attibutes is created in the show processing
+        self.assertEqual(entity.attrs.count(), 3)
+        self.assertEqual(entry.attrs.count(), entity.attrs.count())
 
         attr_str = entry.attrs.get(name=attr.name)
         attr_arr_str = entry.attrs.get(name='arr-str')

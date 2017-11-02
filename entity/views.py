@@ -143,7 +143,7 @@ def do_edit(request, entity_id, recv_data):
             attr_obj = EntityAttr.objects.get(id=attr['id'])
 
             # delete all related Attributes of target EntityAttr
-            [x.delete() for x in Attribute.objects.filter(schema_id=attr_obj.id)]
+            [x.delete() for x in Attribute.objects.filter(schema=attr_obj.id)]
 
             attr_obj.delete()
 
@@ -176,9 +176,6 @@ def do_edit(request, entity_id, recv_data):
 
             attr_obj.save()
 
-            # update Attributes which are already created
-            [x.update_from_base(attr_obj) for x in Attribute.objects.filter(schema_id=attr_obj.id)]
-
         else:
             referral = None
             if int(attr['type']) & AttrTypeValue['object']:
@@ -197,24 +194,6 @@ def do_edit(request, entity_id, recv_data):
 
             # register History to register adding EntityAttr
             history.add_attr(attr_obj)
-
-            # also add new Attribute for each existed Entry
-            for entry in Entry.objects.filter(schema=entity):
-                newattr = entry.add_attribute_from_base(attr_obj, user)
-
-                if newattr.type & AttrTypeValue['array']:
-                    # Create a initial AttributeValue for editing processing
-                    attr_value = AttributeValue.objects.create(created_user=user,
-                                                               parent_attr=newattr)
-
-                    # Set a flag that means this is the latest value
-                    attr_value.set_status(AttributeValue.STATUS_LATEST)
-
-                    # Set status of parent data_array
-                    attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
-
-                    newattr.values.add(attr_value)
-
 
     return HttpResponseSeeOther('/entity/')
 

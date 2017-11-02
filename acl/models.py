@@ -64,6 +64,14 @@ class ACLBase(models.Model):
         self.is_active = False
         self.save()
 
+    def inherit_acl(self, aclobj):
+        if not isinstance(aclobj, ACLBase):
+            raise TypeError('specified object(%s) is not ACLBase object')
+
+        # inherit parameter of ACL
+        self.is_public = aclobj.is_public
+        self.default_permission = aclobj.default_permission
+
     @property
     def readable(self):
         return self._get_permission(ACLType.Readable.id)

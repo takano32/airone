@@ -12,7 +12,7 @@ from user.models import User
 
 class ImportTest(AironeViewTest):
     def test_import_entity(self):
-        user = self.admin_login()
+        user = self.guest_login()
 
         fp = self.open_fixture_file('entity.yaml')
         resp = self.client.post(reverse('dashboard:do_import'), {'file': fp})
@@ -46,7 +46,7 @@ class ImportTest(AironeViewTest):
         self.assertTrue(entity.attrs.get(name='attr-obj').is_mandatory)
 
     def test_import_entity_with_unnecessary_param(self):
-        user = self.admin_login()
+        user = self.guest_login()
         warning_messages = []
 
         fp = self.open_fixture_file('entity_with_unnecessary_param.yaml')
@@ -72,7 +72,7 @@ class ImportTest(AironeViewTest):
 
     @mock.patch('import_export.resources.logging')
     def test_import_entity_without_mandatory_param(self, mock_logger):
-        user = self.admin_login()
+        user = self.guest_login()
         warning_messages = []
 
         fp = self.open_fixture_file('entity_without_mandatory_param.yaml')
@@ -101,39 +101,6 @@ class ImportTest(AironeViewTest):
         self.assertEqual(EntityAttr.objects.count(), 2)
         self.assertEqual(EntityAttr.objects.filter(name='attr-arr-obj').count(), 0)
 
-    def test_import_entity_with_spoofing_user(self):
-        admin = self.admin_login()
-        warning_messages = []
-
-        # A user who creates original mock object
-        user = User.objects.create(username='test-user')
-
-        Entity.objects.create(id=3, name='baz-original', created_user=user)
-        
-        fp = self.open_fixture_file('entity.yaml')
-        with mock.patch('import_export.resources.logging') as lg_mock:
-            def side_effect(message):
-                warning_messages.append(str(message))
-
-            lg_mock.exception = mock.Mock(side_effect=side_effect)
-
-            resp = self.client.post(reverse('dashboard:do_import'), {'file': fp})
-            self.assertEqual(resp.status_code, 303)
-        fp.close()
-
-        # checks to show warning messages
-        msg = r"failed to identify entity object"
-        self.assertEqual(len(warning_messages), 4)
-        self.assertTrue(all([re.match(msg, x) for x in warning_messages]))
-
-        # checks that import data doens't appied
-        entity = Entity.objects.get(id=3)
-        self.assertEqual(entity.name, 'baz-original')
-
-        # checks that the EntityAttr objects which refers invalid Entity won't create
-        self.assertEqual(entity.attrs.count(), 0)
-        self.assertEqual(EntityAttr.objects.filter(name='attr-str').count(), 0)
-
     def test_import_entry(self):
         user = self.admin_login()
 
@@ -153,6 +120,9 @@ class ImportTest(AironeViewTest):
         self.assertEqual(entry.attrs.get(name='attr-obj').type, atype.AttrTypeObj)
         self.assertEqual(entry.attrs.get(name='attr-arr-str').type, atype.AttrTypeArrStr)
         self.assertEqual(entry.attrs.get(name='attr-arr-obj').type, atype.AttrTypeArrObj)
+
+        # checks to create Entry by the imported user
+        self.assertEqual(entry.created_user, user)
 
         # checks that a new AttribueValue was created by import-data
         self.assertEqual(Attribute.objects.get(name='attr-str').values.count(), 2)
@@ -176,6 +146,7 @@ class ImportTest(AironeViewTest):
         self.assertTrue(attr_value.status & AttributeValue.STATUS_DATA_ARRAY_PARENT)
         self.assertEqual(attr_value.data_array.count(), 2)
 
+
         # checks latest flags are correctly set for each AttributeValues
         # - 1 is the latest value of attr 'attr-str'
         # - 1 is the latest value of attr 'attr-obj'
@@ -185,7 +156,7 @@ class ImportTest(AironeViewTest):
                          1 + 1 + 3 + 3)
 
     def test_import_entry_without_mandatory_values(self):
-        user = self.admin_login()
+        user = self.guest_login()
         warns = []
 
         fp = self.open_fixture_file('entry_without_mandatory_values.yaml')
@@ -208,7 +179,7 @@ class ImportTest(AironeViewTest):
         self.assertEqual(Entry.objects.count(), 1)
 
     def test_import_entity_with_duplicate_entity(self):
-        user = self.admin_login()
+        user = self.guest_login()
         warning_messages = []
 
         fp = self.open_fixture_file('entity_with_duplication.yaml')
@@ -232,7 +203,7 @@ class ImportTest(AironeViewTest):
         self.assertTrue("There is a duplicate entity object (entity)" == warning_messages[0])
 
     def test_import_entry_with_duplicate_entry(self):
-        user = self.admin_login()
+        user = self.guest_login()
         warning_messages = []
 
         fp = self.open_fixture_file('entry_with_duplication.yaml')
@@ -257,7 +228,7 @@ class ImportTest(AironeViewTest):
         self.assertTrue("There is a duplicate entry object" == warning_messages[0])
 
     def test_import_entry_referring_invalid_schema(self):
-        user = self.admin_login()
+        user = self.guest_login()
         warning_messages = []
 
         fp = self.open_fixture_file('entry_with_invalid_schema.yaml')

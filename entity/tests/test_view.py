@@ -490,8 +490,7 @@ class ViewTest(AironeViewTest):
             ), obj['EntityAttr'])))
         self.assertTrue(list(filter(lambda x: (
                 x['name'] == 'entity1' and
-                x['note'] == 'hoge' and
-                x['created_user'] == 'admin'
+                x['note'] == 'hoge'
             ), obj['Entity'])))
 
     def test_export_with_unpermitted_object(self):

@@ -2,7 +2,6 @@ from import_export import fields, widgets
 from django.contrib import admin
 from .models import EntityAttr
 from .models import Entity
-from user.models import User
 from acl.models import ACLBase
 from airone.lib.resources import AironeModelResource
 
@@ -12,26 +11,25 @@ admin.site.register(Entity)
 
 class EntityResource(AironeModelResource):
     _IMPORT_INFO = {
-        'header':               ['id', 'name', 'note', 'created_user', 'status'],
-        'mandatory_keys':       ['name', 'created_user'],
+        'header':               ['id', 'name', 'note', 'status'],
+        'mandatory_keys':       ['name'],
         'resource_module':      'entity.admin',
         'resource_model_name':  'EntityResource',
     }
 
-    COMPARING_KEYS = ['name', 'note', 'created_user', 'status']
-    DISALLOW_UPDATE_KEYS = ['created_user']
-
-    user = fields.Field(column_name='created_user', attribute='created_user',
-                        widget=widgets.ForeignKeyWidget(User, 'username'))
+    COMPARING_KEYS = ['name', 'note', 'status']
 
     class Meta:
         model = Entity
         fields = ('id', 'name', 'note', 'status')
-        export_order = ('id', 'name', 'note', 'user')
+        export_order = ('id', 'name', 'note')
 
     def import_obj(self, instance, data, dry_run):
+        instance.created_user = self.request_user
+
         # will not import duplicate entity
-        if Entity.objects.filter(name=data['name']).count():
+        if (not self.request_user.is_superuser and
+            Entity.objects.filter(name=data['name']).count()):
             entity = Entity.objects.filter(name=data['name']).get()
             if 'id' not in data or not data['id'] or entity.id != data['id']:
                 raise RuntimeError('There is a duplicate entity object (%s)' % data['name'])
@@ -40,18 +38,15 @@ class EntityResource(AironeModelResource):
 
 class EntityAttrResource(AironeModelResource):
     _IMPORT_INFO = {
-        'header':               ['id', 'name', 'type', 'refer', 'entity',
-                                 'created_user', 'is_mandatory'],
-        'mandatory_keys':       ['name', 'type', 'entity', 'created_user'],
+        'header':               ['id', 'name', 'type', 'refer', 'entity', 'is_mandatory'],
+        'mandatory_keys':       ['name', 'type', 'entity'],
         'resource_module':      'entity.admin',
         'resource_model_name':  'EntityAttrResource',
     }
 
-    COMPARING_KEYS = ['name', 'is_mandatory', 'referral', 'parent_entity', 'created_user']
-    DISALLOW_UPDATE_KEYS = ['parent_entity', 'created_user']
+    COMPARING_KEYS = ['name', 'is_mandatory', 'referral', 'parent_entity']
+    DISALLOW_UPDATE_KEYS = ['parent_entity']
 
-    user = fields.Field(column_name='created_user', attribute='created_user',
-                        widget=widgets.ForeignKeyWidget(User, 'username'))
     refer = fields.Field(column_name='refer', attribute='referral',
                          widget=widgets.ForeignKeyWidget(model=ACLBase, field='name'))
     entity = fields.Field(column_name='entity',
@@ -72,10 +67,13 @@ class EntityAttrResource(AironeModelResource):
                 entity.attrs.add(instance)
 
     def import_obj(self, instance, data, dry_run):
-        if not Entity.objects.filter(name=data['entity']).count():
-            raise RuntimeError('failed to identify entity object')
+        instance.created_user = self.request_user
 
-        if data['refer'] and not Entity.objects.filter(name=data['refer']).count():
-            raise RuntimeError('refer to invalid entity object')
+        if not self.request_user.is_superuser:
+            if not Entity.objects.filter(name=data['entity']).count():
+                raise RuntimeError('failed to identify entity object')
+
+            if data['refer'] and not Entity.objects.filter(name=data['refer']).count():
+                raise RuntimeError('refer to invalid entity object')
 
         super(EntityAttrResource, self).import_obj(instance, data, dry_run)

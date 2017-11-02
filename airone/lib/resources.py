@@ -31,14 +31,12 @@ class AironeModelResource(ModelResource):
         return True
 
     def skip_row(self, instance, original):
-        # the case of creating new instance
-        if self._meta.model.objects.filter(id=instance.id).count() == 0:
-            # Inhibits the spoofing
-            if isinstance(instance, ACLBase) and instance.created_user != self.request_user:
-                return True
+        return False
 
         # the case of instance is updated
-        elif self._is_updated(instance, original):
+        if (self._meta.model.objects.filter(id=instance.id).count() and
+            self._is_updated(instance, original)):
+
             # the case user try to update but he doen't have writable permition
             if not self.request_user.has_permission(instance, ACLType.Writable):
                 return True
@@ -64,19 +62,20 @@ class AironeModelResource(ModelResource):
         # set user who import the data for checking permission
         resource.request_user = request_user
 
-        # check mandatory keys are existed, or not
-        if not all([x in data for x in self._IMPORT_INFO['mandatory_keys']]):
-            raise RuntimeError("Mandatory key doesn't exist")
+        if not request_user.is_superuser:
+            # check mandatory keys are existed, or not
+            if not all([x in data for x in self._IMPORT_INFO['mandatory_keys']]):
+                raise RuntimeError("Mandatory key doesn't exist")
 
-        # check that mandatory values is set
-        if ('mandatory_values' in self._IMPORT_INFO and
-            any(not data[x] for x in self._IMPORT_INFO['mandatory_values'])):
-            raise RuntimeError("The value of '%s' is needed" %
-                               str(self._IMPORT_INFO['mandatory_values']))
+            # check that mandatory values is set
+            if ('mandatory_values' in self._IMPORT_INFO and
+                any(not data[x] for x in self._IMPORT_INFO['mandatory_values'])):
+                raise RuntimeError("The value of '%s' is needed" %
+                                   str(self._IMPORT_INFO['mandatory_values']))
 
-        # check unnecessary parameters are specified, or not
-        if not all([x in self._IMPORT_INFO['header'] for x in data.keys()]):
-            raise RuntimeError("Unnecessary key is specified")
+            # check unnecessary parameters are specified, or not
+            if not all([x in self._IMPORT_INFO['header'] for x in data.keys()]):
+                raise RuntimeError("Unnecessary key is specified")
 
         # get dataset to import
         dataset = tablib.Dataset([x in data and data[x] or '' for x in self._IMPORT_INFO['header']],

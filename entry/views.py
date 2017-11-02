@@ -12,7 +12,7 @@ from airone.lib.acl import get_permitted_objects
 from airone.lib.acl import ACLType
 from airone.lib.profile import airone_profile
 
-from entity.models import Entity, AttributeBase
+from entity.models import Entity, EntityAttr
 from entity.admin import EntityResource
 from entry.models import Entry, Attribute, AttributeValue
 from entry.admin import EntryResource, AttrResource, AttrValueResource
@@ -21,13 +21,14 @@ from user.models import User
 
 def _get_latest_attributes(self, user):
     ret_attrs = []
-    for attr in [x for x in self.attrs.filter(is_active=True).order_by('index') if user.has_permission(x, ACLType.Readable)]:
+    for attr in [x for x in self.attrs.filter(is_active=True) if user.has_permission(x, ACLType.Readable)]:
         attrinfo = {}
 
         attrinfo['id'] = attr.id
-        attrinfo['name'] = attr.name
-        attrinfo['type'] = attr.type
-        attrinfo['is_mandatory'] = attr.is_mandatory
+        attrinfo['name'] = attr.schema.name
+        attrinfo['type'] = attr.schema.type
+        attrinfo['is_mandatory'] = attr.schema.is_mandatory
+        attrinfo['index'] = attr.schema.index
 
         # set last-value of current attributes
         attrinfo['last_value'] = ''
@@ -35,31 +36,31 @@ def _get_latest_attributes(self, user):
         if attr.values.count() > 0:
             last_value = attr.values.last()
 
-            if attr.type == AttrTypeStr or attr.type == AttrTypeText:
+            if attr.schema.type == AttrTypeStr or attr.schema.type == AttrTypeText:
                 attrinfo['last_value'] = last_value.value
-            elif attr.type == AttrTypeObj and last_value.referral:
+            elif attr.schema.type == AttrTypeObj and last_value.referral:
                 attrinfo['last_referral'] = last_value.referral
-            elif attr.type == AttrTypeArrStr:
+            elif attr.schema.type == AttrTypeArrStr:
                 attrinfo['last_value'] = [x.value for x in last_value.data_array.all()]
-            elif attr.type == AttrTypeArrObj:
+            elif attr.schema.type == AttrTypeArrObj:
                 attrinfo['last_value'] = [x.referral for x in last_value.data_array.all()]
 
         # set Entries which are specified in the referral parameter
         attrinfo['referrals'] = []
-        if attr.referral:
+        if attr.schema.referral:
             # when an entry in referral attribute is deleted,
             # user should be able to select new referral or keep it unchanged.
             # so candidate entries of referral attribute are:
             # - active(not deleted) entries (new referral)
             # - last value even if the entry has been deleted (keep it unchanged)
-            query = Q(schema=attr.referral,is_active=True)
+            query = Q(schema=attr.schema.referral, is_active=True)
             if attrinfo['last_referral']:
                 query = query | Q(id=attrinfo['last_referral'].id)
             attrinfo['referrals'] = Entry.objects.filter(query)
 
         ret_attrs.append(attrinfo)
 
-    return ret_attrs
+    return sorted(ret_attrs, key=lambda x: x['index'])
 
 @airone_profile
 @http_get
@@ -92,7 +93,7 @@ def create(request, entity_id):
             'name': x.name,
             'is_mandatory': x.is_mandatory,
             'referrals': x.referral and Entry.objects.filter(schema=x.referral,is_active=True) or [],
-        } for x in entity.attrs.filter(is_active=True).order_by('index') if user.has_permission(x, ACLType.Writable)]
+        } for x in entity.attrs.filter(is_active=True) if user.has_permission(x, ACLType.Writable)]
     }
     return render(request, 'create_entry.html', context)
 
@@ -102,9 +103,9 @@ def create(request, entity_id):
         {'name': 'id', 'type': str},
         {'name': 'value', 'type': str,
          'checker': lambda x: (
-             AttributeBase.objects.filter(id=x['id']).count() > 0 and
-             (AttributeBase.objects.get(id=x['id']).is_mandatory and x['value'] or
-              not AttributeBase.objects.get(id=x['id']).is_mandatory)
+             EntityAttr.objects.filter(id=x['id']).count() > 0 and
+             (EntityAttr.objects.get(id=x['id']).is_mandatory and x['value'] or
+              not EntityAttr.objects.get(id=x['id']).is_mandatory)
          )},
     ]}
 ])
@@ -133,24 +134,28 @@ def do_create(request, entity_id, recv_data):
         return [x['value'] for x in data if int(x['id']) == attr.id and x['value']]
 
     # Create new Attributes objects based on the specified value
-    for attr_base in entity.attrs.filter(is_active=True):
+    for entity_attr in entity.attrs.filter(is_active=True):
+        # skip for unpermitted attributes
+        if not entity_attr.is_active or not user.has_permission(entity_attr, ACLType.Readable):
+            continue
+
         # create Attibute object that contains AttributeValues
-        attr = entry.add_attribute_from_base(attr_base, user)
+        attr = entry.add_attribute_from_base(entity_attr, user)
 
         # make an initial AttributeValue object if the initial value is specified
-        recv_values = get_attr_values(attr_base, recv_data['attrs'])
+        recv_values = get_attr_values(entity_attr, recv_data['attrs'])
         if recv_values:
             attr_value = AttributeValue.objects.create(created_user=user, parent_attr=attr)
-            if attr.type == AttrTypeStr or attr.type == AttrTypeText:
+            if entity_attr.type == AttrTypeStr or entity_attr.type == AttrTypeText:
                 # set attribute value
                 attr_value.value = value=recv_values[0]
-            elif attr.type == AttrTypeObj:
+            elif entity_attr.type == AttrTypeObj:
                 value = recv_values[0]
 
                 # set attribute value
                 if Entry.objects.filter(id=value).count():
                     attr_value.referral = Entry.objects.get(id=value)
-            elif attr.type == AttrTypeArrStr:
+            elif entity_attr.type == AttrTypeArrStr:
                 attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
 
                 # set attribute value
@@ -160,7 +165,7 @@ def do_create(request, entity_id, recv_data):
                                                                 value=value)
                     attr_value.data_array.add(_attr_value)
 
-            elif attr.type == AttrTypeArrObj:
+            elif entity_attr.type == AttrTypeArrObj:
                 attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
 
                 # set attribute value
@@ -195,6 +200,8 @@ def edit(request, entry_id):
 
     # set specified entry object information
     entry = Entry.objects.get(id=entry_id)
+    entry.complement_attrs(user)
+
     context = {
         'entry': entry,
         'attributes': _get_latest_attributes(entry, user),
@@ -211,9 +218,9 @@ def edit(request, entry_id):
         {'name': 'value', 'type': list,
          'checker': lambda x: (
              all([
-                AttributeBase.objects.filter(id=x['id']).count() > 0 and
-                (AttributeBase.objects.get(id=x['id']).is_mandatory and y or
-                not AttributeBase.objects.get(id=x['id']).is_mandatory)
+                Attribute.objects.filter(id=x['id']).count() > 0 and
+                (Attribute.objects.get(id=x['id']).schema.is_mandatory and y or
+                not Attribute.objects.get(id=x['id']).schema.is_mandatory)
             for y in x['value']])
          )},
     ]},
@@ -241,7 +248,7 @@ def do_edit(request, entry_id, recv_data):
     for info in recv_data['attrs']:
         attr = Attribute.objects.get(id=info['id'])
 
-        if not attr.type & AttrTypeValue['array']:
+        if not attr.schema.type & AttrTypeValue['array']:
             # expand attr value when it has only one value
             if info['value']:
                 info['value'] = info['value'][0]
@@ -256,7 +263,7 @@ def do_edit(request, entry_id, recv_data):
             for old_value in attr.values.all():
                 old_value.del_status(AttributeValue.STATUS_LATEST)
 
-                if attr.type & AttrTypeValue['array']:
+                if attr.schema.type & AttrTypeValue['array']:
                     # also clear the latest flags on the values in data_array
                     [x.del_status(AttributeValue.STATUS_LATEST) for x in old_value.data_array.all()]
 
@@ -267,16 +274,16 @@ def do_edit(request, entry_id, recv_data):
             attr_value.set_status(AttributeValue.STATUS_LATEST)
 
             # set attribute value according to the attribute-type
-            if attr.type == AttrTypeStr or attr.type == AttrTypeText:
+            if attr.schema.type == AttrTypeStr or attr.schema.type == AttrTypeText:
                 attr_value.value = value=info['value']
-            elif attr.type == AttrTypeObj:
+            elif attr.schema.type == AttrTypeObj:
                 # set None if the referral entry is not specified
                 if info['value'] and Entry.objects.filter(id=info['value']).count():
                     attr_value.referral = Entry.objects.get(id=info['value'])
                 else:
                     attr_value.referral = None
 
-            elif attr.type & AttrTypeValue['array']:
+            elif attr.schema.type & AttrTypeValue['array']:
                 # set status of parent data_array
                 attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
 
@@ -289,9 +296,9 @@ def do_edit(request, entry_id, recv_data):
 
                     # create a new AttributeValue for each values
                     attrv = AttributeValue.objects.create(created_user=user, parent_attr=attr)
-                    if attr.type == AttrTypeArrStr:
+                    if attr.schema.type == AttrTypeArrStr:
                         attrv.value = value
-                    elif attr.type == AttrTypeArrObj:
+                    elif attr.schema.type == AttrTypeArrObj:
                         attrv.referral = Entry.objects.get(id=value)
 
                     # Set a flag that means this is the latest value
@@ -316,6 +323,30 @@ def show(request, entry_id):
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
     entry = Entry.objects.get(id=entry_id)
+
+    # create new attributes which are appended after creation of Entity
+    entry.complement_attrs(user)
+
+    # create new attributes which are appended after creation of Entity
+    for attr_id in (set(entry.schema.attrs.values_list('id', flat=True)) -
+                    set([x.schema.id for x in entry.attrs.all()])):
+
+        entity_attr = entry.schema.attrs.get(id=attr_id)
+        if not entity_attr.is_active or not user.has_permission(entity_attr, ACLType.Readable):
+            continue
+
+        newattr = entry.add_attribute_from_base(entity_attr, user)
+        if entity_attr.type & AttrTypeValue['array']:
+            # Create a initial AttributeValue for editing processing
+            attr_value = AttributeValue.objects.create(created_user=user, parent_attr=newattr)
+
+            # Set a flag that means this is the latest value
+            attr_value.set_status(AttributeValue.STATUS_LATEST)
+
+            # Set status of parent data_array
+            attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
+
+            newattr.values.add(attr_value)
 
     context = {
         'entry': entry,

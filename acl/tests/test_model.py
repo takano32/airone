@@ -102,8 +102,8 @@ class ModelTest(TestCase):
 
         entity = model_entity.Entity.objects.create(**kwargs)
         attr_base = model_entity.EntityAttr.objects.create(parent_entity=entity, **kwargs)
-        entry = model_entry.Entry.objects.create(schema_id=entity.id, **kwargs)
-        attr = model_entry.Attribute.objects.create(parent_entry=entry, **kwargs)
+        entry = model_entry.Entry.objects.create(schema=entity, **kwargs)
+        attr = model_entry.Attribute.objects.create(parent_entry=entry, schema=attr_base, **kwargs)
         base = ACLBase.objects.create(**kwargs)
 
         self.assertEqual(ACLBase.objects.get(id=entity.id).get_subclass_object(), entity)

@@ -264,7 +264,8 @@ class ViewTest(AironeViewTest):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 303)
-        self.assertEqual(Entry.objects.get(id=entry.id).attrs.count(), 2)
+        self.assertEqual(entity.attrs.count(), 2)
+        self.assertEqual(entry.attrs.count(), 1)
 
     def test_post_edit_string_attribute(self):
         user = self.admin_login()
@@ -332,10 +333,11 @@ class ViewTest(AironeViewTest):
         self.assertIsNone(EntityAttr.objects.get(id=attrbase.id).referral)
 
         # checks that the related Attribute is also changed
-        self.assertEqual(Attribute.objects.get(id=attr.id).name, 'baz')
-        self.assertEqual(Attribute.objects.get(id=attr.id).type, AttrTypeStr)
-        self.assertTrue(Attribute.objects.get(id=attr.id).is_mandatory)
-        self.assertIsNone(Attribute.objects.get(id=attr.id).referral)
+        self.assertEqual(Attribute.objects.get(id=attr.id).schema, attrbase)
+        self.assertEqual(Attribute.objects.get(id=attr.id).schema.name, 'baz')
+        self.assertEqual(Attribute.objects.get(id=attr.id).schema.type, AttrTypeStr)
+        self.assertTrue(Attribute.objects.get(id=attr.id).schema.is_mandatory)
+        self.assertIsNone(Attribute.objects.get(id=attr.id).schema.referral)
 
     def test_post_edit_to_array_referral_attribute(self):
         user = self.admin_login()

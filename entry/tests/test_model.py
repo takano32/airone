@@ -3,7 +3,7 @@ from django.test import TestCase
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
-from airone.lib.acl import ACLObjType
+from airone.lib.acl import ACLObjType, ACLType
 from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeArrStr, AttrTypeArrObj
 
 
@@ -21,9 +21,15 @@ class ModelTest(TestCase):
         self._attr = self.make_attr('attr')
         self._attr.save()
 
-    def make_attr(self, name, user=None, entity=None, entry=None, attrtype=AttrTypeStr):
+    def make_attr(self, name, attrtype=AttrTypeStr, user=None, entity=None, entry=None):
+        entity_attr = EntityAttr(name=name,
+                                 type=attrtype,
+                                 created_user=(user and user or self._user),
+                                 parent_entity=(entity and entity or self._entity))
+        entity_attr.save()
+
         return Attribute(name=name,
-                         type=attrtype,
+                         schema=entity_attr,
                          created_user=(user and user or self._user),
                          parent_entry=(entry and entry or self._entry))
 
@@ -95,8 +101,12 @@ class ModelTest(TestCase):
 
         entity = Entity.objects.create(name='entity', created_user=user)
         attrbase = EntityAttr.objects.create(name='attr',
-                                                created_user=user,
-                                                parent_entity=entity)
+                                             created_user=user,
+                                             parent_entity=entity)
+
+        # update acl metadata
+        attrbase.is_public = False
+        attrbase.default_permission = ACLType.Readable.id
 
         # set a permission to the user
         user.permissions.add(attrbase.writable)
@@ -108,6 +118,10 @@ class ModelTest(TestCase):
         self.assertEqual(user.permissions.filter(name='writable').first(), attrbase.writable)
         self.assertEqual(user.permissions.filter(name='writable').last(), attr.writable)
 
+        # checks that acl metadata is inherited
+        self.assertFalse(attr.is_public)
+        self.assertEqual(attr.default_permission, attrbase.default_permission)
+
     def test_inherite_attribute_permission_of_group(self):
         user = User.objects.create(username='hoge')
         group = Group.objects.create(name='group')
@@ -115,8 +129,8 @@ class ModelTest(TestCase):
 
         entity = Entity.objects.create(name='entity', created_user=user)
         attrbase = EntityAttr.objects.create(name='attr',
-                                                created_user=user,
-                                                parent_entity=entity)
+                                             created_user=user,
+                                             parent_entity=entity)
 
         # set a permission to the user
         group.permissions.add(attrbase.writable)
@@ -147,12 +161,7 @@ class ModelTest(TestCase):
         attrbase.referral = entity
         attrbase.is_mandatory = True
 
-        attr.update_from_base(attrbase)
-
-        self.assertEqual(Attribute.objects.get(id=attr.id).name, attrbase.name)
-        self.assertEqual(Attribute.objects.get(id=attr.id).type, attrbase.type)
-        self.assertEqual(Attribute.objects.get(id=attr.id).referral.id, attrbase.referral.id)
-        self.assertEqual(Attribute.objects.get(id=attr.id).is_mandatory, attrbase.is_mandatory)
+        self.assertEqual(Attribute.objects.get(id=attr.id).schema, attrbase)
 
     def test_status_update_methods_of_attribute_value(self):
         value = AttributeValue(value='hoge', created_user=self._user, parent_attr=self._attr)
@@ -190,7 +199,6 @@ class ModelTest(TestCase):
         entry = Entry.objects.create(name='_E', created_user=self._user, schema=entity)
 
         attr = self.make_attr('attr2', attrtype=AttrTypeObj, entity=entity, entry=entry)
-        attr.referral = self._entity
         attr.save()
 
         attr.values.add(AttributeValue.objects.create(referral=e1, created_user=self._user,
@@ -241,7 +249,6 @@ class ModelTest(TestCase):
         entry = Entry.objects.create(name='_E', created_user=self._user, schema=entity)
 
         attr = self.make_attr('attr2', attrtype=AttrTypeArrObj, entity=entity, entry=entry)
-        attr.referral = self._entity
         attr.save()
 
         attr_value = AttributeValue.objects.create(created_user=self._user, parent_attr=attr)
@@ -291,3 +298,16 @@ class ModelTest(TestCase):
         # This function checks that this get_referred_objects method only get
         # unique reference objects except for the self referred object.
         self.assertEqual(entry.get_referred_objects(), [self._entry])
+
+    def test_coordinating_attribute_with_dynamically_added_one(self):
+        newattr = EntityAttr.objects.create(name='newattr',
+                                            type=AttrTypeStr,
+                                            created_user=self._user,
+                                            parent_entity=self._entity)
+        self._entity.attrs.add(newattr)
+
+        # create new attributes which are appended after creation of Entity
+        self._entry.complement_attrs(self._user)
+
+        self.assertEqual(self._entry.attrs.count(), 1)
+        self.assertEqual(self._entry.attrs.last().schema, newattr)

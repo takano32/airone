@@ -112,10 +112,10 @@ def set(request, recv_data):
         elif isinstance(acl_obj, EntityAttr):
             # update permissions of members
             [_set_permission(member, x, acl_type)
-                    for x in Attribute.objects.filter(schema_id=acl_obj.id)]
+                    for x in Attribute.objects.filter(schema=acl_obj)]
 
             # update flag of aclbase object
-            Attribute.objects.filter(schema_id=acl_obj.id).update(is_public=acl_obj.is_public)
+            Attribute.objects.filter(schema=acl_obj).update(is_public=acl_obj.is_public)
 
     return HttpResponse("")
 

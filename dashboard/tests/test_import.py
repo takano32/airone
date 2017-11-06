@@ -149,10 +149,10 @@ class ImportTest(AironeViewTest):
         # checks that after_save_instance processing was normally worked
         entry = Entry.objects.get(name='srv001')
         self.assertEqual(entry.attrs.count(), 4)
-        self.assertEqual(entry.attrs.get(name='attr-str').type, atype.AttrTypeStr)
-        self.assertEqual(entry.attrs.get(name='attr-obj').type, atype.AttrTypeObj)
-        self.assertEqual(entry.attrs.get(name='attr-arr-str').type, atype.AttrTypeArrStr)
-        self.assertEqual(entry.attrs.get(name='attr-arr-obj').type, atype.AttrTypeArrObj)
+        self.assertEqual(entry.attrs.get(name='attr-str').schema.type, atype.AttrTypeStr)
+        self.assertEqual(entry.attrs.get(name='attr-obj').schema.type, atype.AttrTypeObj)
+        self.assertEqual(entry.attrs.get(name='attr-arr-str').schema.type, atype.AttrTypeArrStr)
+        self.assertEqual(entry.attrs.get(name='attr-arr-obj').schema.type, atype.AttrTypeArrObj)
 
         # checks that a new AttribueValue was created by import-data
         self.assertEqual(Attribute.objects.get(name='attr-str').values.count(), 2)
@@ -161,10 +161,10 @@ class ImportTest(AironeViewTest):
         self.assertEqual(Attribute.objects.get(name='attr-arr-obj').values.count(), 1)
 
         # checks that attr has corrected referral
-        self.assertIsNone(Attribute.objects.get(name='attr-str').referral)
-        self.assertEqual(Attribute.objects.get(name='attr-obj').referral.name, 'Entity1')
-        self.assertIsNone(Attribute.objects.get(name='attr-arr-str').referral)
-        self.assertEqual(Attribute.objects.get(name='attr-arr-obj').referral.name, 'Entity2')
+        self.assertIsNone(Attribute.objects.get(name='attr-str').schema.referral)
+        self.assertEqual(Attribute.objects.get(name='attr-obj').schema.referral.name, 'Entity1')
+        self.assertIsNone(Attribute.objects.get(name='attr-arr-str').schema.referral)
+        self.assertEqual(Attribute.objects.get(name='attr-arr-obj').schema.referral.name, 'Entity2')
 
         # checks for the Array String attributes
         attr_value = Attribute.objects.get(name='attr-arr-str').values.first()

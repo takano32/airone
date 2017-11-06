@@ -126,8 +126,15 @@ class ViewTest(AironeViewTest):
 
         entity = Entity.objects.create(name='hoge', created_user=user)
         entry = Entry.objects.create(name='hoge', created_user=user, schema=entity)
+        attrbase = EntityAttr.objects.create(name='hoge',
+                                             created_user=user,
+                                             parent_entity=entity)
 
-        attr = Attribute.objects.create(name='hoge', created_user=user, parent_entry=entry)
+        attr = Attribute.objects.create(name='hoge',
+                                        schema=attrbase,
+                                        created_user=user,
+                                        parent_entry=entry)
+
         resp = self.send_set_request(attr, user)
 
         self.assertEqual(resp.status_code, 200)

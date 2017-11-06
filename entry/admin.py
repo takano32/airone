@@ -8,7 +8,7 @@ from user.models import User
 from .models import Entry
 from .models import Attribute, AttributeValue
 from acl.models import ACLBase
-from entity.models import Entity, AttributeBase
+from entity.models import Entity, EntityAttr
 from entry.models import Entry
 
 admin.site.register(Entry)
@@ -51,8 +51,8 @@ class AttrValueResource(AironeModelResource):
             attr = instance.parent_attr
 
             if (not attr.values.filter(id=instance.id) and
-                (not attr.type & AttrTypeValue['array'] or
-                 (attr.type & AttrTypeValue['array'] and
+                (not attr.schema.type & AttrTypeValue['array'] or
+                 (attr.schema.type & AttrTypeValue['array'] and
                   instance.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)))):
                 attr.values.add(instance)
 
@@ -86,26 +86,24 @@ class AttrValueResource(AironeModelResource):
 
 class AttrResource(AironeModelResource):
     _IMPORT_INFO = {
-        'header': ['id', 'name', 'schema_id', 'entry_id', 'created_user',
-                   'type', 'is_mandatory', 'refer'],
-        'mandatory_keys': ['name', 'schema_id', 'entry_id', 'created_user',
-                           'type'],
+        'header': ['id', 'name', 'schema_id', 'entry_id', 'created_user'],
+        'mandatory_keys': ['name', 'schema_id', 'entry_id', 'created_user'],
         'resource_module': 'entry.admin',
         'resource_model_name': 'AttrResource',
     }
-    COMPARING_KEYS = ['name', 'is_mandatory', 'referral', 'created_user']
-    DISALLOW_UPDATE_KEYS = ['is_mandatory', 'created_user']
+    COMPARING_KEYS = ['name', 'created_user']
+    DISALLOW_UPDATE_KEYS = ['created_user']
 
     entry = fields.Field(column_name='entry_id', attribute='parent_entry',
                          widget=widgets.ForeignKeyWidget(model=Entry, field='id'))
+    schema = fields.Field(column_name='schema_id', attribute='schema',
+                         widget=widgets.ForeignKeyWidget(model=EntityAttr, field='id'))
     user = fields.Field(column_name='created_user', attribute='created_user',
                         widget=widgets.ForeignKeyWidget(User, 'username'))
-    refer = fields.Field(column_name='refer', attribute='referral',
-                         widget=widgets.ForeignKeyWidget(model=ACLBase, field='id'))
 
     class Meta:
         model = Attribute
-        fields = ('id', 'name', 'schema_id', 'type', 'is_mandatory')
+        fields = ('id', 'name', 'schema_id')
         skip_unchanged = True
         instance_loader_class = CachedInstanceLoader
 

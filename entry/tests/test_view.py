@@ -13,6 +13,7 @@ from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
 from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
 from airone.lib.types import AttrTypeValue
 from airone.lib.test import AironeViewTest
+from airone.lib.acl import ACLType
 from xml.etree import ElementTree
 
 
@@ -35,6 +36,17 @@ class ViewTest(AironeViewTest):
         self._entity.attrs.add(self._entity_attr)
 
         return user
+
+    def make_attr(self, name, attrtype=AttrTypeStr, created_user=None, parent_entity=None, parent_entry=None):
+        schema = EntityAttr.objects.create(name=name,
+                                           type=attrtype,
+                                           created_user=(created_user and created_user or self._user),
+                                           parent_entity=(parent_entity and parent_entity or self._entity))
+
+        return Attribute.objects.create(name=name,
+                                        schema=schema,
+                                        created_user=(created_user and created_user or self._user),
+                                        parent_entry=(parent_entry and parent_entry or self._entry))
 
     def test_get_index_without_login(self):
         resp = self.client.get(reverse('entry:index', args=[0]))
@@ -314,7 +326,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(Entry.objects.count(), 2)
         self.assertEqual(Entry.objects.last().name, 'new_entry')
-        self.assertEqual(Entry.objects.last().attrs.last().type, AttrTypeObj)
+        self.assertEqual(Entry.objects.last().attrs.last().schema.type, AttrTypeObj)
         self.assertEqual(Entry.objects.last().attrs.last().values.count(), 1)
         self.assertEqual(Entry.objects.last().attrs.last().values.last().value, '')
         self.assertEqual(Entry.objects.last().attrs.last().values.last().referral.id, entry.id)
@@ -384,12 +396,9 @@ class ViewTest(AironeViewTest):
         entry.save()
 
         for attr_name in ['foo', 'bar']:
-            attr = Attribute(name=attr_name,
-                             type=AttrTypeStr,
-                             is_mandatory=True,
-                             parent_entry=entry,
-                             created_user=user)
-            attr.save()
+            attr = self.make_attr(name=attr_name,
+                                  parent_entry=entry,
+                                  created_user=user)
 
             for value in ['hoge', 'fuga']:
                 attr_value = AttributeValue(value=value, created_user=user, parent_attr=attr)
@@ -410,12 +419,7 @@ class ViewTest(AironeViewTest):
         entry = Entry(name='fuga', schema=self._entity, created_user=user)
         entry.save()
 
-        attr = Attribute(name='foo',
-                         created_user=user,
-                         is_mandatory=False,
-                         parent_entry=entry,
-                         type=AttrTypeStr)
-        attr.save()
+        attr = self.make_attr(name='attr', created_user=user, parent_entry=entry)
         entry.attrs.add(attr)
 
         # with invalid entry-id
@@ -448,12 +452,9 @@ class ViewTest(AironeViewTest):
         entry.save()
 
         for attr_name in ['foo', 'bar']:
-            attr = Attribute(name=attr_name,
-                             created_user=user,
-                             is_mandatory=True,
-                             parent_entry=entry,
-                             type=AttrTypeStr)
-            attr.save()
+            attr = self.make_attr(name=attr_name,
+                                  created_user=user,
+                                  parent_entry=entry)
 
             attr_value = AttributeValue(value='hoge', created_user=user, parent_attr=attr)
             attr_value.set_status(AttributeValue.STATUS_LATEST)
@@ -498,12 +499,9 @@ class ViewTest(AironeViewTest):
         entry.save()
 
         for attr_name in ['foo', 'bar']:
-            attr = Attribute(name=attr_name,
-                             created_user=user,
-                             is_mandatory=False,
-                             parent_entry=entry,
-                             type=AttrTypeStr)
-            attr.save()
+            attr = self.make_attr(name=attr_name,
+                                  created_user=user,
+                                  parent_entry=entry)
             entry.attrs.add(attr)
 
         params = {
@@ -531,10 +529,10 @@ class ViewTest(AironeViewTest):
         entity = Entity.objects.create(name='entity', created_user=user)
         entry = Entry.objects.create(name='entry', created_user=user, schema=entity)
 
-        attr = Attribute.objects.create(name='attr',
-                                        type=AttrTypeArrStr,
-                                        created_user=user,
-                                        parent_entry=entry)
+        attr = self.make_attr(name='attr',
+                              attrtype=AttrTypeArrStr,
+                              created_user=user,
+                              parent_entry=entry)
 
         attr_value = AttributeValue.objects.create(created_user=user, parent_attr=attr)
         attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
@@ -587,11 +585,10 @@ class ViewTest(AironeViewTest):
         e2 = Entry.objects.create(name='E2', created_user=user, schema=entity)
         e3 = Entry.objects.create(name='E3', created_user=user, schema=entity)
 
-        attr = Attribute.objects.create(name='attr',
-                                        type=AttrTypeArrObj,
-                                        created_user=user,
-                                        parent_entry=entry,
-                                        referral=entity)
+        attr = self.make_attr(name='attr',
+                              attrtype=AttrTypeArrObj,
+                              created_user=user,
+                              parent_entry=entry)
 
         attr_value = AttributeValue.objects.create(created_user=user, parent_attr=attr)
         attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
@@ -649,12 +646,9 @@ class ViewTest(AironeViewTest):
         entry.save()
 
         for attr_name in ['foo', 'bar']:
-            attr = Attribute(name=attr_name,
-                             created_user=user,
-                             is_mandatory=True,
-                             parent_entry=entry,
-                             type=AttrTypeStr)
-            attr.save()
+            attr = self.make_attr(name=attr_name,
+                                  created_user=user,
+                                  parent_entry=entry)
 
             for value in ['hoge', 'fuga']:
                 attr_value = AttributeValue(value=value, created_user=user, parent_attr=attr)
@@ -741,12 +735,10 @@ class ViewTest(AironeViewTest):
 
         entry = Entry.objects.create(name='entry', schema=self._entity, created_user=user)
 
-        attr = Attribute.objects.create(name='attr',
-                                        type=AttrTypeObj,
-                                        is_mandatory=True,
-                                        created_user=user,
-                                        parent_entry=entry,
-                                        referral=self._entity)
+        attr = self.make_attr(name='attr',
+                              attrtype=AttrTypeObj,
+                              created_user=user,
+                              parent_entry=entry)
         entry.attrs.add(attr)
 
         attr_value = AttributeValue.objects.create(referral=entry,
@@ -777,12 +769,9 @@ class ViewTest(AironeViewTest):
         entry.save()
 
         for attr_name in ['foo', 'bar']:
-            attr = Attribute(name=attr_name,
-                             type=AttrTypeStr,
-                             is_mandatory=True,
-                             parent_entry=entry,
-                             created_user=user)
-            attr.save()
+            attr = self.make_attr(name=attr_name,
+                                  parent_entry=entry,
+                                  created_user=user)
 
             for value in ['hoge', 'fuga']:
                 attr_value = AttributeValue(value=value, created_user=user, parent_attr=attr)
@@ -814,10 +803,9 @@ class ViewTest(AironeViewTest):
         entry = Entry(name='fuga', schema=self._entity, created_user=user)
         entry.save()
 
-        entry.attrs.add(Attribute.objects.create(name='attr-test',
-                                                 type=AttrTypeStr,
-                                                 parent_entry=entry,
-                                                 created_user=user))
+        entry.attrs.add(self.make_attr(name='attr-test',
+                                       parent_entry=entry,
+                                       created_user=user))
 
         entry_count = Entry.objects.count()
 
@@ -1093,3 +1081,40 @@ class ViewTest(AironeViewTest):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 400)
+
+    def test_make_entry_with_unpermitted_params(self):
+        user = self.admin_login()
+
+        # update ACL of EntityAttr
+        attr = EntityAttr.objects.create(name='newattr',
+                                         type=AttrTypeStr,
+                                         created_user=user,
+                                         parent_entity=self._entity)
+        self._entity.attrs.add(attr)
+
+        self._entity_attr.is_mandatory = False
+        self._entity_attr.is_public = False
+        self._entity_attr.default_permission = ACLType.Nothing.id
+        self._entity_attr.save()
+
+        guest = self.guest_login()
+
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(self._entity_attr.id), 'value': 'hoge'},
+                {'id': str(attr.id), 'value': 'fuga'},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+
+        # checks that Entry object is created with only permitted Attributes
+        entry = Entry.objects.last()
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry.name, 'entry')
+        self.assertEqual(entry.attrs.count(), 1)
+        self.assertEqual(entry.attrs.last().schema, attr)

@@ -156,7 +156,9 @@ class Entry(ACLBase):
         attr = Attribute.objects.create(name=base.name,
                                         schema=base,
                                         created_user=user,
-                                        parent_entry=self)
+                                        parent_entry=self,
+                                        is_public=base.is_public,
+                                        default_permission=base.default_permission)
 
         # inherites permissions of base object for user
         [[user.permissions.add(getattr(attr, acltype.name))

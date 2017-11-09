@@ -1,12 +1,13 @@
 import json
 
+from airone.lib.acl import ACLType
 from airone.lib.test import AironeViewTest
 from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
 from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
 
 from django.urls import reverse
 
-from entity.models import Entity
+from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
 
 
@@ -143,3 +144,86 @@ class ComplexViewTest(AironeViewTest):
 
         value_arr_obj = attr_arr_obj.values.last()
         self.assertEqual(value_arr_obj.data_array.count(), 1)
+
+
+    def test_inherite_attribute_acl(self):
+        """
+        This test executes followings
+        - create a new Entity(entity) with an EntityAttr(attr)
+        - change ACL of attr to be private by admin user
+        - create a new Entry(entry1) from entity by admin user
+        - switch the user to guest
+        - create a new Entry(entry2) from entity by guest user
+
+        Then, this checks following
+        - The Entry(entry1) whcih is created by the admin user has one Attribute
+        - The Entry(entry2) whcih is created by the guest user has no Attribute
+        """
+        user = self.admin_login()
+
+        # create an Entity
+        params = {
+            'name': 'entity',
+            'note': '',
+            'is_toplevel': False,
+            'attrs': [
+                {'name': 'attr', 'type': str(AttrTypeStr), 'is_mandatory': False, 'row_index': '1'},
+            ],
+        }
+        resp = self.client.post(reverse('entity:do_create'),
+                                json.dumps(params),
+                                'application/json')
+        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(EntityAttr.objects.count(), 1)
+
+        # set acl of attr
+        entityattr = EntityAttr.objects.get(name='attr')
+        params = {
+            'object_id': str(entityattr.id),
+            'object_type': str(entityattr.objtype),
+            'acl': [
+                {
+                    'member_id': str(user.id),
+                    'member_type': 'user',
+                    'value': str(ACLType.Full.id)
+                }
+            ],
+            'default_permission': str(ACLType.Nothing.id),
+        }
+        resp = self.client.post(reverse('acl:set'), json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Entity.objects.count(), 1)
+        self.assertFalse(EntityAttr.objects.get(name='attr').is_public)
+
+        # create Entity by admin
+        entity = Entity.objects.get(name='entity')
+        params = {
+            'entry_name': 'entry1',
+            'attrs': [
+                {'id': str(entityattr.id), 'value': 'attr-value'},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Entry.objects.count(), 1)
+        self.assertEqual(Entry.objects.get(name='entry1').attrs.count(), 1)
+
+        # switch to guest user
+        guest = self.guest_login()
+        entity = Entity.objects.get(name='entity')
+        params = {
+            'entry_name': 'entry2',
+            'attrs': [
+                {'id': str(entityattr.id), 'value': 'attr-value'},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(Entry.objects.count(), 2)
+        self.assertEqual(Entry.objects.get(name='entry2').attrs.count(), 0)

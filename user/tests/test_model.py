@@ -1,8 +1,10 @@
 from django.test import TestCase
 from django.contrib.auth.models import User as DjangoUser
 
+from airone.lib.acl import ACLType
 from entity.models import Entity, EntityAttr
 from entry.models import Entry
+from group.models import Group
 from user.models import User, History
 
 
@@ -84,3 +86,27 @@ class ModelTest(TestCase):
             self.user.seth_entry_del(invalid_obj)
 
         self.assertEqual(History.objects.count(), 0)
+
+    def test_affect_group_acl(self):
+        """
+        This checks permission which is set to group is affects to the user
+        who is belonged to that group.
+        """
+
+        admin = User.objects.create(username='admin')
+
+        user = User.objects.create(username='user')
+        group = Group.objects.create(name='group')
+
+        user.groups.add(group)
+
+        entity = Entity.objects.create(name='entity',
+                                       created_user=admin,
+                                       is_public=False,
+                                       default_permission=ACLType.Nothing.id)
+
+        group.permissions.add(entity.readable)
+
+        self.assertTrue(user.has_permission(entity, ACLType.Readable))
+        self.assertFalse(user.has_permission(entity, ACLType.Writable))
+        self.assertFalse(user.has_permission(entity, ACLType.Full))

@@ -35,17 +35,20 @@ class User(DjangoUser):
             return False
 
         perm = getattr(target_obj, permission_level.name)
-        if (target_obj.is_public or
-            # checks that current uesr is created this document
-            target_obj.created_user == self or
-            # checks user permission
-            any([perm <= x for x in self.permissions.all() if target_obj.id == x.get_objid()]) or
-            # checks group permission
-            sum([[perm <= x for x in g.permissions.all() if target_obj.id == x.get_objid()]
-                for g in self.groups.all()], [])):
+
+        if target_obj.created_user == self:
             return True
-        else:
-            return False
+
+        # check user permission
+        if any([permission_level.id <= x.get_aclid() for x in self.permissions.all() if target_obj.id == x.get_objid()]):
+            return True
+
+        # check group permission
+        if any(sum([[permission_level.id <= x.get_aclid() for x in g.permissions.all() if target_obj.id == x.get_objid()] for g in self.groups.all()], [])):
+            return True
+
+        # This means user has no permission to access target object
+        return False
 
     def get_acls(self, aclobj):
         return self.permissions.filter(codename__regex=(r'^%d\.' % aclobj.id))

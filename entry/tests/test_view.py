@@ -1118,3 +1118,41 @@ class ViewTest(AironeViewTest):
         self.assertEqual(entry.name, 'entry')
         self.assertEqual(entry.attrs.count(), 1)
         self.assertEqual(entry.attrs.last().schema, attr)
+
+    def test_get_available_attrs(self):
+        admin = self.admin_login()
+
+        entity = Entity.objects.create(name='entity', created_user=admin)
+
+        attrs = []
+        for index, permission in enumerate([ACLType.Readable, ACLType.Writable]):
+            attr = EntityAttr.objects.create(name='attr%d' % index,
+                                             type=AttrTypeStr,
+                                             created_user=admin,
+                                             parent_entity=entity,
+                                             is_public=False,
+                                             default_permission=permission.id)
+            entity.attrs.add(attr)
+            attrs.append(attr)
+
+        params = {
+            'entry_name': 'entry1',
+            'attrs': [
+                {'id': str(attrs[0].id), 'value': 'hoge'},
+                {'id': str(attrs[1].id), 'value': 'fuga'},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+
+        # switch to guest user
+        user = self.guest_login()
+
+        entry = Entry.objects.get(name='entry1')
+        self.assertEqual(len(entry.get_available_attrs(admin)), 2)
+        self.assertEqual(len(entry.get_available_attrs(user)), 2)
+        self.assertEqual(len(entry.get_available_attrs(user, ACLType.Writable)), 1)
+        self.assertEqual(entry.get_available_attrs(user, ACLType.Writable)[0]['name'], 'attr1')

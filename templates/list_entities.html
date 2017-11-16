@@ -55,7 +55,7 @@
             <td>
               <form url="/entity/do_delete/{{ entity.id }}" method="post">
                 {% csrf_token %}
-                <button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="HttpPost($(this).parent(), {})">del</button>
+                <button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="confirm_delete($(this).parent())">del</button>
               </form>
             </td>
           </tr>

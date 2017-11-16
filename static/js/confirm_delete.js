@@ -1,6 +1,6 @@
 // Confirm deletion of data
 function confirm_delete( form_data ) {
-  if (window.confirm('本当に削除しますか？')) {
+  if (window.confirm(CHECK_PHRASE)) {
       HttpPost(form_data, {});
   }
 }

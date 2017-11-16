@@ -49,7 +49,7 @@
               <form url="/group/do_delete" method="POST">
                 <input type="hidden" name="name" value="{{ group.name }}" />
                 {% csrf_token %}
-                <button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="HttpPost($(this).parent(), {})">del</button>
+                <button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="confirm_delete($(this).parent())">del</button>
               </form>
             </td>
           </tr>

@@ -19,49 +19,6 @@ from entry.admin import EntryResource, AttrResource, AttrValueResource
 from user.models import User
 
 
-def _get_latest_attributes(self, user):
-    ret_attrs = []
-    for attr in [x for x in self.attrs.filter(is_active=True) if user.has_permission(x, ACLType.Readable)]:
-        attrinfo = {}
-
-        attrinfo['id'] = attr.id
-        attrinfo['name'] = attr.schema.name
-        attrinfo['type'] = attr.schema.type
-        attrinfo['is_mandatory'] = attr.schema.is_mandatory
-        attrinfo['index'] = attr.schema.index
-
-        # set last-value of current attributes
-        attrinfo['last_value'] = ''
-        attrinfo['last_referral'] = None
-        if attr.values.count() > 0:
-            last_value = attr.values.last()
-
-            if attr.schema.type == AttrTypeStr or attr.schema.type == AttrTypeText:
-                attrinfo['last_value'] = last_value.value
-            elif attr.schema.type == AttrTypeObj and last_value.referral:
-                attrinfo['last_referral'] = last_value.referral
-            elif attr.schema.type == AttrTypeArrStr:
-                attrinfo['last_value'] = [x.value for x in last_value.data_array.all()]
-            elif attr.schema.type == AttrTypeArrObj:
-                attrinfo['last_value'] = [x.referral for x in last_value.data_array.all()]
-
-        # set Entries which are specified in the referral parameter
-        attrinfo['referrals'] = []
-        if attr.schema.referral:
-            # when an entry in referral attribute is deleted,
-            # user should be able to select new referral or keep it unchanged.
-            # so candidate entries of referral attribute are:
-            # - active(not deleted) entries (new referral)
-            # - last value even if the entry has been deleted (keep it unchanged)
-            query = Q(schema=attr.schema.referral, is_active=True)
-            if attrinfo['last_referral']:
-                query = query | Q(id=attrinfo['last_referral'].id)
-            attrinfo['referrals'] = Entry.objects.filter(query)
-
-        ret_attrs.append(attrinfo)
-
-    return sorted(ret_attrs, key=lambda x: x['index'])
-
 @airone_profile
 @http_get
 @check_permission(Entity, ACLType.Readable)
@@ -204,7 +161,7 @@ def edit(request, entry_id):
 
     context = {
         'entry': entry,
-        'attributes': _get_latest_attributes(entry, user),
+        'attributes': entry.get_available_attrs(user, ACLType.Writable),
     }
 
     return render(request, 'edit_entry.html', context)
@@ -350,7 +307,7 @@ def show(request, entry_id):
 
     context = {
         'entry': entry,
-        'attributes': _get_latest_attributes(entry, user),
+        'attributes': entry.get_available_attrs(user),
         'value_history': sorted(entry.get_value_history(user), key=lambda x: x['created_time']),
         'referred_objects': entry.get_referred_objects(),
     }

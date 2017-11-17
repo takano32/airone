@@ -61,8 +61,7 @@ def do_delete(request, recv_data):
     user = User.objects.get(username=recv_data['name'])
 
     # inactivate user
-    user.set_active(False)
-    user.save()
+    user.delete()
 
     # return empty response 
     return HttpResponse()

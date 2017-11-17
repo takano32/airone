@@ -1,3 +1,14 @@
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group as DjangoGroup
+from datetime import datetime
 
-Group.get_acls = (lambda x, obj: x.permissions.filter(codename__regex=(r'^%d\.' % obj.id)))
+DjangoGroup.get_acls = (lambda x, obj: x.permissions.filter(codename__regex=(r'^%d\.' % obj.id)))
+
+
+class Group(DjangoGroup):
+    def delete(self):
+        """
+        Override Model.delete method of Django
+        """
+        self.is_active = False
+        self.name = "%s_deleted_%s" % (self.name, datetime.now().strftime("%Y%m%d_%H%M%S"))
+        self.save()

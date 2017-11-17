@@ -21,12 +21,12 @@ class ModelTest(TestCase):
         self.assertTrue(self.user.is_active)
 
     def test_delete_user(self):
-        self.user.set_active(False)
-        self.user.save()
+        self.user.delete()
 
-        user = User.objects.get(username='ほげ')
+        user = User.objects.get(id=self.user.id)
         self.assertTrue(isinstance(user, DjangoUser))
-        self.assertEqual(user.username, 'ほげ')
+        self.assertEqual(user.username.find('ほげ_deleted_'), 0)
+        self.assertEqual(user.email, "deleted__hoge@fuga.com")
         self.assertEqual(user.authorized_type, 0)
         self.assertIsNotNone(user.date_joined)
         self.assertFalse(user.is_active)

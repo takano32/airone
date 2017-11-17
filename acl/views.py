@@ -2,13 +2,14 @@ import json
 import logging
 
 from django.http import HttpResponse
-from django.contrib.auth.models import Group, Permission
+from django.contrib.auth.models import Permission
 
 from airone.lib.acl import ACLType, ACLObjType
 from airone.lib.http import http_get, http_post, render
 
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute
+from group.models import Group
 from user.models import User
 from .models import ACLBase
 

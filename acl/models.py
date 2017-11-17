@@ -1,6 +1,8 @@
 import importlib
 import tablib
 
+from datetime import datetime
+
 from django.db import models
 from django.db.models.signals import post_save
 from django.db.models.signals import pre_save
@@ -62,6 +64,7 @@ class ACLBase(models.Model):
 
     def delete(self, *args, **kwargs):
         self.is_active = False
+        self.name = "%s_deleted_%s" % (self.name, datetime.now().strftime("%Y%m%d_%H%M%S"))
         self.save()
 
     def inherit_acl(self, aclobj):

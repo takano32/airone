@@ -1,4 +1,4 @@
-from django.contrib.auth.models import Group
+from group.models import Group
 from django.test import TestCase
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue

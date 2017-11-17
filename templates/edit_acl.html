@@ -57,6 +57,9 @@
           </div>
           <div class="row default_permission" {% if object.is_public %}style="display: none"{% endif %}>
             <!-- show interfaces to set default permissions -->
+            <div class="col">
+              デフォルト権限：
+            </div>
             {% for acltype in acltypes %}
             <div class="col">
               <div class="radio">

@@ -284,7 +284,7 @@ class ViewTest(AironeViewTest):
             'attrs': [{
                 'name': 'baz',
                 'type': str(AttrTypeObj),
-                'ref_id': entity.id,
+                'ref_ids': [entity.id],
                 'is_mandatory': True,
                 'row_index': '1',
                 'id': attr.id
@@ -296,7 +296,8 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 303)
         self.assertEqual(EntityAttr.objects.get(id=attr.id).type, AttrTypeObj)
-        self.assertEqual(EntityAttr.objects.get(id=attr.id).referral.id, entity.id)
+        self.assertEqual(EntityAttr.objects.get(id=attr.id).referral.count(), 1)
+        self.assertEqual(EntityAttr.objects.get(id=attr.id).referral.last().id, entity.id)
 
     def test_post_edit_referral_attribute(self):
         user = self.admin_login()
@@ -304,9 +305,9 @@ class ViewTest(AironeViewTest):
         entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
         attrbase = EntityAttr.objects.create(name='puyo',
                                              type=AttrTypeObj,
-                                             referral=entity,
                                              created_user=user,
                                              parent_entity=entity)
+        attrbase.referral.add(entity)
         entity.attrs.add(attrbase)
 
         entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
@@ -330,14 +331,14 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 303)
         self.assertEqual(EntityAttr.objects.get(id=attrbase.id).type, AttrTypeStr)
-        self.assertIsNone(EntityAttr.objects.get(id=attrbase.id).referral)
+        self.assertEqual(EntityAttr.objects.get(id=attrbase.id).referral.count(), 0)
 
         # checks that the related Attribute is also changed
         self.assertEqual(Attribute.objects.get(id=attr.id).schema, attrbase)
         self.assertEqual(Attribute.objects.get(id=attr.id).schema.name, 'baz')
         self.assertEqual(Attribute.objects.get(id=attr.id).schema.type, AttrTypeStr)
         self.assertTrue(Attribute.objects.get(id=attr.id).schema.is_mandatory)
-        self.assertIsNone(Attribute.objects.get(id=attr.id).schema.referral)
+        self.assertEqual(Attribute.objects.get(id=attr.id).schema.referral.count(), 0)
 
     def test_post_edit_to_array_referral_attribute(self):
         user = self.admin_login()
@@ -356,7 +357,7 @@ class ViewTest(AironeViewTest):
             'attrs': [{
                 'name': 'baz',
                 'type': str(AttrTypeArrObj),
-                'ref_id': entity.id,
+                'ref_ids': [entity.id],
                 'is_mandatory': True,
                 'row_index': '1',
                 'id': attr.id
@@ -368,7 +369,8 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 303)
         self.assertEqual(EntityAttr.objects.get(id=attr.id).type, AttrTypeArrObj)
-        self.assertEqual(EntityAttr.objects.get(id=attr.id).referral.id, entity.id)
+        self.assertEqual(EntityAttr.objects.get(id=attr.id).referral.count(), 1)
+        self.assertEqual(EntityAttr.objects.get(id=attr.id).referral.last().id, entity.id)
 
     def test_post_create_with_invalid_referral_attr(self):
         self.admin_login()
@@ -398,8 +400,8 @@ class ViewTest(AironeViewTest):
             'note': 'fuga',
             'is_toplevel': False,
             'attrs': [
-                {'name': 'a', 'type': str(AttrTypeObj), 'ref_id': entity.id, 'is_mandatory': False, 'row_index': '1'},
-                {'name': 'b', 'type': str(AttrTypeArrObj), 'ref_id': entity.id, 'is_mandatory': False, 'row_index': '2'},
+                {'name': 'a', 'type': str(AttrTypeObj), 'ref_ids': [entity.id], 'is_mandatory': False, 'row_index': '1'},
+                {'name': 'b', 'type': str(AttrTypeArrObj), 'ref_ids': [entity.id], 'is_mandatory': False, 'row_index': '2'},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -411,7 +413,7 @@ class ViewTest(AironeViewTest):
 
         attrs = EntityAttr.objects.all()
         self.assertEqual(len(attrs), 2)
-        self.assertTrue(all([x.referral.id == entity.id for x in attrs]))
+        self.assertTrue(all([x.referral.filter(id=entity.id).count() for x in attrs]))
 
     def test_post_delete_attribute(self):
         user = self.admin_login()
@@ -464,11 +466,13 @@ class ViewTest(AironeViewTest):
                                                         parent_entity=entity1))
 
         entity2 = Entity.objects.create(name='entity2', created_user=user)
-        entity2.attrs.add(EntityAttr.objects.create(name='attr',
-                                                            type=AttrTypeObj,
-                                                            referral=entity1,
-                                                            created_user=user,
-                                                            parent_entity=entity2))
+        attr = EntityAttr.objects.create(name='attr',
+                                         type=AttrTypeObj,
+                                         created_user=user,
+                                         parent_entity=entity2)
+        attr.referral.add(entity1)
+        entity2.attrs.add(attr)
+        entity2.save()
 
         resp = self.client.get(reverse('entity:export'))
         self.assertEqual(resp.status_code, 200)
@@ -478,6 +482,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(sorted(obj.keys()), ['Entity', 'EntityAttr'])
         self.assertEqual(len(obj['EntityAttr']), 3)
         self.assertEqual(len(obj['Entity']), 2)
+
         self.assertTrue(list(filter(lambda x: (
                 x['name'] == 'foo' and
                 x['entity'] == 'entity1' and
@@ -566,7 +571,7 @@ class ViewTest(AironeViewTest):
         entity1.attrs.add(attr)
 
         entity_count = Entity.objects.all().count()
-        
+
         params = {}
         resp = self.client.post(reverse('entity:do_delete', args=[entity1.id]),
                                 json.dumps(params), 'application/json')
@@ -583,13 +588,13 @@ class ViewTest(AironeViewTest):
     def test_post_delete_without_permission(self):
         user1 = self.admin_login()
         user2 = User.objects.create(username='mokeke')
-        
+
         entity1 = Entity.objects.create(name='entity1', created_user=user2)
         entity1.is_public = False
         entity1.save()
 
         entity_count = Entity.objects.all().count()
-        
+
         params = {}
         resp = self.client.post(reverse('entity:do_delete', args=[entity1.id]),
                                 json.dumps(params), 'application/json')
@@ -604,9 +609,8 @@ class ViewTest(AironeViewTest):
 
     def test_post_delete_with_active_entry(self):
         user = self.admin_login()
-        
+
         entity = Entity.objects.create(name='entity1', created_user=user)
-        entity.save()
 
         attrbase = EntityAttr.objects.create(name='puyo',
                                              created_user=user,
@@ -618,9 +622,9 @@ class ViewTest(AironeViewTest):
         entry = Entry.objects.create(name='entry1', schema=entity, created_user=user)
         entry.add_attribute_from_base(attrbase, user)
         entry.save()
-        
+
         entity_count = Entity.objects.all().count()
-        
+
         params = {}
         resp = self.client.post(reverse('entity:do_delete', args=[entity.id]),
                                 json.dumps(params), 'application/json')
@@ -648,3 +652,36 @@ class ViewTest(AironeViewTest):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 400)
+
+    def test_create_entity_attr_with_multiple_referral(self):
+        user = self.admin_login()
+
+        r_entity1 = Entity.objects.create(name='referred_entity1', created_user=user)
+        r_entity2 = Entity.objects.create(name='referred_entity2', created_user=user)
+
+        params = {
+            'name': 'entity',
+            'note': 'note',
+            'is_toplevel': False,
+            'attrs': [
+                {
+                    'name': 'attr',
+                    'type': str(AttrTypeObj),
+                    'ref_ids': [r_entity1.id, r_entity2.id],
+                    'is_mandatory': False,
+                    'row_index': '1'
+                },
+            ],
+        }
+        resp = self.client.post(reverse('entity:do_create'),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 303)
+
+        entity = Entity.objects.get(name='entity')
+
+        self.assertEqual(entity.attrs.count(), 1)
+        self.assertEqual(entity.attrs.last().referral.count(), 2)
+        self.assertEqual(entity.attrs.last().referral.filter(id=r_entity1.id).count(), 1)
+        self.assertEqual(entity.attrs.last().referral.filter(id=r_entity2.id).count(), 1)

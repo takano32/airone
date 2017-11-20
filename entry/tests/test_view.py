@@ -252,10 +252,10 @@ class ViewTest(AironeViewTest):
 
         # add an optional EntityAttr to the test Entity object
         self._entity_attr_optional = EntityAttr(name='test-optional',
-                                                 type=AttrTypeStr,
-                                                 is_mandatory=False,
-                                                 created_user=user,
-                                                 parent_entity=self._entity)
+                                                type=AttrTypeStr,
+                                                is_mandatory=False,
+                                                created_user=user,
+                                                parent_entity=self._entity)
         self._entity_attr_optional.save()
         self._entity.attrs.add(self._entity_attr_optional)
 
@@ -303,11 +303,11 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
 
         attr_base = EntityAttr.objects.create(name='attr_with_referral',
-                                                 created_user=user,
-                                                 type=AttrTypeObj,
-                                                 referral=self._entity,
-                                                 parent_entity=self._entity,
-                                                 is_mandatory=False)
+                                              created_user=user,
+                                              type=AttrTypeObj,
+                                              parent_entity=self._entity,
+                                              is_mandatory=False)
+        attr_base.referral.add(self._entity)
         self._entity.attrs.add(attr_base)
 
         entry = Entry.objects.create(name='entry', schema=self._entity, created_user=user)
@@ -354,11 +354,11 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
 
         attr_base = EntityAttr.objects.create(name='ref_attr',
-                                                 created_user=user,
-                                                 type=AttrTypeObj,
-                                                 referral=self._entity,
-                                                 parent_entity=self._entity,
-                                                 is_mandatory=False)
+                                              created_user=user,
+                                              type=AttrTypeObj,
+                                              parent_entity=self._entity,
+                                              is_mandatory=False)
+        attr_base.referral.add(self._entity)
         self._entity.attrs.add(attr_base)
 
         params = {
@@ -665,11 +665,11 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
 
         attr_base = EntityAttr.objects.create(name='attr_with_referral',
-                                                 created_user=user,
-                                                 type=AttrTypeObj,
-                                                 referral=self._entity,
-                                                 parent_entity=self._entity,
-                                                 is_mandatory=False)
+                                              created_user=user,
+                                              type=AttrTypeObj,
+                                              parent_entity=self._entity,
+                                              is_mandatory=False)
+        attr_base.referral.add(self._entity)
         self._entity.attrs.add(attr_base)
 
         entry = Entry.objects.create(name='old_entry', schema=self._entity, created_user=user)
@@ -704,9 +704,9 @@ class ViewTest(AironeViewTest):
         attr_base = EntityAttr.objects.create(name='attr_with_referral',
                                                  created_user=user,
                                                  type=AttrTypeObj,
-                                                 referral=self._entity,
                                                  parent_entity=self._entity,
                                                  is_mandatory=False)
+        attr_base.referral.add(self._entity)
         self._entity.attrs.add(attr_base)
 
         entry = Entry.objects.create(name='entry', schema=self._entity, created_user=user)
@@ -898,11 +898,11 @@ class ViewTest(AironeViewTest):
                                        created_user=user)
 
         attr_base = EntityAttr.objects.create(name='attr-ref-test',
-                                                 created_user=user,
-                                                 type=AttrTypeArrObj,
-                                                 referral=self._entity,
-                                                 parent_entity=self._entity,
-                                                 is_mandatory=False)
+                                              created_user=user,
+                                              type=AttrTypeArrObj,
+                                              parent_entity=self._entity,
+                                              is_mandatory=False)
+        attr_base.referral.add(self._entity)
         entity.attrs.add(attr_base)
 
         referral = Entry.objects.create(name='entry0', schema=self._entity, created_user=user)

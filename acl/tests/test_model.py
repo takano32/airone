@@ -1,5 +1,6 @@
 from django.test import TestCase
-from django.contrib.auth.models import Group, Permission
+from django.contrib.auth.models import Permission
+from group.models import Group
 from acl.models import ACLBase
 from user.models import User
 from importlib import import_module
@@ -161,3 +162,11 @@ class ModelTest(TestCase):
         self.assertTrue(another_user.has_permission(aclobj, ACLType.Readable))
         self.assertTrue(another_user.has_permission(aclobj, ACLType.Writable))
         self.assertTrue(another_user.has_permission(aclobj, ACLType.Full))
+
+    def test_delete(self):
+        aclobj = ACLBase.objects.create(name='obj', created_user=self.user)
+
+        aclobj.delete()
+
+        self.assertFalse(aclobj.is_active)
+        self.assertEqual(aclobj.name.find('obj_deleted_'), 0)

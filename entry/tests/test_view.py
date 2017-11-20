@@ -3,7 +3,7 @@ import yaml
 
 from django.test import TestCase, Client
 from django.urls import reverse
-from django.contrib.auth.models import Group
+from group.models import Group
 
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
@@ -820,7 +820,7 @@ class ViewTest(AironeViewTest):
 
         entry = Entry.objects.last()
         self.assertFalse(entry.is_active)
-        self.assertFalse(Attribute.objects.get(name='attr-test').is_active)
+        self.assertFalse(Attribute.objects.get(name__icontains='attr-test_deleted_').is_active)
 
     def test_post_delete_entry_without_permission(self):
         user1 = self.admin_login()

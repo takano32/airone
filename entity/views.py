@@ -63,20 +63,15 @@ def edit(request, entity_id):
     # - active(not deleted) entity
     # - current value of any attributes even if the entity has been deleted
 
-    # query of candidate entities for referral
-    query = Q(is_active=True) # active entity should be displayed
     attrs = [] # EntityAttrs of entity to be editted
-
     for attr_base in entity.attrs.filter(is_active=True).order_by('index'):
         # skip not-writable EntityAttr
-        if not user.has_permission(attr_base, ACLType.Writable):
-            continue
-        # logical-OR current value of referral to query of candidate entites
-        if attr_base.referral:
-            query = query | Q(id=attr_base.referral.id)
-        attrs.append(attr_base)
+        if user.has_permission(attr_base, ACLType.Writable):
+            attrs.append(attr_base)
 
-    entities = Entity.objects.filter(query)
+    entities = []
+    [entities.append(e) for e in Entity.objects.filter(is_active=True)
+            if user.has_permission(e, ACLType.Readable)]
 
     context = {
         'entity': entity,
@@ -110,6 +105,18 @@ def do_edit(request, entity_id, recv_data):
     if not Entity.objects.filter(id=entity_id).count():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
+    # validation checks
+    for attr in recv_data['attrs']:
+        # formalize recv_data format
+        if 'ref_ids' not in attr:
+            attr['ref_ids'] = []
+
+        if int(attr['type']) & AttrTypeValue['object'] and not attr['ref_ids']:
+            return HttpResponse('Need to specify enabled referral ids', status=400)
+
+        if any([Entity.objects.filter(id=x).count() == 0 for x in attr['ref_ids']]):
+            return HttpResponse('Specified referral is invalid', status=400)
+
     entity = Entity.objects.get(id=entity_id)
 
     # register history to modify Entity
@@ -134,10 +141,6 @@ def do_edit(request, entity_id, recv_data):
     for attr in recv_data['attrs']:
         # This is the variable to describe update detail of EntityAttr to register the History
         detail_attr = []
-
-        if (int(attr['type']) & AttrTypeValue['object'] and
-            ('ref_id' not in attr or not Entity.objects.filter(id=attr['ref_id']).count())):
-            return HttpResponse('Failed to get entity that is referred', status=400)
 
         if 'deleted' in attr:
             attr_obj = EntityAttr.objects.get(id=attr['id'])
@@ -169,25 +172,23 @@ def do_edit(request, entity_id, recv_data):
             attr_obj.index = int(attr['row_index'])
 
             # the case of an attribute that has referral entry
+            attr_obj.referral.clear()
             if int(attr['type']) & AttrTypeValue['object']:
-                attr_obj.referral = Entity.objects.get(id=attr['ref_id'])
-            else:
-                attr_obj.referral = None
+                [attr_obj.referral.add(Entity.objects.get(id=x)) for x in attr['ref_ids']]
 
             attr_obj.save()
 
         else:
-            referral = None
-            if int(attr['type']) & AttrTypeValue['object']:
-                referral = Entity.objects.get(id=attr['ref_id'])
-
             attr_obj = EntityAttr.objects.create(name=attr['name'],
                                                  type=int(attr['type']),
                                                  is_mandatory=attr['is_mandatory'],
                                                  index=int(attr['row_index']),
                                                  created_user=user,
-                                                 parent_entity=entity,
-                                                 referral=referral)
+                                                 parent_entity=entity)
+
+            # append referral objects
+            if int(attr['type']) & AttrTypeValue['object']:
+                [attr_obj.referral.add(Entity.objects.get(id=x)) for x in attr['ref_ids']]
 
             # add a new attribute on the existed Entries
             entity.attrs.add(attr_obj)
@@ -218,6 +219,18 @@ def do_edit(request, entity_id, recv_data):
 ])
 @check_superuser
 def do_create(request, recv_data):
+    # validation checks
+    for attr in recv_data['attrs']:
+        # formalize recv_data format
+        if 'ref_ids' not in attr:
+            attr['ref_ids'] = []
+
+        if int(attr['type']) & AttrTypeValue['object'] and not attr['ref_ids']:
+            return HttpResponse('Need to specify enabled referral ids', status=400)
+
+        if any([Entity.objects.filter(id=x).count() == 0 for x in attr['ref_ids']]):
+            return HttpResponse('Specified referral is invalid', status=400)
+
     # get user object that current access
     user = User.objects.get(id=request.user.id)
 
@@ -236,21 +249,16 @@ def do_create(request, recv_data):
     history = user.seth_entity_add(entity)
 
     for attr in recv_data['attrs']:
-        if (int(attr['type']) & AttrTypeValue['object'] and
-            ('ref_id' not in attr or not Entity.objects.filter(id=attr['ref_id']).count())):
-            return HttpResponse('Failed to get entity that is referred', status=400)
-
-        attr_base = EntityAttr(name=attr['name'],
-                               type=int(attr['type']),
-                               is_mandatory=attr['is_mandatory'],
-                               created_user=user,
-                               parent_entity=entity,
-                               index=int(attr['row_index']))
+        attr_base = EntityAttr.objects.create(name=attr['name'],
+                                              type=int(attr['type']),
+                                              is_mandatory=attr['is_mandatory'],
+                                              created_user=user,
+                                              parent_entity=entity,
+                                              index=int(attr['row_index']))
 
         if int(attr['type']) & AttrTypeValue['object']:
-            attr_base.referral = Entity.objects.get(id=attr['ref_id'])
+            [attr_base.referral.add(Entity.objects.get(id=x)) for x in attr['ref_ids']]
 
-        attr_base.save()
         entity.attrs.add(attr_base)
 
         # register history to modify Entity

@@ -158,7 +158,7 @@ class ModelTest(TestCase):
         # update attrbase
         attrbase.name = 'hoge'
         attrbase.type = AttrTypeObj.TYPE
-        attrbase.referral = entity
+        attrbase.referral.add(entity)
         attrbase.is_mandatory = True
 
         self.assertEqual(Attribute.objects.get(id=attr.id).schema, attrbase)

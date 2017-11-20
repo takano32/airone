@@ -10,7 +10,7 @@ class EntityAttr(ACLBase):
 
     type = models.IntegerField(default=0)
     is_mandatory = models.BooleanField(default=False)
-    referral = models.ForeignKey(ACLBase, null=True, related_name='referred_attr_base')
+    referral = models.ManyToManyField(ACLBase, default=[], related_name='referred_attr_base')
     index = models.IntegerField(default=0)
 
     def __init__(self, *args, **kwargs):

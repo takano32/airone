@@ -45,7 +45,7 @@
                 {% endfor %}
               </select>
               
-              <select class="attr_referral" {% if not attr.referral %}style="display:none"{% endif %}>
+              <select class="attr_referral" {% if not attr.referral %}style="display:none"{% endif %} size="3" multiple="True">
                 {% for entity in entities %}
                 <option value="{{ entity.id }}" {% if attr.referral.id == entity.id %}selected="selected"{% endif %}>{{ entity.name }}</option>
                 {% endfor %}
@@ -79,7 +79,7 @@
                 <option value="{{ type.TYPE }}">{{ type.NAME }}</option>
                 {% endfor %}
               </select>
-              <select class="attr_referral" style="display:none">
+              <select class="attr_referral" style="display:none" size="3" multiple="True">
                 {% for entity in entities %}
                 <option value="{{ entity.id }}">{{ entity.name }}</option>
                 {% endfor %}

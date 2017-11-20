@@ -41,6 +41,13 @@ def create(request, entity_id):
     if not Entity.objects.filter(id=entity_id).count():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
+    def get_referrals(attr):
+        ret = []
+        for entries in [Entry.objects.filter(schema=x, is_active=True) for x in attr.referral.all()]:
+            ret += [{'id': x.id, 'name': x.name} for x in entries]
+
+        return ret
+
     entity = Entity.objects.get(id=entity_id)
     context = {
         'entity': entity,
@@ -49,7 +56,7 @@ def create(request, entity_id):
             'type': x.type,
             'name': x.name,
             'is_mandatory': x.is_mandatory,
-            'referrals': x.referral and Entry.objects.filter(schema=x.referral,is_active=True) or [],
+            'referrals': x.referral.count() and get_referrals(x) or [],
         } for x in entity.attrs.filter(is_active=True) if user.has_permission(x, ACLType.Writable)]
     }
     return render(request, 'create_entry.html', context)

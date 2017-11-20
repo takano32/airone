@@ -2,7 +2,7 @@ import json, yaml
 
 from django.test import TestCase, Client
 from django.urls import reverse
-from django.contrib.auth.models import Group
+from group.models import Group
 
 from user.models import User
 from airone.lib.test import AironeViewTest
@@ -52,7 +52,7 @@ class ViewTest(AironeViewTest):
 
         user2 = self._create_user('user2')
         user2.groups.add(group)
-        user2.set_active(False)
+        user2.delete()
         user2.save()
                 
         resp = self.client.get(reverse('group:index'))
@@ -182,8 +182,8 @@ class ViewTest(AironeViewTest):
         user2 = User.objects.get(username="user2")
         
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(self._get_group_count(), group_count - 1,
-                         "group should be decreased")
+        self.assertEqual(self._get_group_count(), group_count,
+                         "group should not be decreased because of soft-delete")
         self.assertEqual(Group.objects.filter(name="group1").count(), 0,
                          "group1 should not exist")
         self.assertEqual(Group.objects.filter(name="group2").count(), 1,
@@ -287,8 +287,8 @@ class ViewTest(AironeViewTest):
         # checks being have added/deleted group from user and user1 information
         self.assertEqual(user.groups.count(), 1)
         self.assertEqual(user1.groups.count(), 0)
-        self.assertTrue(group in user.groups.all())
-        self.assertFalse(group in user1.groups.all())
+        self.assertTrue(user.groups.filter(id=group.id).exists())
+        self.assertFalse(user1.groups.filter(id=group.id).exists())
 
     def test_post_edit_to_duplicate_name(self):
         user = self.admin_login()

@@ -575,10 +575,10 @@ class ViewTest(AironeViewTest):
         self.assertEqual(Entity.objects.all().count(), entity_count,
                          "Entity should not be deleted from database")
 
-        entity1 = Entity.objects.get(name='entity1')
-        self.assertIsNotNone(entity1)
+        entity1 = Entity.objects.get(name__icontains='entity1_deleted_')
         self.assertFalse(entity1.is_active)
-        self.assertFalse(EntityAttr.objects.get(name='attr-test').is_active)
+        for attr in entity1.attrs.all():
+            self.assertFalse(attr.is_active)
 
     def test_post_delete_without_permission(self):
         user1 = self.admin_login()

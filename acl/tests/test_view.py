@@ -1,6 +1,6 @@
 import json
 
-from django.contrib.auth.models import Group
+from group.models import Group
 from django.urls import reverse
 from django.core import exceptions
 

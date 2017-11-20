@@ -140,7 +140,7 @@ class ViewTest(TestCase):
         self.assertEqual(self._get_active_user_count(), active_user_count-1)
 
         # user should be inactive
-        user = User.objects.get(username=name)
+        user = User.objects.get(username__icontains="%s_deleted_" % name)
         self.assertFalse(user.is_active)
 
     def test_create_user_by_guest_user(self):

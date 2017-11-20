@@ -4,6 +4,8 @@ from django.db import models
 from django.contrib.auth.models import User as DjangoUser
 from airone.lib.acl import ACLType, ACLTypeBase
 
+from datetime import datetime
+
 
 class User(DjangoUser):
     authorized_type = models.IntegerField(default=0)
@@ -53,8 +55,14 @@ class User(DjangoUser):
     def get_acls(self, aclobj):
         return self.permissions.filter(codename__regex=(r'^%d\.' % aclobj.id))
 
-    def set_active(self, is_active=True):
-        self.is_active = is_active
+    def delete(self):
+        """
+        Override Model.delete method of Django
+        """
+        self.is_active = False
+        self.username = "%s_deleted_%s" % (self.username, datetime.now().strftime("%Y%m%d_%H%M%S"))
+        self.email = "deleted__%s" % (self.email)
+        self.save()
 
     # operations for registering History
     def seth_entity_add(self, target):

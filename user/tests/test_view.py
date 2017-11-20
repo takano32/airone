@@ -164,7 +164,7 @@ class ViewTest(TestCase):
             'name': 'hoge',
             'email': 'hoge@fuga.com',
             'passwd': 'puyo',
-            'is_admin': 'on',
+            'is_superuser': 'on',
         }
         resp = self.client.post(reverse('user:do_create'),
                                 json.dumps(params),

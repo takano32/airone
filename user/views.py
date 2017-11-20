@@ -37,13 +37,13 @@ def create(request):
 ])
 @check_superuser
 def do_create(request, recv_data):
-    is_admin = False
-    if 'is_admin' in recv_data:
-        is_admin = True
+    is_superuser = False
+    if 'is_superuser' in recv_data:
+        is_superuser = True
 
     user = User(username=recv_data['name'],
                 email=recv_data['email'],
-                is_superuser=is_admin)
+                is_superuser=is_superuser)
 
     # store encrypted password in the database
     user.set_password(recv_data['passwd'])

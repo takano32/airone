@@ -70,8 +70,17 @@ def edit(request, entity_id):
             attrs.append(attr_base)
 
     entities = []
-    [entities.append(e) for e in Entity.objects.filter(is_active=True)
-            if user.has_permission(e, ACLType.Readable)]
+    [entities.append({
+        'id': e.id,
+        'name': e.name,
+        'attrs': [{
+            'id': attr.id,
+            'name': attr.name,
+            'type': attr.type,
+            'is_mandatory': attr.is_mandatory,
+            'referral': attr.referral.all(),
+        } for attr in e.attrs.all()],
+    }) for e in Entity.objects.filter(is_active=True) if user.has_permission(e, ACLType.Readable)]
 
     context = {
         'entity': entity,

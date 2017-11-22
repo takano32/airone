@@ -73,7 +73,7 @@ class ViewTest(AironeViewTest):
         self.assertIsNotNone(root.find('.//tbody/tr/td'))
 
     def test_get_permitted_entries(self):
-        user = self.admin_login()
+        user = self.guest_login()
 
         another_user = User.objects.create(username='hoge')
         entity = Entity(name='hoge', created_user=another_user, is_public=False)
@@ -117,7 +117,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
 
     def test_get_with_inferior_user_permission(self):
-        user = self.admin_login()
+        user = self.guest_login()
 
         entity = Entity.objects.create(name='hoge',
                                        is_public=False,
@@ -221,7 +221,7 @@ class ViewTest(AironeViewTest):
         self.assertTrue(attrvalue.get_status(AttributeValue.STATUS_LATEST))
 
     def test_post_create_entry_without_permission(self):
-        self.admin_login()
+        self.guest_login()
 
         another_user = User.objects.create(username='hoge')
         entity = Entity.objects.create(name='hoge', is_public=False, created_user=another_user)
@@ -823,11 +823,12 @@ class ViewTest(AironeViewTest):
         self.assertFalse(Attribute.objects.get(name__icontains='attr-test_deleted_').is_active)
 
     def test_post_delete_entry_without_permission(self):
-        user1 = self.admin_login()
+        user1 = self.guest_login()
         user2 = User(username='nyaa')
         user2.save()
 
-        entry = Entry(name='fuga', schema=self._entity, created_user=user2, is_public=False)
+        entity = Entity.objects.create(name='entity', created_user=user1)
+        entry = Entry(name='fuga', schema=entity, created_user=user2, is_public=False)
         entry.save()
 
         entry_count = Entry.objects.count()

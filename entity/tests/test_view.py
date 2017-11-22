@@ -502,7 +502,7 @@ class ViewTest(AironeViewTest):
             ), obj['Entity'])))
 
     def test_export_with_unpermitted_object(self):
-        user = self.admin_login()
+        user = self.guest_login()
         user2 = User.objects.create(username='user2')
 
         # create an entity object which is created by logined-user
@@ -586,7 +586,7 @@ class ViewTest(AironeViewTest):
             self.assertFalse(attr.is_active)
 
     def test_post_delete_without_permission(self):
-        user1 = self.admin_login()
+        user1 = self.guest_login()
         user2 = User.objects.create(username='mokeke')
 
         entity1 = Entity.objects.create(name='entity1', created_user=user2)

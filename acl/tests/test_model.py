@@ -170,3 +170,22 @@ class ModelTest(TestCase):
 
         self.assertFalse(aclobj.is_active)
         self.assertEqual(aclobj.name.find('obj_deleted_'), 0)
+
+    def test_could_access_by_superuser(self):
+        superuser = User.objects.create(username='superuser',
+                                        email='superuser@dmm.local',
+                                        password='',
+                                        is_superuser=True)
+
+        guestuser = User.objects.create(username='guestuser',
+                                        email='guestuser@dmm.local',
+                                        password='',
+                                        is_superuser=False)
+
+        aclobj = ACLBase.objects.create(name='obj',
+                                        created_user=self.user,
+                                        is_public=False,
+                                        default_permission=ACLType.Nothing.id)
+
+        self.assertTrue(superuser.has_permission(aclobj, ACLType.Full))
+        self.assertFalse(guestuser.has_permission(aclobj, ACLType.Full))

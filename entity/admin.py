@@ -53,7 +53,7 @@ class EntityAttrResource(AironeModelResource):
     user = fields.Field(column_name='created_user', attribute='created_user',
                         widget=widgets.ForeignKeyWidget(User, 'username'))
     refer = fields.Field(column_name='refer', attribute='referral',
-                         widget=widgets.ForeignKeyWidget(model=ACLBase, field='name'))
+                         widget=widgets.ManyToManyWidget(model=ACLBase, field='name'))
     entity = fields.Field(column_name='entity',
                           attribute='parent_entity',
                           widget=widgets.ForeignKeyWidget(model=Entity, field='name'))

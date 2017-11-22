@@ -19,6 +19,7 @@ class ModelTest(TestCase):
 
         self.assertEqual(attr_base.name, 'hoge')
         self.assertTrue(isinstance(attr_base.type, int))
+        self.assertEqual(attr_base.referral.count(), 0)
 
     def test_make_entity(self):
         entity = Entity(name='test01', created_user=self._test_user)

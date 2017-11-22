@@ -147,6 +147,7 @@ class ModelTest(TestCase):
         self.assertFalse(type_readable <= ACLType.Nothing)
 
     def test_default_permission(self):
+        admin_user =  User.objects.create(username='admin', is_superuser=True)
         another_user = User.objects.create(username='bar', email='bar@f.com', password='')
         aclobj = ACLBase.objects.create(name='hoge',
                                         created_user=another_user,
@@ -158,10 +159,18 @@ class ModelTest(TestCase):
         self.assertFalse(self.user.has_permission(aclobj, ACLType.Writable))
         self.assertFalse(self.user.has_permission(aclobj, ACLType.Full))
 
+        # The created user doens't have special permission, it means that
+        # authorization for aclobj is same with other users.
         self.assertTrue(another_user.has_permission(aclobj, ACLType.Nothing))
         self.assertTrue(another_user.has_permission(aclobj, ACLType.Readable))
-        self.assertTrue(another_user.has_permission(aclobj, ACLType.Writable))
-        self.assertTrue(another_user.has_permission(aclobj, ACLType.Full))
+        self.assertFalse(another_user.has_permission(aclobj, ACLType.Writable))
+        self.assertFalse(another_user.has_permission(aclobj, ACLType.Full))
+
+        # Superuser has all authorization to access as any ACLTypes
+        self.assertTrue(admin_user.has_permission(aclobj, ACLType.Nothing))
+        self.assertTrue(admin_user.has_permission(aclobj, ACLType.Readable))
+        self.assertTrue(admin_user.has_permission(aclobj, ACLType.Writable))
+        self.assertTrue(admin_user.has_permission(aclobj, ACLType.Full))
 
     def test_delete(self):
         aclobj = ACLBase.objects.create(name='obj', created_user=self.user)

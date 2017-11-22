@@ -86,7 +86,7 @@ class ComplexViewTest(AironeViewTest):
             {
                 'name': 'arr-obj',
                 'type': str(AttrTypeArrObj),
-                'ref_id': refer_entity.id,
+                'ref_ids': [refer_entity.id],
                 'is_mandatory': True,
                 'row_index': '3',
             }],

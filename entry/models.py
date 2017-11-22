@@ -273,16 +273,16 @@ class Entry(ACLBase):
 
             # set Entries which are specified in the referral parameter
             attrinfo['referrals'] = []
-            if attr.schema.referral:
+            for referral in attr.schema.referral.all():
+                if not user.has_permission(referral, permission):
+                    continue
+
                 # when an entry in referral attribute is deleted,
                 # user should be able to select new referral or keep it unchanged.
                 # so candidate entries of referral attribute are:
                 # - active(not deleted) entries (new referral)
                 # - last value even if the entry has been deleted (keep it unchanged)
-                query = Q(schema=attr.schema.referral, is_active=True)
-                if attrinfo['last_referral']:
-                    query = query | Q(id=attrinfo['last_referral'].id)
-                attrinfo['referrals'] = Entry.objects.filter(query)
+                attrinfo['referrals'] += Entry.objects.filter(schema=referral, is_active=True)
 
             ret_attrs.append(attrinfo)
 

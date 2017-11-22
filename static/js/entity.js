@@ -38,7 +38,7 @@ $('form').submit(function(){
         'name': $(this).find('.attr_name').val(),
         'type': $(this).find('.attr_type').val(),
         'is_mandatory': $(this).find('.is_mandatory:checked').val() != undefined ? true : false,
-        'ref_id': $(this).find('.attr_referral').val(),
+        'ref_ids': $(this).find('.attr_referral').val(),
         'row_index': $(this).find('.row_index').val(),
       };
       if($(this).attr('attr_id')) {

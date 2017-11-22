@@ -38,9 +38,6 @@ class User(DjangoUser):
 
         perm = getattr(target_obj, permission_level.name)
 
-        if target_obj.created_user == self:
-            return True
-
         # check user permission
         if any([permission_level.id <= x.get_aclid() for x in self.permissions.all() if target_obj.id == x.get_objid()]):
             return True

@@ -12,9 +12,10 @@
 {% endblock %}
 
 {% block content %}
-<form action='/dashboard/do_import/' method='POST' enctype='multipart/form-data'>
+<form name='send' action='/dashboard/do_import/' method='POST' enctype='multipart/form-data'>
   {% csrf_token %}
-  <input type="file" name="file">
-  <input type="submit" value="アップロード">
+  <input type="file" id="upfile" name="file"/>
+  <div id="response"></div>
+  <input type="submit" value="アップロード" disabled />
 </form>
 {% endblock %}

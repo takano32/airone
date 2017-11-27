@@ -13,11 +13,3 @@ var LIMIT_FILE_SIZE = 10485760;
 
 // This phrase is used in the import alert
 var LIMIT_PHRASE = "※サイズが10Mを超えているのでUP不可※";
-
-// This array is used in the import alert message
-var STYLE = {
-  color: '#FFFFFF',
-  font : 'bold large',
-  width: '350px',
-  background:'#DC143C'
-};

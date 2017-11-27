@@ -1,28 +1,20 @@
 // Check the limit of file size when import
-var upfile = document.getElementById("upfile");
-var response = document.getElementById("response");
-var file_size;
+var upfile = $('#upfile')[0];
 
 if(upfile){
   upfile.addEventListener("change", function(evt){
     var str = "";
-    var file = evt.target.files;
-    file_size = file[0].size;
+    var file = evt.target.files[0];
 
     // Inform when file size over the limit
-    if( file_size >= LIMIT_FILE_SIZE ){
-      str += LIMIT_PHRASE + "<br>";;
-      str += "ファイル名：" + file[0].name + "<br>";
-      str += "ファイルサイズ：" + file_size + "byte<br>";
-      response.innerHTML    = str;
-      response.style.color  = STYLE["color"];
-      response.style.font   = STYLE["font"];
-      response.style.width  = STYLE["width"];
-      response.style.backgroundColor = STYLE["background"];
-      document.send.elements[2].disabled = true;  // disable submit
+    if( file.size >= LIMIT_FILE_SIZE ){
+      str += LIMIT_PHRASE + "<br>";
+      str += "ファイル名：" + file.name + "<br>";
+      str += "ファイルサイズ：" + file.size + "byte<br>";
+      MessageBox.error(str);
+      $('#send').prop('disabled', true);  // disable submit
     } else {
-      response.innerHTML    ='';
-      document.send.elements[2].disabled = false; // enable submit
+      $('#send').prop('disabled', false); // enable submit
     }
   },false);
 }

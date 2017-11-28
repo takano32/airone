@@ -280,16 +280,10 @@ class ImportTest(AironeViewTest):
 
     def test_import_entity_with_max_file_size(self):
         user = self.admin_login()
-        warning_messages = []
 
         fp = self.open_fixture_file('entity_with_max_file_size.yaml')
-        with mock.patch('import_export.resources.logging') as lg_mock:
-            def side_effect(message):
-                warning_messages.append(str(message))
 
-            lg_mock.exception = mock.Mock(side_effect=side_effect)
-
-            # check that the status code is 400
-            resp = self.client.post(reverse('dashboard:do_import'), {'file': fp})
-            self.assertEqual(resp.status_code, 400)
+        # check that the status code is 400
+        resp = self.client.post(reverse('dashboard:do_import'), {'file': fp})
+        self.assertEqual(resp.status_code, 400)
         fp.close()

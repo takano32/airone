@@ -56,6 +56,9 @@ def import_data(request):
 def do_import_data(request, context):
     user = User.objects.get(id=request.user.id)
 
+    if request.FILES['file'].size >= CONFIG.LIMIT_FILE_SIZE:
+        return HttpResponse("File size over", status=400)
+
     try:
         data = yaml.load(context)
     except yaml.parser.ParserError:

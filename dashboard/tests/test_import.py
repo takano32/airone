@@ -287,3 +287,21 @@ class ImportTest(AironeViewTest):
         resp = self.client.post(reverse('dashboard:do_import'), {'file': fp})
         self.assertEqual(resp.status_code, 400)
         fp.close()
+
+    def test_import_entry_lack_of_attrvalues(self):
+        user = self.admin_login()
+
+        fp = self.open_fixture_file('entry_lack_of_attrvalues.yaml')
+        resp = self.client.post(reverse('dashboard:do_import'), {'file': fp})
+        self.assertEqual(resp.status_code, 303)
+        fp.close()
+
+        self.assertEqual(Attribute.objects.get(name='attr-str').values.count(), 1)
+        self.assertEqual(Attribute.objects.get(name='attr-obj').values.count(), 0)
+        self.assertEqual(Attribute.objects.get(name='attr-arr-str').values.count(), 0)
+        self.assertEqual(Attribute.objects.get(name='attr-arr-obj').values.count(), 0)
+
+        attr = Attribute.objects.get(name='attr-str')
+        attr_value = AttributeValue.objects.last()
+
+        self.assertEqual(attr.get_latest_value(), attr_value)

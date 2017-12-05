@@ -43,12 +43,12 @@ $ python3 manage.py runserver 0:8080
 ## Tools
 There are some heler scripts about AirOne in the `tools` directory.
 
-### convert_rackspace.py
+### import_rackspace.py
 A helper script to import the `Rackspace` information that describes the allocation of each appliances.
 
 #### Usage
 ```
-Usage: convert_rackspace.py [options]
+Usage: import_rackspace.py [options]
 
 Options:
   -h, --help            show this help message and exit

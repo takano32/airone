@@ -10,7 +10,7 @@ def show_entry(request, user, entry, context):
         rackspace_obj = Entry.objects.get(id=entry.attrs.get(name='RackSpace').get_latest_value().referral.id)
 
         # set rackspace informatios
-        rackspace = collections.OrderedDict()
+        rackspace = {}
         for attr in rackspace_obj.attrs.all():
             rackspace[attr.schema.name] = None
             if attr.get_latest_value():
@@ -20,7 +20,12 @@ def show_entry(request, user, entry, context):
                     'front': rs_entry.attrs.get(name='前面').get_latest_value(),
                     'back': rs_entry.attrs.get(name='背面').get_latest_value(),
                 }
-        context['rackspace'] = rackspace
+
+        # sorted rackspacec entries
+        context['rackspace'] = collections.OrderedDict(sorted(rackspace.items(),
+                                                              key=lambda x:int(x[0]),
+                                                              reverse=True))
+
         return render(request, 'custom_view/show_entry_rack.html', context)
     else:
         # show ordinal view if this rack doesn't have RackSpace entry

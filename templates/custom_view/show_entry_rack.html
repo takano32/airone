@@ -76,14 +76,14 @@
             <th>{{ key }}</th>
 
             <!-- set frontend information -->
-            {% if value %}
+            {% if value.front.referral %}
               <td class='table-info'><a href='/entry/show/{{ value.front.referral.id }}'>{{ value.front.referral.name }}</a></td>
             {% else %}
               <td></td>
             {% endif %}
 
             <!-- set backend information -->
-            {% if value %}
+            {% if value.back.referral %}
               <td class='table-info'><a href='/entry/show/{{ value.back.referral.id }}'>{{ value.back.referral.name }}</a></td>
             {% else %}
               <td></td>

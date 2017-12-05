@@ -58,6 +58,4 @@ Options:
                         Password associated with the Username to authenticate
   -d DATABASE, --database=DATABASE
                         Database name that contains Racktables data
-  -e ENTITY_ID_FILENAME, --entity-id-filename=ENTITY_ID_FILENAME
-                        Intermediate Entity,EntityAttr,Entry,Attribute ID File
 ```

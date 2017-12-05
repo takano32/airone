@@ -58,30 +58,6 @@ class Driver(object):
 
         return self._db_query(query)
 
-    def _load_id_map(self):
-        self.id_objects = []
-
-        # The mapper from Racktable's object-ID(key) to AirOne's Entry-ID(value)
-        self.id_objects_map = {}
-
-        if self.option.entity_id_filename:
-            with open(self.option.entity_id_filename, 'r') as fp:
-                for line in fp:
-                    elem = line.strip("\r\n").split("\t")
-                    self.id_objects.append({
-                        'id': elem[0],
-                        'type': elem[1],
-                        'name': elem[2],
-                        'value': elem[3] if len(elem) > 3 else None,
-                        'obj_id': None,
-                    })
-
-        if self.option.objid_map_filename:
-            with open(self.option.objid_map_filename, 'r') as fp:
-                for line in fp:
-                    (object_id, entry_id) = line.strip("\r\n").split("\t")
-                    self.id_objects_map[object_id] = entry_id
-
     def get_admin(self):
         if User.objects.filter(username='admin').count():
             return User.objects.get(username='admin')
@@ -339,14 +315,26 @@ class Driver(object):
         return entity
 
     def create_rackspace(self):
-        sys.stdout.write('\nCreate RackSpace Entity...')
+        sys.stdout.write('\nChecking referral of RackSpaceEntry...')
         user = self.get_admin()
 
         rse_entity = self.get_entity('RackSpaceEntry', user)
 
-        referrals = [
-            Entity.objects.get(name='Server'),
-        ]
+        referrals = []
+        data_all = self._fetch_db('EntityLink',
+                                  ['parent_entity_id', 'child_entity_id'],
+                                  'parent_entity_type="rack" and child_entity_type="object"')
+        data_len = len(data_all)
+        for data_index, data in enumerate(data_all):
+            sys.stdout.write('\rChecking referral of RackSpaceEntry: %6d/%6d' % (data_index+1, data_len))
+
+            if data['child_entity_id'] in self.object_map:
+                rack_entity = self.object_map[data['child_entity_id']].schema
+
+                if rack_entity in referrals:
+                    referrals.append(rack_entity)
+
+        sys.stdout.write('\nCreate RackSpace Entity...')
         for attrname in ['前面', '背面']:
             # skip if it has been already created
             if rse_entity.attrs.filter(name=attrname).count():
@@ -445,14 +433,8 @@ def get_options():
                       help="Password associated with the Username to authenticate")
     parser.add_option("-d", "--database", type=str, dest="database", default='racktables',
                       help="Database name that contains Racktables data")
-    parser.add_option("-e", "--entity-id-filename", type=str, dest="entity_id_filename",
-                      help="Intermediate Entity,EntityAttr,Entry,Attribute ID File")
 
     (options, _) = parser.parse_args()
-
-    # validate options
-    if not options.entity_id_filename:
-        parser.error("'entity_id_filename' parameter is not given")
 
     return options
 
@@ -460,11 +442,11 @@ if __name__ == "__main__":
     option = get_options()
 
     with Driver(option) as driver:
-        # create a new rackspace entity
-        driver.create_rackspace()
-
         # make object_map
         driver.create_object_map()
+
+        # create a new rackspace entity
+        driver.create_rackspace()
 
         # create Entity & Entry for Data Center
         dc_entity = driver.create_datacenter()

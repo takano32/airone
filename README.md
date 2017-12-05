@@ -39,3 +39,25 @@ Finally, you can start AirOne and can browse from `http://hostname:8080/`.
 ```
 $ python3 manage.py runserver 0:8080
 ```
+
+## Tools
+There are some heler scripts about AirOne in the `tools` directory.
+
+### convert_rackspace.py
+A helper script to import the `Rackspace` information that describes the allocation of each appliances.
+
+#### Usage
+```
+Usage: convert_rackspace.py [options]
+
+Options:
+  -h, --help            show this help message and exit
+  -u USERID, --userid=USERID
+                        Username to access the Database on the MySQL
+  -p PASSWD, --passwd=PASSWD
+                        Password associated with the Username to authenticate
+  -d DATABASE, --database=DATABASE
+                        Database name that contains Racktables data
+  -e ENTITY_ID_FILENAME, --entity-id-filename=ENTITY_ID_FILENAME
+                        Intermediate Entity,EntityAttr,Entry,Attribute ID File
+```

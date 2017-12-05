@@ -1,5 +1,7 @@
 import io
 
+import custom_view
+
 from django.http import HttpResponse
 from django.db.models import Q
 
@@ -318,7 +320,13 @@ def show(request, entry_id):
         'value_history': sorted(entry.get_value_history(user), key=lambda x: x['created_time']),
         'referred_objects': entry.get_referred_objects(),
     }
-    return render(request, 'show_entry.html', context)
+
+    if custom_view.is_custom_show_entry(entry.schema.name):
+        # show custom view
+        return custom_view.call_custom_show_entry(entry.schema.name, request, user, entry, context)
+    else:
+        # show ordinal view
+        return render(request, 'show_entry.html', context)
 
 @http_get
 def export(request, entity_id):

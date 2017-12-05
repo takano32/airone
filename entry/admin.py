@@ -80,9 +80,10 @@ class AttrValueResource(AironeModelResource):
             # reset latest status flag
             latest_value = attr.get_latest_value()
 
-            latest_value.set_status(AttributeValue.STATUS_LATEST)
-            if latest_value.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT):
-                [v.set_status(AttributeValue.STATUS_LATEST) for v in latest_value.data_array.all()]
+            if latest_value:
+                latest_value.set_status(AttributeValue.STATUS_LATEST)
+                if latest_value.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT):
+                    [v.set_status(AttributeValue.STATUS_LATEST) for v in latest_value.data_array.all()]
 
 class AttrResource(AironeModelResource):
     _IMPORT_INFO = {

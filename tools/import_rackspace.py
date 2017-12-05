@@ -331,7 +331,7 @@ class Driver(object):
             if data['child_entity_id'] in self.object_map:
                 rack_entity = self.object_map[data['child_entity_id']].schema
 
-                if rack_entity in referrals:
+                if rack_entity not in referrals:
                     referrals.append(rack_entity)
 
         sys.stdout.write('\nCreate RackSpace Entity...')

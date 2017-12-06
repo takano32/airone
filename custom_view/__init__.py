@@ -4,11 +4,12 @@ from django.http import HttpResponse
 import importlib.util
 import os
 
-
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 # to cache custom view
 CUSTOM_VIEW = {}
+
+
 def _isin_cache(entity_name, method_name):
     return entity_name in CUSTOM_VIEW and method_name in CUSTOM_VIEW
 
@@ -36,7 +37,6 @@ def _is_view(entity_name, method_name):
 
     return True
 
-
 def is_custom_show_entry(entity_name):
     return _is_view(entity_name, 'show_entry')
 
@@ -50,7 +50,7 @@ def is_custom_list_entry(entity_name):
     return _is_view(entity_name, 'list_entry')
 
 def call_custom_list_entry(entity_name, *args, **kwargs):
-    if(_isin_cache(enitty_name, 'list_entry') or _is_view(entity_name, 'list_entry')):
+    if(_isin_cache(entity_name, 'list_entry') or _is_view(entity_name, 'list_entry')):
         return CUSTOM_VIEW[entity_name]['list_entry'](*args, **kwargs)
     else:
         return HttpResponse("Custom view of list_entry doesn't exist", status=500)
@@ -59,7 +59,16 @@ def is_custom_edit_entry(entity_name):
     return _is_view(entity_name, 'edit_entry')
 
 def call_custom_edit_entry(entity_name, *args, **kwargs):
-    if(_isin_cache(enitty_name, 'edit_entry') or _is_view(entity_name, 'edit_entry')):
+    if(_isin_cache(entity_name, 'edit_entry') or _is_view(entity_name, 'edit_entry')):
         return CUSTOM_VIEW[entity_name]['edit_entry'](*args, **kwargs)
     else:
         return HttpResponse("Custom view of edit_entry doesn't exist", status=500)
+
+def is_custom_do_edit_entry(entity_name):
+    return _is_view(entity_name, 'do_edit_entry')
+
+def call_custom_do_edit_entry(entity_name, *args, **kwargs):
+    if(_isin_cache(entity_name, 'do_edit_entry') or _is_view(entity_name, 'do_edit_entry')):
+        return CUSTOM_VIEW[entity_name]['do_edit_entry'](*args, **kwargs)
+    else:
+        return HttpResponse("Custom view of do_edit_entry doesn't exist", status=500)

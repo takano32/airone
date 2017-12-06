@@ -41,8 +41,52 @@
         {% include 'edit_entry_attrs.html' %}
       </tbody>
     </table>
-
     <strong>(*)</strong> は必須項目
+
+    <hr/>
+    <h2>RackSpace</h2>
+    <table class='table table-sm'>
+      <thead>
+        <th>#</th>
+        <th>前面</th>
+        <th>背面</th>
+      </thead>
+      <tbody>
+      {% for key, value in rackspace.items %}
+      <tr>
+        <th>{{ key }}</th>
+
+        <!-- set frontend information -->
+        <td>
+          <select position='{{ key }}' class='rse_front'>
+            <option value='0'>- NOT SET -</option>
+
+            {% for entry in rse_referrals %}
+            <option value='{{ entry.id }}' {% if entry.id == value.front.referral.id %} selected='True' {% endif %}>
+            {{ entry.name }}
+            </option>
+
+            {% endfor %}
+          </select>
+        </td>
+
+        <!-- set backend information -->
+        <td>
+          <select position='{{ key }}' class='rse_back'>
+            <option value='0'>- NOT SET -</option>
+
+            {% for entry in rse_referrals %}
+            <option value='{{ entry.id }}' {% if entry.id == value.back.referral.id %} selected='True' {% endif %}>
+            {{ entry.name }}
+            </option>
+
+            {% endfor %}
+          </select>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
     {% csrf_token %}
   </form>
 </div>
@@ -52,19 +96,31 @@
 <script>
 $('form').submit(function(){
   var attrs = []
-
   {% for attr in attributes %}
   attrs.push({
     'id': '{{ attr.id }}',
     'value': $(this).find(".attr_value[attr_id='{{ attr.id }}']").map(function(i, e) {
-      if(! ($(e).val() == '0' || $(e).val() == '')) {
+      if($(e).val() != '0' && $(e).val() != '') {
         return $(e).val();
       }
     }).get(),
   });
   {% endfor %}
 
-  HttpPost($(this), {'attrs': attrs});
+  var rse_info = [];
+  for(var rse_side of ['rse_front', 'rse_back']) {
+    console.info(rse_side);
+
+    $('body').find('.'+rse_side).each(function() {
+      rse_info.push({
+        'rse_side': rse_side,
+        'position': $(this).attr('position'),
+        'value': $(this).val()
+      });
+    });
+  }
+
+  HttpPost($(this), {'attrs': attrs, 'rse_info': rse_info});
 
   return false;
 });

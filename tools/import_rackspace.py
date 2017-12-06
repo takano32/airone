@@ -82,23 +82,6 @@ class Driver(object):
 
         return Entry.objects.create(name=name, schema=schema, created_user=user)
 
-    def get_rack_attr(self, entry, user):
-        if not entry.schema.attrs.filter(name='ラック').count():
-            attr = EntityAttr.objects.create(name='ラック',
-                                             type=AttrTypeValue['object'],
-                                             created_user=user,
-                                             parent_entity=entry.schema)
-
-            attr.referral.add(Entity.objects.get(name='ラック'))
-
-            # update schema attribute
-            entry.schema.attrs.add(attr)
-
-        # create Attribute
-        entry.complement_attrs(user)
-
-        return entry.attrs.get(name='ラック')
-
     def create_datacenter(self):
         sys.stdout.write('\nCreate "データセンタ"')
         user = self.get_admin()
@@ -234,16 +217,6 @@ class Driver(object):
                 'status': AttributeValue.STATUS_LATEST,
             }))
 
-            target_entry = self.object_map[data['object_id']]
-            rack_attr = self.get_rack_attr(target_entry, user)
-            if not rack_attr.get_latest_value():
-                rack_attr.values.add(AttributeValue.objects.create(**{
-                    'created_user': user,
-                    'parent_attr': rack_attr,
-                    'referral': rack_entry,
-                    'status': AttributeValue.STATUS_LATEST,
-                }))
-
     def create_rack(self, floor_entity):
         sys.stdout.write('\nCreate "ラック"')
 
@@ -253,16 +226,28 @@ class Driver(object):
         entity = self.get_entity('ラック', user)
         entity.set_status(Entity.STATUS_TOP_LEVEL)
 
-        new_attrs = [
-            {'name': 'フロア', 'refers': [ floor_entity ], 'type': AttrTypeValue['object']},
-            {'name': 'height', 'refers': [], 'type': AttrTypeValue['string']},
-            {'name': 'RackSpace', 'refers': Entity.objects.filter(name__regex='RackSpace '), 'type': AttrTypeValue['object']},
-        ]
-        for info in new_attrs:
-            if entity.attrs.filter(name=info['name']).count():
+        new_attrs = {
+            'フロア': {'refers': [ floor_entity ], 'type': AttrTypeValue['object']},
+            'height': {'refers': [], 'type': AttrTypeValue['string']},
+            'RackSpace': {'refers': Entity.objects.filter(name__regex='RackSpace '), 'type': AttrTypeValue['object']},
+            'ZeroU': {'refers': [], 'type': AttrTypeValue['array_object']},
+        }
+
+        # make referrals of ZeroU attr
+        for data in self._fetch_db('EntityLink', ['child_entity_id'],
+                                  'parent_entity_type="rack" and child_entity_type="object"'):
+
+            if data['child_entity_id'] in self.object_map:
+                rack_entity = self.object_map[data['child_entity_id']].schema
+
+                if rack_entity not in new_attrs['ZeroU']['refers']:
+                    new_attrs['ZeroU']['refers'].append(rack_entity)
+
+        for attrname, info in new_attrs.items():
+            if entity.attrs.filter(name=attrname).count():
                 continue
 
-            entity_attr = EntityAttr.objects.create(name=info['name'],
+            entity_attr = EntityAttr.objects.create(name=attrname,
                                                     type=info['type'],
                                                     created_user=user,
                                                     parent_entity=entity)
@@ -363,25 +348,12 @@ class Driver(object):
                     entity_attr = EntityAttr.objects.create(name=("%s" % unit_no),
                                                             type=AttrTypeValue['object'],
                                                             created_user=user,
-                                                            parent_entity=rse_entity)
+                                                            parent_entity=entity)
                     entity_attr.referral.add(rse_entity)
                     entity.attrs.add(entity_attr)
 
             sys.stdout.write('\rCreate RackSpace entities: %6d/%6d' % (data_index+1, data_len))
             sys.stdout.flush()
-
-    def update_server_entity(self, rack_entity):
-        sys.stdout.write('\nUpdate Server Entity...')
-        user = self.get_admin()
-
-        entity = self.get_entity('Server', user)
-        if not entity.attrs.filter(name='ラック').count():
-            entity_attr = EntityAttr.objects.create(name='ラック',
-                                                    type=AttrTypeValue['object'],
-                                                    created_user=user,
-                                                    parent_entity=entity)
-            entity_attr.referral.add(rack_entity)
-            entity.attrs.add(entity_attr)
 
     def set_zerou(self):
         sys.stdout.write('\nCreate Zero-U Entries.')
@@ -394,20 +366,28 @@ class Driver(object):
         for data_index, data in enumerate(data_all):
             if data['parent_entity_id'] in self.rack_map:
                 rack_entry = self.rack_map[data['parent_entity_id']]
+                rack_entry.complement_attrs(user)
 
-                srv_obj = self._fetch_db('Object', ['name'], 'id=%s' % data['child_entity_id'])
-                if srv_obj and Entry.objects.filter(name=srv_obj[0]['name']).count():
-                    target_entry = Entry.objects.get(name=srv_obj[0]['name'])
-                    attr = self.get_rack_attr(target_entry, user)
-                    if attr.get_latest_value():
-                        continue
+                attr_zerou = rack_entry.attrs.get(name='ZeroU')
+                av_parent = attr_zerou.get_latest_value()
+                if not av_parent:
+                    av_parent = AttributeValue(parent_attr=attr_zerou, created_user=user)
+                    av_parent.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
+                    av_parent.set_status(AttributeValue.STATUS_LATEST)
+                    av_parent.save()
 
-                    attr_value = AttributeValue(created_user=user, parent_attr=attr)
-                    attr_value.referral = rack_entry
-                    attr_value.set_status(AttributeValue.STATUS_LATEST)
+                    attr_zerou.value.add(av_parent)
 
-                    attr_value.save()
-                    attr.values.add(attr_value)
+                rk_obj = self._fetch_db('Object', ['name'], 'id=%s' % data['child_entity_id'])
+                if rk_obj and Entry.objects.filter(name=rk_obj[0]['name']).count():
+                    target_entry = Entry.objects.get(name=rk_obj[0]['name'])
+
+                    attrv = AttributeValue.objects.create(created_user=user,
+                                                          parent_attr=attr_zerou,
+                                                          referral=target_entry,
+                                                          status=AttributeValue.STATUS_LATEST)
+
+                    av_parent.data_array.add(attrv)
 
             sys.stdout.write('\rCreate Zero-U Entries: %6d/%6d' % (data_index+1, data_len))
             sys.stdout.flush()
@@ -456,9 +436,6 @@ if __name__ == "__main__":
 
         # create Entity & Entry for Rack
         rk_entity = driver.create_rack(fr_entity)
-
-        # create Server Entity
-        driver.update_server_entity(rk_entity)
 
         # filling Zero-U
         driver.set_zerou()

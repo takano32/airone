@@ -173,7 +173,11 @@ def edit(request, entry_id):
         'attributes': entry.get_available_attrs(user, ACLType.Writable),
     }
 
-    return render(request, 'edit_entry.html', context)
+    if custom_view.is_custom_edit_entry(entry.schema.name):
+        # show custom view
+        return custom_view.call_custom_edit_entry(entry.schema.name, request, user, entry, context)
+    else:
+        return render(request, 'edit_entry.html', context)
 
 @http_post([
     {'name': 'entry_name', 'type': str, 'checker': lambda x: (
@@ -195,6 +199,13 @@ def edit(request, entry_id):
 def do_edit(request, entry_id, recv_data):
     user = User.objects.get(id=request.user.id)
     entry = Entry.objects.get(id=entry_id)
+
+    if custom_view.is_custom_do_edit_entry(entry.schema.name):
+        (is_continue, code, msg) = custom_view.call_custom_do_edit_entry(entry.schema.name,
+                                                                         request, recv_data,
+                                                                         user, entry)
+        if not is_continue:
+            return HttpResponse('', status=code)
 
     # checks that a same name entry corresponding to the entity is existed.
     query = Q(schema=entry.schema, name=recv_data['entry_name']) & ~Q(id=entry.id)

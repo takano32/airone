@@ -32,6 +32,7 @@
             <td>メールアドレス</td>
             <td>作成日時</td>
             <td></td>
+            <td></td>
           </tr>
         </thead>
         <tbody>
@@ -40,6 +41,9 @@
             <td>{{ user.username }}</td>
             <td>{{ user.email }}</td>
             <td>{{ user.date_joined }}</td>
+            <td>
+              <a href='/user/edit/{{ user.id }}'><button type='button' class='btn btn-info btn-sm'>編集</button></a>
+            </td>
             <td>
               <form url="/user/do_delete" method="post">
                 <input type="hidden" name="name" value="{{ user.username }}" />

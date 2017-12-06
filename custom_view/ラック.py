@@ -56,7 +56,7 @@ def edit_entry(request, user, entry, context):
 
 def do_edit_entry(request, recv_data, user, rack_entry):
 
-    def update_rse(rackside, position, entry_id):
+    def update_rse(rackside, position, entry_id=None):
         rs_entry = Entry.objects.get(
             id=rack_entry.attrs.get(name='RackSpace').get_latest_value().referral.id
         )
@@ -85,13 +85,21 @@ def do_edit_entry(request, recv_data, user, rack_entry):
         else:
             rse_attr = rse_entry.attrs.get(name='背面')
 
+        last_value = rse_attr.get_latest_value()
+        if ((not last_value and not entry_id) or
+            (last_value and not last_value.referral and not entry_id) or
+            (last_value and entry_id and last_value.referral and last_value.referral.id == int(entry_id))):
+
+            # skip to update RackSpaceEntry when it is not changed
+            return
+
         # unset latest flag to all existed AttributeValues
         [x.del_status(AttributeValue.STATUS_LATEST) for x in rse_attr.values.all()]
 
         rse_attr.values.add(AttributeValue.objects.create(**{
             'created_user': user,
             'parent_attr': rs_attr,
-            'referral': Entry.objects.get(id=entry_id),
+            'referral': Entry.objects.get(id=entry_id) if entry_id else None,
             'status': AttributeValue.STATUS_LATEST,
         }))
 
@@ -104,6 +112,9 @@ def do_edit_entry(request, recv_data, user, rack_entry):
             if entry_id:
                 # update or create RackSpaceEntry and makes a relation with the current Rack
                 update_rse(entry['rse_side'], entry['position'], entry_id)
+            else:
+                # remove if RackSpaceEntry has a referral
+                update_rse(entry['rse_side'], entry['position'])
 
     # This means continuing normal processing
     return (True, None, '')

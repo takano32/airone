@@ -65,6 +65,10 @@ def do_edit_entry(request, recv_data, user, rack_entry):
 
         # If there is no RackSpaceEntry, create and append it to the RackSpace entry
         if not rs_attr.get_latest_value():
+            if not entry_id:
+                # skip to update RackSpaceEntry when it is not changed
+                return
+
             rse_entry = Entry.objects.create(name='%s-%sU' % (rack_entry.name, position),
                                              schema=Entity.objects.get(name='RackSpaceEntry'),
                                              created_user=user)

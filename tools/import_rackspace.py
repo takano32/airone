@@ -160,8 +160,10 @@ class Driver(object):
 
             if data['atom'] == 'front':
                 attr = rse_entry.attrs.get(name='前面')
-            else:
+            elif data['atom'] == 'rear':
                 attr = rse_entry.attrs.get(name='背面')
+            else:
+                attr = rse_entry.attrs.get(name='中間')
 
             # append Value of Entry
             attr.values.add(AttributeValue.objects.create(**{
@@ -175,7 +177,7 @@ class Driver(object):
 
         data_all = self._fetch_db('RackSpace',
                                   ['rack_id', 'unit_no', 'atom', 'object_id'],
-                                  'state="T" and atom <> "interior"')
+                                  'state="T"')
         data_len = len(data_all)
         for data_index, data in enumerate(data_all):
             sys.stdout.write('\rCreate RackSpace Entry: %6d/%6d' % (data_index+1, data_len))
@@ -320,7 +322,7 @@ class Driver(object):
                     referrals.append(rack_entity)
 
         sys.stdout.write('\nCreate RackSpace Entity...')
-        for attrname in ['前面', '背面']:
+        for attrname in ['前面', '中間', '背面']:
             # skip if it has been already created
             if rse_entity.attrs.filter(name=attrname).count():
                 continue

@@ -9,14 +9,9 @@ def _get_rackspace_entries(entry):
 
     rackspace = {}
     for attr in rackspace_obj.attrs.all():
-        rackspace[attr.schema.name] = None
-        if attr.get_latest_value():
-            rs_entry = Entry.objects.get(id=attr.get_latest_value().referral.id)
-
-            rackspace[attr.schema.name] = {
-                'front': rs_entry.attrs.get(name='前面').get_latest_value(),
-                'back': rs_entry.attrs.get(name='背面').get_latest_value(),
-            }
+        attrv_parent = attr.get_latest_value()
+        if attrv_parent:
+            rackspace[attr.schema.name] = attrv_parent.data_array.all()
 
     # sorted rackspacec entries
     return collections.OrderedDict(sorted(rackspace.items(), key=lambda x:int(x[0]), reverse=True))
@@ -36,14 +31,13 @@ def show_entry(request, user, entry, context):
 
 def edit_entry(request, user, entry, context):
     if (entry.attrs.filter(name='RackSpace').count() and
-        entry.attrs.get(name='RackSpace').get_latest_value() and
-        Entity.objects.filter(name='RackSpaceEntry').count()):
+        entry.attrs.get(name='RackSpace').get_latest_value()):
 
         # set rackspace informatios
         context['rackspace'] = _get_rackspace_entries(entry)
 
         rse_referrals = []
-        for ref_entity in Entity.objects.get(name='RackSpaceEntry').attrs.last().referral.all():
+        for ref_entity in entry.attrs.get(name='ZeroU').schema.referral.all():
             rse_referrals.append(list(Entry.objects.filter(schema=ref_entity)))
         context['rse_referrals'] = sum(rse_referrals, [])
 
@@ -55,70 +49,47 @@ def edit_entry(request, user, entry, context):
         return render(request, 'edit_entry.html', context)
 
 def do_edit_entry(request, recv_data, user, rack_entry):
-
-    def update_rse(rackside, position, entry_id=None):
-        rs_entry = Entry.objects.get(
-            id=rack_entry.attrs.get(name='RackSpace').get_latest_value().referral.id
-        )
-        rs_entry.complement_attrs(user)
-        rs_attr = rs_entry.attrs.get(name='%s' % position)
-
-        # If there is no RackSpaceEntry, create and append it to the RackSpace entry
-        if not rs_attr.get_latest_value():
-            if not entry_id:
-                # skip to update RackSpaceEntry when it is not changed
-                return
-
-            rse_entry = Entry.objects.create(name='%s-%sU' % (rack_entry.name, position),
-                                             schema=Entity.objects.get(name='RackSpaceEntry'),
-                                             created_user=user)
-            rse_entry.complement_attrs(user)
-
-            rs_attr.values.add(AttributeValue.objects.create(**{
-                'created_user': user,
-                'parent_attr': rs_attr,
-                'referral': rse_entry,
-                'status': AttributeValue.STATUS_LATEST,
-            }))
-        else:
-            rse_entry = Entry.objects.get(id=rs_attr.get_latest_value().referral.id)
-            rse_entry.complement_attrs(user)
-
-        if rackside == 'rse_front':
-            rse_attr = rse_entry.attrs.get(name='前面')
-        else:
-            rse_attr = rse_entry.attrs.get(name='背面')
-
-        last_value = rse_attr.get_latest_value()
-        if ((not last_value and not entry_id) or
-            (last_value and not last_value.referral and not entry_id) or
-            (last_value and entry_id and last_value.referral and last_value.referral.id == int(entry_id))):
-
-            # skip to update RackSpaceEntry when it is not changed
-            return
-
-        # unset latest flag to all existed AttributeValues
-        [x.del_status(AttributeValue.STATUS_LATEST) for x in rse_attr.values.all()]
-
-        rse_attr.values.add(AttributeValue.objects.create(**{
-            'created_user': user,
-            'parent_attr': rs_attr,
-            'referral': Entry.objects.get(id=entry_id) if entry_id else None,
-            'status': AttributeValue.STATUS_LATEST,
-        }))
-
     if (rack_entry.attrs.filter(name='RackSpace').count() and
-        rack_entry.attrs.get(name='RackSpace').get_latest_value() and
-        Entity.objects.filter(name='RackSpaceEntry').count()):
+        rack_entry.attrs.get(name='RackSpace').get_latest_value()):
 
-        for entry in recv_data['rse_info']:
-            entry_id = int(entry['value'])
-            if entry_id:
-                # update or create RackSpaceEntry and makes a relation with the current Rack
-                update_rse(entry['rse_side'], entry['position'], entry_id)
-            else:
-                # remove if RackSpaceEntry has a referral
-                update_rse(entry['rse_side'], entry['position'])
+        rse = Entry.objects.get(id=rack_entry.attrs.get(name='RackSpace').get_latest_value().referral.id)
+        rse.complement_attrs(user)
+
+        for attr in rse.attrs.all():
+            old_attrv = attr.get_latest_value()
+            # The case update is not specified 
+            if not old_attrv and attr.name not in [x['position'] for x in recv_data['rse_info']]:
+                continue
+
+            if old_attrv:
+                old_values = sorted([int(x.id) for x in old_attrv.data_array.all()])
+                set_values = sorted([int(x['target_id']) for x in recv_data['rse_info'] if x['position'] == attr.name])
+                # The case there is no updated
+                if old_values == set_values:
+                    continue
+
+            # clear latest flag from old values
+            if old_attrv:
+                [x.del_status(AttributeValue.STATUS_LATEST) for x in old_attrv.data_array.all()]
+            [x.del_status(AttributeValue.STATUS_LATEST) for x in attr.values.all()]
+
+            new_parent_attrv = AttributeValue(created_user=user, parent_attr=attr)
+            new_parent_attrv.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
+            new_parent_attrv.set_status(AttributeValue.STATUS_LATEST)
+            new_parent_attrv.save()
+
+            attr.values.add(new_parent_attrv)
+
+            for data in [x for x in recv_data['rse_info'] if x['position'] == attr.name]:
+                attrv = AttributeValue(**{
+                    'created_user': user,
+                    'parent_attr': attr,
+                    'referral': Entry.objects.get(id=data['target_id']),
+                    'status': AttributeValue.STATUS_LATEST,
+                })
+                attrv.save()
+
+                new_parent_attrv.data_array.add(attrv)
 
     # This means continuing normal processing
     return (True, None, '')

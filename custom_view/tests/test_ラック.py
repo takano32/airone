@@ -10,7 +10,7 @@ from entry.models import Entry, Attribute, AttributeValue
 
 from xml.etree import ElementTree
 
-TEST_RACK_HEIGHT = 2
+TEST_RACK_HEIGHT = 3
 
 
 class ViewTest(AironeViewTest):
@@ -21,36 +21,33 @@ class ViewTest(AironeViewTest):
 
         self.srv_entity = Entity.objects.create(name='Server', created_user=admin)
 
-        # create RackSpaceEntry entity
-        rse_entity = Entity.objects.create(name='RackSpaceEntry', created_user=admin)
-        for attrname in ['前面', '背面']:
-            # create a new EntityAttr
-            attr = EntityAttr.objects.create(name=attrname,
-                                             type=AttrTypeValue['object'],
-                                             created_user=admin,
-                                             parent_entity=rse_entity)
-            attr.referral.add(self.srv_entity)
-            rse_entity.attrs.add(attr)
-
         # create RackSpace entity
         self.rs_entity = Entity.objects.create(name='RackSpace (%d-U)' % TEST_RACK_HEIGHT,
                                                created_user=admin)
         for unit_no in range(TEST_RACK_HEIGHT, 0, -1):
             attr = EntityAttr.objects.create(name=("%d" % unit_no),
-                                             type=AttrTypeValue['object'],
+                                             type=AttrTypeValue['array_object'],
                                              created_user=admin,
                                              parent_entity=self.rs_entity)
-            attr.referral.add(rse_entity)
+            attr.referral.add(self.srv_entity)
             self.rs_entity.attrs.add(attr)
 
         # create Rack entity
+        attrinfo = [
+            {'name': 'RackSpace', 'referrals': [self.rs_entity]},
+            {'name': 'ZeroU', 'referrals': [self.srv_entity]},
+        ]
         rack_entity = Entity.objects.create(name='ラック', created_user=admin)
-        rack_attr = EntityAttr.objects.create(name='RackSpace',
-                                              type=AttrTypeValue['object'],
-                                              created_user=admin,
-                                              parent_entity=self.rs_entity)
-        rack_attr.referral.add(self.rs_entity)
-        rack_entity.attrs.add(rack_attr)
+
+        for attr in attrinfo:
+            rack_attr = EntityAttr.objects.create(name=attr['name'],
+                                                  type=AttrTypeValue['object'],
+                                                  created_user=admin,
+                                                  parent_entity=self.rs_entity)
+            for referral in attr['referrals']:
+                rack_attr.referral.add(referral)
+
+            rack_entity.attrs.add(rack_attr)
 
         # create Rack entry
         self.rack = Entry.objects.create(name='TestR', schema=rack_entity, created_user=admin)
@@ -119,18 +116,16 @@ class ViewTest(AironeViewTest):
         rs_entry = self.create_rs_entry(user)
 
         # create Server entry to set RackSpace
-        srv_entry = Entry.objects.create(name='srv0001',
-                                         schema=self.srv_entity,
-                                         created_user=user)
+        srv1 = Entry.objects.create(name='srv0001', schema=self.srv_entity, created_user=user)
+        srv2 = Entry.objects.create(name='srv0002', schema=self.srv_entity, created_user=user)
 
         params = {
             'entry_name': self.rack.name,
             'attrs': [],
             'rse_info': [
-                {'position': '2', 'rse_side': 'rse_front', 'value': str(srv_entry.id)},
-                {'position': '2', 'rse_side': 'rse_back',  'value': '0'},
-                {'position': '1', 'rse_side': 'rse_front', 'value': '0'},
-                {'position': '1', 'rse_side': 'rse_back',  'value': '0'},
+                {'position': '3','target_id': str(srv1.id)},
+                {'position': '3','target_id': str(srv2.id)},
+                {'position': '2','target_id': str(srv1.id)},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[self.rack.id]),
@@ -138,12 +133,9 @@ class ViewTest(AironeViewTest):
                                 'application/json')
         self.assertEqual(resp.status_code, 200)
 
-        self.assertIsNone(rs_entry.attrs.get(name='1').get_latest_value())
-        self.assertIsNotNone(rs_entry.attrs.get(name='2').get_latest_value())
+        for attr in rs_entry.attrs.all():
+            self.assertIsNotNone(attr)
 
-        rse_entry = Entry.objects.get(id=rs_entry.attrs.get(name='2').get_latest_value().referral.id)
-        self.assertIsNotNone(rse_entry.attrs.get(name='前面').get_latest_value())
-        self.assertIsNone(rse_entry.attrs.get(name='背面').get_latest_value())
-
-        target_entry = Entry.objects.get(id=rse_entry.attrs.get(name='前面').get_latest_value().referral.id)
-        self.assertEqual(target_entry, srv_entry)
+        self.assertEqual(rs_entry.attrs.get(name='1').get_latest_value().data_array.count(), 0)
+        self.assertEqual(rs_entry.attrs.get(name='2').get_latest_value().data_array.count(), 1)
+        self.assertEqual(rs_entry.attrs.get(name='3').get_latest_value().data_array.count(), 2)

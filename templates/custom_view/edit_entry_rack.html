@@ -48,40 +48,33 @@
     <table class='table table-sm'>
       <thead>
         <th>#</th>
-        <th>前面</th>
-        <th>背面</th>
+        <th>target</th>
       </thead>
       <tbody>
-      {% for key, value in rackspace.items %}
+      {% for key, targets in rackspace.items %}
       <tr>
         <th>{{ key }}</th>
 
-        <!-- set frontend information -->
+
         <td>
-          <select position='{{ key }}' class='rse_front'>
-            <option value='0'>- NOT SET -</option>
+          <button type="button" class="btn btn-primary btn-sm" unit_no='{{ key }}' name='add_rackentry'>add entry</button>
+        <div class='array_element'>
+          {% for target in targets %}
 
-            {% for entry in rse_referrals %}
-            <option value='{{ entry.id }}' {% if entry.id == value.front.referral.id %} selected='True' {% endif %}>
-            {{ entry.name }}
-            </option>
+    <div class="row">
+      <div class="col-10">
+        <input type="text" class="narrow_down_rse" value="{{ target.referral.name }}" style="width: 100%"/>
+        <select class='rse' unit_no='{{ key }}' size='5' style="width: 100%">
+          <option value='{{ target.referral.id }}' selected='true'>{{ target.referral.name }}</option>
+        </select>
+      </div>
+      <div class="col-2">
+        <button type="button" class="btn btn-danger btn-sm" name="del_attr">del</button>
+      </div>
+    </div>
 
-            {% endfor %}
-          </select>
-        </td>
-
-        <!-- set backend information -->
-        <td>
-          <select position='{{ key }}' class='rse_back'>
-            <option value='0'>- NOT SET -</option>
-
-            {% for entry in rse_referrals %}
-            <option value='{{ entry.id }}' {% if entry.id == value.back.referral.id %} selected='True' {% endif %}>
-            {{ entry.name }}
-            </option>
-
-            {% endfor %}
-          </select>
+          {% endfor %}
+        </div>
         </td>
       </tr>
       {% endfor %}
@@ -95,32 +88,30 @@
 {% block script %}
 <script>
 $('form').submit(function(){
-  var attrs = []
+  var attrs = [];
   {% for attr in attributes %}
   attrs.push({
     'id': '{{ attr.id }}',
     'value': $(this).find(".attr_value[attr_id='{{ attr.id }}']").map(function(i, e) {
-      if($(e).val() != '0' && $(e).val() != '') {
+      if(! ($(e).val() == '0' || $(e).val() == '')) {
         return $(e).val();
       }
     }).get(),
   });
   {% endfor %}
 
-  var rse_info = [];
-  for(var rse_side of ['rse_front', 'rse_back']) {
-    console.info(rse_side);
-
-    $('body').find('.'+rse_side).each(function() {
-      rse_info.push({
-        'rse_side': rse_side,
-        'position': $(this).attr('position'),
-        'value': $(this).val()
+  var rse_entries = [];
+  $('.rse').each(function() {
+    if ($(this).val()) {
+      rse_entries.push({
+        'position': $(this).attr('unit_no'),
+        'target_id': $(this).val(),
       });
-    });
-  }
+    }
+  });
+  console.log(rse_entries);
 
-  HttpPost($(this), {'attrs': attrs, 'rse_info': rse_info});
+  HttpPost($(this), {'attrs': attrs, 'rse_info': rse_entries});
 
   return false;
 });
@@ -143,20 +134,59 @@ var del_column = function() {
   return false;
 }
 
+var update_option = function(select_elem) {
+  var input_str = $(select_elem).val();
+  $(select_elem).parent().parent().find('select option').each(function(i, elem) {
+    if($(elem).val() != 0) {
+      if(($(elem).text().toLowerCase().indexOf(input_str) >= 0) ||
+         ($(elem).text().toUpperCase().indexOf(input_str) >= 0)) {
+        $(elem).show();
+      } else {
+        $(elem).hide();
+      }
+    }
+  });
+}
+
+var enable_key_handling = true;
+var narrow_down_handler = {
+  "compositionstart": function() {
+    enable_key_handling = false;
+  },
+  "compositionend": function() {
+    enable_key_handling = true;
+
+    update_option(this);
+  },
+  "keyup": function(e) {
+    var inp = String.fromCharCode(e.keyCode);
+    var is_BS = (e.keyCode == 8);
+
+    if (!(!enable_key_handling || !(/[a-zA-Z0-9-_ ]/.test(inp) || is_BS))) {
+      update_option(this);
+    }
+  }
+}
+
+var update_selected_item = function() {
+  var attr_id = $(this).attr('attr_id');
+  var text = $(this).find('option:selected').text();
+
+  $(this).parent().find('li[attr_id="'+ attr_id +'"]').text(text);
+}
+
 $('button[name=add_attr]').on('click', function() {
-  var container = $(this).parent();
+  var container = $(this).parent().find('.array_element');
   var new_column = $('<div class="row" />');
 
   new_column.append($.parseHTML($(this).parent().find('.attr_value_template').html()));
   new_column.find('button[name=del_attr]').on('click', del_column);
+  new_column.find('.narrow_down_referral').on(narrow_down_handler);
+  new_column.find(".attr_value").on('change', update_selected_item);
 
-  container.append(new_column);
+  container.prepend(new_column);
 
   return false;
-});
-
-$(function() {
-  $('button[name=del_attr]').on('click', del_column);
 });
 
 // Initiate array values
@@ -176,11 +206,83 @@ $(function() {
         value_setter = function(new_column) {
           var elem_option = new_column.find('option[value="{{ value.id }}"]');
           elem_option.attr('selected', 'True');
+
+          // show selected item name
+          new_column.find('li[attr_id="{{ attr.id }}"]').text('{{ value.name }}');
         }
         append_column(container, template, value_setter);
       {% endif %}
     {% endfor %}
   {% endif %}
 {% endfor %}
+
+$(document).ready(function() {
+  $('button[name=del_attr]').on('click', del_column);
+  $(".narrow_down_referral").on(narrow_down_handler);
+  $(".attr_value").on('change', update_selected_item);
+});
+
+// processing for rackspace entries
+var RSE_REFERRALS = [
+{% for entry in rse_referrals %}
+  {"id": "{{ entry.id }}", "name": "{{ entry.name }}"},
+{% endfor %}
+];
+
+
+var update_rse_option = function(text_elem) {
+  var input_str = $(text_elem).val();
+  var select_elem = $(text_elem).parent().find('select');
+
+  select_elem.empty();
+  for(var data of RSE_REFERRALS) {
+    if(data['name'].toLowerCase().indexOf(input_str) >= 0 || data['name'].toUpperCase().indexOf(input_str) >= 0) {
+      select_elem.append($(`<option value='${data["id"]}'>${data['name']}</option>`));
+    }
+  }
+}
+var narrow_down_rack_entry = {
+  "compositionstart": function() {
+    enable_key_handling = false;
+  },
+  "compositionend": function() {
+    enable_key_handling = true;
+
+    update_rse_option(this);
+  },
+  "keyup": function(e) {
+    var inp = String.fromCharCode(e.keyCode);
+    var is_BS = (e.keyCode == 8);
+
+    if (!(!enable_key_handling || !(/[a-zA-Z0-9-_ ]/.test(inp) || is_BS))) {
+      update_rse_option(this);
+    }
+  }
+}
+$('button[name=add_rackentry]').on('click', function() {
+  var container = $(this).parent().find('.array_element');
+  var new_column = $('\
+    <div class="row"> \
+      <div class="col-10"> \
+        <input type="text" class="narrow_down_rse" placeholder="絞り込み"  style="width: 100%"/> \
+        <select class="rse" size="5" style="width: 100%"> \
+        </select> \
+      </div> \
+\
+      <div class="col-2"> \
+        <button type="button" class="btn btn-danger btn-sm" name="del_attr">del</button> \
+      </div> \
+    </div> \
+  ');
+  new_column.find('.narrow_down_rse').on(narrow_down_rack_entry);
+  new_column.find('button[name=del_attr]').on('click', del_column);
+  new_column.find('select').attr('unit_no', $(this).attr('unit_no'));
+
+  container.prepend(new_column);
+});
+
+$(document).ready(function() {
+  $(".narrow_down_rse").on(narrow_down_rack_entry);
+});
 </script>
 {% endblock %}

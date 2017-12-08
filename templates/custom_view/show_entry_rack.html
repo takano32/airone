@@ -67,27 +67,24 @@
       <table class='table table-sm'>
         <thead>
           <th>#</th>
-          <th>前面</th>
-          <th>背面</th>
+          <th>target</th>
         </thead>
         <tbody>
-          {% for key, value in rackspace.items %}
+          {% for key, targets in rackspace.items %}
           <tr>
             <th>{{ key }}</th>
 
             <!-- set frontend information -->
-            {% if value.front.referral %}
-              <td class='table-info'><a href='/entry/show/{{ value.front.referral.id }}'>{{ value.front.referral.name }}</a></td>
+            {% if targets %}
+              <td class='table-info'>
             {% else %}
-              <td></td>
+              <td>
             {% endif %}
 
-            <!-- set backend information -->
-            {% if value.back.referral %}
-              <td class='table-info'><a href='/entry/show/{{ value.back.referral.id }}'>{{ value.back.referral.name }}</a></td>
-            {% else %}
-              <td></td>
-            {% endif %}
+            {% for target in targets %}
+            <p><a href='/entry/show/{{ target.referral.id }}'>{{ target.referral.name }}</a></p>
+            {% endfor %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>

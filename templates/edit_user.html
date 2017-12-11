@@ -21,7 +21,7 @@
   </div>
   <div class="row">
     <div class="col">
-      <form name=edit url="/user/do_edit/{{ user_id }}" method='post'>
+      <form name='edit' url="/user/do_edit/{{ user_id }}" method='post'>
         <p><input type="submit" class="btn btn-primary align-right" value='保存'/></p>
         <table class="table table-bordered">
           <tr>
@@ -35,7 +35,7 @@
           <tr>
             <th>パスワード※変更時はチェックを入れ、新しいものを設定※</th>
             <td><input id="checkBtn" type="checkbox" /><label for="check"></label>
-                <input id=passwd type="password" name="passwd" value="{{ user_password }}" disabled /><br/>
+                <input id="passwd" type="password" name="passwd" value="{{ user_password }}" /><br/>
             </td>
           </tr>
           <tr>
@@ -61,6 +61,9 @@ $('form').submit(function(){
 
   return false;
 });
+
+// 画面表示時にdisabledにセットする。
+$('#passwd').prop('disabled', true);
 
 $(function() {
   $('#checkBtn').on('change', function(){

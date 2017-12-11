@@ -18,8 +18,7 @@ class EntityAttr(ACLBase):
         self.objtype = ACLObjType.EntityAttr
 
     def is_updated(self, name, type, is_mandatory, index, refs):
-        get_refs = lambda ref: sorted([x.id for x in ref.all()])
-
+        # checks each parameters that are different between current object parameters
         if (self.name != name or
             self.type != int(type) or
             self.is_mandatory != is_mandatory or
@@ -28,6 +27,7 @@ class EntityAttr(ACLBase):
 
             return True
 
+        # This means that all specified parameters are same with current object's ones.
         return False
 
 class Entity(ACLBase):

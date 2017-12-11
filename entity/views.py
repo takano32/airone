@@ -90,6 +90,7 @@ def edit(request, entity_id):
     }
     return render(request, 'edit_entity.html', context)
 
+@airone_profile
 @http_post([
     {'name': 'name', 'type': str, 'checker': lambda x: x['name']},
     {'name': 'note', 'type': str},
@@ -175,17 +176,25 @@ def do_edit(request, entity_id, recv_data):
                 else:
                     history.mod_attr(attr_obj, 'unset mandatory flag')
 
-            attr_obj.name = attr['name']
-            attr_obj.type = attr['type']
-            attr_obj.is_mandatory = attr['is_mandatory']
-            attr_obj.index = int(attr['row_index'])
+            params = {
+                'name': attr['name'],
+                'type': attr['type'],
+                'refs': [int(x) for x in attr['ref_ids']],
+                'index': attr['row_index'],
+                'is_mandatory': attr['is_mandatory'],
+            }
+            if attr_obj.is_updated(**params):
+                attr_obj.name = attr['name']
+                attr_obj.type = attr['type']
+                attr_obj.is_mandatory = attr['is_mandatory']
+                attr_obj.index = int(attr['row_index'])
 
-            # the case of an attribute that has referral entry
-            attr_obj.referral.clear()
-            if int(attr['type']) & AttrTypeValue['object']:
-                [attr_obj.referral.add(Entity.objects.get(id=x)) for x in attr['ref_ids']]
+                # the case of an attribute that has referral entry
+                attr_obj.referral.clear()
+                if int(attr['type']) & AttrTypeValue['object']:
+                    [attr_obj.referral.add(Entity.objects.get(id=x)) for x in attr['ref_ids']]
 
-            attr_obj.save()
+                attr_obj.save()
 
         else:
             attr_obj = EntityAttr.objects.create(name=attr['name'],

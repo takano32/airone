@@ -17,6 +17,19 @@ class EntityAttr(ACLBase):
         super(ACLBase, self).__init__(*args, **kwargs)
         self.objtype = ACLObjType.EntityAttr
 
+    def is_updated(self, name, type, is_mandatory, index, refs):
+        # checks each parameters that are different between current object parameters
+        if (self.name != name or
+            self.type != int(type) or
+            self.is_mandatory != is_mandatory or
+            self.index != int(index) or
+            sorted([x.id for x in self.referral.all()]) != sorted(refs)):
+
+            return True
+
+        # This means that all specified parameters are same with current object's ones.
+        return False
+
 class Entity(ACLBase):
     STATUS_TOP_LEVEL = 1 << 0
 

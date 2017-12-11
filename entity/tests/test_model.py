@@ -1,3 +1,6 @@
+from airone.lib.types import AttrTypeValue
+from copy import copy
+
 from django.test import TestCase
 from user.models import User
 from entity.models import Entity
@@ -127,3 +130,51 @@ class ModelTest(TestCase):
 
         self.assertEqual(Entity.objects.count(), 1)
         self.assertEqual(Entity.objects.last().name, 'origin_name')
+
+    def test_is_update_method(self):
+        user = User.objects.create(username='another_user')
+
+        entity_ref = Entity.objects.create(name='entity_ref', created_user=user)
+        entity = Entity.objects.create(name='entity', created_user=user)
+        attr = EntityAttr.objects.create(name='attr',
+                                         type=AttrTypeValue['object'],
+                                         created_user=user,
+                                         parent_entity=entity)
+        attr.referral.add(entity)
+
+        # initialize params which is same with the EntityAttr `attr`
+        params = {
+            'name': attr.name,
+            'type': attr.type,
+            'refs': [ entity.id ],
+            'index': attr.index,
+            'is_mandatory': attr.is_mandatory,
+        }
+
+        # check not to change any parameter
+        self.assertFalse(attr.is_updated(**params))
+
+        # check to change name parameter
+        changed_params = copy(params)
+        changed_params['name'] = 'name (changed)'
+        self.assertTrue(attr.is_updated(**changed_params))
+
+        # check to change type parameter
+        changed_params = copy(params)
+        changed_params['type'] = AttrTypeValue['string']
+        self.assertTrue(attr.is_updated(**changed_params))
+
+        # check to change referrals parameter
+        changed_params = copy(params)
+        changed_params['refs'] = [entity_ref]
+        self.assertTrue(attr.is_updated(**changed_params))
+
+        # check to change index parameter
+        changed_params = copy(params)
+        changed_params['index'] = attr.index + 1
+        self.assertTrue(attr.is_updated(**changed_params))
+
+        # check to change index parameter
+        changed_params = copy(params)
+        changed_params['is_mandatory'] = not params['is_mandatory']
+        self.assertTrue(attr.is_updated(**changed_params))

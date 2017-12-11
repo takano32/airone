@@ -117,9 +117,206 @@ class ViewTest(TestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(User.objects.count(), count) # user should be created
 
+    def test_edit_get_without_login(self):
+        resp = self.client.get(reverse('user:edit', args=[0]))
+        self.assertEqual(resp.status_code, 303)
+
+    def test_edit_get_with_login(self):
+        self._admin_login()
+
+        user = User.objects.get(username='guest')
+        resp = self.client.get(reverse('user:edit', args=[user.id]))
+        self.assertEqual(resp.status_code, 200)
+
+        root = ElementTree.fromstring(resp.content.decode('utf-8'))
+        self.assertIsNotNone(root.find('.//form'))
+
+    def test_edit_post_without_login(self):
+
+        params = {
+            'id':    int(1), # guest user id
+            'name':  'hoge', # update guest => hoge
+            'email': 'hoge@hoge.com',
+            'passwd':'hoge',
+            'is_superuser': True,
+        }
+        resp = self.client.post(reverse('user:do_edit',args=[params['id']]),
+                                json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 401)
+
+    def test_edit_post_with_login(self):
+        self._admin_login()
+        count = User.objects.count()
+
+        params = {
+            'id':    int(1), # guest user id
+            'name':  'hoge', # update guest => hoge
+            'email': 'hoge@hoge.com',
+            'passwd':'hoge',
+            'is_superuser': True,
+        }
+        resp = self.client.post(reverse('user:do_edit',args=[params['id']]),
+                                json.dumps(params),'application/json')
+        user = User.objects.get(id=params['id'])
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(User.objects.count(), count) # user should be updated
+        self.assertEqual(user.username, params['name'])
+        self.assertEqual(user.email, params['email'])
+        self.assertTrue(user.check_password(params['passwd']))
+        self.assertTrue(user.is_superuser)
+
+    def test_edit_user_with_duplicated_name(self):
+        self._admin_login()
+
+        params = {
+            'id':   int(1),           # guest user id
+            'name': 'admin',          # duplicated
+            'email':'guest@guest.com',
+        }
+        resp = self.client.post(reverse('user:do_edit',args=[params['id']]),
+                                json.dumps(params),'application/json')
+        user = User.objects.get(id=params['id'])
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(user.username, 'guest') # Not updated
+
+    def test_edit_user_with_duplicated_email(self):
+        count = User.objects.count()
+        self._admin_login()
+
+        # create test user
+        params = {
+            'id'  :  int(3), # test user id
+            'name':  'hoge',
+            'email': 'hoge@hoge.com',
+            'passwd':'hoge',
+        }
+        resp = self.client.post(reverse('user:do_create'),
+                                json.dumps(params),'application/json')
+        user = User.objects.get(id=params['id'])
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(User.objects.count(), count+1) # user should be created
+        self.assertEqual(user.username, params['name'])
+        self.assertEqual(user.email,    params['email'])
+        self.assertTrue(user.check_password(params['passwd']))
+
+        new_params = {
+            'id':   int(1),          # guest user id
+            'name': 'guest',
+            'email':'hoge@hoge.com', # duplicated
+        }
+        resp = self.client.post(reverse('user:do_edit',args=[new_params['id']]),
+                                json.dumps(params),'application/json')
+        new_user = User.objects.get(id=new_params['id'])
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(new_user.username, new_params['name'])
+        self.assertNotEqual(new_user.email, new_params['email'])
+
+    def test_edit_user_with_empty_password(self):
+        self._admin_login()
+
+        params = {
+            'id':    int(1),# guest user id
+            'name':  'guest',
+            'email': 'guest@guest.com',
+            'passwd':'',    # empty
+        }
+        resp = self.client.post(reverse('user:do_edit',args=[params['id']]),
+                                json.dumps(params),'application/json')
+        user = User.objects.get(id=params['id'])
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(user.username, params['name'])
+        self.assertEqual(user.email, params['email'])
+        self.assertTrue(user.check_password('guest')) # Not updated
+
+    def test_edit_user_with_password(self):
+        self._admin_login()
+
+        params = {
+            'id':    int(1),        # guest user id
+            'name':  'guest',
+            'email': 'guest@guest.com',
+            'passwd':'guestguest',  # update password only
+        }
+        resp = self.client.post(reverse('user:do_edit',args=[params['id']]),
+                                json.dumps(params),'application/json')
+        user = User.objects.get(id=params['id'])
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(user.username, params['name'])
+        self.assertEqual(user.email, params['email'])
+        self.assertTrue(user.check_password(params['passwd']))
+
+    def test_edit_user_into_superuser(self):
+        self._admin_login()
+        count = User.objects.count()
+
+        # create test user
+        params = {
+            'id': int(3), # test user id
+            'name':  'hoge',
+            'email': 'hoge@hoge.com',
+            'passwd':'hoge',
+        }
+        resp = self.client.post(reverse('user:do_create'),
+                                json.dumps(params),'application/json')
+        user = User.objects.get(id=params['id'])
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(User.objects.count(), count+1) # user should be created
+        self.assertEqual(user.username, params['name'])
+        self.assertEqual(user.email, params['email'])
+        self.assertFalse(user.is_superuser)
+
+        new_params = {
+            'id':   int(3), # test user id
+            'name': 'fuga',
+            'email':'fuga@fuga.com',
+            'is_superuser':True,
+        }
+        resp = self.client.post(reverse('user:do_edit',args=[new_params['id']]),
+                                json.dumps(new_params),'application/json')
+        new_user = User.objects.get(id=new_params['id'])
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(new_user.username, new_params['name'])
+        self.assertEqual(new_user.email, new_params['email'])
+        self.assertTrue(new_user.is_superuser)
+
+    def test_edit_superuser_into_user(self):
+        self._admin_login()
+        count = User.objects.count()
+
+        # create test user
+        params = {
+            'id':int(3), # test user id
+            'name':  'hoge',
+            'email': 'hoge@hoge.com',
+            'passwd':'hoge',
+            'is_superuser':True,
+        }
+        resp = self.client.post(reverse('user:do_create'),
+                                json.dumps(params),'application/json')
+        user = User.objects.get(id=params['id'])
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(User.objects.count(), count+1) # user should be created
+        self.assertEqual(user.username, params['name'])
+        self.assertEqual(user.email, params['email'])
+        self.assertTrue(user.is_superuser)
+
+        new_params = {
+            'id':int(3), # test user id
+            'name': 'hoge',
+            'email':'hoge@hoge.com',
+            # If is_superuser doesn't exist, it becomes False
+        }
+        resp = self.client.post(reverse('user:do_edit',args=[new_params['id']]),
+                                json.dumps(new_params),'application/json')
+        new_user = User.objects.get(id=new_params['id'])
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(new_user.username, new_params['name'])
+        self.assertEqual(new_user.email, new_params['email'])
+        self.assertFalse(new_user.is_superuser)
+
     def test_delete_post(self):
         name = "someuser"
-        
+
         self._admin_login()
 
         self._create_user(name)
@@ -135,7 +332,7 @@ class ViewTest(TestCase):
 
         self.assertEqual(resp.status_code, 200)
         # user should not deleted from DB
-        self.assertEqual(User.objects.count(), user_count) 
+        self.assertEqual(User.objects.count(), user_count)
         # active user should be decreased
         self.assertEqual(self._get_active_user_count(), active_user_count-1)
 

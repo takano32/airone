@@ -53,8 +53,10 @@ AttrTypes = [
     AttrTypeText,
 ]
 AttrTypeValue = {
-    'object': _ATTR_OBJECT_TYPE,
-    'string': _ATTR_STRING_TYPE,
+    'object': AttrTypeObj.TYPE,
+    'string': AttrTypeStr.TYPE,
     'array': _ATTR_ARRAY_TYPE,
-    'text': _ATTR_TEXT_TYPE,
+    'array_object': AttrTypeArrObj.TYPE,
+    'array_string': AttrTypeArrStr.TYPE,
+    'text': AttrTypeText.TYPE,
 }

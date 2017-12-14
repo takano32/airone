@@ -23,6 +23,7 @@ class AttributeValue(models.Model):
     created_user = models.ForeignKey(User)
     parent_attr = models.ForeignKey('Attribute')
     status = models.IntegerField(default=0)
+    boolean = models.BooleanField(default=False)
 
     def set_status(self, val):
         self.status |= val
@@ -101,6 +102,9 @@ class Attribute(ACLBase):
                 if not last_value.data_array.filter(referral=id).count():
                     return True
 
+        elif self.schema.type == AttrTypeValue['boolean']:
+            return last_value.boolean != recv_value
+
         return False
 
     # These are helper funcitons to get differental AttributeValue(s) by an update request.
@@ -139,6 +143,32 @@ class Attribute(ACLBase):
             return self.values.extra(where=['status & 1 = 1']).order_by('created_time').last()
         else:
             return self.values.extra(where=['status & 1 = 0']).order_by('created_time').last()
+
+    def get_value_history(self, user):
+        # At the first time, checks the ermission to read
+        if not user.has_permission(self, ACLType.Readable):
+            return []
+
+        # This helper function returns value in response to the type
+        def get_attr_value(attrv):
+            attr = attrv.parent_attr
+
+            if attr.schema.type == AttrTypeArrStr:
+                return [x.value for x in attrv.data_array.all()]
+            elif attr.schema.type == AttrTypeArrObj:
+                return [x.referral for x in attrv.data_array.all()]
+            elif attr.schema.type == AttrTypeValue['boolean']:
+                return attrv.boolean
+            else:
+                return attrv.value
+
+        return [{
+            'attr_name': self.schema.name,
+            'attr_type': self.schema.type,
+            'attr_value': get_attr_value(attrv),
+            'created_time': attrv.created_time,
+            'created_user': attrv.created_user.username,
+        } for attrv in self.values.all()]
 
 class Entry(ACLBase):
     attrs = models.ManyToManyField(Attribute)
@@ -194,31 +224,6 @@ class Entry(ACLBase):
 
         return ret
 
-    def get_value_history(self, user):
-        def export_data_array(attrv):
-            attr = attrv.parent_attr
-
-            if attr.schema.type == AttrTypeArrStr:
-                return [x.value for x in attrv.data_array.all()]
-            elif attr.schema.type == AttrTypeArrObj:
-                return [x.referral for x in attrv.data_array.all()]
-            return []
-
-        return sum([[{
-            'id': self.id,
-            'name': self.schema.name,
-            'schema': self.schema,
-            'attr_name': attr.schema.name,
-            'attr_type': attr.schema.type,
-            'attr_value': attr_value.value,
-            'attr_value_array': export_data_array(attr_value),
-            'attr_referral': attr_value.referral,
-            'created_time': attr_value.created_time,
-            'created_user': attr_value.created_user.username,
-        } for attr_value in attr.values.all()]
-            for attr in self.attrs.all()
-                if user.has_permission(attr, ACLType.Readable)], [])
-
     def complement_attrs(self, user):
         """
         This method complements Attributes which are appended after creation of Entity
@@ -270,6 +275,8 @@ class Entry(ACLBase):
                     attrinfo['last_value'] = [x.value for x in last_value.data_array.all()]
                 elif attr.schema.type == AttrTypeArrObj:
                     attrinfo['last_value'] = [x.referral for x in last_value.data_array.all()]
+                elif attr.schema.type == AttrTypeValue['boolean']:
+                    attrinfo['last_value'] = last_value.boolean
 
             # set Entries which are specified in the referral parameter
             attrinfo['referrals'] = []

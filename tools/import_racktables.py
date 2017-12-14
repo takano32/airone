@@ -150,7 +150,7 @@ class Driver(object):
                         vttalue = datetime.fromtimestamp(int(attval['uint_value'])).strftime('%Y-%m-%d %H:%M:%S')
                     elif rk_attr['type'] == 'dict':
                         referral = self.dict_map[int(attval['uint_value'])]
-    
+
                     attr = entry.attrs.get(name=rk_attr['name'])
                     attr.values.add(AttributeValue.objects.create(**{
                         'created_user': user,
@@ -170,7 +170,7 @@ class Driver(object):
             if not Entity.objects.filter(name=data['dict_value']).count():
                 sys.stdout.write('\nCreate Entity "%s"' % data['dict_value'])
                 entity = self.get_entity(data['dict_value'], user)
-    
+
                 # get EntityAttrs
                 for attr_data in self._fetch_db('AttributeValue',
                                                 ['object_tid', 'attr_id', 'uint_value'],
@@ -216,6 +216,250 @@ class Driver(object):
                 else:
                     self.object_map[int(obj_data['id'])] = Entry.objects.get(name=obj_data['name'], schema=entity)
 
+    def create_ipaddr_entries(self):
+        user = self.get_admin()
+
+        print('\nCreating Entities for IP address...')
+        def create_entity_lport():
+            if not Entity.objects.filter(name='(LogicalPort)').count():
+                entity = self.get_entity('(LogicalPort)', user)
+
+                attrinfos = [
+                    {'name': 'I/F', 'type': AttrTypeValue['string']},
+                    {'name': 'IPAddress', 'type': AttrTypeValue['object']},
+                    {'name': 'AttachedNode', 'type': AttrTypeValue['object']},
+                ]
+                for attr_data in attrinfos:
+                    entity.attrs.add(EntityAttr.objects.create(name=attr_data['name'],
+                                                               type=attr_data['type'],
+                                                               created_user=user,
+                                                               parent_entity=entity))
+                return entity
+            else:
+                return Entity.objects.get(name='(LogicalPort)')
+
+        def create_entity_ipaddr():
+            if not Entity.objects.filter(name='(IPaddress)').count():
+                entity = self.get_entity('(IPaddress)', user)
+
+                attrinfos = [
+                    {'name': 'Network', 'type': AttrTypeValue['object']},
+                    {'name': 'Note', 'type': AttrTypeValue['string']},
+                ]
+                for attr_data in attrinfos:
+                    entity.attrs.add(EntityAttr.objects.create(name=attr_data['name'],
+                                                               type=attr_data['type'],
+                                                               created_user=user,
+                                                               parent_entity=entity))
+                return entity
+            else:
+                return Entity.objects.get(name='(IPaddress)')
+
+        def create_entity_network():
+            if not Entity.objects.filter(name='(Network)').count():
+                entity = self.get_entity('(Network)', user)
+
+                attrinfos = [
+                    {'name': 'Route', 'type': AttrTypeValue['object']},
+                    {'name': 'Address', 'type': AttrTypeValue['string']},
+                    {'name': 'Netmask', 'type': AttrTypeValue['string']},
+                    {'name': 'Note', 'type': AttrTypeValue['string']},
+                ]
+                for attr_data in attrinfos:
+                    entity.attrs.add(EntityAttr.objects.create(name=attr_data['name'],
+                                                               type=attr_data['type'],
+                                                               created_user=user,
+                                                               parent_entity=entity))
+                return entity
+            else:
+                return Entity.objects.get(name='(Network)')
+
+        def create_entry_ipaddr(data):
+            name = inet_dtos(data['ip'])
+            if not Entry.objects.filter(schema=entity_ipaddr, name=name).count():
+                entry = Entry.objects.create(name=name, created_user=user, schema=entity_ipaddr)
+
+                entry.complement_attrs(user)
+                for attr in entry.attrs.all():
+                    params = {
+                        'created_user': user,
+                        'status': AttributeValue.STATUS_LATEST,
+                        'parent_attr': attr,
+                        'value': '',
+                    }
+                    if attr.get_latest_value():
+                        continue
+
+                    if attr.name == 'Note':
+                        if 'comment' in data:
+                            params['value'] += data['comment']
+                        if 'name' in data:
+                            params['value'] += ' (%s)' % (data['name'])
+                    elif attr.name == 'Network':
+                        for elem in nw_entry_maps:
+                            if elem['addr_first'] <= int(data['ip']) and int(data['ip']) <= elem['addr_last']:
+                                params['referral'] = elem['nw_entry']
+
+                    attr.values.add(AttributeValue.objects.create(**params))
+            else:
+                entry = Entry.objects.get(schema=entity_ipaddr, name=name)
+
+            return entry
+
+        # convert decimal IP address to String
+        def inet_dtos(decimal_addr):
+            return socket.inet_ntoa(struct.pack('!L', decimal_addr))
+
+        # create Entities
+        entity_lport = create_entity_lport()
+        entity_ipaddr = create_entity_ipaddr()
+        entity_network = create_entity_network()
+
+        # set referrals for each entities
+        attr_lport2ipaddr = entity_lport.attrs.get(name='IPAddress')
+        if not attr_lport2ipaddr.referral.filter(id=entity_ipaddr.id):
+            attr_lport2ipaddr.referral.add(entity_ipaddr)
+
+        attr_ipaddr2network = entity_ipaddr.attrs.get(name='Network')
+        if not attr_ipaddr2network.referral.filter(id=entity_network.id):
+            attr_ipaddr2network.referral.add(entity_network)
+
+        attr_network2ipaddr = entity_network.attrs.get(name='Route')
+        if not attr_network2ipaddr.referral.filter(id=entity_ipaddr.id):
+            attr_network2ipaddr.referral.add(entity_ipaddr)
+
+        # create Network Entries
+        msg = 'Creating Network Entries'
+        network_all = self._fetch_db('IPv4Network', ['ip', 'mask', 'name', 'comment'])
+        data_len = len(network_all)
+        nw_entry_maps = []
+        sys.stdout.write('\n%s' % (msg))
+        for data_index, data in enumerate(network_all):
+            sys.stdout.write('\r%s: (%6d/%6d)' % (msg, data_index+1, data_len))
+            sys.stdout.flush()
+
+            name = "%s/%s" % (inet_dtos(data['ip']), data['mask'])
+
+            if not Entry.objects.filter(schema=entity_network, name=name).count():
+                entry = Entry.objects.create(name=name, created_user=user, schema=entity_network)
+
+                entry.complement_attrs(user)
+                for attr in entry.attrs.all():
+                    params = {
+                        'created_user': user,
+                        'status': AttributeValue.STATUS_LATEST,
+                        'parent_attr': attr,
+                        'value': '',
+                    }
+                    if attr.get_latest_value():
+                        continue
+
+                    if attr.name == 'Address':
+                        params['value'] = inet_dtos(data['ip'])
+                    elif attr.name == 'Netmask':
+                        params['value'] = str(data['mask'])
+                    elif attr.name == 'Note':
+                        params['value'] = data['comment'] if data['comment'] else ''
+                    else:
+                        continue
+
+                    try:
+                        attr.values.add(AttributeValue.objects.create(**params))
+                    except django.db.utils.IntegrityError as e:
+                        print('[ERROR] (data:%s)' % data)
+                        print('[ERROR] entry: %s, attr: %s' % (entry.name, attr.name))
+                        raise(e)
+            else:
+                entry = Entry.objects.get(schema=entity_network, name=name)
+
+            nw_entry_maps.append({
+                'addr_first': int(data['ip']),
+                'addr_last': int(data['ip']) + (1 << (32 - data['mask'])) - 1,
+                'nw_entry': entry,
+            })
+
+        # create IPAddress Entries
+        ip_map = {}
+        msg = 'Creating IPaddress Entries'
+        ipaddr_all = self._fetch_db('IPv4Address', ['ip', 'name', 'comment'])
+        data_len = len(ipaddr_all)
+        sys.stdout.write('\n%s' % (msg))
+        for data_index, data in enumerate(ipaddr_all):
+            sys.stdout.write('\r%s: (%6d/%6d)' % (msg, data_index+1, data_len))
+            sys.stdout.flush()
+
+            ip_map[data['ip']] = create_entry_ipaddr(data)
+
+        # create LogicalPort Entries
+        msg = 'Creating LogicalPort Entries'
+        ipalloc_all = self._fetch_db('IPv4Allocation', ['object_id', 'ip', 'name', 'type', 'type'])
+        data_len = len(ipalloc_all)
+        sys.stdout.write('\n%s' % (msg))
+        for data_index, data in enumerate(ipalloc_all):
+            sys.stdout.write('\r%s: (%6d/%6d)' % (msg, data_index+1, data_len))
+            sys.stdout.flush()
+
+            if data['object_id'] not in self.object_map:
+                print('\n[Warning] Creating LogicalPort invalid object_id is found: %s' % data)
+                continue
+
+            if data['ip'] not in ip_map:
+                # Create a non registered IP Address entry in Racktables
+                ip_map[data['ip']] = create_entry_ipaddr({'ip':data['ip'], 'comment':data['name']})
+
+            # set Route attribute of Network entry
+            if data['type'] == 'router':
+                entry_ip = ip_map[data['ip']]
+                # get ACLObject for Network Entry
+                obj_nw = entry_ip.attrs.get(name='Network').get_latest_value()
+                if obj_nw:
+                    entry_nw = Entry.objects.get(id=obj_nw.referral.id)
+                    attr_route = entry_nw.attrs.get(name='Route')
+                    if not attr_route.get_latest_value():
+                        attr_route.values.add(AttributeValue.objects.create(**{
+                            'created_user': user,
+                            'status': AttributeValue.STATUS_LATEST,
+                            'parent_attr': attr_route,
+                            'referral': entry_ip,
+                            'value': '',
+                        }))
+
+            node_entry = self.object_map[data['object_id']]
+
+            name = "%s [%s/%s])" % (data['name'], node_entry.name, node_entry.schema.name)
+            if not Entry.objects.filter(schema=entity_lport, name=name).count():
+                entry = Entry.objects.create(name=name, created_user=user, schema=entity_lport)
+
+                entry.complement_attrs(user)
+                for attr in entry.attrs.all():
+                    params = {
+                        'created_user': user,
+                        'status': AttributeValue.STATUS_LATEST,
+                        'parent_attr': attr,
+                        'value': '',
+                    }
+                    if attr.get_latest_value():
+                        continue
+
+                    if attr.name == 'I/F':
+                        params['value'] = data['name']
+                    elif attr.name == 'IPAddress':
+                        params['referral'] = ip_map[data['ip']]
+                    elif attr.name == 'AttachedNode':
+                        params['referral'] = node_entry
+
+                        # checks target node schema is registered to the EntityAttr
+                        if not attr.schema.referral.filter(id=node_entry.schema.id).count():
+                            attr.schema.referral.add(node_entry.schema)
+                    else:
+                        continue
+
+                    attr.values.add(AttributeValue.objects.create(**params))
+            else:
+                entry = Entry.objects.get(schema=entity_lport, name=name)
+
+        # create Entities
+
 def get_options():
     parser = OptionParser()
 
@@ -240,5 +484,7 @@ if __name__ == "__main__":
 
         driver.create_entry_for_objects()
         print('\nAfter create_entry_for_objects: %s' % str(datetime.now() - t0))
+
+        driver.create_ipaddr_entries()
 
     print('\nfinished')

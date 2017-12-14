@@ -181,7 +181,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': '0', 'value': 'fuga'},
+                {'id': '0', 'value': ['fuga']},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[0]),
@@ -199,7 +199,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': 'hoge'},
+                {'id': str(self._entity_attr.id), 'value': ['hoge']},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -226,16 +226,16 @@ class ViewTest(AironeViewTest):
         another_user = User.objects.create(username='hoge')
         entity = Entity.objects.create(name='hoge', is_public=False, created_user=another_user)
         attr_base = EntityAttr.objects.create(name='test',
-                                                 type=AttrTypeStr,
-                                                 is_mandatory=True,
-                                                 parent_entity=entity,
-                                                 created_user=another_user)
+                                              type=AttrTypeStr,
+                                              is_mandatory=True,
+                                              parent_entity=entity,
+                                              created_user=another_user)
         entity.attrs.add(attr_base)
 
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(attr_base.id), 'value': 'hoge'},
+                {'id': str(attr_base.id), 'value': ['hoge']},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -262,8 +262,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': 'hoge'},
-                {'id': str(self._entity_attr_optional.id), 'value': ''},
+                {'id': str(self._entity_attr.id), 'value': ['hoge']},
+                {'id': str(self._entity_attr_optional.id), 'value': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -287,7 +287,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': '',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': 'hoge'},
+                {'id': str(self._entity_attr.id), 'value': ['hoge']},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -315,8 +315,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'new_entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': 'hoge'},
-                {'id': str(attr_base.id), 'value': str(entry.id)},
+                {'id': str(self._entity_attr.id), 'value': ['hoge']},
+                {'id': str(attr_base.id), 'value': [str(entry.id)]},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -337,8 +337,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': 'hoge'},
-                {'id': '9999', 'value': 'invalid value'},
+                {'id': str(self._entity_attr.id), 'value': ['hoge']},
+                {'id': '9999', 'value': ['invalid value']},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -364,8 +364,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'new_entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': 'hoge'},
-                {'id': str(attr_base.id), 'value': '0'},
+                {'id': str(self._entity_attr.id), 'value': ['hoge']},
+                {'id': str(attr_base.id), 'value': ['0']},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -862,9 +862,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry-test',
             'attrs': [
-                {'id': str(attr_base.id), 'value': 'hoge'},
-                {'id': str(attr_base.id), 'value': 'fuga'},
-                {'id': str(attr_base.id), 'value': 'puyo'},
+                {'id': str(attr_base.id), 'value': ['hoge', 'fuga', 'puyo']},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -911,8 +909,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry-test',
             'attrs': [
-                {'id': str(attr_base.id), 'value': str(referral.id)},
-                {'id': str(attr_base.id), 'value': str(referral.id)},
+                {'id': str(attr_base.id), 'value': [str(referral.id), str(referral.id)]},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -950,8 +947,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': 'hoge'},
-                {'id': str(textattr.id), 'value': 'fuga'},
+                {'id': str(self._entity_attr.id), 'value': ['hoge']},
+                {'id': str(textattr.id), 'value': ['fuga']},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -976,7 +973,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': 'A' * AttributeValue.MAXIMUM_VALUE_SIZE},
+                {'id': str(self._entity_attr.id), 'value': ['A' * AttributeValue.MAXIMUM_VALUE_SIZE]},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -1017,7 +1014,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': 'A' * AttributeValue.MAXIMUM_VALUE_SIZE + 'A'},
+                {'id': str(self._entity_attr.id), 'value': ['A' * AttributeValue.MAXIMUM_VALUE_SIZE + 'A']},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -1053,7 +1050,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': 'hoge'},
+                {'id': str(self._entity_attr.id), 'value': ['hoge']},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -1103,8 +1100,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': 'hoge'},
-                {'id': str(attr.id), 'value': 'fuga'},
+                {'id': str(self._entity_attr.id), 'value': ['hoge']},
+                {'id': str(attr.id), 'value': ['fuga']},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -1139,8 +1136,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry1',
             'attrs': [
-                {'id': str(attrs[0].id), 'value': 'hoge'},
-                {'id': str(attrs[1].id), 'value': 'fuga'},
+                {'id': str(attrs[0].id), 'value': ['hoge']},
+                {'id': str(attrs[1].id), 'value': ['fuga']},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -1157,3 +1154,50 @@ class ViewTest(AironeViewTest):
         self.assertEqual(len(entry.get_available_attrs(user)), 2)
         self.assertEqual(len(entry.get_available_attrs(user, ACLType.Writable)), 1)
         self.assertEqual(entry.get_available_attrs(user, ACLType.Writable)[0]['name'], 'attr1')
+
+    def test_create_and_edit_entry_that_has_boolean_attr(self):
+        admin = self.admin_login()
+
+        entity = Entity.objects.create(name='entity', created_user=admin)
+        entity_attr = EntityAttr.objects.create(name='attr_bool',
+                                                type=AttrTypeValue['boolean'],
+                                                parent_entity=entity,
+                                                created_user=admin)
+        entity.attrs.add(entity_attr)
+
+        # creates entry that has a parameter which is typed boolean
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entity_attr.id), 'value': [True]},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+
+        # get entry which is created in here
+        entry = Entry.objects.get(name='entry', schema=entity)
+
+        self.assertEqual(entry.attrs.count(), 1)
+        self.assertIsNotNone(entry.attrs.last().get_latest_value())
+        self.assertTrue(entry.attrs.last().get_latest_value().boolean)
+
+        # edit entry to update the value of attribute 'attr_bool'
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entry.attrs.get(name='attr_bool').id), 'value': [False]},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+
+        # checks AttributeValue which is specified to update
+        self.assertEqual(entry.attrs.last().values.count(), 2)
+        self.assertFalse(entry.attrs.last().get_latest_value().boolean)

@@ -5,6 +5,7 @@ from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
 from airone.lib.acl import ACLObjType, ACLType
 from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeArrStr, AttrTypeArrObj
+from airone.lib.types import AttrTypeValue
 
 
 class ModelTest(TestCase):
@@ -276,6 +277,24 @@ class ModelTest(TestCase):
         self.assertEqual(attr.get_existed_values_of_array([e1.id, e3.id]),
                          [AttributeValue.objects.get(referral=e1)])
 
+    def test_for_boolean_attr_and_value(self):
+        attr = self.make_attr('attr_bool', AttrTypeValue['boolean'])
+        attr.save()
+
+        attr.values.add(AttributeValue.objects.create(**{
+            'created_user': self._user,
+            'parent_attr': attr,
+            'status': AttributeValue.STATUS_LATEST
+        }))
+
+        # Checks default value
+        self.assertIsNotNone(attr.get_latest_value())
+        self.assertFalse(attr.get_latest_value().boolean)
+
+        # Checks attitude of is_update
+        self.assertFalse(attr.is_updated(False))
+        self.assertTrue(attr.is_updated(True))
+
     def test_get_referred_objects(self):
         entity = Entity.objects.create(name='Entity2', created_user=self._user)
         entry = Entry.objects.create(name='refered', created_user=self._user, schema=entity)
@@ -311,3 +330,20 @@ class ModelTest(TestCase):
 
         self.assertEqual(self._entry.attrs.count(), 1)
         self.assertEqual(self._entry.attrs.last().schema, newattr)
+
+    def test_get_value_history(self):
+        attr = self.make_attr('attr')
+        attr.save()
+
+        attr.values.add(AttributeValue.objects.create(value='foo',
+                                                      created_user=self._user,
+                                                      parent_attr=attr))
+        attr.values.add(AttributeValue.objects.create(value='bar',
+                                                      created_user=self._user,
+                                                      parent_attr=attr))
+        attr.values.add(AttributeValue.objects.create(value='baz',
+                                                      created_user=self._user,
+                                                      parent_attr=attr,
+                                                      status=AttributeValue.STATUS_LATEST))
+
+        self.assertEqual(len(attr.get_value_history(self._user)), 3)

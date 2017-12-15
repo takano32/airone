@@ -5,10 +5,13 @@
 {% block nav_sub_header %}
 <div class="conatiner-fluid">
   <ul class="breadcrumb airone-breadcrumb">
-    <li class="breadcrumb-item"><a href="/">TOP</a></li>
-    <li class="breadcrumb-item"><a href='/entry/{{ entry.schema.id }}'>{{ entry.schema.name }}</a></li>
-    <li class="breadcrumb-item"><a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a></li>
-    <li class="breadcrumb-item">{{ entry.name }} の編集</li>
+    {% for header in nav_headers %}
+      {% if header.href %}
+      <li class="breadcrumb-item"><a href="{{ header.href }}">{{ header.text }}</a></li>
+      {% else %}
+      <li class="breadcrumb-item">{{ header.text }}</li>
+      {% endif %}
+    {% endfor %}
   </ul>
 </div>
 {% endblock %}
@@ -16,7 +19,7 @@
 {% block content %}
 {% load bitwise_tags %}
 <div class="container-fluid">
-  <form url='/entry/do_edit/{{ entry.id }}' method='post'>
+  <form url='{{ form_url }}' method='post'>
     <div class='row'>
       <div class="col">
         <div class="float-right">
@@ -58,7 +61,11 @@ $('form').submit(function(){
     'id': '{{ attr.id }}',
     'value': $(this).find(".attr_value[attr_id='{{ attr.id }}']").map(function(i, e) {
       if(! ($(e).val() == '0' || $(e).val() == '')) {
-        return $(e).val();
+        if($(e).attr('type') == 'checkbox') {
+          return $(e).prop('checked');
+        } else {
+          return $(e).val();
+        }
       }
     }).get(),
   });

@@ -3,6 +3,7 @@ from six import with_metaclass
 _ATTR_OBJECT_TYPE = 1 << 0
 _ATTR_STRING_TYPE = 1 << 1
 _ATTR_TEXT_TYPE = 1 << 2
+_ATTR_BOOL_TYPE = 1 << 3
 _ATTR_ARRAY_TYPE = 1 << 10
 
 class MetaAttrType(type):
@@ -45,12 +46,17 @@ class AttrTypeText(with_metaclass(MetaAttrType)):
     NAME = 'textarea'
     TYPE = _ATTR_TEXT_TYPE
 
+class AttrTypeBoolean(with_metaclass(MetaAttrType)):
+    NAME = 'boolean'
+    TYPE = _ATTR_BOOL_TYPE
+
 AttrTypes = [
     AttrTypeStr,
     AttrTypeObj,
     AttrTypeArrStr,
     AttrTypeArrObj,
     AttrTypeText,
+    AttrTypeBoolean,
 ]
 AttrTypeValue = {
     'object': AttrTypeObj.TYPE,
@@ -59,4 +65,5 @@ AttrTypeValue = {
     'array_object': AttrTypeArrObj.TYPE,
     'array_string': AttrTypeArrStr.TYPE,
     'text': AttrTypeText.TYPE,
+    'boolean': AttrTypeBoolean.TYPE,
 }

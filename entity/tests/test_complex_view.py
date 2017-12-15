@@ -52,7 +52,7 @@ class ComplexViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(attr.id), 'value': 'attr-value'},
+                {'id': str(attr.id), 'value': ['attr-value']},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -200,7 +200,7 @@ class ComplexViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry1',
             'attrs': [
-                {'id': str(entityattr.id), 'value': 'attr-value'},
+                {'id': str(entityattr.id), 'value': ['attr-value']},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -217,7 +217,7 @@ class ComplexViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry2',
             'attrs': [
-                {'id': str(entityattr.id), 'value': 'attr-value'},
+                {'id': str(entityattr.id), 'value': ['attr-value']},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),

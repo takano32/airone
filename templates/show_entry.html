@@ -75,8 +75,10 @@
   <div class="row" id='referred_objects'>
     <div class="col">
       <hr/>
-      <h3>参照オブジェクトの一覧</h3>
-      <div class='list-group'>
+      <h4>参照オブジェクトの一覧</h4>
+      <h5 id='referral_entry_count'>(エントリ数：{{ referred_total }})</h5>
+      <input class='narrow_down_referral' text='text' placeholder='絞り込む' />
+      <div class='list-group' id='referral_entries'>
         {% for object in referred_objects %}
         <a class="list-group-item" href="/entry/show/{{ object.id }}">{{ object.name }} ({{ object.schema.name }})</a>
         {% endfor %}
@@ -145,4 +147,71 @@
     </div>
   </div>
 </div>
+{% csrf_token %}
+{% endblock %}
+
+{% block script %}
+<script>
+var ENTRIES_DATA = undefined;
+var complete_processing = function(data) {
+  ENTRIES_DATA = data;
+
+  $('#referral_entry_count').text(`エントリ数：{{ referred_total}}`);
+}
+
+var narrow_down_callback = function(elem) {
+  var input_str = $(elem).val();
+
+  if (ENTRIES_DATA) {
+    var container = $('#referral_entries');
+    var count = 0;
+
+    container.empty();
+    for(var entry of ENTRIES_DATA['entries']) {
+      if (entry['name'].indexOf(input_str) >= 0) {
+        var new_elem = $(`<a class="list-group-item" href="/entry/show/${entry['id']}">${entry['name']} (${entry['entity']})</a>`);
+  
+        container.append(new_elem);
+        count++;
+      }
+    }
+    $('#referral_entry_count').text(`エントリ数：${count} / {{ referred_total}}`);
+  } else {
+    $('#referral_entry_count').text('エントリ数：...データ取得中...');
+  }
+}
+
+var enable_key_handling = true;
+var narrow_down_handler = {
+  "compositionstart": function() {
+    enable_key_handling = false;
+  },
+  "compositionend": function() {
+    enable_key_handling = true;
+
+    narrow_down_callback(this);
+  },
+  "keyup": function(e) {
+    var inp = String.fromCharCode(e.keyCode);
+    var is_BS = (e.keyCode == 8);
+
+    if (!(!enable_key_handling || !(/[a-zA-Z0-9-_ ]/.test(inp) || is_BS))) {
+      narrow_down_callback(this);
+    }
+  }
+}
+
+$(document).ready(function() {
+  $(".narrow_down_referral").on(narrow_down_handler);
+
+  $.ajax({
+    type: 'GET',
+    url: "/entry/api/v1/get_referrals/{{ entry.id }}/",
+  }).done(function(data){
+    complete_processing(data);
+  }).fail(function(data){
+    MessageBox.error('failed to load data from server (Please reload this page or call Administrator)');
+  });
+});
+</script>
 {% endblock %}

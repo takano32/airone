@@ -1,4 +1,4 @@
-from django.conf.urls import url
+from django.conf.urls import url, include
 
 from . import views
 
@@ -11,4 +11,6 @@ urlpatterns = [
     url(r'^show/(\d+)/$', views.show, name='show'),
     url(r'^export/(\d+)/$', views.export, name='export'),
     url(r'^do_delete/(\d+)/$', views.do_delete, name='do_delete'),
+    url(r'^search_referral/(\d+)/$', views.do_delete, name='do_delete'),
+    url(r'^api/', include('entry.api.urls', namespace='entry.api')),
 ]

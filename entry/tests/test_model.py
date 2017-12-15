@@ -316,7 +316,7 @@ class ModelTest(TestCase):
 
         # This function checks that this get_referred_objects method only get
         # unique reference objects except for the self referred object.
-        self.assertEqual(entry.get_referred_objects(), [self._entry])
+        self.assertEqual(entry.get_referred_objects(), ([self._entry], 10))
 
     def test_coordinating_attribute_with_dynamically_added_one(self):
         newattr = EntityAttr.objects.create(name='newattr',

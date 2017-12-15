@@ -52,7 +52,12 @@ def create(request, entity_id):
 
     entity = Entity.objects.get(id=entity_id)
     context = {
-        'entity': entity,
+        'form_url': '/entry/do_create/%s/' % entity.id,
+        'nav_headers': [
+            {'href': '/', 'text': 'TOP'},
+            {'href': '/entry/%s' % entity.id, 'text': '%s' % entity.name},
+            {'text': '新規エントリ作成 (%s)' % entity.name},
+        ],
         'attributes': [{
             'id': x.id,
             'type': x.type,
@@ -61,17 +66,19 @@ def create(request, entity_id):
             'referrals': x.referral.count() and get_referrals(x) or [],
         } for x in entity.attrs.filter(is_active=True) if user.has_permission(x, ACLType.Writable)]
     }
-    return render(request, 'create_entry.html', context)
+    return render(request, 'edit_entry.html', context)
 
 @http_post([
     {'name': 'entry_name', 'type': str, 'checker': lambda x: x['entry_name']},
     {'name': 'attrs', 'type': list, 'meta': [
         {'name': 'id', 'type': str},
-        {'name': 'value', 'type': str,
+        {'name': 'value', 'type': list,
          'checker': lambda x: (
-             EntityAttr.objects.filter(id=x['id']).count() > 0 and
-             (EntityAttr.objects.get(id=x['id']).is_mandatory and x['value'] or
-              not EntityAttr.objects.get(id=x['id']).is_mandatory)
+             all([
+                EntityAttr.objects.filter(id=x['id']).count() > 0 and
+                (EntityAttr.objects.get(id=x['id']).is_mandatory and y or
+                not EntityAttr.objects.get(id=x['id']).is_mandatory)
+            for y in x['value']])
          )},
     ]}
 ])
@@ -92,12 +99,10 @@ def do_create(request, entity_id, recv_data):
     entry.save()
 
     # Checks specified value exceeds the limit of AttributeValue
-    if any([len(x['value'].encode('utf-8')) > AttributeValue.MAXIMUM_VALUE_SIZE
+    if any([any([len(str(y).encode('utf-8')) > AttributeValue.MAXIMUM_VALUE_SIZE
+                 for y in x['value']])
             for x in recv_data['attrs']]):
         return HttpResponse('Passed value is exceeded the limit', status=400)
-
-    def get_attr_values(attr, data):
-        return [x['value'] for x in data if int(x['id']) == attr.id and x['value']]
 
     # Create new Attributes objects based on the specified value
     for entity_attr in entity.attrs.filter(is_active=True):
@@ -109,7 +114,8 @@ def do_create(request, entity_id, recv_data):
         attr = entry.add_attribute_from_base(entity_attr, user)
 
         # make an initial AttributeValue object if the initial value is specified
-        recv_values = get_attr_values(entity_attr, recv_data['attrs'])
+        recv_values = sum([x['value'] for x in recv_data['attrs'] if int(x['id']) == attr.schema.id],
+                          [])
         if recv_values:
             attr_value = AttributeValue.objects.create(created_user=user, parent_attr=attr)
             if entity_attr.type == AttrTypeStr or entity_attr.type == AttrTypeText:
@@ -146,6 +152,9 @@ def do_create(request, entity_id, recv_data):
 
                     attr_value.data_array.add(_attr_value)
 
+            elif entity_attr.type == AttrTypeValue['boolean']:
+                attr_value.boolean = recv_values[0]
+
             # Set a flag that means this is the latest value
             attr_value.set_status(AttributeValue.STATUS_LATEST)
 
@@ -170,7 +179,14 @@ def edit(request, entry_id):
 
     context = {
         'entry': entry,
+        'nav_headers': [
+            {'href': '/', 'text': 'TOP'},
+            {'href': '/entry/%s' % entry.schema.id, 'text': '%s' % entry.schema.name},
+            {'href': '/entry/show/%s' % entry.id, 'text': '%s' % entry.name},
+            {'text': '%s の編集' % entry.name},
+        ],
         'attributes': entry.get_available_attrs(user, ACLType.Writable),
+        'form_url': '/entry/do_edit/%s' % entry.id,
     }
 
     if custom_view.is_custom_edit_entry(entry.schema.name):
@@ -252,13 +268,16 @@ def do_edit(request, entry_id, recv_data):
 
             # set attribute value according to the attribute-type
             if attr.schema.type == AttrTypeStr or attr.schema.type == AttrTypeText:
-                attr_value.value = value=info['value']
+                attr_value.value = info['value']
             elif attr.schema.type == AttrTypeObj:
                 # set None if the referral entry is not specified
                 if info['value'] and Entry.objects.filter(id=info['value']).count():
                     attr_value.referral = Entry.objects.get(id=info['value'])
                 else:
                     attr_value.referral = None
+
+            elif attr.schema.type == AttrTypeValue['boolean']:
+                attr_value.boolean = info['value']
 
             elif attr.schema.type & AttrTypeValue['array']:
                 # set status of parent data_array
@@ -325,10 +344,13 @@ def show(request, entry_id):
 
             newattr.values.add(attr_value)
 
+    # get all values that are set in the past
+    value_history = sum([x.get_value_history(user) for x in entry.attrs.all()], [])
+
     context = {
         'entry': entry,
         'attributes': entry.get_available_attrs(user),
-        'value_history': sorted(entry.get_value_history(user), key=lambda x: x['created_time']),
+        'value_history': sorted(value_history, key=lambda x: x['created_time']),
         'referred_objects': entry.get_referred_objects(),
     }
 

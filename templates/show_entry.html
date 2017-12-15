@@ -57,6 +57,12 @@
               </li>
             {% endfor %}
             </ul>
+          {% elif attr.type == attr_type.boolean %}
+            {% if attr.last_value %}
+            <input type="checkbox" disabled='True' checked='True'/>
+            {% else %}
+            <input type="checkbox" disabled='True' />
+            {% endif %}
           {% endif %}
           </td>
         </tr>
@@ -97,12 +103,12 @@
             <td>{{ history.attr_value }}</td>
           {% elif history.attr_type == attr_type.textarea %}
             <td><pre>{{ history.attr_value }}</pre></td>
-          {% elif history.attr_type == attr_type.entry and history.attr_referral %}
-            <td><a href='/entry/show/{{ history.attr_referral.id}}'>{{ history.attr_referral.name }}</a></td>
+          {% elif history.attr_type == attr_type.entry and history.attr_value %}
+            <td><a href='/entry/show/{{ history.attr_value.id}}'>{{ history.attr_value.name }}</a></td>
           {% elif history.attr_type == attr_type.array_string %}
             <td>
               <ul class='list-group'>
-              {% for attrv in history.attr_value_array %}
+              {% for attrv in history.attr_value %}
                 <li class='list-group-item'>{{ attrv }}</li>
               {% endfor %}
               </ul>
@@ -111,7 +117,7 @@
           {% elif history.attr_type == attr_type.array_entry %}
             <td>
               <ul class='list-group'>
-              {% for attrv in history.attr_value_array %}
+              {% for attrv in history.attr_value %}
                 <li class='list-group-item'>
                   <a href='/entry/show/{{ attrv.id }}'>
                     {{ attrv.name }}
@@ -119,6 +125,14 @@
                 </li>
               {% endfor %}
               </ul>
+            </td>
+          {% elif history.attr_type == attr_type.boolean %}
+            <td>
+              {% if history.attr_value %}
+              <input type="checkbox" disabled='True' checked='True'/>
+              {% else %}
+              <input type="checkbox" disabled='True' />
+              {% endif %}
             </td>
           {% else %}
             <td></td>

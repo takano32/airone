@@ -72,6 +72,7 @@ class ViewTest(AironeViewTest):
                 {'name': 'foo', 'type': str(AttrTypeStr), 'is_mandatory': True, 'row_index': '1'},
                 {'name': 'bar', 'type': str(AttrTypeText), 'is_mandatory': True, 'row_index': '2'},
                 {'name': 'baz', 'type': str(AttrTypeArrStr), 'is_mandatory': False, 'row_index': '3'},
+                {'name': 'attr_bool', 'type': str(AttrTypeValue['boolean']), 'is_mandatory': False, 'row_index': '4'},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -86,12 +87,12 @@ class ViewTest(AironeViewTest):
         self.assertTrue(entity.status & Entity.STATUS_TOP_LEVEL)
 
         # tests for EntityAttribute objects
-        self.assertEqual(len(EntityAttr.objects.all()), 3)
+        self.assertEqual(len(EntityAttr.objects.all()), 4)
 
         # tests for operation history is registered correctly
-        self.assertEqual(History.objects.count(), 4)
+        self.assertEqual(History.objects.count(), 5)
         self.assertEqual(History.objects.filter(operation=History.ADD_ENTITY).count(), 1)
-        self.assertEqual(History.objects.filter(operation=History.ADD_ATTR).count(), 3)
+        self.assertEqual(History.objects.filter(operation=History.ADD_ATTR).count(), 4)
 
     def test_create_post_without_name_param(self):
         self.admin_login()

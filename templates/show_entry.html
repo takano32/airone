@@ -75,8 +75,10 @@
   <div class="row" id='referred_objects'>
     <div class="col">
       <hr/>
-      <h3>参照オブジェクトの一覧</h3>
-      <div class='list-group'>
+      <h4>参照オブジェクトの一覧</h4>
+      <h5 id='referral_entry_count'>(エントリ数：{{ referred_total }})</h5>
+      <input id='narrow_down_referral' text='text' placeholder='絞り込む' />
+      <div class='list-group' id='referral_entries'>
         {% for object in referred_objects %}
         <a class="list-group-item" href="/entry/show/{{ object.id }}">{{ object.name }} ({{ object.schema.name }})</a>
         {% endfor %}
@@ -145,4 +147,47 @@
     </div>
   </div>
 </div>
+{% csrf_token %}
+{% endblock %}
+
+{% block script %}
+<script>
+var complete_processing = function(data) {
+  var container = $('#referral_entries');
+
+  container.empty();
+  for(var entry of data['entries']) {
+    var new_elem = $(`<a class="list-group-item" href="/entry/show/${entry['id']}">${entry['name']} (${entry['entity']})</a>`);
+
+    container.append(new_elem);
+  }
+  $('#referral_entry_count').text(`エントリ数：${ data['found_count'] } / {{ referred_total }}`);
+}
+
+$(document).ready(function() {
+  var sending_request = false;
+  $("#narrow_down_referral").on('keyup', function(e) {
+    if(! (e.keyCode != 13 || sending_request)) {
+      sending_request = true;
+
+      $.ajax({
+        type: 'GET',
+        url: "/entry/api/v1/get_referrals/{{ entry.id }}/",
+        data: {
+          keyword: $(this).val(),
+        },
+      }).done(function(data){
+        complete_processing(data);
+
+        // reset sending flag
+        sending_request = false
+      }).fail(function(data){
+        MessageBox.error('failed to load data from server (Please reload this page or call Administrator)');
+      });
+
+      $('#referral_entry_count').text('エントリ数：...データ取得中...');
+    }
+  });
+});
+</script>
 {% endblock %}

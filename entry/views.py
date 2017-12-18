@@ -19,6 +19,7 @@ from entity.admin import EntityResource
 from entry.models import Entry, Attribute, AttributeValue
 from entry.admin import EntryResource, AttrResource, AttrValueResource
 from user.models import User
+from .settings import CONFIG
 
 
 @airone_profile
@@ -29,9 +30,18 @@ def index(request, entity_id):
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     entity = Entity.objects.get(id=entity_id)
+    entries = Entry.objects.order_by('name').filter(schema=entity,is_active=True)
+
+    total_count = list_count = len(entries)
+    if(len(entries) > CONFIG.MAX_LIST_ENTRIES):
+        entries = entries[0:CONFIG.MAX_LIST_ENTRIES]
+        list_count = CONFIG.MAX_LIST_ENTRIES
+
     context = {
         'entity': entity,
-        'entries': Entry.objects.order_by('name').filter(schema=entity,is_active=True),
+        'entries': entries,
+        'total_count': total_count,
+        'list_count': list_count,
     }
     return render(request, 'list_entry.html', context)
 
@@ -347,11 +357,15 @@ def show(request, entry_id):
     # get all values that are set in the past
     value_history = sum([x.get_value_history(user) for x in entry.attrs.all()], [])
 
+    # get referred entries and count of them
+    (referred_objects, referred_total) = entry.get_referred_objects(CONFIG.MAX_LIST_REFERRALS)
+
     context = {
         'entry': entry,
         'attributes': entry.get_available_attrs(user),
         'value_history': sorted(value_history, key=lambda x: x['created_time']),
-        'referred_objects': entry.get_referred_objects(),
+        'referred_objects': referred_objects,
+        'referred_total': referred_total,
     }
 
     if custom_view.is_custom_show_entry(entry.schema.name):

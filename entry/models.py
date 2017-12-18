@@ -209,20 +209,29 @@ class Entry(ACLBase):
         self.attrs.add(attr)
         return attr
 
-    def get_referred_objects(self):
+    def get_referred_objects(self, max_count=None, keyword=None):
         """
         This returns objects that refer current Entry in the AttributeValue
         """
         ret = []
+        total_count = AttributeValue.objects.filter(referral=self).count()
+
         for attrvalue in AttributeValue.objects.filter(referral=self):
             if not attrvalue.get_status(AttributeValue.STATUS_LATEST):
                 continue
 
+            if max_count and len(ret) >= max_count:
+                break
+
             referred_obj = attrvalue.parent_attr.parent_entry
+            if keyword and keyword not in referred_obj.name:
+                # filtered by keyword parameter
+                continue
+
             if referred_obj not in ret and referred_obj != self:
                 ret.append(referred_obj)
 
-        return ret
+        return (ret, total_count)
 
     def complement_attrs(self, user):
         """

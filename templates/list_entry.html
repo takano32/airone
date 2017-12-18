@@ -28,8 +28,23 @@
     </div>
   </div>
 
+  <hr/>
   <div class="row">
     <div class="col">
+      {% if total_count != list_count %}
+        <h5 id='entry_count'> {{ list_count }} / {{ total_count }} エントリ</h5>
+      {% else %}
+        <h5 id='entry_count'>{{ total_count }} エントリ</h5>
+      {% endif %}
+      <input id='narrow_down_entries' text='text' placeholder='絞り込む' />
+      <p></p>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <form url="/entry/do_delete/{{ entry.id }}/" method="post">
+      {% csrf_token %}
       <table class="table table-bordered">
         <thead>
           <tr>
@@ -37,21 +52,64 @@
             <th></th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id='entry_container'>
           {% for entry in entries %}
           <tr>
             <td><a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a></td>
             <td>
-              <form url="/entry/do_delete/{{ entry.id }}/" method="post">
-                {% csrf_token %}
-                <button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="confirm_delete($(this).parent())">del</button>
-              </form>
+              <button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="confirm_delete($(this).parent())">del</button>
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
+      </form>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block script %}
+<script>
+var complete_processing = function(data) {
+  var container = $('#entry_container');
+
+  container.empty();
+  for (var entry of data['results']) {
+    var new_elem = $('<tr />');
+
+    new_elem.append($(`<td><a href="/entry/show/${entry['id']}">${entry['name']}</a></td>`));
+    new_elem.append($(`<td><button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="confirm_delete($(this).parent())">del</button></td>`));
+
+    container.append(new_elem);
+  }
+  $('#entry_count').text(`エントリ数：${ data['results'].length }/{{ total_count }}`);
+}
+
+$(document).ready(function() {
+  var sending_request = false;
+  $("#narrow_down_entries").on('keyup', function(e) {
+    if(! (e.keyCode != 13 || sending_request)) {
+      sending_request = true;
+
+      $.ajax({
+        type: 'GET',
+        url: "/entry/api/v1/get_entries/{{ entity.id }}/",
+        data: {
+          keyword: $(this).val(),
+        },
+      }).done(function(data){
+        complete_processing(data);
+
+        // reset sending flag
+        sending_request = false
+      }).fail(function(data){
+        MessageBox.error('failed to load data from server (Please reload this page or call Administrator)');
+      });
+
+      $('#entry_count').text('エントリ数：...データ取得中...');
+    }
+  });
+});
+</script>
 {% endblock %}

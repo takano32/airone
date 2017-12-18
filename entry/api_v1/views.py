@@ -25,14 +25,15 @@ def get_referrals(request, entry_id):
         'name': x.name,
         'entity': x.schema.name
     } for c, x in enumerate(entries) if c < CONFIG.MAX_LIST_REFERRALS]
-   
+
     # return referred entries as JSON
     return JsonResponse({
         'entries': entries_data,
-        'found_count': len(entries),
+        'found_count': len(entries_data),
         'total_count': total_count
     })
 
+@http_get
 def get_entries(request, entity_id):
     if not Entity.objects.filter(id=entity_id).count():
         return HttpResponse('Failed to get entity(%s)' % entity_id, status=400)

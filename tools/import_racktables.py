@@ -101,8 +101,10 @@ class Driver(object):
 
             all_entry = Entry.objects.filter(schema=entity)
 
-            data_attr_all = self._fetch_db('Attribute,AttributeMap,Dictionary', ['Dictionary.dict_value, Dictionary.dict_key'],
-                    'AttributeMap.attr_id = %d and AttributeMap.chapter_id = Dictionary.chapter_id' % data['id'], distinct=True)
+            data_attr_all = self._fetch_db('Attribute,AttributeMap,Dictionary',
+                                           ['Dictionary.dict_value, Dictionary.dict_key'],
+                                           'AttributeMap.attr_id = %d and AttributeMap.chapter_id = Dictionary.chapter_id' % data['id'],
+                                           distinct=True)
             data_attr_len = len(data_attr_all)
             for data_attr_index, data_attr in enumerate(data_attr_all):
                 sys.stdout.write('\r%s: %6d/%6d (%6d/%6d)' % (msg, data_attr_index+1, data_attr_len, data_index+1, data_len))
@@ -215,6 +217,152 @@ class Driver(object):
                     self.object_map[int(obj_data['id'])] = create_entry_for_object(entity, user, obj_data)
                 else:
                     self.object_map[int(obj_data['id'])] = Entry.objects.get(name=obj_data['name'], schema=entity)
+
+    def create_ports_and_links(self):
+        user = self.get_admin()
+
+        port_all = self._fetch_db('Port', ['id', 'object_id', 'name', 'type'])
+        link_all = self._fetch_db('Link', ['porta', 'portb', 'cable'])
+        if_all = self._fetch_db('PortOuterInterface', ['id', 'oif_name'])
+
+        if_map = {}
+
+        # Create Entities for Interfaces
+        msg = 'Create Interface type Entries'
+        sys.stdout.write('\n%s' % (msg))
+        if not Entity.objects.filter(name='(PortInterface)').count():
+            if_entity = Entity.objects.create(name='(PortInterface)', created_user=user)
+        else:
+            if_entity = self.get_entity('(PortInterface)')
+
+        if_len = len(if_all)
+        for if_index, if_data in enumerate(if_all):
+            sys.stdout.write('\r%s (%6d/%6d)' % (msg, if_index+1, if_len))
+            sys.stdout.flush()
+
+            if not Entry.objects.filter(name=if_data['oif_name'], schema=if_entity).count():
+                if_map[if_data['id']] = Entry.objects.create(name=if_data['oif_name'],
+                                                             created_user=user,
+                                                             schema=if_entity)
+            else:
+                if_map[if_data['id']] = Entry.objects.get(name=if_data['oif_name'], schema=if_entity)
+
+        # Create Entities for Port and Links
+        sys.stdout.write('\nCreate Entity for Port and Links')
+        if not Entity.objects.filter(name='(Port)').count():
+            port_entity = Entity.objects.create(name='(Port)', created_user=user)
+
+            attrinfos = [
+                {'name': 'I/F TYPE', 'type': AttrTypeValue['object'], 'referrals': [if_entity]},
+                {'name': '装着機器', 'type': AttrTypeValue['object'], 'referrals': []},
+                {'name': '対向ポート', 'type': AttrTypeValue['object'], 'referrals': [ port_entity ]},
+                {'name': 'Note', 'type': AttrTypeValue['string'], 'referrals': []},
+            ]
+            for attr_data in attrinfos:
+                entity_attr = EntityAttr.objects.create(name=attr_data['name'],
+                                                        type=attr_data['type'],
+                                                        created_user=user,
+                                                        parent_entity=port_entity)
+                for referral in attr_data['referrals']:
+                    entity_attr.referral.add(referral)
+
+                port_entity.attrs.add(entity_attr)
+        else:
+            port_entity = self.get_entity('(Port)')
+
+        obj_referrals = []
+        def create_port_entry(if_name, if_type, entry, data):
+            port_entry = self.get_entry(if_name, port_entity, user)
+            port_entry.complement_attrs(user)
+
+            # set attr if_type
+            for attr_name in ['I/F TYPE', '装着機器']:
+                attr = port_entry.attrs.get(name=attr_name)
+                params = {
+                    'created_user': user,
+                    'status': AttributeValue.STATUS_LATEST,
+                    'parent_attr': attr,
+                    'value': '',
+                }
+
+                if attr_name == 'I/F TYPE':
+                    params['referral'] = if_type
+                elif attr_name == '装着機器':
+                    params['referral'] = entry
+
+                    # update AttributeValue referral
+                    if entry.schema not in obj_referrals:
+                        obj_referrals.append(entry.schema)
+                        attr.schema.referral.add(entry.schema)
+
+                attr.values.add(AttributeValue.objects.create(**params))
+
+            return port_entry
+
+        # Create Entries
+        msg = 'Create Port Entries'
+        sys.stdout.write('\n%s' % msg)
+        port_len = len(port_all)
+        for port_index, port_data in enumerate(port_all):
+            sys.stdout.write('\r%s (%6d/%6d)' % (msg, port_index+1, port_len))
+            sys.stdout.flush()
+
+            if port_data['object_id'] not in self.object_map:
+                print('[Warning] (import_port_and_links) object(id:%s) is not in AirOne' % port_data['object_id'])
+                continue
+
+            obj_entry = self.object_map[port_data['object_id']]
+
+            # create Port entry and set to the object entry
+            if_name = "%s (%s)" % (obj_entry.name, port_data['name'])
+            if_type = if_map[port_data['type']]
+
+            if not Entry.objects.filter(name=if_name, schema=port_entity).count():
+                self.port_map[port_data['id']] = create_port_entry(if_name, if_type, obj_entry, port_data)
+            else:
+                # The case when Racktables has same port data
+                 self.port_map[port_data['id']] = Entry.objects.filter(name=if_name, schema=port_entity).last()
+
+        def set_link_information(port_entry, otherside_port, note=''):
+            attr = port_entry.attrs.get(name='対向ポート')
+
+            if not attr.get_latest_value():
+                attr.values.add(AttributeValue.objects.create(**{
+                    'created_user': user,
+                    'status': AttributeValue.STATUS_LATEST,
+                    'parent_attr': attr,
+                    'referral': otherside_port,
+                    'value': '',
+                }))
+
+        # Fill-out otherside information from Link data
+        msg = 'Set Link information to Port entries'
+        sys.stdout.write('\n%s' % msg)
+        link_len = len(link_all)
+        for link_index, link_data in enumerate(link_all):
+            sys.stdout.write('\r%s (%6d/%6d)' % (msg, link_index+1, link_len))
+            sys.stdout.flush()
+
+            if (link_data['porta'] not in self.port_map or
+                link_data['portb'] not in self.port_map):
+                print('[Warning] (import_port_and_links) Target Port entry is not in AirOne [%s]' % (link_data))
+                continue
+
+            porta = self.port_map[link_data['porta']]
+            portb = self.port_map[link_data['portb']]
+
+            set_link_information(porta, portb)
+            set_link_information(portb, porta)
+
+            # set Note information for PortA
+            note_attr = porta.attrs.get(name='Note')
+            if note_attr.get_latest_value() and link_data['cable']:
+                note_attr.values.add(AttributeValue.objects.create(**{
+                    'created_user': user,
+                    'status': AttributeValue.STATUS_LATEST,
+                    'parent_attr': note_attr,
+                    'value': link_data['cable'],
+                }))
 
     def create_ipaddr_entries(self):
         user = self.get_admin()
@@ -484,6 +632,9 @@ if __name__ == "__main__":
 
         driver.create_entry_for_objects()
         print('\nAfter create_entry_for_objects: %s' % str(datetime.now() - t0))
+
+        driver.create_ports_and_links()
+        print('\nAfter create_ports_and_links: %s' % str(datetime.now() - t0))
 
         driver.create_ipaddr_entries()
 

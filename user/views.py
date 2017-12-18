@@ -8,7 +8,6 @@ from airone.lib.http import HttpResponseSeeOther
 from airone.lib.http import http_get, http_post
 from airone.lib.http import render
 from airone.lib.http import check_superuser
-from airone.lib.http import _is_valid
 
 from .models import User
 
@@ -96,18 +95,48 @@ def do_edit(request, user_id, recv_data):
                 )
     user.save(update_fields=['username','email','is_superuser'])
 
-    # if new password was send, update password
-    if 'passwd' in recv_data:
-        # validate password format
-        validate =[{'name': 'passwd', 'type': str, 'checker': lambda x: x['passwd']}]
-        if not _is_valid(recv_data,validate):
-            return HttpResponse('Invalid parameters are specified', status=400)
-
-        # store encrypted password in the database
-        user.set_password(recv_data['passwd'])
-        user.save(update_fields=['password'])
-
     return render(request, 'edit_user.html')
+
+@http_get
+@check_superuser
+def edit_passwd(request, user_id):
+
+    user = User.objects.get(id=user_id)
+
+    context = {
+        'user_id': int(user_id),
+        'user_name': user.username,
+    }
+
+    return render(request, 'edit_passwd.html', context)
+
+@http_post([
+    {'name': 'old_passwd', 'type': str, 'checker': lambda x: x['old_passwd']},
+    {'name': 'new_passwd', 'type': str, 'checker': lambda x: x['new_passwd']},
+    {'name': 'chk_passwd', 'type': str, 'checker': lambda x: x['chk_passwd']},
+])
+@check_superuser
+def do_edit_passwd(request, user_id, recv_data):
+
+    user = User.objects.get(id=user_id)
+
+    # Whether recv_data matches the old password
+    if not user.check_password(recv_data['old_passwd']):
+        return HttpResponse('old password is wrong', status=400)
+
+    # Whether the old password and the new password duplicate
+    if user.check_password(recv_data['new_passwd']):
+        return HttpResponse('old and new password are duplicated', status=400)
+
+    # Whether the new password matches the check password
+    if recv_data['new_passwd'] != recv_data['chk_passwd']:
+        return HttpResponse('new and confirm password are not equal', status=400)
+
+    # store encrypted password in the database
+    user.set_password(recv_data['new_passwd'])
+    user.save(update_fields=['password'])
+
+    return render(request, 'edit_passwd.html')
 
 @http_post([
     {'name': 'name', 'type': str, 'checker': lambda x: (

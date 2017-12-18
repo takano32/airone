@@ -12,5 +12,5 @@ urlpatterns = [
     url(r'^export/(\d+)/$', views.export, name='export'),
     url(r'^do_delete/(\d+)/$', views.do_delete, name='do_delete'),
     url(r'^search_referral/(\d+)/$', views.do_delete, name='do_delete'),
-    url(r'^api/', include('entry.api.urls', namespace='entry.api')),
+    url(r'^api/v1/', include('entry.api_v1.urls', namespace='entry.api_v1', app_name='api_v1')),
 ]

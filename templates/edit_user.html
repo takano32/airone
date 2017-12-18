@@ -33,12 +33,6 @@
             <td><input type="text" name="email" value="{{ user_email }}" /><br/></td>
           </tr>
           <tr>
-            <th>パスワード※変更時はチェックを入れ、新しいものを設定※</th>
-            <td><input id="checkBtn" type="checkbox" /><label for="check"></label>
-                <input id="passwd" type="password" name="passwd" value="{{ user_password }}" /><br/>
-            </td>
-          </tr>
-          <tr>
             <th>管理者権限を付与</th>
             {% if user_is_superuser %}
             <td><input type="checkbox" name="is_superuser" value="{{ user_is_superuser }}" checked="checked" /><br/></td>
@@ -49,6 +43,7 @@
         </table>
         {% csrf_token %}
       </form>
+        <a href='/user/edit_passwd/{{ user_id }}'><button type='button' class='btn btn-info btn-sm'>パスワード編集</button></a>
     </div>
   </div>
 </div>
@@ -62,20 +57,5 @@ $('form').submit(function(){
   return false;
 });
 
-// 画面表示時にdisabledにセットする。
-$('#passwd').prop('disabled', true);
-
-$(function() {
-  $('#checkBtn').on('change', function(){
-    if ($(this).is(':checked')) {
-    // If checked, enable set new password
-    $('#passwd').prop('disabled', false);
-    document.edit.passwd.value="";
-    } else {
-    // If not checked, disable set new password
-    $('#passwd').prop('disabled', true);
-    }
-  });
-});
 </script>
 {% endblock %}

@@ -1,5 +1,3 @@
-import json
-
 from airone.lib.test import AironeViewTest
 from airone.lib.types import AttrTypeValue
 
@@ -23,29 +21,27 @@ class ViewTest(AironeViewTest):
         # send request without keyword
         resp = self.client.get(reverse('entry:api_v1:get_entries', args=[entity.id]))
         self.assertEqual(resp.status_code, 200)
-        data = json.loads(resp.content.decode('utf-8'))
+        self.assertEqual(resp['Content-Type'], 'application/json')
 
-        self.assertTrue('results' in data)
-        self.assertEqual(len(data['results']), CONFIG.MAX_LIST_ENTRIES)
+        self.assertTrue('results' in resp.json())
+        self.assertEqual(len(resp.json()['results']), CONFIG.MAX_LIST_ENTRIES)
 
         # send request with keyword parameter
         resp = self.client.get(reverse('entry:api_v1:get_entries', args=[entity.id]),
                                {'keyword': '10'})
         self.assertEqual(resp.status_code, 200)
-        data = json.loads(resp.content.decode('utf-8'))
 
-        self.assertTrue('results' in data)
-        self.assertEqual(len(data['results']), 2)
-        self.assertTrue(all([x['name'] == 'e-10' or x['name'] == 'e-100' for x in data['results']]))
+        self.assertTrue('results' in resp.json())
+        self.assertEqual(len(resp.json()['results']), 2)
+        self.assertTrue(all([x['name'] == 'e-10' or x['name'] == 'e-100' for x in resp.json()['results']]))
 
         # send request with invalid keyword parameter
         resp = self.client.get(reverse('entry:api_v1:get_entries', args=[entity.id]),
                                {'keyword': 'invalid-keyword'})
         self.assertEqual(resp.status_code, 200)
-        data = json.loads(resp.content.decode('utf-8'))
 
-        self.assertTrue('results' in data)
-        self.assertEqual(len(data['results']), 0)
+        self.assertTrue('results' in resp.json())
+        self.assertEqual(len(resp.json()['results']), 0)
 
     def test_get_referrals(self):
         admin = self.admin_login()
@@ -78,26 +74,24 @@ class ViewTest(AironeViewTest):
         # send request without keyword
         resp = self.client.get(reverse('entry:api_v1:get_referrals', args=[ref_entry.id]))
         self.assertEqual(resp.status_code, 200)
-        data = json.loads(resp.content.decode('utf-8'))
+        self.assertEqual(resp['Content-Type'], 'application/json')
 
-        self.assertEqual(data['total_count'], CONFIG.MAX_LIST_REFERRALS + 1)
-        self.assertEqual(data['found_count'], CONFIG.MAX_LIST_REFERRALS)
-        self.assertTrue(all(['id' in x and 'name' in x and 'entity' in x for x in data['entries']]))
+        self.assertEqual(resp.json()['total_count'], CONFIG.MAX_LIST_REFERRALS + 1)
+        self.assertEqual(resp.json()['found_count'], CONFIG.MAX_LIST_REFERRALS)
+        self.assertTrue(all(['id' in x and 'name' in x and 'entity' in x for x in resp.json()['entries']]))
 
         # send request with keyword parameter
         resp = self.client.get(reverse('entry:api_v1:get_referrals', args=[ref_entry.id]),
                                        {'keyword': 'e-10'})
         self.assertEqual(resp.status_code, 200)
-        data = json.loads(resp.content.decode('utf-8'))
 
-        self.assertEqual(data['total_count'], CONFIG.MAX_LIST_REFERRALS + 1)
-        self.assertEqual(data['found_count'], 1)
+        self.assertEqual(resp.json()['total_count'], CONFIG.MAX_LIST_REFERRALS + 1)
+        self.assertEqual(resp.json()['found_count'], 1)
 
         # send request with invalid keyword parameter
         resp = self.client.get(reverse('entry:api_v1:get_referrals', args=[ref_entry.id]),
                                        {'keyword': 'invalid_keyword'})
         self.assertEqual(resp.status_code, 200)
-        data = json.loads(resp.content.decode('utf-8'))
 
-        self.assertEqual(data['total_count'], CONFIG.MAX_LIST_REFERRALS + 1)
-        self.assertEqual(data['found_count'], 0)
+        self.assertEqual(resp.json()['total_count'], CONFIG.MAX_LIST_REFERRALS + 1)
+        self.assertEqual(resp.json()['found_count'], 0)

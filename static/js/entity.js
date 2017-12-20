@@ -1,8 +1,12 @@
 var toggle_referral = function() {
   if($(this).val() & ATTR_TYPE.object) {
-    $(this).parent().find('.attr_referral').show();
+    for(cls_name of ['attr_referral', 'list-group', 'narrow_down_referral']) {
+      $(this).parent().parent().parent().find(`.${cls_name}`).show();
+    }
   } else {
-    $(this).parent().find('.attr_referral').hide();
+    for(cls_name of ['attr_referral', 'list-group', 'narrow_down_referral']) {
+      $(this).parent().parent().parent().find(`.${cls_name}`).hide();
+    }
   }
 }
 
@@ -25,11 +29,6 @@ var del_attr = function() {
   // Re-sort row indexes
   update_row_index();
 }
-
-$('button[name=add_attr]').on('click', function() {
-  append_attr_column();
-  return false;
-});
 
 $('form').submit(function(){
   var post_data = {
@@ -64,7 +63,9 @@ var append_attr_column = function() {
 
   new_column.append($.parseHTML(table_column));
   new_column.find('.attr_type').on('change', toggle_referral);
+  new_column.find('.narrow_down_referral').on(narrow_down_handler);
   new_column.find('button[name=del_attr]').on('click', del_attr);
+  new_column.find(".attr_referral").on('change', update_selected_referral);
 
   $('[name=attributes]').append(new_column);
 
@@ -88,7 +89,61 @@ var bind_del_attr = function(column) {
   });
 };
 
-$('#sortdata').sortable();
+var update_option = function(select_elem) {
+  var input_str = $(select_elem).val();
+  $(select_elem).parent().parent().find('select option').each(function(i, elem) {
+    if($(elem).val() != 0) {
+      if(($(elem).text().toLowerCase().indexOf(input_str) >= 0) ||
+         ($(elem).text().toUpperCase().indexOf(input_str) >= 0)) {
+        $(elem).show();
+      } else {
+        $(elem).hide();
+      }
+    }
+  });
+}
+var enable_key_handling = true;
+var narrow_down_handler = {
+  "compositionstart": function() {
+    enable_key_handling = false;
+  },
+  "compositionend": function() {
+    enable_key_handling = true;
 
-$('#sortdata').on('sortstop', update_row_index);
-$("button[name=del_attr]").on('click', del_attr);
+    update_option(this);
+  },
+  "keyup": function(e) {
+    var inp = String.fromCharCode(e.keyCode);
+    var is_BS = (e.keyCode == 8);
+
+    if (!(!enable_key_handling || !(/[a-zA-Z0-9-_ ]/.test(inp) || is_BS))) {
+      update_option(this);
+    }
+  }
+}
+
+var update_selected_referral = function() {
+  var list_group = $(this).parent().find('ul');
+  list_group.empty();
+
+  $(this).find('option:selected').each(function(e) {
+    new_elem = $("<li class='list-group-item list-group-item-info' style='height: 30px; padding: 5px 15px;' />");
+    new_elem.text($(this).text());
+
+    list_group.append(new_elem);
+  });
+}
+
+$(document).ready(function() {
+  $('#sortdata').sortable();
+
+  $('#sortdata').on('sortstop', update_row_index);
+  $("button[name=del_attr]").on('click', del_attr);
+  $(".narrow_down_referral").on(narrow_down_handler);
+  $(".attr_referral").on('change', update_selected_referral);
+
+  $('button[name=add_attr]').on('click', function() {
+    append_attr_column();
+    return false;
+  });
+});

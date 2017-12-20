@@ -51,6 +51,12 @@
     {% else %}
       {% if attr.type == attr_type.entry %}
         <!-- specify maximum size of list -->
+        <ul class='list-group'>
+          <li class='list-group-item list-group-item-info' attr_id='{{ attr.id }}' style="height: 30px; padding: 5px 15px;">
+            {{ attr.last_referral.name }}
+          </li>
+        </ul>
+
         {% if attr.referrals|length > 5 %}
         <select class="attr_value" attr_id="{{ attr.id }}" size='5' style="width: 100%">
         {% else %}
@@ -65,12 +71,8 @@
           <option value="{{ referral.id }}"{% if referral.id == attr.last_referral.id %} selected="selected" {% endif %}>{{ referral.name }}</option>
           {% endfor %}
         </select>
+
         <input type="text" class="narrow_down_referral" placeholder="絞り込み"  style="width: 100%"/>
-        <ul class='list-group'>
-          <li class='list-group-item list-group-item-info' attr_id='{{ attr.id }}' style="height: 30px; padding: 5px 15px;">
-            {{ attr.last_referral.name }}
-          </li>
-        </ul>
 
       {% elif attr.type == attr_type.textarea %}
       <textarea class="attr_value" attr_id="{{ attr.id }}" cols="80" rows="10">{{ attr.last_value }}</textarea>

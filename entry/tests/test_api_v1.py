@@ -95,3 +95,53 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.json()['total_count'], CONFIG.MAX_LIST_REFERRALS + 1)
         self.assertEqual(resp.json()['found_count'], 0)
+
+    def test_get_attr_referrals(self):
+        admin = self.admin_login()
+
+        # create Entity&Entries
+        ref_entity = Entity.objects.create(name='Referred Entity', created_user=admin)
+
+        entity = Entity.objects.create(name='Entity', created_user=admin)
+        entity_attr = EntityAttr.objects.create(**{
+            'name': 'Refer',
+            'type': AttrTypeValue['object'],
+            'created_user': admin,
+            'parent_entity': entity,
+        })
+
+        entity_attr.referral.add(ref_entity)
+        entity.attrs.add(entity_attr)
+
+        for index in range(0, CONFIG.MAX_LIST_REFERRALS + 1):
+            Entry.objects.create(name='e-%s' % index, schema=ref_entity, created_user=admin)
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=admin)
+
+        # get Attribute object after complement them in the entry
+        entry.complement_attrs(admin)
+        attr = entry.attrs.get(name='Refer')
+
+        # try to get entries without keyword
+        resp = self.client.get(reverse('entry:api_v1:get_attr_referrals', args=[attr.id]))
+        self.assertEqual(resp.status_code, 400)
+
+        # specify invalid Attribute ID
+        resp = self.client.get(reverse('entry:api_v1:get_attr_referrals', args=[9999]))
+        self.assertEqual(resp.status_code, 400)
+
+        # speify valid Attribute ID and a enalbed keyword
+        resp = self.client.get(reverse('entry:api_v1:get_attr_referrals', args=[attr.id]),
+                               {'keyword': 'e-1'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Type'], 'application/json')
+        self.assertTrue('results' in resp.json())
+
+        # This means e-1 and 'e-10' to 'e-19' are returned
+        self.assertEqual(len(resp.json()['results']), 11)
+
+        # speify valid Attribute ID and a unabailabe keyword
+        resp = self.client.get(reverse('entry:api_v1:get_attr_referrals', args=[attr.id]),
+                               {'keyword': 'hoge'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.json()['results']), 0)

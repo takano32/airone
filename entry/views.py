@@ -175,6 +175,7 @@ def do_create(request, entity_id, recv_data):
 
     return HttpResponse('')
 
+@airone_profile
 @http_get
 @check_permission(Entry, ACLType.Writable)
 def edit(request, entry_id):
@@ -195,7 +196,7 @@ def edit(request, entry_id):
             {'href': '/entry/show/%s' % entry.id, 'text': '%s' % entry.name},
             {'text': '%s の編集' % entry.name},
         ],
-        'attributes': entry.get_available_attrs(user, ACLType.Writable),
+        'attributes': entry.get_available_attrs(user, ACLType.Writable, get_referral_entries=True),
         'form_url': '/entry/do_edit/%s' % entry.id,
     }
 
@@ -320,6 +321,7 @@ def do_edit(request, entry_id, recv_data):
 
     return HttpResponse('')
 
+@airone_profile
 @http_get
 @check_permission(Entry, ACLType.Readable)
 def show(request, entry_id):
@@ -360,9 +362,11 @@ def show(request, entry_id):
     # get referred entries and count of them
     (referred_objects, referred_total) = entry.get_referred_objects(CONFIG.MAX_LIST_REFERRALS)
 
+    attrs = entry.get_available_attrs(user)
+
     context = {
         'entry': entry,
-        'attributes': entry.get_available_attrs(user),
+        'attributes': attrs,
         'value_history': sorted(value_history, key=lambda x: x['created_time']),
         'referred_objects': referred_objects,
         'referred_total': referred_total,

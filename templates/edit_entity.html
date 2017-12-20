@@ -20,20 +20,4 @@
 
 {% block script %}
 <script src="/static/js/entity.js"></script>
-<script>
-var update_selected_referral = function() {
-  var list_group = $(this).parent().find('ul');
-  list_group.empty();
-
-  $(this).find('option:selected').each(function(e) {
-    new_elem = $("<li class='list-group-item list-group-item-info' style='height: 30px; padding: 5px 15px;' />");
-    new_elem.text($(this).text());
-
-    list_group.append(new_elem);
-  });
-}
-$(document).ready(function() {
-  $(".attr_referral").on('change', update_selected_referral);
-});
-</script>
 {% endblock %}

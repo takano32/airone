@@ -49,21 +49,35 @@
                 </div>
                 <div class='col-9'>
 
-        <ul class='list-group'>
-          {% for entity in entities %}
-            {% if entity|isin:attr.referral %}
-              <li class='list-group-item list-group-item-info' style="height: 30px; padding: 5px 15px;">
-                {{ entity.name }}
-              </li>
-            {% endif %}
-          {% endfor %}
-        </ul>
+                  <ul class='list-group'>
+                    {% for entity in entities %}
+                      {% if entity|isin:attr.referral %}
+                        <li class='list-group-item list-group-item-info' style="height: 30px; padding: 5px 15px;">
+                          {{ entity.name }}
+                        </li>
+                      {% endif %}
+                    {% endfor %}
+                  </ul>
 
-                  <select class="attr_referral" {% if not attr.type|bitwise_and:attr_type.entry %}style="display:none"{% endif %} size="3" multiple="True" style="width: 100%">
+                  <select class="attr_referral" size="3" multiple="True"
+                    {% if not attr.type|bitwise_and:attr_type.entry %}
+                      style="display:none; width:100%"
+                    {% else %}
+                      style="width:100%"
+                    {% endif %}>
+
                     {% for entity in entities %}
                       <option value="{{ entity.id }}" {% if entity|isin:attr.referral %}selected="selected"{% endif %}>{{ entity.name }}</option>
                     {% endfor %}
                   </select>
+
+                  <input type="text" class="narrow_down_referral" placeholder="絞り込み"
+                    {% if not attr.type|bitwise_and:attr_type.entry %}
+                      style="display:none; width:100%"
+                    {% else %}
+                      style="width:100%"
+                    {% endif %}
+                  />
 
                 </div>
               </div>
@@ -90,16 +104,32 @@
           <tr name="attr_template">
             <td><input type="text" class="attr_name"></input></td>
             <td>
+
+              <div class='row'>
+                <div class='col-3'>
+
               <select class="attr_type">
                 {% for type in attr_types %}
                 <option value="{{ type.TYPE }}">{{ type.NAME }}</option>
                 {% endfor %}
               </select>
-              <select class="attr_referral" style="display:none" size="3" multiple="True">
-                {% for entity in entities %}
-                <option value="{{ entity.id }}">{{ entity.name }}</option>
-                {% endfor %}
-              </select>
+
+                </div>
+                <div class='col-9'>
+
+                  <ul class='list-group' style="display:none">
+                  </ul>
+
+                  <select class="attr_referral" style="display:none; width: 100%" size="3" multiple="True">
+                    {% for entity in entities %}
+                    <option value="{{ entity.id }}">{{ entity.name }}</option>
+                    {% endfor %}
+                  </select>
+
+                  <input type="text" class="narrow_down_referral" placeholder="絞り込み"  style="width: 100%; display:none"/>
+
+                </div>
+              </div>
             </td>
             <td>
               <input type="checkbox" class="is_mandatory"></input>

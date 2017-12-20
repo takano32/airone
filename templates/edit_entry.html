@@ -112,9 +112,9 @@ var replace_options = function(input_elem, referrals) {
 
   select_elem.empty();
 
-  select_elem.append($('<option>').val(0).text('- NO SET -'));
+  select_elem.append($('<option />').val(0).text('- NO SET -'));
   for(var ref of referrals) {
-    select_elem.append($('<option>').val(ref.id).text(ref.name));
+    select_elem.append($('<option />').val(ref.id).text(ref.name));
   }
 }
 

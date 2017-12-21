@@ -259,7 +259,10 @@ class Entry(ACLBase):
 
                 newattr.values.add(attr_value)
 
-    def get_available_attrs(self, user, permission=ACLType.Readable):
+    def get_available_attrs(self, user, permission=ACLType.Readable, get_referral_entries=False):
+        # To avoid unnecessary DB access for caching referral entries
+        ref_entry_map = {}
+
         ret_attrs = []
         for attr in [x for x in self.attrs.filter(is_active=True) if user.has_permission(x, permission)]:
             attrinfo = {}
@@ -289,16 +292,24 @@ class Entry(ACLBase):
 
             # set Entries which are specified in the referral parameter
             attrinfo['referrals'] = []
-            for referral in attr.schema.referral.all():
-                if not user.has_permission(referral, permission):
-                    continue
 
-                # when an entry in referral attribute is deleted,
-                # user should be able to select new referral or keep it unchanged.
-                # so candidate entries of referral attribute are:
-                # - active(not deleted) entries (new referral)
-                # - last value even if the entry has been deleted (keep it unchanged)
-                attrinfo['referrals'] += Entry.objects.filter(schema=referral, is_active=True)
+            if get_referral_entries:
+                for referral in attr.schema.referral.all():
+                    if not user.has_permission(referral, permission):
+                        continue
+
+                    # when an entry in referral attribute is deleted,
+                    # user should be able to select new referral or keep it unchanged.
+                    # so candidate entries of referral attribute are:
+                    # - active(not deleted) entries (new referral)
+                    # - last value even if the entry has been deleted (keep it unchanged)
+                    if referral.id not in ref_entry_map:
+                        # cache referral Entries
+                        entries = ref_entry_map[referral.id] = Entry.objects.filter(schema=referral, is_active=True)
+                    else:
+                        entries = ref_entry_map[referral.id]
+
+                    attrinfo['referrals'] += entries
 
             ret_attrs.append(attrinfo)
 

@@ -94,19 +94,53 @@ var del_column = function() {
   return false;
 }
 
-  var update_option = function(select_elem) {
-    var input_str = $(select_elem).val();
-    $(select_elem).parent().parent().find('select option').each(function(i, elem) {
-      if($(elem).val() != 0) {
-        if(($(elem).text().toLowerCase().indexOf(input_str) >= 0) ||
-           ($(elem).text().toUpperCase().indexOf(input_str) >= 0)) {
-          $(elem).show();
-        } else {
-          $(elem).hide();
-        }
+var filter_options = function(input_elem) {
+  var input_str = $(input_elem).val();
+  $(input_elem).parent().parent().find('select option').each(function(i, elem) {
+    if($(elem).val() != 0) {
+      if($(elem).text().toLowerCase().indexOf(input_str.toLowerCase()) >= 0) {
+        $(elem).show();
+      } else {
+        $(elem).hide();
       }
-    });
+    }
+  });
+}
+var replace_options = function(input_elem, referrals) {
+  var select_elem = $(input_elem).parent().parent().find('select');
+
+  select_elem.empty();
+
+  select_elem.append($('<option />').val(0).text('- NO SET -'));
+  for(var ref of referrals) {
+    select_elem.append($('<option />').val(ref.id).text(ref.name));
   }
+}
+
+var sending_request = false;
+var update_option = function(input_elem) {
+  if($(input_elem).attr('use_api')) {
+    if(! sending_request) {
+      sending_request = true;
+      $.ajax({
+        type: 'GET',
+        url: `/entry/api/v1/get_attr_referrals/${ $(input_elem).attr('attr_id') }/`,
+        data: {
+          keyword: $(input_elem).val(),
+        },
+      }).done(function(data){
+        replace_options(input_elem, data['results']);
+
+        // reset sending flag
+        sending_request = false
+      }).fail(function(data){
+        MessageBox.error('failed to load data from server (Please reload this page or call Administrator)');
+      });
+    }
+  } else {
+    filter_options(input_elem);
+  }
+}
 
 var enable_key_handling = true;
 var narrow_down_handler = {

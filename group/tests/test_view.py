@@ -91,7 +91,7 @@ class ViewTest(AironeViewTest):
                                 json.dumps(params),
                                 'application/json')
 
-        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(resp.status_code, 200)
         self.assertEqual(self._get_group_count(), group_count+1,
                          "group should be created after post")
         self.assertEqual(Group.objects.last().name, 'test-group',

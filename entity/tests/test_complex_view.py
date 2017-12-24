@@ -42,7 +42,7 @@ class ComplexViewTest(AironeViewTest):
         resp = self.client.post(reverse('entity:do_create'),
                                 json.dumps(params),
                                 'application/json')
-        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(resp.status_code, 200)
 
         # get created objects
         entity = Entity.objects.get(name='entity')
@@ -94,7 +94,7 @@ class ComplexViewTest(AironeViewTest):
         resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
                                 json.dumps(params),
                                 'application/json')
-        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(resp.status_code, 200)
 
         # Checks that the Attributes associated to the added EntityAttrs are not created
         self.assertEqual(entity.attrs.count(), 3)
@@ -173,7 +173,7 @@ class ComplexViewTest(AironeViewTest):
         resp = self.client.post(reverse('entity:do_create'),
                                 json.dumps(params),
                                 'application/json')
-        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(resp.status_code, 200)
         self.assertEqual(EntityAttr.objects.count(), 1)
 
         # set acl of attr

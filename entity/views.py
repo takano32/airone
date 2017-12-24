@@ -3,6 +3,7 @@ import re
 import io
 
 from django.http import HttpResponse
+from django.http.response import JsonResponse
 from django.db.models import Q
 from django.core.exceptions import PermissionDenied
 
@@ -214,7 +215,11 @@ def do_edit(request, entity_id, recv_data):
             # register History to register adding EntityAttr
             history.add_attr(attr_obj)
 
-    return HttpResponseSeeOther('/entity/')
+    return JsonResponse({
+        'entity_id': entity.id,
+        'entity_name': entity.name,
+        'msg': 'Success to update Entity "%s"' % entity.name,
+    })
 
 @http_post([
     {'name': 'name', 'type': str, 'checker': lambda x: (
@@ -282,7 +287,11 @@ def do_create(request, recv_data):
         # register history to modify Entity
         history.add_attr(attr_base)
 
-    return HttpResponseSeeOther('/entity/')
+    return JsonResponse({
+        'entity_id': entity.id,
+        'entity_name': entity.name,
+        'msg': 'Success to create Entity "%s"' % entity.name,
+    })
 
 @http_get
 def export(request):

@@ -122,7 +122,16 @@
         'value': $(this).val() != "" ? $(this).val() : null,
       });
     });
-    HttpPost($("#form"), {'acl': acl});
+    HttpPost($("#form"), {'acl': acl}, {
+      'on_success': function(data) {
+        // set successful message to the updated page
+        MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, data.msg);
+
+        // set redirect URL
+        location.href = data.redirect_url;
+      }
+    });
+
     return false;
   });  
 </script>

@@ -51,7 +51,15 @@
 {% block script %}
 <script>
 $('form').submit(function(){
-  HttpPost($(this));
+  var username = $('input[name="name"]').val();
+
+  HttpPost($(this), undefined, {
+    'on_success': function(data) {
+      MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, `Success to create User "${username}"`);
+
+      location.href = '/user/';
+    }
+  });
 
   return false;
 });

@@ -3,6 +3,7 @@ import json
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
+from django.http.response import JsonResponse
 
 from group.models import Group
 
@@ -95,7 +96,9 @@ def do_edit(request, group_id, recv_data):
     for user in [User.objects.get(id=x) for x in set(recv_data['users']) - set(old_users)]:
         user.groups.add(group)
 
-    return HttpResponse('')
+    return JsonResponse({
+        'msg': 'Success to update Group "%s"' % group.name,
+    })
 
 @http_get
 @check_superuser
@@ -137,7 +140,9 @@ def do_create(request, recv_data):
     for user in [User.objects.get(id=x) for x in recv_data['users']]:
         user.groups.add(new_group)
 
-    return HttpResponseSeeOther('/group/')
+    return JsonResponse({
+        'msg': 'Success to create a new Group "%s"' % new_group.name,
+    })
 
 @http_post([
     {'name': 'name', 'type': str, 'checker': lambda x: (

@@ -79,7 +79,7 @@ class ViewTest(AironeViewTest):
                                 json.dumps(params),
                                 'application/json')
 
-        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(resp.status_code, 200)
 
         # tests for Entity object
         entity = Entity.objects.first()
@@ -223,7 +223,7 @@ class ViewTest(AironeViewTest):
         resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
                                 json.dumps(params),
                                 'application/json')
-        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(resp.status_code, 200)
         self.assertEqual(Entity.objects.get(id=entity.id).name, 'foo')
         self.assertEqual(Entity.objects.get(id=entity.id).note, 'bar')
         self.assertEqual(Entity.objects.get(id=entity.id).attrs.count(), 2)
@@ -264,7 +264,7 @@ class ViewTest(AironeViewTest):
                                 json.dumps(params),
                                 'application/json')
 
-        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(resp.status_code, 200)
         self.assertEqual(entity.attrs.count(), 2)
         self.assertEqual(entry.attrs.count(), 1)
 
@@ -295,7 +295,7 @@ class ViewTest(AironeViewTest):
                                 json.dumps(params),
                                 'application/json')
 
-        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(resp.status_code, 200)
         self.assertEqual(EntityAttr.objects.get(id=attr.id).type, AttrTypeObj)
         self.assertEqual(EntityAttr.objects.get(id=attr.id).referral.count(), 1)
         self.assertEqual(EntityAttr.objects.get(id=attr.id).referral.last().id, entity.id)
@@ -330,7 +330,7 @@ class ViewTest(AironeViewTest):
                                 json.dumps(params),
                                 'application/json')
 
-        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(resp.status_code, 200)
         self.assertEqual(EntityAttr.objects.get(id=attrbase.id).type, AttrTypeStr)
         self.assertEqual(EntityAttr.objects.get(id=attrbase.id).referral.count(), 0)
 
@@ -368,7 +368,7 @@ class ViewTest(AironeViewTest):
                                 json.dumps(params),
                                 'application/json')
 
-        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(resp.status_code, 200)
         self.assertEqual(EntityAttr.objects.get(id=attr.id).type, AttrTypeArrObj)
         self.assertEqual(EntityAttr.objects.get(id=attr.id).referral.count(), 1)
         self.assertEqual(EntityAttr.objects.get(id=attr.id).referral.last().id, entity.id)
@@ -409,7 +409,7 @@ class ViewTest(AironeViewTest):
                                 json.dumps(params),
                                 'application/json')
 
-        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(resp.status_code, 200)
         self.assertEqual(Entity.objects.last().name, 'hoge')
 
         attrs = EntityAttr.objects.all()
@@ -444,7 +444,7 @@ class ViewTest(AironeViewTest):
         resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
                                 json.dumps(params), 'application/json')
 
-        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(resp.status_code, 200)
 
         # Note: delete() method won't actual delete only set delete flag
         self.assertEqual(Permission.objects.count(), permission_count)
@@ -678,7 +678,7 @@ class ViewTest(AironeViewTest):
                                 json.dumps(params),
                                 'application/json')
 
-        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(resp.status_code, 200)
 
         entity = Entity.objects.get(name='entity')
 

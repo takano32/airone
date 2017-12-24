@@ -2,6 +2,7 @@ import json
 
 from django.template import loader
 from django.http import HttpResponse
+from django.http.response import JsonResponse
 from django.db import utils
 
 from airone.lib.http import HttpResponseSeeOther
@@ -49,7 +50,7 @@ def do_create(request, recv_data):
     user.set_password(recv_data['passwd'])
     user.save()
 
-    return render(request, 'create_user.html')
+    return JsonResponse({})
 
 @http_get
 @check_superuser
@@ -95,7 +96,7 @@ def do_edit(request, user_id, recv_data):
                 )
     user.save(update_fields=['username','email','is_superuser'])
 
-    return render(request, 'edit_user.html')
+    return JsonResponse({})
 
 @http_get
 @check_superuser

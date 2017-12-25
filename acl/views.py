@@ -2,6 +2,7 @@ import json
 import logging
 
 from django.http import HttpResponse
+from django.http.response import JsonResponse
 from django.contrib.auth.models import Permission
 
 from airone.lib.acl import ACLType, ACLObjType
@@ -118,7 +119,20 @@ def set(request, recv_data):
             # update flag of aclbase object
             Attribute.objects.filter(schema=acl_obj).update(is_public=acl_obj.is_public)
 
-    return HttpResponse("")
+    redirect_url = '/'
+    if isinstance(acl_obj, Entity):
+        redirect_url = '/entity/'
+    elif isinstance(acl_obj, EntityAttr):
+        redirect_url = '/entity/edit/%s' % acl_obj.parent_entity.id
+    elif isinstance(acl_obj, Entry):
+        redirect_url = '/entry/show/%s' % acl_obj.id
+    elif isinstance(acl_obj, Attribute):
+        redirect_url = '/entry/edit/%s' % acl_obj.parent_entry.id
+
+    return JsonResponse({
+        'redirect_url': redirect_url,
+        'msg': 'Success to update ACL of "%s"' % acl_obj.name,
+    })
 
 def _get_acl_model(object_id):
     if int(object_id) == ACLObjType.Entity:

@@ -109,9 +109,15 @@ $('form').submit(function(){
       });
     }
   });
-  console.log(rse_entries);
 
-  HttpPost($(this), {'attrs': attrs, 'rse_info': rse_entries});
+  HttpPost($(this), {'attrs': attrs, 'rse_info': rse_entries}, {
+    'on_success': function(data) {
+      // success to edit entry
+      MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, "Success to update Entry");
+
+      location.href = '/entry/show/{{ entry.id }}';
+    }
+  });
 
   return false;
 });

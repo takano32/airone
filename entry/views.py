@@ -3,6 +3,7 @@ import io
 import custom_view
 
 from django.http import HttpResponse
+from django.http.response import JsonResponse
 from django.db.models import Q
 
 from airone.lib.http import http_get, http_post, check_permission, render
@@ -63,6 +64,7 @@ def create(request, entity_id):
     entity = Entity.objects.get(id=entity_id)
     context = {
         'form_url': '/entry/do_create/%s/' % entity.id,
+        'redirect_url': '/entry/%s' % entity.id,
         'nav_headers': [
             {'href': '/', 'text': 'TOP'},
             {'href': '/entry/%s' % entity.id, 'text': '%s' % entity.name},
@@ -173,7 +175,10 @@ def do_create(request, entity_id, recv_data):
             # set AttributeValue to Attribute
             attr.values.add(attr_value)
 
-    return HttpResponse('')
+    return JsonResponse({
+        'entry_id': entry.id,
+        'entry_name': entry.name,
+    })
 
 @airone_profile
 @http_get
@@ -198,6 +203,7 @@ def edit(request, entry_id):
         ],
         'attributes': entry.get_available_attrs(user, ACLType.Writable, get_referral_entries=True),
         'form_url': '/entry/do_edit/%s' % entry.id,
+        'redirect_url': '/entry/show/%s' % entry.id,
     }
 
     if custom_view.is_custom_edit_entry(entry.schema.name):
@@ -206,6 +212,7 @@ def edit(request, entry_id):
     else:
         return render(request, 'edit_entry.html', context)
 
+@airone_profile
 @http_post([
     {'name': 'entry_name', 'type': str, 'checker': lambda x: (
         x['entry_name']
@@ -319,7 +326,10 @@ def do_edit(request, entry_id, recv_data):
             # append new AttributeValue
             attr.values.add(attr_value)
 
-    return HttpResponse('')
+    return JsonResponse({
+        'entry_id': entry.id,
+        'entry_name': entry.name,
+    })
 
 @airone_profile
 @http_get

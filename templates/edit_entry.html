@@ -53,7 +53,9 @@
 
 {% block script %}
 <script>
-$('form').submit(function(){
+$('form').submit(function(event){
+  event.preventDefault();
+
   var attrs = []
 
   {% for attr in attributes %}
@@ -71,7 +73,19 @@ $('form').submit(function(){
   });
   {% endfor %}
 
-  HttpPost($(this), {'attrs': attrs});
+  HttpPost($(this), {'attrs': attrs}, {
+    'on_success': function(data) {
+      {% if entry %}
+        // success to edit entry
+        MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, "Success to update Entry");
+      {% else %}
+        // scucess to create entry
+        MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, "Success to create a new Entry");
+      {% endif %}
+
+      location.href = '{{ redirect_url }}';
+    }
+  });
 
   return false;
 });

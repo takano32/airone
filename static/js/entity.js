@@ -51,7 +51,15 @@ $('form').submit(function(){
     'is_toplevel': $('input[name=is_toplevel]').is(':checked')
   };
 
-  HttpPost($(this), post_data);
+  HttpPost($(this), post_data, {
+    'on_success': function(data) {
+      // set successful message to the updated page
+      MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, data.msg);
+
+      // redirect to the entity list page
+      location.href = '/entity/';
+    }
+  });
 
   return false;
 });

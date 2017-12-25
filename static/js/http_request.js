@@ -12,7 +12,7 @@ $.ajaxSetup({
 });
 
 // This sends HTTP POST request and reloads page
-HttpPost = function(form_elem, add_data) {
+HttpPost = function(form_elem, add_data, handler={}) {
   // parse form data to JSON object
   var sending_data = parseJson(form_elem.serializeArray());  
 
@@ -31,15 +31,18 @@ HttpPost = function(form_elem, add_data) {
       'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val(),
     },
     data:          JSON.stringify(sending_data)
-  }).always(function(jqXHR) {
-    if(jqXHR.status <= 399) {
-      // status code: 2xx, 3xx means success
-      MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, "succeeded");
+  }).done(function(data) {
+    if('on_success' in handler) {
+      handler['on_success'](data);
     } else {
-      // status code: 4xx, 5xx means error
-      MessageBox.setNextOnLoadMessage(MessageBox.ERROR, escapeHtml(jqXHR.responseText));      
+      MessageBox.success("succeeded");
     }
-    location.reload();
+  }).fail(function(data) {
+    if('on_failure' in handler) {
+      handler['on_failure'](data);
+    } else {
+      MessageBox.error(escapeHtml(data.responseText));
+    }
   });
 }
 

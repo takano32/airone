@@ -28,12 +28,12 @@ MessageBox.success = function(text) {
 
 MessageBox.registerReadyFunction = function() {
   $(".airone-messagebox").ready(function() {
-    if($.cookie("airone-message-code")) {
-      code = $.cookie("airone-message-code");
-      text = $.cookie("airone-message-text");
-      
-      $.removeCookie("airone-message-code");
-      $.removeCookie("airone-message-text");
+    if(window.sessionStorage.getItem(['airone-message-code'])) {
+      code = window.sessionStorage.getItem(['airone-message-code']);
+      text = window.sessionStorage.getItem(['airone-message-text']);
+
+      window.sessionStorage.removeItem(['airone-message-code']);
+      window.sessionStorage.removeItem(['airone-message-text']);
 
       switch(Number(code)) {
       case MessageBox.ERROR:
@@ -55,8 +55,8 @@ MessageBox.registerReadyFunction = function() {
 MessageBox.registerReadyFunction();
 
 MessageBox.setNextOnLoadMessage = function(code, text){
-  $.cookie("airone-message-code", code.toString());
-  $.cookie("airone-message-text", text);
+  window.sessionStorage.setItem(['airone-message-code'], [code.toString()]);
+  window.sessionStorage.setItem(['airone-message-text'], [text]);
 };
 
 MessageBox._showMessage = function(text, style) {
@@ -67,4 +67,3 @@ MessageBox._showMessage = function(text, style) {
   $(".airone-messagebox").append(content);
   $(".alert").alert();
 };
-

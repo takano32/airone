@@ -108,6 +108,7 @@ class ViewTest(AironeViewTest):
         resp = self.send_set_request(attrbase, user)
 
         self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['redirect_url'], '/entity/edit/%s' % entity.id)
         self.assertEqual(user.permissions.last(), attrbase.writable)
         self.assertFalse(EntityAttr.objects.get(id=attrbase.id).is_public)
 
@@ -118,6 +119,7 @@ class ViewTest(AironeViewTest):
         resp = self.send_set_request(entity, user)
 
         self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['redirect_url'], '/entity/')
         self.assertEqual(user.permissions.last(), entity.writable)
         self.assertFalse(Entity.objects.get(id=entity.id).is_public)
 
@@ -138,6 +140,7 @@ class ViewTest(AironeViewTest):
         resp = self.send_set_request(attr, user)
 
         self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['redirect_url'], '/entry/edit/%s' % entry.id)
         self.assertEqual(user.permissions.last(), attr.writable)
         self.assertFalse(Attribute.objects.get(id=attr.id).is_public)
 
@@ -149,6 +152,7 @@ class ViewTest(AironeViewTest):
         resp = self.send_set_request(entry, user)
 
         self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['redirect_url'], '/entry/show/%s' % entry.id)
         self.assertEqual(user.permissions.last(), entry.writable)
         self.assertFalse(Entry.objects.get(id=entry.id).is_public)
 

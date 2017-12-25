@@ -52,7 +52,13 @@
 {% block script %}
 <script>
 $('form').submit(function(){
-  HttpPost($(this));
+  HttpPost($(this), undefined, {
+    'on_success': function(data) {
+      MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, `Success to create User "${username}"`);
+
+      location.href = '/user/';
+    }
+  });
 
   return false;
 });

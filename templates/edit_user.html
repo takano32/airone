@@ -52,6 +52,8 @@
 {% block script %}
 <script>
 $('form').submit(function(){
+  var username = $('input[name="name"]').val();
+
   HttpPost($(this), undefined, {
     'on_success': function(data) {
       MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, `Success to create User "${username}"`);

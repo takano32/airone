@@ -171,6 +171,9 @@ class Attribute(ACLBase):
         } for attrv in self.values.all()]
 
 class Entry(ACLBase):
+    # This flag is set just after created or edited, then cleared at completion of the processing
+    STATUS_PROCESSING = 1 << 0
+
     attrs = models.ManyToManyField(Attribute)
     schema = models.ForeignKey(Entity)
 

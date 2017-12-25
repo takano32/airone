@@ -12,6 +12,7 @@
 {% endblock %}
 
 {% block content %}
+{% load bitwise_tags %}
 <div class="container-fluid">
   <div class="row">
     <div class="col">
@@ -55,10 +56,13 @@
         <tbody id='entry_container'>
           {% for entry in entries %}
           <tr>
-            <td><a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a></td>
-            <td>
-              <button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="confirm_delete($(this).parent())">del</button>
-            </td>
+            {% if entry.status|bitwise_and:STATUS_ENTRY.PROCESSING %}
+              <td>{{ entry.name }} (処理中...)</td>
+              <td></td>
+            {% else %}
+              <td><a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a></td>
+              <td><button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="confirm_delete($(this).parent())">del</button></td>
+            {% endif %}
           </tr>
           {% endfor %}
         </tbody>
@@ -78,8 +82,15 @@ var complete_processing = function(data) {
   for (var entry of data['results']) {
     var new_elem = $('<tr />');
 
-    new_elem.append($(`<td><a href="/entry/show/${entry['id']}">${entry['name']}</a></td>`));
-    new_elem.append($(`<td><button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="confirm_delete($(this).parent())">del</button></td>`));
+    if(entry['status'] & {{ STATUS_ENTRY.PROCESSING }}) {
+      new_elem.append($(`<td>${entry['name']} (処理中...)</td>`));
+
+      // do not display the 'delete' button
+      new_elem.append($(`<td></td>`));
+    } else {
+      new_elem.append($(`<td><a href="/entry/show/${entry['id']}">${entry['name']}</a></td>`));
+      new_elem.append($(`<td><button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="confirm_delete($(this).parent())">del</button></td>`));
+    }
 
     container.append(new_elem);
   }

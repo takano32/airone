@@ -9,6 +9,10 @@ from django.urls import reverse
 
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
+from entry import tasks
+
+from unittest.mock import patch
+from unittest.mock import Mock
 
 
 class ComplexViewTest(AironeViewTest):
@@ -16,6 +20,8 @@ class ComplexViewTest(AironeViewTest):
     This has complex tests that combine multiple requests across the inter-applicational
     """
 
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
     def test_add_attr_after_creating_entry(self):
         """
         This test executes followings
@@ -146,6 +152,7 @@ class ComplexViewTest(AironeViewTest):
         self.assertEqual(value_arr_obj.data_array.count(), 1)
 
 
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_inherite_attribute_acl(self):
         """
         This test executes followings

@@ -33,20 +33,32 @@
             <td>作成日時</td>
             <td></td>
             <td></td>
+            <td></td>
           </tr>
         </thead>
         <tbody>
-          {% for user in users %}
+          {% for list_user in users %}
           <tr>
-            <td>{{ user.username }}</td>
-            <td>{{ user.email }}</td>
-            <td>{{ user.date_joined }}</td>
+            <td>{{ list_user.username }}</td>
+            <td>{{ list_user.email }}</td>
+            <td>{{ list_user.date_joined }}</td>
             <td>
-              <a href='/user/edit/{{ user.id }}'><button type='button' class='btn btn-info btn-sm'>編集</button></a>
+              {% if user.is_superuser %}
+                <a href='/user/edit/{{ list_user.id }}'><button type='button' class='btn btn-info btn-sm'>編集</button></a>
+              {% else %}
+                <button type="button" class="btn btn-secondary btn-sm">編集</button>
+              {% endif %}
+            </td>
+            <td>
+              {% if user.is_superuser or user.id == list_user.id %}
+              <a href='/user/edit_passwd/{{ list_user.id }}'><button type='button' class='btn btn-info btn-sm'>パスワード編集</button></a>
+              {% else %}
+                <button type="button" class="btn btn-secondary btn-sm">パスワード編集</button>
+              {% endif %}
             </td>
             <td>
               <form url="/user/do_delete" method="post">
-                <input type="hidden" name="name" value="{{ user.username }}" />
+                <input type="hidden" name="name" value="{{ list_user.username }}" />
                 {% csrf_token %}
                 <button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="confirm_delete($(this).parent())">del</button>
               </form>

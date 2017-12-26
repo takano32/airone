@@ -99,14 +99,22 @@ def do_edit(request, user_id, recv_data):
     return JsonResponse({})
 
 @http_get
-@check_superuser
 def edit_passwd(request, user_id):
+
+    user_grade = ''
+    if (request.user.is_superuser):
+        user_grade = 'super'
+    elif int(request.user.id) == int(user_id):
+        user_grade = 'self'
+    else:
+        return HttpResponse('You don\'t have permission to access this object', status=400)
 
     user = User.objects.get(id=user_id)
 
     context = {
         'user_id': int(user_id),
         'user_name': user.username,
+        'user_grade': user_grade,
     }
 
     return render(request, 'edit_passwd.html', context)
@@ -116,10 +124,12 @@ def edit_passwd(request, user_id):
     {'name': 'new_passwd', 'type': str, 'checker': lambda x: x['new_passwd']},
     {'name': 'chk_passwd', 'type': str, 'checker': lambda x: x['chk_passwd']},
 ])
-@check_superuser
 def do_edit_passwd(request, user_id, recv_data):
 
     user = User.objects.get(id=user_id)
+    # Identification
+    if(int(request.user.id) != int(user_id)):
+        return HttpResponse('You don\'t have permission to access this object', status=400)
 
     # Whether recv_data matches the old password
     if not user.check_password(recv_data['old_passwd']):
@@ -137,7 +147,26 @@ def do_edit_passwd(request, user_id, recv_data):
     user.set_password(recv_data['new_passwd'])
     user.save(update_fields=['password'])
 
-    return render(request, 'edit_passwd.html')
+    return JsonResponse({})
+
+@http_post([
+    {'name': 'new_passwd', 'type': str, 'checker': lambda x: x['new_passwd']},
+    {'name': 'chk_passwd', 'type': str, 'checker': lambda x: x['chk_passwd']},
+])
+@check_superuser
+def do_su_edit_passwd(request, user_id, recv_data):
+
+    user = User.objects.get(id=user_id)
+
+    # Whether the new password matches the check password
+    if recv_data['new_passwd'] != recv_data['chk_passwd']:
+        return HttpResponse('new and confirm password are not equal', status=400)
+
+    # store encrypted password in the database
+    user.set_password(recv_data['new_passwd'])
+    user.save(update_fields=['password'])
+
+    return JsonResponse({})
 
 @http_post([
     {'name': 'name', 'type': str, 'checker': lambda x: (

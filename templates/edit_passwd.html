@@ -7,7 +7,6 @@
   <ul class="breadcrumb airone-breadcrumb">
     <li class="breadcrumb-item"><a href="/">TOP</a></li>
     <li class="breadcrumb-item"><a href="/user">ユーザ管理</a></li>
-    <li class="breadcrumb-item"><a href="/user/edit/{{ user_id }}">ユーザ編集</a></li>
     <li class="breadcrumb-item">パスワード編集</li>
   </ul>
 </div>
@@ -19,31 +18,33 @@
     <div class="col">
       <h2>パスワード編集</h2>
     </div>
-  </div>
-  <div class="row">
-    <div class="col">
-      <form name='edit' url="/user/do_edit_passwd/{{ user_id }}" method='post'>
-        <p><input type="submit" class="btn btn-primary align-right" value='保存'/></p>
-        <table class="table table-bordered" style="table-layout:fixed;">
-          <tr>
-            <th style="width:200px;">名前</th>
-            <td>{{ user_name }}<br/></td>
-          </tr>
-          <tr>
-            <th>パスワード</th>
-            <td>
-                <dt><label for="old_password">Old password</label></dt>
-                <input class="required" type="password" name="old_passwd" /><br/><br/>
-                <dt><label for="new_password">New password</label></dt>
-                <input id="new_passwd" class="required" type="password" name="new_passwd" /><br/><br/>
-                <dt><label for="chk_password">Confirm new password</label></dt>
-                <input id="chk_passwd" class="required" type="password" name="chk_passwd" /><br/><br/>
-            </td>
-          </tr>
-        </table>
-        {% csrf_token %}
-      </form>
-    </div>
+    {% if user_grade == 'self' %}
+    <form name='edit' url="/user/do_edit_passwd/{{ user_id }}" method='post'>
+    {% else %}
+    <form name='edit' url="/user/do_su_edit_passwd/{{ user_id }}" method='post'>
+    {% endif %}
+    <p><input type="submit" class="btn btn-primary align-right" value='保存'/></p>
+    <table class="table table-bordered" style="table-layout:fixed;">
+      <tr>
+        <th style="width:200px;">名前</th>
+        <td>{{ user_name }}<br/></td>
+      </tr>
+        <tr>
+          <th>パスワード</th>
+          <td>
+            {% if user_grade == 'self' %}
+            <dt><label for="old_password">Old password</label></dt>
+            <input class="required" type="password" name="old_passwd" /><br/><br/>
+            {% endif %}
+            <dt><label for="new_password">New password</label></dt>
+            <input id="new_passwd" class="required" type="password" name="new_passwd" /><br/><br/>
+            <dt><label for="chk_password">Confirm new password</label></dt>
+            <input id="chk_passwd" class="required" type="password" name="chk_passwd" /><br/><br/>
+          </td>
+        </tr>
+      </table>
+      {% csrf_token %}
+    </form>
   </div>
 </div>
 {% endblock %}
@@ -51,8 +52,16 @@
 {% block script %}
 <script>
 $('form').submit(function(){
-  HttpPost($(this));
+  HttpPost($(this), undefined, {
+    'on_success': function(data) {
+      // set successful message to the updated page
+      MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS,
+      `Success to update {{ user_name }}\'s password`);
 
+      // set redirect URL
+      location.href = '/user/';
+    }
+  });
   return false;
 });
 
@@ -63,6 +72,7 @@ $('input.required').on('blur', function() {
     }
     if(error) {
         if(!$(this).next('span.error').length) {
+            $(this).next('span').remove();
             $(this).after('<span class="error">Empty</span>');
         }
     } else {
@@ -71,10 +81,9 @@ $('input.required').on('blur', function() {
 });
 
 $("#chk_passwd").on('blur',function() {
-  $(this).next('span').remove();
-
   // except empty
   if($(this).val() !== '') {
+    $(this).next('span').remove();
     // get new_passwd
     var new_val = $('#new_passwd').val();
     // get chk_passwd

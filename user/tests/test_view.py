@@ -236,7 +236,17 @@ class ViewTest(TestCase):
         resp = self.client.get(reverse('user:edit_passwd', args=[0]))
         self.assertEqual(resp.status_code, 303)
 
-    def test_edit_passwd_get_with_login(self):
+    def test_edit_passwd_get_with_guest_login(self):
+        self._guest_login()
+
+        user = User.objects.get(username='guest')
+        resp = self.client.get(reverse('user:edit_passwd', args=[user.id]))
+        self.assertEqual(resp.status_code, 200)
+
+        root = ElementTree.fromstring(resp.content.decode('utf-8'))
+        self.assertIsNotNone(root.find('.//form'))
+
+    def test_edit_passwd_get_with_admin_login(self):
         self._admin_login()
 
         user = User.objects.get(username='guest')
@@ -258,8 +268,8 @@ class ViewTest(TestCase):
                                 json.dumps(params), 'application/json')
         self.assertEqual(resp.status_code, 401)
 
-    def test_edit_passwd_post_with_login(self):
-        self._admin_login()
+    def test_edit_passwd_post_with_guest_login(self):
+        self._guest_login()
         count = User.objects.count()
 
         params = {
@@ -275,8 +285,24 @@ class ViewTest(TestCase):
         self.assertEqual(User.objects.count(), count) # user should be updated
         self.assertTrue(user.check_password(params['new_passwd']))
 
-    def test_edit_passwd_with_empty_pass(self):
+    def test_edit_passwd_post_with_admin_login(self):
         self._admin_login()
+        count = User.objects.count()
+
+        params = {
+            'id':int(1), # guest user id
+            'new_passwd':'hoge',
+            'chk_passwd':'hoge',
+        }
+        resp = self.client.post(reverse('user:do_su_edit_passwd',args=[params['id']]),
+                                json.dumps(params),'application/json')
+        user = User.objects.get(id=params['id'])
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(User.objects.count(), count) # user should be updated
+        self.assertTrue(user.check_password(params['new_passwd']))
+
+    def test_edit_passwd_with_guest_login_and_empty_pass(self):
+        self._guest_login()
 
         params = {
             'id':int(1),# guest user id
@@ -290,8 +316,22 @@ class ViewTest(TestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertTrue(user.check_password('guest')) # Not updated
 
-    def test_edit_passwd_with_wrong_old_pass(self):
+    def test_edit_passwd_with_admin_login_and_empty_pass(self):
         self._admin_login()
+
+        params = {
+            'id':int(1),# guest user id
+            'new_passwd':'',
+            'chk_passwd':'hoge',
+        }
+        resp = self.client.post(reverse('user:do_su_edit_passwd',args=[params['id']]),
+                                json.dumps(params),'application/json')
+        user = User.objects.get(id=params['id'])
+        self.assertEqual(resp.status_code, 400)
+        self.assertTrue(user.check_password('guest')) # Not updated
+
+    def test_edit_passwd_with_wrong_old_pass(self):
+        self._guest_login()
 
         params = {
             'id':int(1),# guest user id
@@ -305,8 +345,8 @@ class ViewTest(TestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertTrue(user.check_password('guest')) # Not updated
 
-    def test_edit_passwd_with_new_and_old_pass_duplicated(self):
-        self._admin_login()
+    def test_edit_passwd_with_guest_login_and_old_new_pass_duplicated(self):
+        self._guest_login()
 
         params = {
             'id':int(1),# guest user id
@@ -319,8 +359,8 @@ class ViewTest(TestCase):
         user = User.objects.get(id=params['id'])
         self.assertEqual(resp.status_code, 400)
 
-    def test_edit_passwd_with_new_and_chk_pass_not_equal(self):
-        self._admin_login()
+    def test_edit_passwd_with_guest_login_and_new_chk_pass_not_equal(self):
+        self._guest_login()
 
         params = {
             'id':int(1),# guest user id
@@ -329,6 +369,20 @@ class ViewTest(TestCase):
             'chk_passwd':'fuga',
         }
         resp = self.client.post(reverse('user:do_edit_passwd',args=[params['id']]),
+                                json.dumps(params),'application/json')
+        user = User.objects.get(id=params['id'])
+        self.assertEqual(resp.status_code, 400)
+        self.assertTrue(user.check_password('guest')) # Not updated
+
+    def test_edit_passwd_with_admin_login_and_new_chk_pass_not_equal(self):
+        self._admin_login()
+
+        params = {
+            'id':int(1),# guest user id
+            'new_passwd':'hoge',
+            'chk_passwd':'fuga',
+        }
+        resp = self.client.post(reverse('user:do_su_edit_passwd',args=[params['id']]),
                                 json.dumps(params),'application/json')
         user = User.objects.get(id=params['id'])
         self.assertEqual(resp.status_code, 400)

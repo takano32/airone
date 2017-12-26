@@ -43,7 +43,6 @@
         </table>
         {% csrf_token %}
       </form>
-        <a href='/user/edit_passwd/{{ user_id }}'><button type='button' class='btn btn-info btn-sm'>パスワード編集</button></a>
     </div>
   </div>
 </div>
@@ -56,7 +55,7 @@ $('form').submit(function(){
 
   HttpPost($(this), undefined, {
     'on_success': function(data) {
-      MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, `Success to create User "${username}"`);
+      MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, `Success to update User "${username}"`);
 
       location.href = '/user/';
     }

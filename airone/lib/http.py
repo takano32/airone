@@ -6,6 +6,7 @@ from django.shortcuts import render as django_render
 from django.utils.encoding import smart_str
 
 from entity import models as entity_models
+from entry import models as entry_models
 from acl.models import ACLBase
 from user.models import User, History
 
@@ -138,6 +139,10 @@ def render(request, template, context={}):
     # set Construct for Entity status
     context['STATUS_ENTITY'] = {}
     context['STATUS_ENTITY']['TOP_LEVEL'] = entity_models.Entity.STATUS_TOP_LEVEL
+
+    # set Construct for Entry status
+    context['STATUS_ENTRY'] = {}
+    context['STATUS_ENTRY']['PROCESSING'] = entry_models.Entry.STATUS_PROCESSING
 
     return django_render(request, template, context)
 

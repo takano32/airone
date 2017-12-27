@@ -4,6 +4,8 @@ machine:
   timezone: Asia/Tokyo
   python:
     version: 3.5.0
+  services:
+    - rabbitmq-server
 
 ## dependencies
 dependencies:

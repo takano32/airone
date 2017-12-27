@@ -56,8 +56,15 @@
 $('form').submit(function(event){
   event.preventDefault();
 
-  var attrs = []
+  // clear old warning
+  MessageBox.clear();
 
+  if(! form_validator()) {
+    MessageBox.error('Some parameters are required to input');
+    return false;
+  }
+
+  var attrs = []
   {% for attr in attributes %}
   attrs.push({
     'id': '{{ attr.id }}',
@@ -84,11 +91,77 @@ $('form').submit(function(event){
       {% endif %}
 
       location.href = '{{ redirect_url }}';
+    },
+    'on_failure': function(data) {
+      MessageBox.error(data.responseText);
+
+      if(data.responseText == 'Duplicate name entry is existed') {
+        $('input[name="entry_name"]').parent().addClass('table-danger');
+      }
     }
   });
 
   return false;
 });
+
+// This validates form inputs and notify the parameter that has problems if it exists.
+var form_validator = function() {
+  var result = true;
+
+  // check input of entry name
+  elem_name = $('input[name="entry_name"]');
+  if(! elem_name.val()) {
+    elem_name.parent().addClass('table-danger');
+    result = false;
+  }
+
+  // check mandatory attrs of text-input
+  $('input[type="text"][class="attr_value"][mandatory]').each(function() {
+    if(! $(this).val()) {
+      $(this).parent().addClass('table-danger');
+      result = false;
+    }
+  });
+
+  // check mandatory attrs of select
+  $('select[class="attr_value"][mandatory]').each(function() {
+    if(! $(this).val()) {
+      $(this).parent().addClass('table-danger');
+      result = false;
+    }
+  });
+
+  // check mandatory attrs of textarea
+  $('textarea[class="attr_value"][mandatory]').each(function() {
+    if(! $(this).val()) {
+      $(this).parent().addClass('table-danger');
+      result = false;
+    }
+  });
+
+  // check mandatory attrs of array
+  $('.array_element').each(function() {
+    if(! $(this).children().length) {
+      $(this).parent().parent().addClass('table-danger');
+      result = false;
+    }
+
+    var all_empty = true;
+    $(this).find('input[class="attr_value"],select[class="attr_value"]').each(function(i) {
+      if($(this).val()) {
+        all_empty = false;
+      }
+    });
+    if(all_empty) {
+      $(this).parent().parent().addClass('table-danger');
+      result = false;
+    } else {
+      $(this).parent().parent().removeClass('table-danger');
+    }
+  });
+
+  return result;
+}
 
 var append_column = function(container, template, value_setter) {
   var new_column = $('<div class="row" />');
@@ -180,12 +253,18 @@ var update_selected_item = function() {
   var attr_id = $(this).attr('attr_id');
   var text = $(this).find('option:selected').text();
 
+  // clear danger notification if it's set
+  $(this).parent().removeClass('table-danger');
+
   $(this).parent().find('li[attr_id="'+ attr_id +'"]').text(text);
 }
 
 $('button[name=add_attr]').on('click', function() {
   var container = $(this).parent().find('.array_element');
   var new_column = $('<div class="row" />');
+
+  // clear danger notification if it's set
+  $(this).parent().parent().removeClass('table-danger');
 
   new_column.append($.parseHTML($(this).parent().find('.attr_value_template').html()));
   new_column.find('button[name=del_attr]').on('click', del_column);
@@ -227,7 +306,17 @@ $('button[name=add_attr]').on('click', function() {
 $(document).ready(function() {
   $('button[name=del_attr]').on('click', del_column);
   $(".narrow_down_referral").on(narrow_down_handler);
-  $(".attr_value").on('change', update_selected_item);
+  $(".attr_value").on({
+    'change': update_selected_item,
+    'keydown': function() {
+      // clear danger notification if it's set
+      $(this).parent().removeClass('table-danger');
+    },
+  });
+  $('input[name="entry_name"]').on('keydown', function() {
+    // clear danger notification if it's set
+    $(this).parent().removeClass('table-danger');
+  });
 });
 </script>
 {% endblock %}

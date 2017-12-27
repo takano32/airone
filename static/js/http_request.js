@@ -38,6 +38,8 @@ HttpPost = function(form_elem, add_data, handler={}) {
       MessageBox.success("succeeded");
     }
   }).fail(function(data) {
+    MessageBox.clear();
+
     if('on_failure' in handler) {
       handler['on_failure'](data);
     } else {

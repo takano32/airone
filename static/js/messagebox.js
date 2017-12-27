@@ -67,3 +67,7 @@ MessageBox._showMessage = function(text, style) {
   $(".airone-messagebox").append(content);
   $(".alert").alert();
 };
+
+MessageBox.clear = function() {
+  $(".airone-messagebox").empty();
+};

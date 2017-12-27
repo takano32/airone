@@ -1201,3 +1201,56 @@ class ViewTest(AironeViewTest):
         # checks AttributeValue which is specified to update
         self.assertEqual(entry.attrs.last().values.count(), 2)
         self.assertFalse(entry.attrs.last().get_latest_value().boolean)
+
+    def test_post_create_entry_without_mandatory_param(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='Entity', is_public=False, created_user=user)
+        attr_base = EntityAttr.objects.create(name='attr',
+                                              type=AttrTypeStr,
+                                              is_mandatory=True,
+                                              parent_entity=entity,
+                                              created_user=user)
+        entity.attrs.add(attr_base)
+
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(attr_base.id), 'value': []},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(Entry.objects.count(), 0)
+        self.assertEqual(Attribute.objects.count(), 0)
+        self.assertEqual(AttributeValue.objects.count(), 0)
+
+    def test_post_edit_entry_without_mandatory_param(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='Entity', is_public=False, created_user=user)
+        attr_base = EntityAttr.objects.create(name='attr',
+                                              type=AttrTypeStr,
+                                              is_mandatory=True,
+                                              parent_entity=entity,
+                                              created_user=user)
+        entity.attrs.add(attr_base)
+
+        entry = Entry.objects.create(name='Entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+
+        params = {
+            'entry_name': 'Updated Entry',
+            'attrs': [
+                {'id': str(entry.attrs.get(name='attr').id), 'value': []},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(Entry.objects.get(id=entry.id).name, 'Entry')

@@ -53,6 +53,7 @@ def get_entries(request, entity_id):
     entries_data = [{
         'id': x.id,
         'name': x.name,
+        'status': x.status,
     } for x in entries]
 
     # return entries as JSON

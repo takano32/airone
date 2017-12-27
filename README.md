@@ -17,6 +17,11 @@ You have to install Python3.5+ to run AirOne like below (for the case of `ubuntu
 $ sudo apt-get install python3 python3-pip
 ```
 
+And you have to install RabbitMQ for executing heavy processing as background task using [Celery](http://docs.celeryproject.org/)
+```
+$ sudo apt-get install rabbitmq-server
+```
+
 Then, you can install libraries on which AieOne depends by following.
 ```
 $ git https://git.dmm.com/XaaS/airone
@@ -38,6 +43,11 @@ This is the default account information.
 Finally, you can start AirOne and can browse from `http://hostname:8080/`.
 ```
 $ python3 manage.py runserver 0:8080
+```
+
+In addition, you have to run Celery worker to execute background task as following.
+```
+$ celery -A airone worker -l info
 ```
 
 ## Tools

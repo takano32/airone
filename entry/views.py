@@ -85,13 +85,11 @@ def create(request, entity_id):
     {'name': 'attrs', 'type': list, 'meta': [
         {'name': 'id', 'type': str},
         {'name': 'value', 'type': list,
-         'checker': lambda x: (
-             all([
-                EntityAttr.objects.filter(id=x['id']).count() > 0 and
-                (EntityAttr.objects.get(id=x['id']).is_mandatory and y or
-                not EntityAttr.objects.get(id=x['id']).is_mandatory)
-            for y in x['value']])
-         )},
+           'checker': lambda x: (
+               EntityAttr.objects.filter(id=x['id']).count() > 0 and
+               (EntityAttr.objects.get(id=x['id']).is_mandatory and x['value'] or
+               not EntityAttr.objects.get(id=x['id']).is_mandatory)
+           )},
     ]}
 ])
 @check_permission(Entity, ACLType.Writable)
@@ -220,13 +218,11 @@ def edit(request, entry_id):
     {'name': 'attrs', 'type': list, 'meta': [
         {'name': 'id', 'type': str},
         {'name': 'value', 'type': list,
-         'checker': lambda x: (
-             all([
-                Attribute.objects.filter(id=x['id']).count() > 0 and
-                (Attribute.objects.get(id=x['id']).schema.is_mandatory and y or
-                not Attribute.objects.get(id=x['id']).schema.is_mandatory)
-            for y in x['value']])
-         )},
+           'checker': lambda x: (
+               Attribute.objects.filter(id=x['id']).count() > 0 and
+               (Attribute.objects.get(id=x['id']).schema.is_mandatory and x['value'] or
+               not Attribute.objects.get(id=x['id']).schema.is_mandatory)
+           )},
     ]},
 ])
 @check_permission(Entry, ACLType.Writable)

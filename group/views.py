@@ -153,7 +153,8 @@ def do_delete(request, group_id, recv_data):
     # save deleting target name before do it
     ret['name'] = group.name
 
-    for user in User.objects.filter(id=group.id):
+    # unregister target group from user object settings
+    for user in User.objects.filter(groups__id=group.id):
         user.groups.remove(group)
         user.save()
 

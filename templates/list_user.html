@@ -12,6 +12,7 @@
 {% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="container-fluid">
   <div class="row">
     <div class="col">
@@ -56,13 +57,8 @@
                 <button type="button" class="btn btn-secondary btn-sm">パスワード編集</button>
               {% endif %}
             </td>
-            <td>
-              <form url="/user/do_delete" method="post">
-                <input type="hidden" name="name" value="{{ list_user.username }}" />
-                {% csrf_token %}
-                <button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="confirm_delete($(this).parent())">del</button>
-              </form>
-            </td>
+
+            <td><button name="button_delete" type="button" class="btn btn-danger btn-sm del-item" url="/user/do_delete/{{ list_user.id }}">del</button></td>
           </tr>
           {% endfor %}
         </tbody>
@@ -70,4 +66,12 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block script %}
+<script>
+$(document).ready(function() {
+  $('.del-item').on('click', confirm_delete_table_item);
+});
+</script>
 {% endblock %}

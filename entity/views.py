@@ -316,11 +316,15 @@ def export(request):
 @check_permission(Entity, ACLType.Full)
 def do_delete(request, entity_id, recv_data):
     user = User.objects.get(id=request.user.id)
+    ret = {}
 
     if not Entity.objects.filter(id=entity_id).count():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     entity = Entity.objects.get(id=entity_id)
+
+    # save deleting target name before do it
+    ret['name'] = entity.name
 
     if Entry.objects.filter(schema=entity,is_active=True).count() != 0:
         return HttpResponse('cannot delete Entity because one or more Entries are not deleted', status=400)
@@ -333,7 +337,7 @@ def do_delete(request, entity_id, recv_data):
         attr.delete()
         history.del_attr(attr)
 
-    return HttpResponse()
+    return JsonResponse(ret)
 
 @http_get
 def history(request, entity_id):

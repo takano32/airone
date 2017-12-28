@@ -87,24 +87,21 @@ $('form').submit(function(event){
   });
   {% endfor %}
 
-  HttpPost($(this), {'attrs': attrs}, {
-    'on_success': function(data) {
-      {% if entry %}
-        // success to edit entry
-        MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, "Success to update Entry");
-      {% else %}
-        // scucess to create entry
-        MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, "Success to create a new Entry");
-      {% endif %}
+  HttpPost($(this), {'attrs': attrs}).done(function(data) {
+    {% if entry %}
+      // success to edit entry
+      MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, "Success to update Entry");
+    {% else %}
+      // scucess to create entry
+      MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, "Success to create a new Entry");
+    {% endif %}
 
-      location.href = '{{ redirect_url }}';
-    },
-    'on_failure': function(data) {
-      MessageBox.error(data.responseText);
+    location.href = '{{ redirect_url }}';
+  }).fail(function(data) {
+    MessageBox.error(data.responseText);
 
-      if(data.responseText == 'Duplicate name entry is existed') {
-        $('input[name="entry_name"]').parent().addClass('table-danger');
-      }
+    if(data.responseText == 'Duplicate name entry is existed') {
+      $('input[name="entry_name"]').parent().addClass('table-danger');
     }
   });
 

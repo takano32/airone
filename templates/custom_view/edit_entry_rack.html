@@ -110,13 +110,11 @@ $('form').submit(function(){
     }
   });
 
-  HttpPost($(this), {'attrs': attrs, 'rse_info': rse_entries}, {
-    'on_success': function(data) {
-      // success to edit entry
-      MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, "Success to update Entry");
+  HttpPost($(this), {'attrs': attrs, 'rse_info': rse_entries}).done(function(data) {
+    // success to edit entry
+    MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, "Success to update Entry");
 
-      location.href = '/entry/show/{{ entry.id }}';
-    }
+    location.href = '/entry/show/{{ entry.id }}';
   });
 
   return false;

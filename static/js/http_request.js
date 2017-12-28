@@ -11,8 +11,23 @@ $.ajaxSetup({
   }
 });
 
+// Primitive function to send HTTP Post request
+SendHttpPost = function(url, params={}) {
+  return $.ajax({
+    url:           url,
+    type:          'post',
+    dataType:      'json',
+    contentType:   'application/x-www-form-urlencoded;charset=utf-8',
+    scriptCharset: 'utf-8',
+    headers: {
+      'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val(),
+    },
+    data:          JSON.stringify(params)
+  });
+}
+
 // This sends HTTP POST request and reloads page
-HttpPost = function(form_elem, add_data, handler={}) {
+HttpPost = function(form_elem, add_data={}) {
   // parse form data to JSON object
   var sending_data = parseJson(form_elem.serializeArray());  
 
@@ -21,31 +36,7 @@ HttpPost = function(form_elem, add_data, handler={}) {
     sending_data = Object.assign(sending_data, add_data);
   }
 
-  $.ajax({
-    url:           form_elem.attr('url'),
-    type:          'post',
-    dataType:      'json',
-    contentType:   'application/x-www-form-urlencoded;charset=utf-8',
-    scriptCharset: 'utf-8',
-    headers: {
-      'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val(),
-    },
-    data:          JSON.stringify(sending_data)
-  }).done(function(data) {
-    if('on_success' in handler) {
-      handler['on_success'](data);
-    } else {
-      MessageBox.success("succeeded");
-    }
-  }).fail(function(data) {
-    MessageBox.clear();
-
-    if('on_failure' in handler) {
-      handler['on_failure'](data);
-    } else {
-      MessageBox.error(escapeHtml(data.responseText));
-    }
-  });
+  return SendHttpPost(form_elem.attr('url'), sending_data);
 }
 
 var parseJson = function(data) {

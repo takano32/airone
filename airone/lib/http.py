@@ -64,7 +64,7 @@ def check_superuser(func):
         return func(*args, **kwargs)
     return wrapper
 
-def http_post(validator):
+def http_post(validator=[]):
     def _decorator(func):
         def http_post_handler(*args, **kwargs):
             request = args[0]

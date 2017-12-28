@@ -88,12 +88,10 @@ $('form').submit(function(){
     selected_users.push($(elem).val());
   });
 
-  HttpPost($(this), {'users': selected_users}, {
-    'on_success': function(data) {
-      MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, data.msg);
+  HttpPost($(this), {'users': selected_users}).done(function(data) {
+    MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, data.msg);
 
-      location.href = '/group/';
-    }
+    location.href = '/group/';
   });
 
   return false;

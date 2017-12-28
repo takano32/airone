@@ -73,8 +73,8 @@ def create_entry_attrs(user_id, entry_id, recv_data):
             # set AttributeValue to Attribute
             attr.values.add(attr_value)
 
-    # clear STATUS_PROCESSING flag to specify this entry has been completed to create
-    entry.del_status(Entry.STATUS_PROCESSING)
+    # clear flag to specify this entry has been completed to create
+    entry.del_status(Entry.STATUS_CREATING)
 
 @shared_task
 def edit_entry_attrs(user_id, entry_id, recv_data):
@@ -155,5 +155,5 @@ def edit_entry_attrs(user_id, entry_id, recv_data):
             # append new AttributeValue
             attr.values.add(attr_value)
 
-    # clear STATUS_PROCESSING flag to specify this entry has been completed to create
-    entry.del_status(Entry.STATUS_PROCESSING)
+    # clear flag to specify this entry has been completed to create
+    entry.del_status(Entry.STATUS_EDITING)

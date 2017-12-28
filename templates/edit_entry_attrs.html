@@ -6,9 +6,9 @@
   </td>
   <td>
     {% if attr.type|bitwise_and:attr_type_value.array %}
-      <div id='container-{{ attr.id }}'>
+      <div>
         <button type="button" class="btn btn-primary btn-sm" name='add_attr'>add row</button>
-        <div class='array_element'>
+        <div class='array_element' attr_id="{{ attr.id }}" {%if attr.is_mandatory%}mandatory="true"{%endif%}>
         </div>
 
         <!-- template of attribute value column -->

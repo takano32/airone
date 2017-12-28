@@ -3,26 +3,28 @@
 {% block title %}List Entries{% endblock %}
 
 {% block nav_sub_header %}
+{% load bitwise_tags %}
 <div class="conatiner-fluid">
   <ul class="breadcrumb airone-breadcrumb">
     <li class="breadcrumb-item"><a href="/">TOP</a></li>
     <li class="breadcrumb-item"><a href='/entry/{{ entry.schema.id }}'>{{ entry.schema.name }}</a></li>
-    <li class="breadcrumb-item">{{ entry.name }}{% if entry.is_deleted %}(deleted){% endif %}</li>
+    {% if entry.is_deleted %}
+      <li class="breadcrumb-item">{{ entry.name }} [削除済]</li>
+    {% elif entry.status|bitwise_and:STATUS_ENTRY.EDITING %}
+      <li class="breadcrumb-item">{{ entry.name }} [編集中]</li>
+    {% else %}
+      <li class="breadcrumb-item">{{ entry.name }}</li>
+    {% endif %}
   </ul>
 </div>
 {% endblock %}
 
 {% block content %}
-{% load bitwise_tags %}
 <div class="container-fluid">
   <div class="row">
     <div class="col">
       <div class="float-left">
-        {% if entry.status|bitwise_and:STATUS_ENTRY.PROCESSING %}
-          <button name="button_new" type="button" class="btn btn-primary" onclick="location.href='/entry/edit/{{ entry.id }}'" disabled="True">編集 (処理中...)</button>
-        {% else %}
-          <button name="button_new" type="button" class="btn btn-primary" onclick="location.href='/entry/edit/{{ entry.id }}'">編集</button>
-        {% endif %}
+        <button name="button_new" type="button" class="btn btn-primary" onclick="location.href='/entry/edit/{{ entry.id }}'">編集</button>
         <button name="button_new" type="button" class="btn btn-primary" onclick="location.href='/acl/{{ entry.id }}'">ACL 設定</button>
       </div>
     </div>

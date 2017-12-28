@@ -142,7 +142,8 @@ def render(request, template, context={}):
 
     # set Construct for Entry status
     context['STATUS_ENTRY'] = {}
-    context['STATUS_ENTRY']['PROCESSING'] = entry_models.Entry.STATUS_PROCESSING
+    context['STATUS_ENTRY']['CREATING'] = entry_models.Entry.STATUS_CREATING
+    context['STATUS_ENTRY']['EDITING'] = entry_models.Entry.STATUS_EDITING
 
     return django_render(request, template, context)
 

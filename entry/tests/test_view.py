@@ -449,11 +449,11 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(AttributeValue.objects.count(), 0)
 
-    def test_post_edit_under_processing_entry(self):
+    def test_post_edit_creating_entry(self):
         user = self.admin_login()
 
         entry = Entry.objects.create(name='entry', schema=self._entity, created_user=user)
-        entry.set_status(Entry.STATUS_PROCESSING)
+        entry.set_status(Entry.STATUS_CREATING)
 
         params = {'entry_name': 'changed-entry'}
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -461,6 +461,18 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(Entry.objects.get(id=entry.id).name, 'entry')
+
+    def test_get_show_and_edit_creating_entry(self):
+        user = self.admin_login()
+
+        entry = Entry.objects.create(name='entry', schema=self._entity, created_user=user)
+        entry.set_status(Entry.STATUS_CREATING)
+
+        resp = self.client.get(reverse('entry:show', args=[entry.id]))
+        self.assertEqual(resp.status_code, 400)
+
+        resp = self.client.get(reverse('entry:edit', args=[entry.id]))
+        self.assertEqual(resp.status_code, 400)
 
     @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
     def test_post_edit_with_valid_param(self):

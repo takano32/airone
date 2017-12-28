@@ -28,7 +28,14 @@
         <table class="table table-bordered">
           <tr>
             <td>エントリ名</td>
-            <td><input type="text" name="entry_name" value="{{ entry.name }}"/>{% if entry.deleted %}(deleted){% endif %}</td>
+            <td>
+              <input type="text" name="entry_name" value="{{ entry.name }}"/>
+            {% if entry.is_deleted %}
+              [削除済]
+            {% elif entry.status|bitwise_and:STATUS_ENTRY.EDITING %}
+              [編集中]
+            {% endif %}
+            </td>
           </tr>
         </table>
       </div>
@@ -140,7 +147,7 @@ var form_validator = function() {
   });
 
   // check mandatory attrs of array
-  $('.array_element').each(function() {
+  $('.array_element[mandatory]').each(function() {
     if(! $(this).children().length) {
       $(this).parent().parent().addClass('table-danger');
       result = false;
@@ -279,7 +286,7 @@ $('button[name=add_attr]').on('click', function() {
 // Initiate array values
 {% for attr in attributes %}
   {% if attr.type|bitwise_and:attr_type_value.array %}
-    var container = $('#container-{{ attr.id }}');
+    var container = $('.array_element[attr_id="{{ attr.id }}"]');
     var template = $('#template-{{ attr.id }}');
     var value_setter = undefined;
 
@@ -288,17 +295,22 @@ $('button[name=add_attr]').on('click', function() {
         value_setter = function(new_column) {
           new_column.find('.attr_value').val('{{ value }}');
         };
-        append_column(container, template, value_setter);
       {% elif attr.type == attr_type.array_entry %}
         value_setter = function(new_column) {
-          var elem_option = new_column.find('option[value="{{ value.id }}"]');
-          elem_option.attr('selected', 'True');
+          elem_select = new_column.find('select');
 
-          // show selected item name
-          new_column.find('li[attr_id="{{ attr.id }}"]').text('{{ value.name }}');
+          // clear select element and set option to show only selected one
+          elem_select.children('option').remove();
+
+          elem_select.append($('<option />').val(0).text('- NO SET -'));
+          elem_select.append($('<option />').val({{ value.id }}).text('{{ value.name }}').attr('selected', 'True'));
+
+          // set name of list element to specify selected value
+          new_column.find('li').text('{{ value.name }}');
+          new_column.find('input').val('{{ value.name }}');
         }
-        append_column(container, template, value_setter);
       {% endif %}
+      append_column(container, template, value_setter);
     {% endfor %}
   {% endif %}
 {% endfor %}

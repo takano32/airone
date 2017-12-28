@@ -172,7 +172,8 @@ class Attribute(ACLBase):
 
 class Entry(ACLBase):
     # This flag is set just after created or edited, then cleared at completion of the processing
-    STATUS_PROCESSING = 1 << 0
+    STATUS_CREATING = 1 << 0
+    STATUS_EDITING = 1 << 1
 
     attrs = models.ManyToManyField(Attribute)
     schema = models.ForeignKey(Entity)

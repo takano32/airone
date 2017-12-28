@@ -44,7 +44,6 @@
 
   <div class="row">
     <div class="col">
-      <form url="/entry/do_delete/{{ entry.id }}/" method="post">
       {% csrf_token %}
       <table class="table table-bordered">
         <thead>
@@ -55,19 +54,26 @@
         </thead>
         <tbody id='entry_container'>
           {% for entry in entries %}
+
           <tr>
-            {% if entry.status|bitwise_and:STATUS_ENTRY.PROCESSING %}
-              <td>{{ entry.name }} (処理中...)</td>
-              <td></td>
+            {% if entry.status|bitwise_and:STATUS_ENTRY.CREATING %}
+              <td>{{ entry.name }} [作成中]</td>
+            {% elif entry.status|bitwise_and:STATUS_ENTRY.EDITING %}
+              <td><a href='/entry/show/{{ entry.id }}'>{{ entry.name }} [編集中]</a></td>
             {% else %}
               <td><a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a></td>
-              <td><button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="confirm_delete($(this).parent())">del</button></td>
             {% endif %}
+
+            <td>
+              <form url="/entry/do_delete/{{ entry.id }}/" method="post">
+                <button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="confirm_delete($(this).parent())">del</button>
+              </form>
+            </td>
           </tr>
+
           {% endfor %}
         </tbody>
       </table>
-      </form>
     </div>
   </div>
 </div>
@@ -81,16 +87,18 @@ var complete_processing = function(data) {
   container.empty();
   for (var entry of data['results']) {
     var new_elem = $('<tr />');
+    var form_elem = $(`<form url="/entry/do_delete/${ entry['id'] }/" method="post" />`);
 
-    if(entry['status'] & {{ STATUS_ENTRY.PROCESSING }}) {
-      new_elem.append($(`<td>${entry['name']} (処理中...)</td>`));
+    new_elem.apend(form_elem);
 
-      // do not display the 'delete' button
-      new_elem.append($(`<td></td>`));
+    if(entry['status'] & {{ STATUS_ENTRY.CREATING }}) {
+      form_elem.append($(`<td>${entry['name']} [作成中]</td>`));
+    } else if(entry['status'] & {{ STATUS_ENTRY.EDITING }}) {
+      form_elem.append($(`<td><a href="/entry/show/${entry['id']}">${entry['name']} [編集中]</a></td>`));
     } else {
-      new_elem.append($(`<td><a href="/entry/show/${entry['id']}">${entry['name']}</a></td>`));
-      new_elem.append($(`<td><button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="confirm_delete($(this).parent())">del</button></td>`));
+      form_elem.append($(`<td><a href="/entry/show/${entry['id']}">${entry['name']}</a></td>`));
     }
+    form_elem.append($(`<td><button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="confirm_delete($(this).parent())">del</button></td>`));
 
     container.append(new_elem);
   }

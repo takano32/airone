@@ -108,7 +108,7 @@ def do_create(request, entity_id, recv_data):
     entry = Entry(name=recv_data['entry_name'],
                   created_user=user,
                   schema=entity,
-                  status=Entry.STATUS_PROCESSING)
+                  status=Entry.STATUS_CREATING)
     entry.save()
 
     # Checks specified value exceeds the limit of AttributeValue
@@ -134,8 +134,12 @@ def edit(request, entry_id):
     if not Entry.objects.filter(id=entry_id).count():
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
-    # set specified entry object information
     entry = Entry.objects.get(id=entry_id)
+
+    # prevent to show edit page under the creating processing
+    if entry.get_status(Entry.STATUS_CREATING):
+        return HttpResponse('Target entry is now under processing', status=400)
+
     entry.complement_attrs(user)
 
     context = {
@@ -195,14 +199,14 @@ def do_edit(request, entry_id, recv_data):
             for x in recv_data['attrs']]):
         return HttpResponse('Passed value is exceeded the limit', status=400)
 
-    if entry.get_status(Entry.STATUS_PROCESSING):
+    if entry.get_status(Entry.STATUS_CREATING):
         return HttpResponse('Target entry is now under processing', status=400)
 
     # update name of Entry object
     entry.name = recv_data['entry_name']
 
     # set flags that indicates target entry is under processing
-    entry.set_status(Entry.STATUS_PROCESSING)
+    entry.set_status(Entry.STATUS_EDITING)
 
     entry.save()
 
@@ -224,6 +228,9 @@ def show(request, entry_id):
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
     entry = Entry.objects.get(id=entry_id)
+
+    if entry.get_status(Entry.STATUS_CREATING):
+        return HttpResponse('Target entry is now under processing', status=400)
 
     # create new attributes which are appended after creation of Entity
     entry.complement_attrs(user)

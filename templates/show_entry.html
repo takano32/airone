@@ -42,9 +42,9 @@
           <td>{{ attr.name }}</td>
           <td>
           {% if attr.type == attr_type.string %}
-            {{ attr.last_value }}
+            <p class='url_conv'>{{ attr.last_value }}</p>
           {% elif attr.type == attr_type.textarea %}
-            <pre>{{ attr.last_value }}</pre>
+            <pre class='url_conv'>{{ attr.last_value }}</pre>
           {% elif attr.type == attr_type.entry and attr.last_referral %}
             <a href='/entry/show/{{ attr.last_referral.id }}'>{{ attr.last_referral.name }}</a>{% if attr.last_referral.deleted %}(deleted){% endif %}
           {% elif attr.type == attr_type.array_string %}
@@ -109,9 +109,9 @@
         <tr>
           <td>{{ history.attr_name }}</td>
           {% if history.attr_type == attr_type.string %}
-            <td>{{ history.attr_value }}</td>
+            <td><p class='url_conv'>{{ history.attr_value }}</p></td>
           {% elif history.attr_type == attr_type.textarea %}
-            <td><pre>{{ history.attr_value }}</pre></td>
+            <td><pre class='url_conv'>{{ history.attr_value }}</pre></td>
           {% elif history.attr_type == attr_type.entry and history.attr_value %}
             <td><a href='/entry/show/{{ history.attr_value.id}}'>{{ history.attr_value.name }}</a></td>
           {% elif history.attr_type == attr_type.array_string %}
@@ -195,6 +195,15 @@ $(document).ready(function() {
       $('#referral_entry_count').text('エントリ数：...データ取得中...');
     }
   });
+});
+// hyper_link
+$(".url_conv").each(function(){
+   $(this).html( $(this).html().replace(/((http|https):\/\/[\w?=&.\/-;#~%-]+(?![\w\s?&.\/;#~%"=-]*>))/g,
+  '<a href="$1" class="preview">$1</a> ') );
+});
+// live_preview
+$(document).ready(function() {
+  $(".preview").livePreview();
 });
 </script>
 {% endblock %}

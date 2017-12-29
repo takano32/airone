@@ -170,11 +170,8 @@ class ViewTest(AironeViewTest):
         user2 = self._create_user("user2")
         user2.groups.add(group1)
 
-        params = {
-            "name": "group1",
-        }
-        resp = self.client.post(reverse('group:do_delete'),
-                                json.dumps(params),
+        resp = self.client.post(reverse('group:do_delete', args=[group1.id]),
+                                json.dumps({}),
                                 'application/json')
 
         
@@ -235,11 +232,8 @@ class ViewTest(AironeViewTest):
 
         user.groups.add(group)
 
-        params = {
-            "name": "test-group",
-        }
-        resp = self.client.post(reverse('group:do_delete'),
-                                json.dumps(params),
+        resp = self.client.post(reverse('group:do_delete', args=[group.id]),
+                                json.dumps({}),
                                 'application/json')
 
         self.assertEqual(resp.status_code, 400)

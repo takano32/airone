@@ -52,15 +52,13 @@
 {% block script %}
 <script>
 $('form').submit(function(){
-  HttpPost($(this), undefined, {
-    'on_success': function(data) {
-      // set successful message to the updated page
-      MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS,
-      `Success to update {{ user_name }}\'s password`);
+  HttpPost($(this)).done(function() {
+    // set successful message to the updated page
+    MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS,
+    `Success to update {{ user_name }}\'s password`);
 
-      // set redirect URL
-      location.href = '/user/';
-    }
+    // set redirect URL
+    location.href = '/user/';
   });
   return false;
 });

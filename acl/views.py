@@ -51,11 +51,11 @@ def index(request, obj_id):
         'members': [{'id': x.id,
                      'name': x.username,
                      'current_permission': get_current_permission(x),
-                     'type': 'user'} for x in User.objects.all()] +
+                     'type': 'user'} for x in User.objects.filter(is_active=True)] +
                    [{'id': x.id,
                      'name': x.name,
                      'current_permission': get_current_permission(x),
-                     'type': 'group'} for x in Group.objects.all()]
+                     'type': 'group'} for x in Group.objects.filter(is_active=True)]
     }
     return render(request, 'edit_acl.html', context)
 

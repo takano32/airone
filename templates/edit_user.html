@@ -53,12 +53,10 @@
 $('form').submit(function(){
   var username = $('input[name="name"]').val();
 
-  HttpPost($(this), undefined, {
-    'on_success': function(data) {
-      MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, `Success to update User "${username}"`);
+  HttpPost($(this)).done(function(data) {
+    MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, `Success to update User "${username}"`);
 
-      location.href = '/user/';
-    }
+    location.href = '/user/';
   });
 
   return false;

@@ -12,6 +12,7 @@
 {% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="container-fluid">
   <div class="row">
     <div class="col">
@@ -45,13 +46,7 @@
                 {% endfor %}
               </ul>
             </td>
-            <td>
-              <form url="/group/do_delete" method="POST">
-                <input type="hidden" name="name" value="{{ group.name }}" />
-                {% csrf_token %}
-                <button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="confirm_delete($(this).parent())">del</button>
-              </form>
-            </td>
+            <td><button name="button_delete" type="button" class="btn btn-danger btn-sm del-item" url="/group/do_delete/{{ group.id }}">del</button></td>
           </tr>
           {% endfor %}
         </tbody>
@@ -61,3 +56,10 @@
 </div>
 {% endblock %}
 
+{% block script %}
+<script>
+$(document).ready(function() {
+  $('.del-item').on('click', confirm_delete_table_item);
+});
+</script>
+{% endblock %}

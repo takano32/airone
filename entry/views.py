@@ -311,12 +311,18 @@ def export(request, entity_id):
 @check_permission(Entry, ACLType.Full)
 def do_delete(request, entry_id, recv_data):
     user = User.objects.get(id=request.user.id)
+    ret = {}
 
     if not Entry.objects.filter(id=entry_id).count():
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
     # update name of Entry object
     entry = Entry.objects.filter(id=entry_id).get()
+
+    # save deleting Entry name before do it
+    ret['name'] = entry.name
+
+    # delete target Entry
     entry.delete()
 
     # register operation History for deleting entry
@@ -326,4 +332,4 @@ def do_delete(request, entry_id, recv_data):
     for attr in entry.attrs.all():
         attr.delete()
 
-    return HttpResponse()
+    return JsonResponse(ret)

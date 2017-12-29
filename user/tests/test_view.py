@@ -17,6 +17,8 @@ class ViewTest(TestCase):
         user.set_password(name)
         user.save()
 
+        return user
+
     def _admin_login(self):
         self.client.login(username='admin', password='admin')
 
@@ -393,15 +395,12 @@ class ViewTest(TestCase):
 
         self._admin_login()
 
-        self._create_user(name)
+        user = self._create_user(name)
         user_count = User.objects.count()
         active_user_count = self._get_active_user_count()
 
-        params = {
-            'name': name
-        }
-        resp = self.client.post(reverse('user:do_delete'),
-                                json.dumps(params),
+        resp = self.client.post(reverse('user:do_delete', args=[user.id]),
+                                json.dumps({}),
                                 'application/json')
 
         self.assertEqual(resp.status_code, 200)
@@ -447,15 +446,12 @@ class ViewTest(TestCase):
     def test_delete_post_by_guest_user(self):
         self._guest_login()
 
-        self._create_user('testuser')
+        user = self._create_user('testuser')
         user_count = User.objects.count()
         active_user_count = self._get_active_user_count()
 
-        params = {
-            'name': 'testuser'
-        }
-        resp = self.client.post(reverse('user:do_delete'),
-                                json.dumps(params),
+        resp = self.client.post(reverse('user:do_delete', args=[user.id]),
+                                json.dumps({}),
                                 'application/json')
 
         self.assertEqual(resp.status_code, 400)

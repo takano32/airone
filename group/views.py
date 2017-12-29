@@ -25,7 +25,7 @@ def index(request):
         'id': x.id,
         'name': x.name,
         'members': User.objects.filter(groups__name=x.name, is_active=True).order_by('username'),
-    } for x in Group.objects.all()]
+    } for x in Group.objects.filter(is_active=True)]
 
     return render(request, 'list_group.html', context)
 
@@ -51,7 +51,7 @@ def edit(request, group_id):
         'id': x.id,
         'name': x.name,
         'members': User.objects.filter(groups__id=x.id, is_active=True).order_by('username'),
-    } for x in Group.objects.all()]
+    } for x in Group.objects.filter(is_active=True)]
 
     # set all user
     context['groups'].insert(0, {
@@ -113,7 +113,7 @@ def create(request):
         'id': x.id,
         'name': x.name,
         'members': User.objects.filter(groups__id=x.id, is_active=True).order_by('username'),
-    } for x in Group.objects.all()]
+    } for x in Group.objects.filter(is_active=True)]
 
     # set all user
     context['groups'].insert(0, {
@@ -144,23 +144,23 @@ def do_create(request, recv_data):
         'msg': 'Success to create a new Group "%s"' % new_group.name,
     })
 
-@http_post([
-    {'name': 'name', 'type': str, 'checker': lambda x: (
-        x['name'] and (Group.objects.filter(name=x['name']).count() == 1)
-    )},
-])
+@http_post()
 @check_superuser
-def do_delete(request, recv_data):
-    name = recv_data['name']
-    group = Group.objects.get(name=name)
+def do_delete(request, group_id, recv_data):
+    group = Group.objects.get(id=group_id)
+    ret = {}
 
-    for user in User.objects.filter(groups__name=name):
+    # save deleting target name before do it
+    ret['name'] = group.name
+
+    # unregister target group from user object settings
+    for user in User.objects.filter(groups__id=group.id):
         user.groups.remove(group)
         user.save()
 
     group.delete()
 
-    return HttpResponse()
+    return JsonResponse(ret)
 
 @http_get
 def export(request):

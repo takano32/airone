@@ -168,17 +168,16 @@ def do_su_edit_passwd(request, user_id, recv_data):
 
     return JsonResponse({})
 
-@http_post([
-    {'name': 'name', 'type': str, 'checker': lambda x: (
-        x['name'] and (User.objects.filter(username=x['name']).count() == 1)
-    )},
-])
+@http_post([])
 @check_superuser
-def do_delete(request, recv_data):
-    user = User.objects.get(username=recv_data['name'])
+def do_delete(request, user_id, recv_data):
+    user = User.objects.get(id=user_id)
+    ret = {}
+
+    # save deleting target name before do it
+    ret['name'] = user.username
 
     # inactivate user
     user.delete()
 
-    # return empty response
-    return HttpResponse()
+    return JsonResponse(ret)

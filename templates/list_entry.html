@@ -64,11 +64,7 @@
               <td><a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a></td>
             {% endif %}
 
-            <td>
-              <form url="/entry/do_delete/{{ entry.id }}/" method="post">
-                <button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="confirm_delete($(this).parent())">del</button>
-              </form>
-            </td>
+            <td><button name="button_delete" type="button" class="btn btn-danger btn-sm del-item" url="/entry/do_delete/{{ entry.id }}/">del</button></td>
           </tr>
 
           {% endfor %}
@@ -87,18 +83,16 @@ var complete_processing = function(data) {
   container.empty();
   for (var entry of data['results']) {
     var new_elem = $('<tr />');
-    var form_elem = $(`<form url="/entry/do_delete/${ entry['id'] }/" method="post" />`);
-
-    new_elem.apend(form_elem);
 
     if(entry['status'] & {{ STATUS_ENTRY.CREATING }}) {
-      form_elem.append($(`<td>${entry['name']} [作成中]</td>`));
+      new_elem.append($(`<td>${entry['name']} [作成中]</td>`));
     } else if(entry['status'] & {{ STATUS_ENTRY.EDITING }}) {
-      form_elem.append($(`<td><a href="/entry/show/${entry['id']}">${entry['name']} [編集中]</a></td>`));
+      new_elem.append($(`<td><a href="/entry/show/${entry['id']}">${entry['name']} [編集中]</a></td>`));
     } else {
-      form_elem.append($(`<td><a href="/entry/show/${entry['id']}">${entry['name']}</a></td>`));
+      new_elem.append($(`<td><a href="/entry/show/${entry['id']}">${entry['name']}</a></td>`));
     }
-    form_elem.append($(`<td><button name="button_delete" type="button" class="btn btn-danger btn-sm" onclick="confirm_delete($(this).parent())">del</button></td>`));
+    new_elem.append($(`<td><button type="button" class="btn btn-danger btn-sm del-item" url="/entry/do_delete/${ entry['id'] }/">del</button></td>`));
+    new_elem.find('.del-item').on('click', confirm_delete_table_item);
 
     container.append(new_elem);
   }
@@ -107,6 +101,7 @@ var complete_processing = function(data) {
 
 $(document).ready(function() {
   var sending_request = false;
+  $('.del-item').on('click', confirm_delete_table_item);
   $("#narrow_down_entries").on('keyup', function(e) {
     if(! (e.keyCode != 13 || sending_request)) {
       sending_request = true;

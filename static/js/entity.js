@@ -56,7 +56,7 @@ $('form').submit(function(){
     MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, data.msg);
 
     // redirect to the entity list page
-    location.href = '/entity/';
+    location.href = `/entry/${ data.entity_id }`;
   });
 
   return false;

@@ -198,8 +198,7 @@ $(document).ready(function() {
 });
 // hyper_link
 $(".url_conv").each(function(){
-   $(this).html( $(this).html().replace(/(https?:\/\/[\w\-_\.:@!~*'\(¥);/?&=\+$,%#]+)/g,
-  '<a href="$1" class="preview">$1</a> ') );
+   $(this).html( $(this).html().replace(/(http(s)?:\/\/.+)/g,'<a href="$1" class="preview">$1</a>') );
 });
 // live_preview
 $(document).ready(function() {

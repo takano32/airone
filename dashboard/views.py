@@ -37,12 +37,13 @@ def index(request):
             parent_attr = attr_value.parent_attr
             parent_entry = parent_attr.parent_entry
 
-            history.append({
-                'entry': parent_entry,
-                'attr_type': parent_attr,
-                'attr_value': attr_value,
-                'attr_value_array': attr_value.data_array.all(),
-            })
+            if parent_attr.is_active and parent_entry.is_active:
+                history.append({
+                    'entry': parent_entry,
+                    'attr_type': parent_attr,
+                    'attr_value': attr_value,
+                    'attr_value_array': attr_value.data_array.all(),
+                })
 
         context['last_entries'] = history
 

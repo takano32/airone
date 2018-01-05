@@ -57,7 +57,7 @@ def create(request, entity_id):
 
     def get_referrals(attr):
         ret = []
-        for entries in [Entry.objects.filter(schema=x, is_active=True) for x in attr.referral.all()]:
+        for entries in [Entry.objects.filter(schema=x, is_active=True) for x in attr.referral.filter(is_active=True)]:
             ret += [{'id': x.id, 'name': x.name} for x in entries]
 
         return ret
@@ -77,7 +77,7 @@ def create(request, entity_id):
             'name': x.name,
             'is_mandatory': x.is_mandatory,
             'referrals': x.referral.count() and get_referrals(x) or [],
-        } for x in entity.attrs.filter(is_active=True) if user.has_permission(x, ACLType.Writable)]
+        } for x in entity.attrs.filter(is_active=True).order_by('index') if user.has_permission(x, ACLType.Writable)]
     }
     return render(request, 'edit_entry.html', context)
 
@@ -237,7 +237,7 @@ def show(request, entry_id):
 
     # create new attributes which are appended after creation of Entity
     for attr_id in (set(entry.schema.attrs.values_list('id', flat=True)) -
-                    set([x.schema.id for x in entry.attrs.all()])):
+                    set([x.schema.id for x in entry.attrs.filter(is_active=True)])):
 
         entity_attr = entry.schema.attrs.get(id=attr_id)
         if not entity_attr.is_active or not user.has_permission(entity_attr, ACLType.Readable):
@@ -257,7 +257,7 @@ def show(request, entry_id):
             newattr.values.add(attr_value)
 
     # get all values that are set in the past
-    value_history = sum([x.get_value_history(user) for x in entry.attrs.all()], [])
+    value_history = sum([x.get_value_history(user) for x in entry.attrs.filter(is_active=True)], [])
 
     # get referred entries and count of them
     (referred_objects, referred_total) = entry.get_referred_objects(CONFIG.MAX_LIST_REFERRALS)

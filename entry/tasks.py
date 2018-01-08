@@ -37,6 +37,11 @@ def create_entry_attrs(user_id, entry_id, recv_data):
                 # set attribute value
                 if Entry.objects.filter(id=value).count():
                     attr_value.referral = Entry.objects.get(id=value)
+
+                    # The 'get_referre_objects' method caches the result,
+                    # so this calls it in advance to be fast the next view showing.
+                    attr_value.referral.get_referred_objects()
+
             elif entity_attr.type == AttrTypeValue['array_string']:
                 attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
 
@@ -61,6 +66,10 @@ def create_entry_attrs(user_id, entry_id, recv_data):
                     _attr_value.set_status(AttributeValue.STATUS_LATEST)
 
                     attr_value.data_array.add(_attr_value)
+
+                    # The 'get_referre_objects' method caches the result,
+                    # so this calls it in advance to be fast the next view showing.
+                    referral.get_referred_objects()
 
             elif entity_attr.type == AttrTypeValue['boolean']:
                 attr_value.boolean = recv_values[0]
@@ -96,7 +105,10 @@ def edit_entry_attrs(user_id, entry_id, recv_data):
 
             # Clear the flag that means target AttrValues are latet from the Values
             # that are already created.
-            for old_value in attr.values.all():
+            cond_latest = {
+                'where': ['status & %d > 0' % AttributeValue.STATUS_LATEST],
+            }
+            for old_value in attr.values.extra(**cond_latest):
                 old_value.del_status(AttributeValue.STATUS_LATEST)
 
                 if attr.schema.type & AttrTypeValue['array']:
@@ -116,10 +128,13 @@ def edit_entry_attrs(user_id, entry_id, recv_data):
                 attr_value.value = info['value']
 
             elif attr.schema.type == AttrTypeValue['object']:
-
                 # set None if the referral entry is not specified
                 if info['value'] and Entry.objects.filter(id=info['value']).count():
                     attr_value.referral = Entry.objects.get(id=info['value'])
+
+                    # The 'get_referre_objects' method caches the result,
+                    # so this calls it in advance to be fast the next view showing.
+                    attr_value.referral.get_referred_objects()
                 else:
                     attr_value.referral = None
 
@@ -130,12 +145,8 @@ def edit_entry_attrs(user_id, entry_id, recv_data):
                 # set status of parent data_array
                 attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
 
-                # append existed AttributeValue objects
-                for attrv in attr.get_existed_values_of_array(info['value']):
-                    attr_value.data_array.add(attrv)
-
                 # create and append updated values
-                for value in attr.get_updated_values_of_array(info['value']):
+                for value in info['value']:
 
                     # create a new AttributeValue for each values
                     attrv = AttributeValue.objects.create(created_user=user, parent_attr=attr)
@@ -143,6 +154,10 @@ def edit_entry_attrs(user_id, entry_id, recv_data):
                         attrv.value = value
                     if attr.schema.type == AttrTypeValue['array_object']:
                         attrv.referral = Entry.objects.get(id=value)
+
+                        # The 'get_referre_objects' method caches the result,
+                        # so this calls it in advance to be fast the next view showing.
+                        attrv.referral.get_referred_objects()
 
                     # Set a flag that means this is the latest value
                     attrv.set_status(AttributeValue.STATUS_LATEST)

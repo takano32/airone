@@ -16,12 +16,12 @@ def get_referrals(request, entry_id):
     if not Entry.objects.filter(id=entry_id).count():
         return HttpResponse('Failed to get ', status=400)
 
-    keyword = None
-    if 'keyword' in request.GET:
-        keyword = request.GET.get('keyword')
-
     entry = Entry.objects.get(id=entry_id)
-    (entries, total_count) = entry.get_referred_objects(keyword=keyword)
+    (entries, total_count) = entry.get_referred_objects()
+
+    # filters the result by keyword
+    if 'keyword' in request.GET:
+        entries = [x for x in entries if request.GET.get('keyword') in x.name]
 
     # serialize data for each entries to convert json format
     entries_data = [{

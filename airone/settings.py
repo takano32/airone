@@ -148,3 +148,10 @@ LOGIN_REDIRECT_URL='/dashboard/'
 AIRONE = {
     'ENABLE_PROFILE': True,
 }
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'TIMEOUT': None,
+    }
+}

@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import Q
+from django.core.cache import cache
 
 from entity.models import EntityAttr, Entity
 from user.models import User
@@ -113,31 +114,6 @@ class Attribute(ACLBase):
             return False
         return True
 
-    def get_updated_values_of_array(self, values):
-        if not self._validate_attr_values_of_array():
-            return []
-
-        last_value = self.values.last()
-        if self.schema.type == AttrTypeArrStr:
-            return [x for x in values if not last_value.data_array.filter(value=x).count() and x]
-        elif self.schema.type == AttrTypeArrObj:
-            return [x for x in values if not last_value.data_array.filter(referral=x).count() and x]
-
-        return []
-
-    def get_existed_values_of_array(self, values):
-        if not self._validate_attr_values_of_array():
-            return []
-
-        last_value = self.values.last()
-        if self.schema.type == AttrTypeArrStr:
-            return [x for x in last_value.data_array.all() if x.value in values]
-        elif self.schema.type == AttrTypeArrObj:
-            return [x for x in last_value.data_array.all() if x.referral.id in
-                    map(lambda y: int(y), values)]
-
-        return []
-
     def get_latest_value(self):
         if self.schema.type & AttrTypeValue['array']:
             return self.values.extra(where=['status & 1 = 1']).order_by('created_time').last()
@@ -153,10 +129,12 @@ class Attribute(ACLBase):
         def get_attr_value(attrv):
             attr = attrv.parent_attr
 
-            if attr.schema.type == AttrTypeArrStr:
+            if attr.schema.type == AttrTypeValue['array_string']:
                 return [x.value for x in attrv.data_array.all()]
-            elif attr.schema.type == AttrTypeArrObj:
+            elif attr.schema.type == AttrTypeValue['array_object']:
                 return [x.referral for x in attrv.data_array.all()]
+            elif attr.schema.type == AttrTypeValue['object']:
+                return attrv.referral
             elif attr.schema.type == AttrTypeValue['boolean']:
                 return attrv.boolean
             else:
@@ -175,12 +153,24 @@ class Entry(ACLBase):
     STATUS_CREATING = 1 << 0
     STATUS_EDITING = 1 << 1
 
+    # constract of cache key for referred entry
+    CACHE_REFERRED_ENTRY = 'cache_referred_entry'
+
     attrs = models.ManyToManyField(Attribute)
     schema = models.ForeignKey(Entity)
 
     def __init__(self, *args, **kwargs):
         super(Entry, self).__init__(*args, **kwargs)
         self.objtype = ACLObjType.Entry
+
+    def get_cache(self, cache_key):
+        return cache.get("%s_%s" % (self.id, cache_key))
+
+    def set_cache(self, cache_key, value):
+        cache.set("%s_%s" % (self.id, cache_key), value)
+
+    def clear_cache(self, cache_key):
+        cache.delete("%s_%s" % (self.id, cache_key))
 
     def add_attribute_from_base(self, base, user):
         if not isinstance(base, EntityAttr):
@@ -213,29 +203,45 @@ class Entry(ACLBase):
         self.attrs.add(attr)
         return attr
 
-    def get_referred_objects(self, max_count=None, keyword=None):
+    def get_referred_objects(self, max_count=None, use_cache=False):
         """
         This returns objects that refer current Entry in the AttributeValue
         """
-        ret = []
-        total_count = AttributeValue.objects.filter(referral=self).count()
+        referred_entries = []
+        total_count = 0
+        cond = {
+            'where': ['status & %d > 0' % AttributeValue.STATUS_LATEST],
+        }
 
-        for attrvalue in AttributeValue.objects.filter(referral=self):
+        cached_value = self.get_cache(self.CACHE_REFERRED_ENTRY)
+        if use_cache and cached_value:
+            return cached_value
+
+        for attrvalue in AttributeValue.objects.filter(referral=self).extra(**cond):
             if not attrvalue.get_status(AttributeValue.STATUS_LATEST):
                 continue
 
-            if max_count and len(ret) >= max_count:
-                break
-
-            referred_obj = attrvalue.parent_attr.parent_entry
-            if keyword and keyword not in referred_obj.name:
-                # filtered by keyword parameter
+            if (not attrvalue.parent_attr.is_active or
+                not attrvalue.parent_attr.parent_entry.is_active):
                 continue
 
-            if referred_obj not in ret and referred_obj != self:
-                ret.append(referred_obj)
+            # update total count of referred values
+            if attrvalue.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT):
+                total_count += attrvalue.data_array.count()
+            else:
+                total_count += 1
 
-        return (ret, total_count)
+            referred_obj = attrvalue.parent_attr.parent_entry
+            if not (referred_obj not in referred_entries and referred_obj != self):
+                continue
+
+            if not max_count or len(referred_entries) < max_count:
+                referred_entries.append(referred_obj)
+
+        # set to cache
+        self.set_cache(self.CACHE_REFERRED_ENTRY, (referred_entries, total_count))
+
+        return (referred_entries, total_count)
 
     def complement_attrs(self, user):
         """

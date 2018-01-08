@@ -599,7 +599,7 @@ class ViewTest(AironeViewTest):
 
         parent_values = [x for x in AttributeValue.objects.all()
                          if x.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)]
-        self.assertEqual(len(leaf_values), 3)
+        self.assertEqual(len(leaf_values), 4)
         self.assertEqual(len(parent_values), 2)
 
         self.assertEqual(attr.values.count(), 2)
@@ -656,7 +656,7 @@ class ViewTest(AironeViewTest):
 
         parent_values = [x for x in AttributeValue.objects.all()
                          if x.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)]
-        self.assertEqual(len(leaf_values), 3)
+        self.assertEqual(len(leaf_values), 4)
         self.assertEqual(len(parent_values), 2)
 
         self.assertEqual(attr.values.count(), 2)

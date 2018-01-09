@@ -46,10 +46,12 @@
         <tbody>
           {% for entity in entities %}
           <tr>
-            <td><a href="/entity/edit/{{ entity.id }}">{{ entity.name }}</a></td>
+            <td>
+                <a href='/entry/{{ entity.id }}'>{{ entity.name }}</a>
+            </td>
             <td>{{ entity.note }}</td>
             <td>
-              <a href='/entry/{{ entity.id }}'><button type='button' class='btn btn-info btn-sm'>エントリ一覧</button></a>
+              <a href="/entity/edit/{{ entity.id }}"><button type='button' class='btn btn-info btn-sm'>エンティティ編集</button></a>
               <a href='/entity/history/{{ entity.id }}'><button type='button' class='btn btn-info btn-sm'>変更履歴</button></a>
               <a href='/acl/{{ entity.id }}'><button type='button' class='btn btn-info btn-sm'>ACL</button></a>
             </td>

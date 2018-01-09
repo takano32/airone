@@ -8,8 +8,6 @@ from django.db.models import Q
 
 from airone.lib.http import http_get, http_post, check_permission, render
 from airone.lib.http import get_download_response
-from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
-from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
 from airone.lib.types import AttrTypeValue
 from airone.lib.acl import get_permitted_objects
 from airone.lib.acl import ACLType

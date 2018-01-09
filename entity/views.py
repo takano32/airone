@@ -13,7 +13,7 @@ from user.models import User, History
 from entry.models import Entry, Attribute, AttributeValue
 from entity.admin import EntityResource, EntityAttrResource
 
-from airone.lib.types import AttrTypes, AttrTypeObj, AttrTypeValue
+from airone.lib.types import AttrTypes, AttrTypeValue
 from airone.lib.http import HttpResponseSeeOther
 from airone.lib.http import http_get, http_post
 from airone.lib.http import check_permission

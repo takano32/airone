@@ -47,12 +47,7 @@
           {% for entity in entities %}
           <tr>
             <td>
-              <div style="float:left;">
-                {{ entity.name }}
-              </div>
-              <div style="text-align:right;">
-                <a href='/entry/{{ entity.id }}'><button type='button' class='btn btn-info btn-sm'>エントリ一覧</button></a>
-              </div>
+                <a href='/entry/{{ entity.id }}'>{{ entity.name }}</a>
             </td>
             <td>{{ entity.note }}</td>
             <td>

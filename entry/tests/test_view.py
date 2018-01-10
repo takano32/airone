@@ -3,6 +3,7 @@ import yaml
 
 from django.test import TestCase, Client
 from django.urls import reverse
+from django.core.cache import cache
 from group.models import Group
 
 from entity.models import Entity, EntityAttr
@@ -22,6 +23,12 @@ from entry import tasks
 
 
 class ViewTest(AironeViewTest):
+    def setUp(self):
+        super(ViewTest, self).setUp()
+
+        # clear all caches
+        cache.clear()
+
     # override 'admin_login' method to create initial Entity/EntityAttr objects
     def admin_login(self):
         user = super(ViewTest, self).admin_login()
@@ -1304,3 +1311,74 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(Entry.objects.get(id=entry.id).name, 'Entry')
+
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
+    def test_referred_entry_cache(self):
+        user = self.admin_login()
+
+        ref_entity1 = Entity.objects.create(name='referred_entity1', created_user=user)
+        ref_entity2 = Entity.objects.create(name='referred_entity2', created_user=user)
+
+        ref_entry1 = Entry.objects.create(name='referred1', schema=ref_entity1, created_user=user)
+        ref_entry2 = Entry.objects.create(name='referred2', schema=ref_entity2, created_user=user)
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(name='ref',
+                                                   type=AttrTypeValue['object'],
+                                                   parent_entity=entity,
+                                                   created_user=user))
+        entity.attrs.add(EntityAttr.objects.create(name='arr_ref',
+                                                   type=AttrTypeValue['array_object'],
+                                                   parent_entity=entity,
+                                                   created_user=user))
+
+
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entity.attrs.get(name='ref').id), 'value': [str(ref_entry2.id)]},
+                {'id': str(entity.attrs.get(name='arr_ref').id), 'value': [str(ref_entry2.id)]},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+
+        # checks referred_object cache is set
+        entry = Entry.objects.get(name='entry')
+        self.assertIsNone(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY))
+        self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 2))
+
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entry.attrs.get(name='ref').id), 'value': [str(ref_entry1.id)]},
+                {'id': str(entry.attrs.get(name='arr_ref').id), 'value': [str(ref_entry1.id)]},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+
+        # checks referred_object cache is set
+        self.assertEqual(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 2))
+        self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
+
+        # checks referred_object cache will be updated by the edit processing
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entry.attrs.get(name='ref').id), 'value': [str(ref_entry2.id)]},
+                {'id': str(entry.attrs.get(name='arr_ref').id), 'value': [str(ref_entry2.id)]},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
+        self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 2))

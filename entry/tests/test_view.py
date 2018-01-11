@@ -1317,11 +1317,11 @@ class ViewTest(AironeViewTest):
     def test_referred_entry_cache(self):
         user = self.admin_login()
 
-        ref_entity1 = Entity.objects.create(name='referred_entity1', created_user=user)
-        ref_entity2 = Entity.objects.create(name='referred_entity2', created_user=user)
+        ref_entity = Entity.objects.create(name='referred_entity', created_user=user)
 
-        ref_entry1 = Entry.objects.create(name='referred1', schema=ref_entity1, created_user=user)
-        ref_entry2 = Entry.objects.create(name='referred2', schema=ref_entity2, created_user=user)
+        ref_entry1 = Entry.objects.create(name='referred1', schema=ref_entity, created_user=user)
+        ref_entry2 = Entry.objects.create(name='referred2', schema=ref_entity, created_user=user)
+        ref_entry3 = Entry.objects.create(name='referred3', schema=ref_entity, created_user=user)
 
         entity = Entity.objects.create(name='entity', created_user=user)
         entity.attrs.add(EntityAttr.objects.create(name='ref',
@@ -1333,12 +1333,15 @@ class ViewTest(AironeViewTest):
                                                    parent_entity=entity,
                                                    created_user=user))
 
+        # set entity that target each attributes refer to
+        [x.referral.add(ref_entity) for x in entity.attrs.all()]
 
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entity.attrs.get(name='ref').id), 'value': [str(ref_entry2.id)]},
-                {'id': str(entity.attrs.get(name='arr_ref').id), 'value': [str(ref_entry2.id)]},
+                {'id': str(entity.attrs.get(name='ref').id), 'value': [str(ref_entry1.id)]},
+                {'id': str(entity.attrs.get(name='arr_ref').id), 'value': [str(ref_entry1.id),
+                                                                           str(ref_entry2.id)]},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -1349,14 +1352,17 @@ class ViewTest(AironeViewTest):
 
         # checks referred_object cache is set
         entry = Entry.objects.get(name='entry')
-        self.assertIsNone(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY))
-        self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 2))
+        self.assertEqual(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 2))
+        self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 1))
+        self.assertIsNone(ref_entry3.get_cache(Entry.CACHE_REFERRED_ENTRY))
 
+        # checks referred_object cache will be updated by the edit processing
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entry.attrs.get(name='ref').id), 'value': [str(ref_entry1.id)]},
-                {'id': str(entry.attrs.get(name='arr_ref').id), 'value': [str(ref_entry1.id)]},
+                {'id': str(entry.attrs.get(name='ref').id), 'value': [str(ref_entry2.id)]},
+                {'id': str(entry.attrs.get(name='arr_ref').id), 'value': [str(ref_entry2.id),
+                                                                          str(ref_entry3.id)]},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -1364,16 +1370,17 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 200)
 
-        # checks referred_object cache is set
-        self.assertEqual(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 2))
-        self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
+        # checks referred_object cache is updated by chaning referring
+        self.assertEqual(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
+        self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 2))
+        self.assertEqual(ref_entry3.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 1))
 
-        # checks referred_object cache will be updated by the edit processing
+        # checks referred_object cache will be updated by unrefering
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entry.attrs.get(name='ref').id), 'value': [str(ref_entry2.id)]},
-                {'id': str(entry.attrs.get(name='arr_ref').id), 'value': [str(ref_entry2.id)]},
+                {'id': str(entry.attrs.get(name='ref').id), 'value': []},
+                {'id': str(entry.attrs.get(name='arr_ref').id), 'value': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -1381,4 +1388,5 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
-        self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 2))
+        self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
+        self.assertEqual(ref_entry3.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))

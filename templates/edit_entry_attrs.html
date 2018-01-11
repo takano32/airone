@@ -14,7 +14,7 @@
         <!-- template of attribute value column -->
         <div style="display:none" class='attr_value_template' id='template-{{ attr.id }}'>
           <div class='col-10'>
-            {% if attr.type == attr_type.array_entry %}
+            {% if attr.type|bitwise_and:attr_type.entry %}
 
         <!-- specify maximum size of list -->
         {% if attr.referrals|length > 5 %}
@@ -22,11 +22,11 @@
         {% else %}
         <select class="attr_value" attr_id="{{ attr.id }}" size={{ attr.referrals|length|add:1 }} style="width: 100%">
         {% endif %}
-  
+
           {% if not attr.is_mandatory %}
           <option value='0'>- NOT SET -</option>
           {% endif %}
-  
+
           {% for referral in attr.referrals|slice:":100" %}
           <option value="{{ referral.id }}"
             {% if referral.id == attr.last_referral.id %}
@@ -58,8 +58,17 @@
           </div>
         </div>
       </div>
-    {% else %}
-      {% if attr.type == attr_type.entry %}
+    {% elif attr.type|bitwise_and:attr_type.entry %}
+      <div class='row'>
+      {% if attr.type == attr_type.named_entry %}
+        <div class='col-3' stype='background: #009900'>
+          <input type='text'></input>
+        </div>
+        <div class='col-9'>
+      {% else %}
+        <div class='col-12'>
+      {% endif %}
+
         <!-- specify maximum size of list -->
         <ul class='list-group'>
           <li class='list-group-item list-group-item-info' attr_id='{{ attr.id }}' style="height: 30px; padding: 5px 15px;">
@@ -72,11 +81,11 @@
         {% else %}
         <select class="attr_value" attr_id="{{ attr.id }}" size='{{ attr.referrals|length|add:1 }}' style="width: 100%" {%if attr.is_mandatory%}mandatory="true"{%endif%}>
         {% endif %}
-  
+
           {% if not attr.is_mandatory %}
           <option value='0'>- NOT SET -</option>
           {% endif %}
-  
+
           {% for referral in attr.referrals|slice:":100" %}
           <option value="{{ referral.id }}"{% if referral.id == attr.last_referral.id %} selected="selected" {% endif %}>{{ referral.name }}</option>
           {% endfor %}
@@ -84,17 +93,25 @@
 
         <input type="text" class="narrow_down_referral" placeholder="絞り込み"  style="width: 100%"/>
 
-      {% elif attr.type == attr_type.textarea %}
+        </div>
+      </div>
+
+    {% elif attr.type == attr_type.textarea %}
+
       <textarea class="attr_value" attr_id="{{ attr.id }}" cols="80" rows="10" {%if attr.is_mandatory%}mandatory="true"{%endif%}>{{ attr.last_value }}</textarea>
-      {% elif attr.type == attr_type.boolean %}
-        {% if attr.last_value %}
-          <input type="checkbox" class="attr_value" attr_id="{{ attr.id }}" checked=True/>
-        {% else %}
-          <input type="checkbox" class="attr_value" attr_id="{{ attr.id }}" />
-        {% endif %}
+
+    {% elif attr.type == attr_type.boolean %}
+
+      {% if attr.last_value %}
+        <input type="checkbox" class="attr_value" attr_id="{{ attr.id }}" checked=True/>
       {% else %}
-      <input type="text" class="attr_value" attr_id="{{ attr.id }}" value="{{ attr.last_value }}" {%if attr.is_mandatory%}mandatory="true"{%endif%}/>
+        <input type="checkbox" class="attr_value" attr_id="{{ attr.id }}" />
       {% endif %}
+
+    {% else %}
+
+      <input type="text" class="attr_value" attr_id="{{ attr.id }}" value="{{ attr.last_value }}" {%if attr.is_mandatory%}mandatory="true"{%endif%}/>
+
     {% endif %}
   </td>
   <td>

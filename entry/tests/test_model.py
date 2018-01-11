@@ -347,3 +347,30 @@ class ModelTest(TestCase):
                                                       status=AttributeValue.STATUS_LATEST))
 
         self.assertEqual(len(attr.get_value_history(self._user)), 3)
+
+    def test_delete_entry(self):
+        entity = Entity.objects.create(name='ReferredEntity', created_user=self._user)
+        entry = Entry.objects.create(name='entry', created_user=self._user, schema=entity)
+
+        attr = self.make_attr('attr_ref', attrtype=AttrTypeObj)
+        attr.save()
+
+        self._entry.attrs.add(attr)
+
+        # make a self reference value
+        attr.values.add(AttributeValue.objects.create(created_user=self._user,
+                                                      parent_attr=attr,
+                                                      status=AttributeValue.STATUS_LATEST,
+                                                      referral=entry))
+
+        # set referral cache
+        entry.get_referred_objects()
+        self.assertEqual(entry.get_cache(Entry.CACHE_REFERRED_ENTRY), ([self._entry], 1))
+
+        # delete an entry that have an attribute which refers to the entry of ReferredEntity
+        self._entry.delete()
+        self.assertFalse(self._entry.is_active)
+        self.assertEqual(self._entry.attrs.filter(is_active=True).count(), 0)
+
+        # make sure that referral cache is updated by deleting referring entry
+        self.assertEqual(entry.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))

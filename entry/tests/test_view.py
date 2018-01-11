@@ -841,6 +841,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(len(obj['Attribute']), 2)
         self.assertEqual(len(obj['AttributeValue']), 4)
 
+    @patch('entry.views.delete_entry.delay', Mock(side_effect=tasks.delete_entry))
     def test_post_delete_entry(self):
         user = self.admin_login()
 
@@ -1314,6 +1315,7 @@ class ViewTest(AironeViewTest):
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
+    @patch('entry.views.delete_entry.delay', Mock(side_effect=tasks.delete_entry))
     def test_referred_entry_cache(self):
         user = self.admin_login()
 
@@ -1356,6 +1358,22 @@ class ViewTest(AironeViewTest):
         self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 1))
         self.assertIsNone(ref_entry3.get_cache(Entry.CACHE_REFERRED_ENTRY))
 
+        # checks referred_object cache will be updated by unrefering
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entry.attrs.get(name='ref').id), 'value': []},
+                {'id': str(entry.attrs.get(name='arr_ref').id), 'value': []},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
+        self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
+        self.assertIsNone(ref_entry3.get_cache(Entry.CACHE_REFERRED_ENTRY))
+
         # checks referred_object cache will be updated by the edit processing
         params = {
             'entry_name': 'entry',
@@ -1375,15 +1393,9 @@ class ViewTest(AironeViewTest):
         self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 2))
         self.assertEqual(ref_entry3.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 1))
 
-        # checks referred_object cache will be updated by unrefering
-        params = {
-            'entry_name': 'entry',
-            'attrs': [
-                {'id': str(entry.attrs.get(name='ref').id), 'value': []},
-                {'id': str(entry.attrs.get(name='arr_ref').id), 'value': []},
-            ],
-        }
-        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+        # delete referring entry and make sure that
+        # the cahce of referred_entry of ref_entry is reset
+        resp = self.client.post(reverse('entry:do_delete', args=[entry.id]),
                                 json.dumps(params), 'application/json')
 
         self.assertEqual(resp.status_code, 200)

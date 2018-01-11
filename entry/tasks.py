@@ -1,13 +1,12 @@
-from celery import shared_task
-
 from airone.lib.acl import ACLType
 from airone.lib.types import AttrTypeValue
+from airone.celery import app
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
 
 
-@shared_task
-def create_entry_attrs(user_id, entry_id, recv_data):
+@app.task(bind=True)
+def create_entry_attrs(self, user_id, entry_id, recv_data):
     user = User.objects.get(id=user_id)
     entry = Entry.objects.get(id=entry_id)
 
@@ -82,11 +81,11 @@ def create_entry_attrs(user_id, entry_id, recv_data):
             # set AttributeValue to Attribute
             attr.values.add(attr_value)
 
-    # clear flag to specify this entry has been completed to create
+    # clear flag to specify this entry has been completed to ndcreate
     entry.del_status(Entry.STATUS_CREATING)
 
-@shared_task
-def edit_entry_attrs(user_id, entry_id, recv_data):
+@app.task(bind=True)
+def edit_entry_attrs(self, user_id, entry_id, recv_data):
     user = User.objects.get(id=user_id)
     entry = Entry.objects.get(id=entry_id)
 
@@ -193,3 +192,9 @@ def edit_entry_attrs(user_id, entry_id, recv_data):
 
     # clear flag to specify this entry has been completed to create
     entry.del_status(Entry.STATUS_EDITING)
+
+@app.task(bind=True)
+def delete_entry(self, entry_id):
+    entry = Entry.objects.get(id=entry_id)
+
+    entry.delete()

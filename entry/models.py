@@ -148,6 +148,22 @@ class Attribute(ACLBase):
             'created_user': attrv.created_user.username,
         } for attrv in self.values.all()]
 
+    def delete(self):
+        super(Attribute, self).delete()
+
+        if self.schema.type & AttrTypeValue['object']:
+            # reset the cache of referred entry list
+            for attrv in self.values.extra(where=['status & %d > 0' % AttributeValue.STATUS_LATEST]):
+                # get entrie(s) that deleting attribute refers
+                referrals = [attrv.referral] if attrv.referral else []
+                if self.schema.type & AttrTypeValue['array']:
+                    referrals = [Entry.objects.get(id=x.referral.id) for x in attrv.data_array.all()]
+
+                # reset the cache of referred entries for each entries
+                for referral in referrals:
+                    referral_entry = Entry.objects.get(id=referral.id)
+                    referral_entry.get_referred_objects(use_cache=False)
+
 class Entry(ACLBase):
     # This flag is set just after created or edited, then cleared at completion of the processing
     STATUS_CREATING = 1 << 0
@@ -325,3 +341,10 @@ class Entry(ACLBase):
             ret_attrs.append(attrinfo)
 
         return sorted(ret_attrs, key=lambda x: x['index'])
+
+    def delete(self):
+        super(Entry, self).delete()
+
+        # also delete each attributes
+        for attr in self.attrs.filter(is_active=True):
+            attr.delete()

@@ -21,7 +21,7 @@ from entry.models import Entry, Attribute, AttributeValue
 from entry.admin import EntryResource, AttrResource, AttrValueResource
 from user.models import User
 from .settings import CONFIG
-from .tasks import create_entry_attrs, edit_entry_attrs
+from .tasks import create_entry_attrs, edit_entry_attrs, delete_entry
 
 
 @airone_profile
@@ -260,7 +260,8 @@ def show(request, entry_id):
     value_history = sum([x.get_value_history(user) for x in entry.attrs.filter(is_active=True)], [])
 
     # get referred entries and count of them
-    (referred_objects, referred_total) = entry.get_referred_objects(CONFIG.MAX_LIST_REFERRALS)
+    (referred_objects, referred_total) = entry.get_referred_objects(CONFIG.MAX_LIST_REFERRALS,
+                                                                    use_cache=True)
 
     attrs = entry.get_available_attrs(user)
 
@@ -268,7 +269,7 @@ def show(request, entry_id):
         'entry': entry,
         'attributes': attrs,
         'value_history': sorted(value_history, key=lambda x: x['created_time']),
-        'referred_objects': referred_objects,
+        'referred_objects': referred_objects[0:CONFIG.MAX_LIST_REFERRALS],
         'referred_total': referred_total,
     }
 
@@ -319,17 +320,15 @@ def do_delete(request, entry_id, recv_data):
     # update name of Entry object
     entry = Entry.objects.filter(id=entry_id).get()
 
+    # set deleted flag in advance because deleting processing taks long time
+    entry.is_active = False
+
     # save deleting Entry name before do it
     ret['name'] = entry.name
-
-    # delete target Entry
-    entry.delete()
 
     # register operation History for deleting entry
     user.seth_entry_del(entry)
 
-    # Delete all attributes which target Entry have
-    for attr in entry.attrs.all():
-        attr.delete()
+    delete_entry.delay(entry.id)
 
     return JsonResponse(ret)

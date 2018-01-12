@@ -3,6 +3,7 @@ import yaml
 
 from django.test import TestCase, Client
 from django.urls import reverse
+from django.core.cache import cache
 from group.models import Group
 
 from entity.models import Entity, EntityAttr
@@ -22,6 +23,12 @@ from entry import tasks
 
 
 class ViewTest(AironeViewTest):
+    def setUp(self):
+        super(ViewTest, self).setUp()
+
+        # clear all caches
+        cache.clear()
+
     # override 'admin_login' method to create initial Entity/EntityAttr objects
     def admin_login(self):
         user = super(ViewTest, self).admin_login()
@@ -599,7 +606,7 @@ class ViewTest(AironeViewTest):
 
         parent_values = [x for x in AttributeValue.objects.all()
                          if x.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)]
-        self.assertEqual(len(leaf_values), 3)
+        self.assertEqual(len(leaf_values), 4)
         self.assertEqual(len(parent_values), 2)
 
         self.assertEqual(attr.values.count(), 2)
@@ -656,7 +663,7 @@ class ViewTest(AironeViewTest):
 
         parent_values = [x for x in AttributeValue.objects.all()
                          if x.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)]
-        self.assertEqual(len(leaf_values), 3)
+        self.assertEqual(len(leaf_values), 4)
         self.assertEqual(len(parent_values), 2)
 
         self.assertEqual(attr.values.count(), 2)
@@ -834,6 +841,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(len(obj['Attribute']), 2)
         self.assertEqual(len(obj['AttributeValue']), 4)
 
+    @patch('entry.views.delete_entry.delay', Mock(side_effect=tasks.delete_entry))
     def test_post_delete_entry(self):
         user = self.admin_login()
 
@@ -1304,3 +1312,93 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(Entry.objects.get(id=entry.id).name, 'Entry')
+
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
+    @patch('entry.views.delete_entry.delay', Mock(side_effect=tasks.delete_entry))
+    def test_referred_entry_cache(self):
+        user = self.admin_login()
+
+        ref_entity = Entity.objects.create(name='referred_entity', created_user=user)
+
+        ref_entry1 = Entry.objects.create(name='referred1', schema=ref_entity, created_user=user)
+        ref_entry2 = Entry.objects.create(name='referred2', schema=ref_entity, created_user=user)
+        ref_entry3 = Entry.objects.create(name='referred3', schema=ref_entity, created_user=user)
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(name='ref',
+                                                   type=AttrTypeValue['object'],
+                                                   parent_entity=entity,
+                                                   created_user=user))
+        entity.attrs.add(EntityAttr.objects.create(name='arr_ref',
+                                                   type=AttrTypeValue['array_object'],
+                                                   parent_entity=entity,
+                                                   created_user=user))
+
+        # set entity that target each attributes refer to
+        [x.referral.add(ref_entity) for x in entity.attrs.all()]
+
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entity.attrs.get(name='ref').id), 'value': [str(ref_entry1.id)]},
+                {'id': str(entity.attrs.get(name='arr_ref').id), 'value': [str(ref_entry1.id),
+                                                                           str(ref_entry2.id)]},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+
+        # checks referred_object cache is set
+        entry = Entry.objects.get(name='entry')
+        self.assertEqual(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 2))
+        self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 1))
+        self.assertIsNone(ref_entry3.get_cache(Entry.CACHE_REFERRED_ENTRY))
+
+        # checks referred_object cache will be updated by unrefering
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entry.attrs.get(name='ref').id), 'value': []},
+                {'id': str(entry.attrs.get(name='arr_ref').id), 'value': []},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
+        self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
+        self.assertIsNone(ref_entry3.get_cache(Entry.CACHE_REFERRED_ENTRY))
+
+        # checks referred_object cache will be updated by the edit processing
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entry.attrs.get(name='ref').id), 'value': [str(ref_entry2.id)]},
+                {'id': str(entry.attrs.get(name='arr_ref').id), 'value': [str(ref_entry2.id),
+                                                                          str(ref_entry3.id)]},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+
+        # checks referred_object cache is updated by chaning referring
+        self.assertEqual(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
+        self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 2))
+        self.assertEqual(ref_entry3.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 1))
+
+        # delete referring entry and make sure that
+        # the cahce of referred_entry of ref_entry is reset
+        resp = self.client.post(reverse('entry:do_delete', args=[entry.id]),
+                                json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
+        self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
+        self.assertEqual(ref_entry3.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))

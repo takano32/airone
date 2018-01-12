@@ -1,13 +1,12 @@
-from celery import shared_task
-
 from airone.lib.acl import ACLType
 from airone.lib.types import AttrTypeValue
+from airone.celery import app
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
 
 
-@shared_task
-def create_entry_attrs(user_id, entry_id, recv_data):
+@app.task(bind=True)
+def create_entry_attrs(self, user_id, entry_id, recv_data):
     user = User.objects.get(id=user_id)
     entry = Entry.objects.get(id=entry_id)
 
@@ -37,6 +36,7 @@ def create_entry_attrs(user_id, entry_id, recv_data):
                 # set attribute value
                 if Entry.objects.filter(id=value).count():
                     attr_value.referral = Entry.objects.get(id=value)
+
             elif entity_attr.type == AttrTypeValue['array_string']:
                 attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
 
@@ -70,14 +70,17 @@ def create_entry_attrs(user_id, entry_id, recv_data):
 
             attr_value.save()
 
+            # reconstructs referral_cache for each entries that target attrv refer to
+            attr_value.reconstruct_referral_cache()
+
             # set AttributeValue to Attribute
             attr.values.add(attr_value)
 
-    # clear flag to specify this entry has been completed to create
+    # clear flag to specify this entry has been completed to ndcreate
     entry.del_status(Entry.STATUS_CREATING)
 
-@shared_task
-def edit_entry_attrs(user_id, entry_id, recv_data):
+@app.task(bind=True)
+def edit_entry_attrs(self, user_id, entry_id, recv_data):
     user = User.objects.get(id=user_id)
     entry = Entry.objects.get(id=entry_id)
 
@@ -96,12 +99,22 @@ def edit_entry_attrs(user_id, entry_id, recv_data):
 
             # Clear the flag that means target AttrValues are latet from the Values
             # that are already created.
-            for old_value in attr.values.all():
+            cond_latest = {
+                'where': ['status & %d > 0' % AttributeValue.STATUS_LATEST],
+            }
+            for old_value in attr.values.extra(**cond_latest):
                 old_value.del_status(AttributeValue.STATUS_LATEST)
+
+                # Sync db to update status value of AttributeValue,
+                # because the referred cache reconstruct processing checks this status value.
+                old_value.save()
 
                 if attr.schema.type & AttrTypeValue['array']:
                     # also clear the latest flags on the values in data_array
                     [x.del_status(AttributeValue.STATUS_LATEST) for x in old_value.data_array.all()]
+
+                # update referral_cache because of chaning the destination of reference
+                old_value.reconstruct_referral_cache()
 
             # Add a new AttributeValue object only at updating value
             attr_value = AttributeValue.objects.create(created_user=user, parent_attr=attr)
@@ -116,7 +129,6 @@ def edit_entry_attrs(user_id, entry_id, recv_data):
                 attr_value.value = info['value']
 
             elif attr.schema.type == AttrTypeValue['object']:
-
                 # set None if the referral entry is not specified
                 if info['value'] and Entry.objects.filter(id=info['value']).count():
                     attr_value.referral = Entry.objects.get(id=info['value'])
@@ -130,12 +142,8 @@ def edit_entry_attrs(user_id, entry_id, recv_data):
                 # set status of parent data_array
                 attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
 
-                # append existed AttributeValue objects
-                for attrv in attr.get_existed_values_of_array(info['value']):
-                    attr_value.data_array.add(attrv)
-
                 # create and append updated values
-                for value in attr.get_updated_values_of_array(info['value']):
+                for value in info['value']:
 
                     # create a new AttributeValue for each values
                     attrv = AttributeValue.objects.create(created_user=user, parent_attr=attr)
@@ -152,8 +160,17 @@ def edit_entry_attrs(user_id, entry_id, recv_data):
 
             attr_value.save()
 
+            # reconstructs referral_cache for each entries that target attrv refer to
+            attr_value.reconstruct_referral_cache()
+
             # append new AttributeValue
             attr.values.add(attr_value)
 
     # clear flag to specify this entry has been completed to create
     entry.del_status(Entry.STATUS_EDITING)
+
+@app.task(bind=True)
+def delete_entry(self, entry_id):
+    entry = Entry.objects.get(id=entry_id)
+
+    entry.delete()

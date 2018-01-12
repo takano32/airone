@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import Q
+from django.core.cache import cache
 
 from entity.models import EntityAttr, Entity
 from user.models import User
@@ -35,6 +36,20 @@ class AttributeValue(models.Model):
 
     def get_status(self, val):
         return self.status & val
+
+    def reconstruct_referral_cache(self):
+        """
+        This method reconstruct the referral cache for each entries that this object refers to.
+        The 'get_referred_objects' method of Entry caches the result, so this calls it in advance
+        to be fast the next view showing.
+        """
+        if int(self.parent_attr.schema.type) & AttrTypeValue['object']:
+            referrals = [Entry.objects.get(id=self.referral.id)] if self.referral else []
+            if int(self.parent_attr.schema.type) & AttrTypeValue['array']:
+                referrals = [Entry.objects.get(id=x.referral.id) for x in self.data_array.all()]
+
+            for referral in referrals:
+                referral.get_referred_objects(use_cache=False)
 
     @classmethod
     def search(kls, query):
@@ -113,36 +128,24 @@ class Attribute(ACLBase):
             return False
         return True
 
-    def get_updated_values_of_array(self, values):
-        if not self._validate_attr_values_of_array():
-            return []
+    def get_values(self, where_extra=[]):
+        where_cond = [] + where_extra
 
-        last_value = self.values.last()
-        if self.schema.type == AttrTypeArrStr:
-            return [x for x in values if not last_value.data_array.filter(value=x).count() and x]
-        elif self.schema.type == AttrTypeArrObj:
-            return [x for x in values if not last_value.data_array.filter(referral=x).count() and x]
+        if self.schema.type & AttrTypeValue['array']:
+            where_cond.append('status & %d > 0' % AttributeValue.STATUS_DATA_ARRAY_PARENT)
+        else:
+            where_cond.append('status & %d = 0' % AttributeValue.STATUS_DATA_ARRAY_PARENT)
 
-        return []
+        return self.values.extra(where=where_cond).order_by('created_time')
 
-    def get_existed_values_of_array(self, values):
-        if not self._validate_attr_values_of_array():
-            return []
-
-        last_value = self.values.last()
-        if self.schema.type == AttrTypeArrStr:
-            return [x for x in last_value.data_array.all() if x.value in values]
-        elif self.schema.type == AttrTypeArrObj:
-            return [x for x in last_value.data_array.all() if x.referral.id in
-                    map(lambda y: int(y), values)]
-
-        return []
+    def get_latest_values(self):
+        params = {
+            'where_extra': ['status & %s > 0' % AttributeValue.STATUS_LATEST],
+        }
+        return self.get_values(**params)
 
     def get_latest_value(self):
-        if self.schema.type & AttrTypeValue['array']:
-            return self.values.extra(where=['status & 1 = 1']).order_by('created_time').last()
-        else:
-            return self.values.extra(where=['status & 1 = 0']).order_by('created_time').last()
+        return self.get_values().last()
 
     def get_value_history(self, user):
         # At the first time, checks the ermission to read
@@ -153,10 +156,12 @@ class Attribute(ACLBase):
         def get_attr_value(attrv):
             attr = attrv.parent_attr
 
-            if attr.schema.type == AttrTypeArrStr:
+            if attr.schema.type == AttrTypeValue['array_string']:
                 return [x.value for x in attrv.data_array.all()]
-            elif attr.schema.type == AttrTypeArrObj:
+            elif attr.schema.type == AttrTypeValue['array_object']:
                 return [x.referral for x in attrv.data_array.all()]
+            elif attr.schema.type == AttrTypeValue['object']:
+                return attrv.referral
             elif attr.schema.type == AttrTypeValue['boolean']:
                 return attrv.boolean
             else:
@@ -170,10 +175,29 @@ class Attribute(ACLBase):
             'created_user': attrv.created_user.username,
         } for attrv in self.values.all()]
 
+    def delete(self):
+        super(Attribute, self).delete()
+
+        # reset the cache of referred entry that each attribute_value refer to
+        if int(self.schema.type) & AttrTypeValue['object']:
+            referred_ids = set()
+            for attrv in self.get_latest_values():
+                if int(self.schema.type) & AttrTypeValue['array']:
+                    [referred_ids.add(x.referral.id) for x in attrv.data_array.all()]
+                else:
+                    referred_ids.add(attrv.referral.id)
+
+            # reset referred_entries cache
+            for entry in [Entry.objects.get(id=x) for x in referred_ids]:
+                entry.get_referred_objects(use_cache=False)
+
 class Entry(ACLBase):
     # This flag is set just after created or edited, then cleared at completion of the processing
     STATUS_CREATING = 1 << 0
     STATUS_EDITING = 1 << 1
+
+    # constract of cache key for referred entry
+    CACHE_REFERRED_ENTRY = 'cache_referred_entry'
 
     attrs = models.ManyToManyField(Attribute)
     schema = models.ForeignKey(Entity)
@@ -181,6 +205,15 @@ class Entry(ACLBase):
     def __init__(self, *args, **kwargs):
         super(Entry, self).__init__(*args, **kwargs)
         self.objtype = ACLObjType.Entry
+
+    def get_cache(self, cache_key):
+        return cache.get("%s_%s" % (self.id, cache_key))
+
+    def set_cache(self, cache_key, value):
+        cache.set("%s_%s" % (self.id, cache_key), value)
+
+    def clear_cache(self, cache_key):
+        cache.delete("%s_%s" % (self.id, cache_key))
 
     def add_attribute_from_base(self, base, user):
         if not isinstance(base, EntityAttr):
@@ -213,29 +246,45 @@ class Entry(ACLBase):
         self.attrs.add(attr)
         return attr
 
-    def get_referred_objects(self, max_count=None, keyword=None):
+    def get_referred_objects(self, max_count=None, use_cache=False):
         """
         This returns objects that refer current Entry in the AttributeValue
         """
-        ret = []
-        total_count = AttributeValue.objects.filter(referral=self).count()
+        referred_entries = []
+        total_count = 0
+        cond = {
+            'where': ['status & %d > 0' % AttributeValue.STATUS_LATEST],
+        }
 
-        for attrvalue in AttributeValue.objects.filter(referral=self):
+        cached_value = self.get_cache(self.CACHE_REFERRED_ENTRY)
+        if use_cache and cached_value:
+            return cached_value
+
+        for attrvalue in AttributeValue.objects.filter(referral=self).extra(**cond):
             if not attrvalue.get_status(AttributeValue.STATUS_LATEST):
                 continue
 
-            if max_count and len(ret) >= max_count:
-                break
-
-            referred_obj = attrvalue.parent_attr.parent_entry
-            if keyword and keyword not in referred_obj.name:
-                # filtered by keyword parameter
+            if (not attrvalue.parent_attr.is_active or
+                not attrvalue.parent_attr.parent_entry.is_active):
                 continue
 
-            if referred_obj not in ret and referred_obj != self:
-                ret.append(referred_obj)
+            # update total count of referred values
+            if attrvalue.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT):
+                total_count += attrvalue.data_array.count()
+            else:
+                total_count += 1
 
-        return (ret, total_count)
+            referred_obj = attrvalue.parent_attr.parent_entry
+            if not (referred_obj not in referred_entries and referred_obj != self):
+                continue
+
+            if not max_count or len(referred_entries) < max_count:
+                referred_entries.append(referred_obj)
+
+        # set to cache
+        self.set_cache(self.CACHE_REFERRED_ENTRY, (referred_entries, total_count))
+
+        return (referred_entries, total_count)
 
     def complement_attrs(self, user):
         """
@@ -319,3 +368,10 @@ class Entry(ACLBase):
             ret_attrs.append(attrinfo)
 
         return sorted(ret_attrs, key=lambda x: x['index'])
+
+    def delete(self):
+        super(Entry, self).delete()
+
+        # also delete each attributes
+        for attr in self.attrs.filter(is_active=True):
+            attr.delete()

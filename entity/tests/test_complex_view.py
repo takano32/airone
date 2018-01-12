@@ -4,6 +4,7 @@ from airone.lib.acl import ACLType
 from airone.lib.test import AironeViewTest
 from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
 from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
+from airone.lib.types import AttrTypeValue
 
 from django.urls import reverse
 
@@ -234,3 +235,105 @@ class ComplexViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(Entry.objects.count(), 2)
         self.assertEqual(Entry.objects.get(name='entry2').attrs.count(), 0)
+
+    def test_cache_referred_entry_at_deleting_attr(self):
+        user = self.admin_login()
+
+        ref_entity = Entity.objects.create(name='ref_entity', created_user=user)
+        ref_entry = Entry.objects.create(name='ref_entry', schema=ref_entity, created_user=user)
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(name='ref',
+                                                   type=AttrTypeValue['object'],
+                                                   parent_entity=entity,
+                                                   created_user=user))
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+
+        attrv_params = {
+            'value': '',
+            'created_user': user,
+            'parent_attr': entry.attrs.get(name='ref'),
+            'referral': ref_entry,
+            'status': AttributeValue.STATUS_LATEST,
+        }
+        entry.attrs.get(name='ref').values.add(AttributeValue.objects.create(**attrv_params))
+
+        # make referred entry cache
+        ref_entry.get_referred_objects(use_cache=False)
+        self.assertEqual(ref_entry.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 1))
+
+        entity_attr = entity.attrs.last()
+        params = {
+            'name': 'entity',
+            'note': '',
+            'is_toplevel': False,
+            'attrs': [{
+                'id': entity_attr.id,
+                'name': entity_attr.name,
+                'type': str(entity_attr.type),
+                'is_mandatory': entity_attr.is_mandatory,
+                'ref_ids': [ref_entity.id],
+                'deleted': True,
+                'row_index': '1'
+            }], # delete EntityAttr 'ref'
+        }
+        resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        # checks that the cache is cleared because of the removing EntityAttr
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(entity.attrs.filter(is_active=True).count(), 0)
+        self.assertEqual(entry.attrs.filter(is_active=True).count(), 0)
+        self.assertEqual(ref_entry.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
+
+    def test_make_cache_referred_entry_after_updating_attr_type(self):
+        user = self.admin_login()
+
+        ref_entity = Entity.objects.create(name='ref_entity', created_user=user)
+        ref_entry = Entry.objects.create(name='ref_entry', schema=ref_entity, created_user=user)
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(name='ref',
+                                                   type=AttrTypeValue['object'],
+                                                   parent_entity=entity,
+                                                   created_user=user))
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+
+        attrv_params = {
+            'value': '',
+            'created_user': user,
+            'parent_attr': entry.attrs.get(name='ref'),
+            'referral': ref_entry,
+            'status': AttributeValue.STATUS_LATEST,
+        }
+        entry.attrs.get(name='ref').values.add(AttributeValue.objects.create(**attrv_params))
+
+        # make referred entry cache
+        ref_entry.get_referred_objects(use_cache=False)
+        self.assertEqual(ref_entry.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 1))
+
+        entity_attr = entity.attrs.last()
+        params = {
+            'name': 'entity',
+            'note': '',
+            'is_toplevel': False,
+            'attrs': [{
+                'id': entity_attr.id,
+                'name': entity_attr.name,
+                'type': str(AttrTypeValue['string']),
+                'is_mandatory': entity_attr.is_mandatory,
+                'row_index': '1'
+            }], # delete EntityAttr 'ref'
+        }
+        resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+
+        # checks that the cache will be updated after updating attr_type
+        ref_entry.get_referred_objects(use_cache=False)
+        self.assertEqual(ref_entry.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))

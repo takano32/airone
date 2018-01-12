@@ -1,5 +1,6 @@
 from group.models import Group
 from django.test import TestCase
+from django.core.cache import cache
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
@@ -236,10 +237,6 @@ class ModelTest(TestCase):
         self.assertTrue(attr.is_updated(['hoge', 'fuga', 'puyo']))  # add
         self.assertTrue(attr.is_updated(['hoge', 'fuga', 'abcd']))  # add & update
 
-        self.assertEqual(attr.get_updated_values_of_array(['hoge', 'puyo', '']), ['puyo'])
-        self.assertEqual(attr.get_existed_values_of_array(['hoge', 'puyo']),
-                         [AttributeValue.objects.get(value='hoge')])
-
     def test_attr_helper_of_attribute_with_array_object_values(self):
         e1 = Entry.objects.create(name='E1', created_user=self._user, schema=self._entity)
         e2 = Entry.objects.create(name='E2', created_user=self._user, schema=self._entity)
@@ -272,10 +269,6 @@ class ModelTest(TestCase):
         self.assertTrue(attr.is_updated([e3.id]))               # delete & update
         self.assertTrue(attr.is_updated([e1.id, e2.id, e3.id])) # create
         self.assertTrue(attr.is_updated([e1.id, e3.id, e4.id])) # create & update
-
-        self.assertEqual(attr.get_updated_values_of_array([e1.id, e3.id, 0]), [e3.id])
-        self.assertEqual(attr.get_existed_values_of_array([e1.id, e3.id]),
-                         [AttributeValue.objects.get(referral=e1)])
 
     def test_for_boolean_attr_and_value(self):
         attr = self.make_attr('attr_bool', AttrTypeValue['boolean'])
@@ -318,6 +311,13 @@ class ModelTest(TestCase):
         # unique reference objects except for the self referred object.
         self.assertEqual(entry.get_referred_objects(), ([self._entry], 10))
 
+        # checks the result is set in cache
+        self.assertEqual(entry.get_cache(Entry.CACHE_REFERRED_ENTRY), ([self._entry], 10))
+
+        # checks that this method refers cache value
+        entry.set_cache(Entry.CACHE_REFERRED_ENTRY, 'test-value')
+        self.assertEqual(entry.get_referred_objects(use_cache=True), 'test-value')
+
     def test_coordinating_attribute_with_dynamically_added_one(self):
         newattr = EntityAttr.objects.create(name='newattr',
                                             type=AttrTypeStr,
@@ -347,3 +347,45 @@ class ModelTest(TestCase):
                                                       status=AttributeValue.STATUS_LATEST))
 
         self.assertEqual(len(attr.get_value_history(self._user)), 3)
+
+    def test_delete_entry(self):
+        entity = Entity.objects.create(name='ReferredEntity', created_user=self._user)
+        entry = Entry.objects.create(name='entry', created_user=self._user, schema=entity)
+
+        attr = self.make_attr('attr_ref', attrtype=AttrTypeObj)
+        attr.save()
+
+        self._entry.attrs.add(attr)
+
+        # make a self reference value
+        attr.values.add(AttributeValue.objects.create(created_user=self._user,
+                                                      parent_attr=attr,
+                                                      status=AttributeValue.STATUS_LATEST,
+                                                      referral=entry))
+
+        # set referral cache
+        entry.get_referred_objects()
+        self.assertEqual(entry.get_cache(Entry.CACHE_REFERRED_ENTRY), ([self._entry], 1))
+
+        # delete an entry that have an attribute which refers to the entry of ReferredEntity
+        self._entry.delete()
+        self.assertFalse(self._entry.is_active)
+        self.assertEqual(self._entry.attrs.filter(is_active=True).count(), 0)
+
+        # make sure that referral cache is updated by deleting referring entry
+        self.assertEqual(entry.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
+
+    def test_reconstruct_referral_cache_by_attribute_value(self):
+        entity = Entity.objects.create(name='ReferredEntity', created_user=self._user)
+        entry = Entry.objects.create(name='entry', created_user=self._user, schema=entity)
+
+        attr = self.make_attr('attr_ref', attrtype=AttrTypeObj)
+        attr.save()
+
+        self._entry.attrs.add(attr)
+
+        # make AttributeValue and checks the cache is constructed
+        attrv = AttributeValue.objects.create(created_user=self._user, parent_attr=attr,
+                                              status=AttributeValue.STATUS_LATEST, referral=entry)
+        attrv.reconstruct_referral_cache()
+        self.assertEqual(entry.get_cache(Entry.CACHE_REFERRED_ENTRY), ([self._entry], 1))

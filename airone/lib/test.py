@@ -13,9 +13,6 @@ class AironeViewTest(TestCase):
         if hasattr(settings, 'AIRONE') and 'ENABLE_PROFILE' in settings.AIRONE:
             settings.AIRONE['ENABLE_PROFILE'] = False
 
-        # to prevent polluting the cache by test proecssing
-        settings.CACHES['default']['BACKEND'] = 'django.core.cache.backends.locmem.LocMemCache'
-
     def _do_login(self, uname, is_superuser=False):
         # create test user to authenticate
         user = User(username=uname, is_superuser=is_superuser)

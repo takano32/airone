@@ -374,3 +374,18 @@ class ModelTest(TestCase):
 
         # make sure that referral cache is updated by deleting referring entry
         self.assertEqual(entry.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
+
+    def test_reconstruct_referral_cache_by_attribute_value(self):
+        entity = Entity.objects.create(name='ReferredEntity', created_user=self._user)
+        entry = Entry.objects.create(name='entry', created_user=self._user, schema=entity)
+
+        attr = self.make_attr('attr_ref', attrtype=AttrTypeObj)
+        attr.save()
+
+        self._entry.attrs.add(attr)
+
+        # make AttributeValue and checks the cache is constructed
+        attrv = AttributeValue.objects.create(created_user=self._user, parent_attr=attr,
+                                              status=AttributeValue.STATUS_LATEST, referral=entry)
+        attrv.reconstruct_referral_cache()
+        self.assertEqual(entry.get_cache(Entry.CACHE_REFERRED_ENTRY), ([self._entry], 1))

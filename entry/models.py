@@ -128,7 +128,7 @@ class Attribute(ACLBase):
             return False
         return True
 
-    def get_latest_values(self, where_extra=[]):
+    def get_values(self, where_extra=[]):
         where_cond = [] + where_extra
 
         if self.schema.type & AttrTypeValue['array']:
@@ -138,8 +138,14 @@ class Attribute(ACLBase):
 
         return self.values.extra(where=where_cond).order_by('created_time')
 
-    def get_latest_value(self, *args, **argv):
-        return self.get_latest_values(*args, **argv).last()
+    def get_latest_values(self):
+        params = {
+            'where_extra': ['status & %s > 0' % AttributeValue.STATUS_LATEST],
+        }
+        return self.get_values(**params)
+
+    def get_latest_value(self):
+        return self.get_values().last()
 
     def get_value_history(self, user):
         # At the first time, checks the ermission to read
@@ -172,18 +178,18 @@ class Attribute(ACLBase):
     def delete(self):
         super(Attribute, self).delete()
 
-        if self.schema.type & AttrTypeValue['object']:
-            # reset the cache of referred entry list
-            for attrv in self.values.extra(where=['status & %d > 0' % AttributeValue.STATUS_LATEST]):
-                # get entrie(s) that deleting attribute refers
-                referrals = [attrv.referral] if attrv.referral else []
-                if self.schema.type & AttrTypeValue['array']:
-                    referrals = [Entry.objects.get(id=x.referral.id) for x in attrv.data_array.all()]
+        # reset the cache of referred entry that each attribute_value refer to
+        if int(self.schema.type) & AttrTypeValue['object']:
+            referred_ids = set()
+            for attrv in self.get_latest_values():
+                if int(self.schema.type) & AttrTypeValue['array']:
+                    [referred_ids.add(x.referral.id) for x in attrv.data_array.all()]
+                else:
+                    referred_ids.add(attrv.referral.id)
 
-                # reset the cache of referred entries for each entries
-                for referral in referrals:
-                    referral_entry = Entry.objects.get(id=referral.id)
-                    referral_entry.get_referred_objects(use_cache=False)
+            # reset referred_entries cache
+            for entry in [Entry.objects.get(id=x) for x in referred_ids]:
+                entry.get_referred_objects(use_cache=False)
 
 class Entry(ACLBase):
     # This flag is set just after created or edited, then cleared at completion of the processing

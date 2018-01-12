@@ -157,8 +157,23 @@ def do_edit(request, entity_id, recv_data):
             # In case of deleting attribute which has been already existed
             attr_obj = EntityAttr.objects.get(id=attr['id'])
 
+            # reset the cache of referred entry that each attribute_value refer to
+            referred_ids = set()
+            if attr_obj.type & AttrTypeValue['object']:
+
+                attrs = Attribute.objects.filter(schema=attr_obj.id, is_active=True)
+                for attrv in sum([list(a.get_latest_values()) for a in attrs], []):
+                    if attr_obj.type & AttrTypeValue['array']:
+                        [referred_ids.add(x.referral.id) for x in attrv.data_array.all()]
+                    else:
+                        referred_ids.add(attrv.referral.id)
+
             # delete all related Attributes of target EntityAttr
             [x.delete() for x in Attribute.objects.filter(schema=attr_obj.id, is_active=True)]
+
+            # reset referred_entries cache
+            for entry in [Entry.objects.get(id=x) for x in referred_ids]:
+                entry.get_referred_objects(use_cache=False)
 
             attr_obj.delete()
 

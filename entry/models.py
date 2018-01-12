@@ -175,22 +175,6 @@ class Attribute(ACLBase):
             'created_user': attrv.created_user.username,
         } for attrv in self.values.all()]
 
-    def delete(self):
-        super(Attribute, self).delete()
-
-        # reset the cache of referred entry that each attribute_value refer to
-        if int(self.schema.type) & AttrTypeValue['object']:
-            referred_ids = set()
-            for attrv in self.get_latest_values():
-                if int(self.schema.type) & AttrTypeValue['array']:
-                    [referred_ids.add(x.referral.id) for x in attrv.data_array.all()]
-                else:
-                    referred_ids.add(attrv.referral.id)
-
-            # reset referred_entries cache
-            for entry in [Entry.objects.get(id=x) for x in referred_ids]:
-                entry.get_referred_objects(use_cache=False)
-
 class Entry(ACLBase):
     # This flag is set just after created or edited, then cleared at completion of the processing
     STATUS_CREATING = 1 << 0
@@ -374,4 +358,21 @@ class Entry(ACLBase):
 
         # also delete each attributes
         for attr in self.attrs.filter(is_active=True):
+            referred_ids = set()
+
+            # before deleting attirubte, pick up referred entries to reconstruct referred cache
+            if attr.schema.type & AttrTypeValue['object']:
+
+                attrs = Attribute.objects.filter(schema=attr.schema.id, is_active=True)
+                for attrv in sum([list(a.get_latest_values()) for a in attrs], []):
+                    if attr.schema.type & AttrTypeValue['array']:
+                        [referred_ids.add(x.referral.id) for x in attrv.data_array.all()]
+                    else:
+                        referred_ids.add(attrv.referral.id)
+
+            # delete Attribute object
             attr.delete()
+
+            # reset referred_entries cache
+            for entry in [Entry.objects.get(id=x) for x in referred_ids]:
+                entry.get_referred_objects(use_cache=False)

@@ -37,6 +37,20 @@ class AttributeValue(models.Model):
     def get_status(self, val):
         return self.status & val
 
+    def reconstruct_referral_cache(self):
+        """
+        This method reconstruct the referral cache for each entries that this object refers to.
+        The 'get_referred_objects' method of Entry caches the result, so this calls it in advance
+        to be fast the next view showing.
+        """
+        if int(self.parent_attr.schema.type) & AttrTypeValue['object']:
+            referrals = [Entry.objects.get(id=self.referral.id)] if self.referral else []
+            if int(self.parent_attr.schema.type) & AttrTypeValue['array']:
+                referrals = [Entry.objects.get(id=x.referral.id) for x in self.data_array.all()]
+
+            for referral in referrals:
+                referral.get_referred_objects(use_cache=False)
+
     @classmethod
     def search(kls, query):
         results = []
@@ -114,11 +128,24 @@ class Attribute(ACLBase):
             return False
         return True
 
-    def get_latest_value(self):
+    def get_values(self, where_extra=[]):
+        where_cond = [] + where_extra
+
         if self.schema.type & AttrTypeValue['array']:
-            return self.values.extra(where=['status & 1 = 1']).order_by('created_time').last()
+            where_cond.append('status & %d > 0' % AttributeValue.STATUS_DATA_ARRAY_PARENT)
         else:
-            return self.values.extra(where=['status & 1 = 0']).order_by('created_time').last()
+            where_cond.append('status & %d = 0' % AttributeValue.STATUS_DATA_ARRAY_PARENT)
+
+        return self.values.extra(where=where_cond).order_by('created_time')
+
+    def get_latest_values(self):
+        params = {
+            'where_extra': ['status & %s > 0' % AttributeValue.STATUS_LATEST],
+        }
+        return self.get_values(**params)
+
+    def get_latest_value(self):
+        return self.get_values().last()
 
     def get_value_history(self, user):
         # At the first time, checks the ermission to read
@@ -325,3 +352,27 @@ class Entry(ACLBase):
             ret_attrs.append(attrinfo)
 
         return sorted(ret_attrs, key=lambda x: x['index'])
+
+    def delete(self):
+        super(Entry, self).delete()
+
+        # also delete each attributes
+        for attr in self.attrs.filter(is_active=True):
+            referred_ids = set()
+
+            # before deleting attirubte, pick up referred entries to reconstruct referred cache
+            if attr.schema.type & AttrTypeValue['object']:
+
+                attrs = Attribute.objects.filter(schema=attr.schema.id, is_active=True)
+                for attrv in sum([list(a.get_latest_values()) for a in attrs], []):
+                    if attr.schema.type & AttrTypeValue['array']:
+                        [referred_ids.add(x.referral.id) for x in attrv.data_array.all()]
+                    else:
+                        referred_ids.add(attrv.referral.id)
+
+            # delete Attribute object
+            attr.delete()
+
+            # reset referred_entries cache
+            for entry in [Entry.objects.get(id=x) for x in referred_ids]:
+                entry.get_referred_objects(use_cache=False)

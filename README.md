@@ -17,9 +17,9 @@ You have to install Python3.5+ to run AirOne like below (for the case of `ubuntu
 $ sudo apt-get install python3 python3-pip
 ```
 
-And you have to install RabbitMQ for executing heavy processing as background task using [Celery](http://docs.celeryproject.org/)
+And you have to install RabbitMQ for executing heavy processing as background task using [Celery](http://docs.celeryproject.org/) and Memcached for caching backend.
 ```
-$ sudo apt-get install rabbitmq-server
+$ sudo apt-get install rabbitmq-server memcached
 ```
 
 Then, you can install libraries on which AieOne depends by following.

@@ -1,13 +1,12 @@
-from celery import shared_task
-
 from airone.lib.acl import ACLType
 from airone.lib.types import AttrTypeValue
+from airone.celery import app
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
 
 
-@shared_task
-def create_entry_attrs(user_id, entry_id, recv_data):
+@app.task(bind=True)
+def create_entry_attrs(self, user_id, entry_id, recv_data):
     user = User.objects.get(id=user_id)
     entry = Entry.objects.get(id=entry_id)
 
@@ -38,10 +37,6 @@ def create_entry_attrs(user_id, entry_id, recv_data):
                 if Entry.objects.filter(id=value).count():
                     attr_value.referral = Entry.objects.get(id=value)
 
-                    # The 'get_referred_objects' method caches the result,
-                    # so this calls it in advance to be fast the next view showing.
-                    attr_value.referral.get_referred_objects(use_cache=False)
-
             elif entity_attr.type == AttrTypeValue['array_string']:
                 attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
 
@@ -67,10 +62,6 @@ def create_entry_attrs(user_id, entry_id, recv_data):
 
                     attr_value.data_array.add(_attr_value)
 
-                    # The 'get_referred_objects' method caches the result,
-                    # so this calls it in advance to be fast the next view showing.
-                    referral.get_referred_objects(use_cache=False)
-
             elif entity_attr.type == AttrTypeValue['boolean']:
                 attr_value.boolean = recv_values[0]
 
@@ -79,14 +70,17 @@ def create_entry_attrs(user_id, entry_id, recv_data):
 
             attr_value.save()
 
+            # reconstructs referral_cache for each entries that target attrv refer to
+            attr_value.reconstruct_referral_cache()
+
             # set AttributeValue to Attribute
             attr.values.add(attr_value)
 
-    # clear flag to specify this entry has been completed to create
+    # clear flag to specify this entry has been completed to ndcreate
     entry.del_status(Entry.STATUS_CREATING)
 
-@shared_task
-def edit_entry_attrs(user_id, entry_id, recv_data):
+@app.task(bind=True)
+def edit_entry_attrs(self, user_id, entry_id, recv_data):
     user = User.objects.get(id=user_id)
     entry = Entry.objects.get(id=entry_id)
 
@@ -119,17 +113,8 @@ def edit_entry_attrs(user_id, entry_id, recv_data):
                     # also clear the latest flags on the values in data_array
                     [x.del_status(AttributeValue.STATUS_LATEST) for x in old_value.data_array.all()]
 
-                    # update cache of referred entries
-                    if attr.schema.type & AttrTypeValue['object']:
-                        for attrv in [x for x in old_value.data_array.all() if x.referral]:
-                            referred_entry = Entry.objects.get(id=attrv.referral.id)
-                            referred_entry.get_referred_objects(use_cache=False)
-
-                elif attr.schema.type & AttrTypeValue['object']:
-                    # update cache of referred entries
-                    if old_value.referral:
-                        referred_entry = Entry.objects.get(id=old_value.referral.id)
-                        referred_entry.get_referred_objects(use_cache=False)
+                # update referral_cache because of chaning the destination of reference
+                old_value.reconstruct_referral_cache()
 
             # Add a new AttributeValue object only at updating value
             attr_value = AttributeValue.objects.create(created_user=user, parent_attr=attr)
@@ -175,21 +160,17 @@ def edit_entry_attrs(user_id, entry_id, recv_data):
 
             attr_value.save()
 
-            # The 'get_referred_objects' method caches the result,
-            # so this calls it in advance to be fast the next view showing.
-            #
-            # Note: This processing have to do after saving AttributeValue because
-            # cache reconstruct processing checks the status variable of AttributeValue
-            if attr.schema.type & AttrTypeValue['object']:
-                referrals = [attr_value.referral] if attr_value.referral else []
-                if attr.schema.type & AttrTypeValue['array']:
-                    referrals = [Entry.objects.get(id=x.referral.id) for x in attr_value.data_array.all()]
-
-                for referral in referrals:
-                    referral.get_referred_objects(use_cache=False)
+            # reconstructs referral_cache for each entries that target attrv refer to
+            attr_value.reconstruct_referral_cache()
 
             # append new AttributeValue
             attr.values.add(attr_value)
 
     # clear flag to specify this entry has been completed to create
     entry.del_status(Entry.STATUS_EDITING)
+
+@app.task(bind=True)
+def delete_entry(self, entry_id):
+    entry = Entry.objects.get(id=entry_id)
+
+    entry.delete()

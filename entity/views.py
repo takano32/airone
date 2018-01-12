@@ -201,11 +201,8 @@ def do_edit(request, entity_id, recv_data):
 
                     active_attrs = Attribute.objects.filter(schema=attr_obj, is_active=True)
 
-                    params = {
-                        'where_extra': ['status & %s > 0' % AttributeValue.STATUS_LATEST],
-                    }
                     [clear_latest_flag(v) for v in
-                            sum([list(a.get_latest_values(**params)) for a in active_attrs], [])]
+                            sum([list(a.get_latest_values()) for a in active_attrs], [])]
 
                 attr_obj.name = attr['name']
                 attr_obj.type = attr['type']

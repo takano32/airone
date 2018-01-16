@@ -72,6 +72,7 @@ AttrTypes = [
 AttrTypeValue = {
     'object': AttrTypeObj.TYPE,
     'string': AttrTypeStr.TYPE,
+    'named': _ATTR_NAMED_TYPE,
     'named_object': AttrTypeNamedObj.TYPE,
     'array': _ATTR_ARRAY_TYPE,
     'array_object': AttrTypeArrObj.TYPE,

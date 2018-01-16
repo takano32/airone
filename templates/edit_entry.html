@@ -75,13 +75,18 @@ $('form').submit(function(event){
   {% for attr in attributes %}
   attrs.push({
     'id': '{{ attr.id }}',
-    'value': $(this).find(".attr_value[attr_id='{{ attr.id }}']").map(function(i, e) {
+    'value': $(this).find(".attr_value[attr_id='{{ attr.id }}'][enabled='True']").map(function(i, e) {
       if(! ($(e).val() == '0' || $(e).val() == '')) {
         if($(e).attr('type') == 'checkbox') {
-          return $(e).prop('checked');
+          return {'data': $(e).prop('checked'), 'index': $(this).attr('index')};
         } else {
-          return $(e).val();
+          return {'data': $(e).val(), 'index': $(this).attr('index')};
         }
+      }
+    }).get(),
+    'referral_key': $(this).find(".referral_key[attr_id='{{ attr.id }}'][enabled='True']").map(function(i, e){
+      if(! $(e).val() == '') {
+        return {'data': $(e).val(), 'index': $(this).attr('index')};
       }
     }).get(),
   });
@@ -260,7 +265,23 @@ var update_selected_item = function() {
   // clear danger notification if it's set
   $(this).parent().removeClass('table-danger');
 
+  if(text.length > {{ config.entry.MAX_LABEL_STRING }}) {
+    text = text.substring(0, {{ config.entry.MAX_LABEL_STRING }} - 3) + '...';
+  }
+
   $(this).parent().find('li[attr_id="'+ attr_id +'"]').text(text);
+}
+
+// Helper function to identify row index for array_named_entry params
+var index_map = {};
+function get_index(attr_id) {
+  if(attr_id in index_map) {
+    index_map[attr_id] += 1;
+  } else {
+    index_map[attr_id] = 0;
+  }
+
+  return index_map[attr_id];
 }
 
 $('button[name=add_attr]').on('click', function() {
@@ -274,6 +295,14 @@ $('button[name=add_attr]').on('click', function() {
   new_column.find('button[name=del_attr]').on('click', del_column);
   new_column.find('.narrow_down_referral').on(narrow_down_handler);
   new_column.find(".attr_value").on('change', update_selected_item);
+  new_column.find(".attr_value").attr('enabled', 'True');
+  new_column.find(".referral_key").attr('enabled', 'True');
+
+  // set index attribute for attr_value and referral_key parameter
+  var current_index = get_index($(this).attr('attr_id'));
+
+  new_column.find(".attr_value").attr('index', current_index);
+  new_column.find(".referral_key").attr('index', current_index);
 
   container.prepend(new_column);
 
@@ -297,14 +326,40 @@ $('button[name=add_attr]').on('click', function() {
           elem_select = new_column.find('select');
 
           // clear select element and set option to show only selected one
-          elem_select.children('option').remove();
+          {% if value %}
+            elem_select.children('option').remove();
 
-          elem_select.append($('<option />').val(0).text('- NO SET -'));
-          elem_select.append($('<option />').val({{ value.id }}).text('{{ value.name }}').attr('selected', 'True'));
+            elem_select.append($('<option />').val(0).text('- NO SET -'));
+            elem_select.append($('<option />').val({{ value.id }}).text('{{ value.name }}').attr('selected', 'True'));
+          {% endif %}
 
           // set name of list element to specify selected value
-          new_column.find('li').text('{{ value.name }}');
-          new_column.find('input').val('{{ value.name }}');
+          new_column.find('li').text('{{ value.name|truncatechars:config.entry.MAX_LABEL_STRING }}');
+        }
+      {% elif attr.type == attr_type.array_named_entry %}
+        value_setter = function(new_column) {
+          var elem_referral_key = new_column.find('.referral_key')
+          var elem_select = new_column.find('select');
+          var current_index = get_index({{ attr.id }});
+
+          // clear select element and set option to show only selected one
+          {% if value.referral %}
+            elem_select.children('option').remove();
+
+            elem_select.append($('<option />').val(0).text('- NO SET -'));
+            elem_select.append($('<option />').val({{ value.referral.id }}).text('{{ value.referral.name }}').attr('selected', 'True'));
+          {% endif %}
+
+          // set name of list element to specify selected value
+          new_column.find('li').text('{{ value.referral.name|truncatechars:config.entry.MAX_LABEL_STRING }}');
+          elem_referral_key.val('{{ value.value }}');
+
+          // set enabled flag and index to each parameters
+          elem_referral_key.attr('enabled', 'True');
+          elem_select.attr('enabled', 'True');
+
+          new_column.find('.referral_key').attr('index', current_index);
+          elem_select.attr('index', current_index);
         }
       {% endif %}
       append_column(container, template, value_setter);

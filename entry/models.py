@@ -46,7 +46,7 @@ class AttributeValue(models.Model):
         if int(self.parent_attr.schema.type) & AttrTypeValue['object']:
             referrals = [Entry.objects.get(id=self.referral.id)] if self.referral else []
             if int(self.parent_attr.schema.type) & AttrTypeValue['array']:
-                referrals = [Entry.objects.get(id=x.referral.id) for x in self.data_array.all()]
+                referrals = [Entry.objects.get(id=x.referral.id) for x in self.data_array.all() if x.referral]
 
             for referral in referrals:
                 referral.get_referred_objects(use_cache=False)
@@ -78,7 +78,7 @@ class Attribute(ACLBase):
         self.objtype = ACLObjType.EntryAttr
 
     # This checks whether each specified attribute needs to update
-    def is_updated(self, recv_value):
+    def is_updated(self, recv_value, recv_key=None):
         # the case new attribute-value is specified
         if self.values.count() == 0:
             # the result depends on the specified value
@@ -119,6 +119,25 @@ class Attribute(ACLBase):
 
         elif self.schema.type == AttrTypeValue['boolean']:
             return last_value.boolean != recv_value
+
+        elif self.schema.type == AttrTypeValue['named_object']:
+            if last_value.value != recv_key:
+                return True
+
+            if not last_value.referral and recv_value:
+                return True
+
+            if last_value.referral and recv_value and last_value.referral.id != int(recv_value):
+                return True
+
+        elif self.schema.type == AttrTypeValue['array_named_object']:
+            current_refs = [x.referral.id for x in last_value.data_array.all() if x.referral]
+            if sorted(current_refs) != sorted([int(x) for x in recv_value if x]):
+                return True
+
+            current_keys = [x.value for x in last_value.data_array.all() if x.value]
+            if sorted(current_keys) != sorted(recv_key):
+                return True
 
         return False
 
@@ -164,6 +183,16 @@ class Attribute(ACLBase):
                 return attrv.referral
             elif attr.schema.type == AttrTypeValue['boolean']:
                 return attrv.boolean
+            elif attr.schema.type == AttrTypeValue['named_object']:
+                return {
+                    'value': attrv.value,
+                    'referral': attrv.referral,
+                }
+            elif attr.schema.type == AttrTypeValue['array_named_object']:
+                return [{
+                    'value': x.value,
+                    'referral': x.referral,
+                } for x in attrv.data_array.all()]
             else:
                 return attrv.value
 
@@ -324,9 +353,20 @@ class Entry(ACLBase):
                 elif attr.schema.type == AttrTypeArrStr:
                     attrinfo['last_value'] = [x.value for x in last_value.data_array.all()]
                 elif attr.schema.type == AttrTypeArrObj:
-                    attrinfo['last_value'] = [x.referral for x in last_value.data_array.all()]
+                    attrinfo['last_referral'] = [x.referral for x in last_value.data_array.all()]
                 elif attr.schema.type == AttrTypeValue['boolean']:
                     attrinfo['last_value'] = last_value.boolean
+                elif attr.schema.type == AttrTypeValue['named_object']:
+                    attrinfo['last_value'] = last_value.value
+                    attrinfo['last_referral'] = last_value.referral
+                elif attr.schema.type == AttrTypeValue['array_named_object']:
+                    values = [x.value for x in last_value.data_array.all()]
+                    referrals = [x.referral for x in last_value.data_array.all()]
+
+                    attrinfo['last_value'] = [{
+                        'value': v,
+                        'referral': r
+                    } for (v, r) in zip(values, referrals)]
 
             # set Entries which are specified in the referral parameter
             attrinfo['referrals'] = []

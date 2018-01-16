@@ -7,15 +7,29 @@
   <td>
     {% if attr.type|bitwise_and:attr_type_value.array %}
       <div>
-        <button type="button" class="btn btn-primary btn-sm" name='add_attr'>add row</button>
+        <button type="button" class="btn btn-primary btn-sm" name='add_attr' attr_id="{{ attr.id }}">add row</button>
         <div class='array_element' attr_id="{{ attr.id }}" {%if attr.is_mandatory%}mandatory="true"{%endif%}>
         </div>
 
         <!-- template of attribute value column -->
         <div style="display:none" class='attr_value_template' id='template-{{ attr.id }}'>
-          <div class='col-10'>
+
+      {% if attr.type|bitwise_and:attr_type_value.named %}
+        <div class='col-3'>
+          <input type='text' class='referral_key' attr_id="{{ attr.id }}"></input>
+        </div>
+        <div class='col-7'>
+      {% else %}
+        <div class='col-10'>
+      {% endif %}
+
             {% if attr.type|bitwise_and:attr_type.entry %}
 
+        <ul class='list-group'>
+          <li class='list-group-item list-group-item-info' attr_id='{{ attr.id }}' style="height: 30px; padding: 5px 15px;">
+            {{ attr.last_referral.name }}
+          </li>
+        </ul>
         <!-- specify maximum size of list -->
         {% if attr.referrals|length > 5 %}
         <select class="attr_value" attr_id="{{ attr.id }}" size=5 style="width: 100%">
@@ -42,14 +56,9 @@
         {% else %}
           <input type="text" class="narrow_down_referral" placeholder="絞り込み" style="width: 100%"/>
         {% endif %}
-        <ul class='list-group'>
-          <li class='list-group-item list-group-item-info' attr_id='{{ attr.id }}' style="height: 30px; padding: 5px 15px;">
-            {{ attr.last_referral.name }}
-          </li>
-        </ul>
 
             {% else %}
-              <input type='text' class='attr_value' attr_id='{{ attr.id }}'/>
+              <input type='text' class='attr_value' attr_id='{{ attr.id }}' index='0'/>
             {% endif %}
 
           </div>
@@ -60,9 +69,9 @@
       </div>
     {% elif attr.type|bitwise_and:attr_type.entry %}
       <div class='row'>
-      {% if attr.type == attr_type.named_entry %}
-        <div class='col-3' stype='background: #009900'>
-          <input type='text'></input>
+      {% if attr.type|bitwise_and:attr_type_value.named %}
+        <div class='col-3'>
+          <input type='text' class='referral_key' attr_id="{{ attr.id }}" value="{{ attr.last_value }}" enabled="True" index="0"></input>
         </div>
         <div class='col-9'>
       {% else %}
@@ -77,9 +86,9 @@
         </ul>
 
         {% if attr.referrals|length > 5 %}
-        <select class="attr_value" attr_id="{{ attr.id }}" size='5' style="width: 100%">
+        <select class="attr_value" attr_id="{{ attr.id }}" enabled="True" index='0' size='5' style="width: 100%">
         {% else %}
-        <select class="attr_value" attr_id="{{ attr.id }}" size='{{ attr.referrals|length|add:1 }}' style="width: 100%" {%if attr.is_mandatory%}mandatory="true"{%endif%}>
+        <select class="attr_value" attr_id="{{ attr.id }}" enabled="True" index='0' size='{{ attr.referrals|length|add:1 }}' style="width: 100%" {%if attr.is_mandatory%}mandatory="true"{%endif%}>
         {% endif %}
 
           {% if not attr.is_mandatory %}
@@ -98,19 +107,19 @@
 
     {% elif attr.type == attr_type.textarea %}
 
-      <textarea class="attr_value" attr_id="{{ attr.id }}" cols="80" rows="10" {%if attr.is_mandatory%}mandatory="true"{%endif%}>{{ attr.last_value }}</textarea>
+      <textarea class="attr_value" attr_id="{{ attr.id }}" enabled="True" cols="80" rows="10" {%if attr.is_mandatory%}mandatory="true"{%endif%}>{{ attr.last_value }}</textarea>
 
     {% elif attr.type == attr_type.boolean %}
 
       {% if attr.last_value %}
-        <input type="checkbox" class="attr_value" attr_id="{{ attr.id }}" checked=True/>
+        <input type="checkbox" class="attr_value" attr_id="{{ attr.id }}" enabled="True" checked=True/>
       {% else %}
-        <input type="checkbox" class="attr_value" attr_id="{{ attr.id }}" />
+        <input type="checkbox" class="attr_value" attr_id="{{ attr.id }}" enabled="True" />
       {% endif %}
 
     {% else %}
 
-      <input type="text" class="attr_value" attr_id="{{ attr.id }}" value="{{ attr.last_value }}" {%if attr.is_mandatory%}mandatory="true"{%endif%}/>
+      <input type="text" class="attr_value" attr_id="{{ attr.id }}" enabled="True" value="{{ attr.last_value }}" {%if attr.is_mandatory%}mandatory="true"{%endif%}/>
 
     {% endif %}
   </td>

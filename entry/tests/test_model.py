@@ -473,3 +473,65 @@ class ModelTest(TestCase):
                                               status=AttributeValue.STATUS_LATEST, referral=entry)
         attrv.reconstruct_referral_cache()
         self.assertEqual(entry.get_cache(Entry.CACHE_REFERRED_ENTRY), ([self._entry], 1))
+
+    def test_order_of_array_named_ref_entries(self):
+        ref_entity = Entity.objects.create(name='referred_entity', created_user=self._user)
+        ref_entry = Entry.objects.create(name='referred_entry', created_user=self._user, schema=ref_entity)
+
+        entity = Entity.objects.create(name='entity', created_user=self._user)
+        new_attr_params = {
+            'name': 'arr_named_ref',
+            'type': AttrTypeValue['array_named_object'],
+            'created_user': self._user,
+            'parent_entity': entity,
+        }
+        attr_base = EntityAttr.objects.create(**new_attr_params)
+        attr_base.referral.add(ref_entity)
+
+        entity.attrs.add(attr_base)
+
+        # create an Entry associated to the 'entity'
+        entry = Entry.objects.create(name='entry', created_user=self._user, schema=entity)
+        entry.complement_attrs(self._user)
+
+        attr = entry.attrs.get(name='arr_named_ref')
+        self.assertTrue(attr.is_updated([ref_entry.id]))
+
+        attrv = AttributeValue.objects.create(**{
+            'parent_attr': attr,
+            'created_user': self._user,
+            'status': AttributeValue.STATUS_LATEST | AttributeValue.STATUS_DATA_ARRAY_PARENT,
+        })
+
+        r_entries = []
+        for i in range(3, 0, -1):
+            r_entry = Entry.objects.create(name='r_%d' % i, created_user=self._user, schema=ref_entity)
+            r_entries.append(r_entry.id)
+
+            attrv.data_array.add(AttributeValue.objects.create(**{
+                'parent_attr': attr,
+                'created_user': self._user,
+                'status': AttributeValue.STATUS_LATEST,
+                'value': 'key_%d' % i,
+                'referral': r_entry,
+            }))
+
+        attr.values.add(attrv)
+
+        # checks the order of entries for array_named_ref that are shown in the views of
+        # list/show/edit
+        results = entry.get_available_attrs(self._user)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(len(results[0]['last_value']), 3)
+        self.assertEqual(results[0]['last_value'][0]['value'], 'key_1')
+        self.assertEqual(results[0]['last_value'][1]['value'], 'key_2')
+        self.assertEqual(results[0]['last_value'][2]['value'], 'key_3')
+
+        # checks the order of entries for array_named_ref that are shown in the history of
+        # show page
+        results = entry.attrs.get(name='arr_named_ref').get_value_history(self._user)
+        self.assertEqual(len(results), 2)
+        self.assertEqual(len(results[1]['attr_value']), 3)
+        self.assertEqual(results[1]['attr_value'][0]['value'], 'key_1')
+        self.assertEqual(results[1]['attr_value'][1]['value'], 'key_2')
+        self.assertEqual(results[1]['attr_value'][2]['value'], 'key_3')

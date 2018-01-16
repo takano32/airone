@@ -189,10 +189,10 @@ class Attribute(ACLBase):
                     'referral': attrv.referral,
                 }
             elif attr.schema.type == AttrTypeValue['array_named_object']:
-                return [{
+                return sorted([{
                     'value': x.value,
                     'referral': x.referral,
-                } for x in attrv.data_array.all()]
+                } for x in attrv.data_array.all()], key=lambda x: x['value'])
             else:
                 return attrv.value
 
@@ -363,10 +363,10 @@ class Entry(ACLBase):
                     values = [x.value for x in last_value.data_array.all()]
                     referrals = [x.referral for x in last_value.data_array.all()]
 
-                    attrinfo['last_value'] = [{
+                    attrinfo['last_value'] = sorted([{
                         'value': v,
                         'referral': r
-                    } for (v, r) in zip(values, referrals)]
+                    } for (v, r) in zip(values, referrals)], key=lambda x: x['value'])
 
             # set Entries which are specified in the referral parameter
             attrinfo['referrals'] = []

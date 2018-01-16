@@ -1740,14 +1740,15 @@ class ViewTest(AironeViewTest):
 
         new_attrv = updated_entry.attrs.get(name='arr_named_ref').values.last()
         self.assertEqual(new_attrv.data_array.count(), 3)
-        self.assertEqual(new_attrv.data_array.all()[0].value, 'hoge_0')
-        self.assertIsNone(new_attrv.data_array.all()[0].referral)
-        self.assertEqual(new_attrv.data_array.all()[1].value, 'hoge_1')
-        self.assertEqual(new_attrv.data_array.all()[1].referral.id,
-                         Entry.objects.get(id=r_entries[1]).id)
-        self.assertEqual(new_attrv.data_array.all()[2].value, '')
-        self.assertEqual(new_attrv.data_array.all()[2].referral.id,
-                         Entry.objects.get(id=r_entries[2]).id)
+
+        contexts = [{
+            'name': x.value,
+            'referral': x.referral.id if x.referral else None,
+        } for x in new_attrv.data_array.all()]
+
+        self.assertTrue({'name': 'hoge_0', 'referral': None} in contexts)
+        self.assertTrue({'name': 'hoge_1', 'referral': r_entries[1]} in contexts)
+        self.assertTrue({'name': '', 'referral': r_entries[2]} in contexts)
 
         # try to update with same data but order is different (expected not to be updated)
         params = {

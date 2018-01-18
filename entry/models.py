@@ -46,7 +46,9 @@ class AttributeValue(models.Model):
         if int(self.parent_attr.schema.type) & AttrTypeValue['object']:
             referrals = [Entry.objects.get(id=self.referral.id)] if self.referral else []
             if int(self.parent_attr.schema.type) & AttrTypeValue['array']:
-                referrals = [Entry.objects.get(id=x.referral.id) for x in self.data_array.all() if x.referral]
+                # Wrapping with 'set' is needed to avoid unnecessary processing
+                # when mulitple attrvs which refer to same entries are existed
+                referrals = set([Entry.objects.get(id=x.referral.id) for x in self.data_array.all() if x.referral])
 
             for referral in referrals:
                 referral.get_referred_objects(use_cache=False)

@@ -1,5 +1,5 @@
 var toggle_referral = function() {
-  if($(this).val() & ATTR_TYPE.object) {
+  if($(this).val() & ATTR_TYPE.object || $(this).val() & ATTR_TYPE.named_object) {
     for(cls_name of ['attr_referral', 'list-group', 'narrow_down_referral']) {
       $(this).parent().parent().parent().find(`.${cls_name}`).show();
     }

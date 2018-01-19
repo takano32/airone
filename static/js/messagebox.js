@@ -28,35 +28,40 @@ MessageBox.success = function(text) {
 
 MessageBox.registerReadyFunction = function() {
   $(".airone-messagebox").ready(function() {
-    if(window.sessionStorage.getItem(['airone-message-code'])) {
-      code = window.sessionStorage.getItem(['airone-message-code']);
-      text = window.sessionStorage.getItem(['airone-message-text']);
-
-      window.sessionStorage.removeItem(['airone-message-code']);
-      window.sessionStorage.removeItem(['airone-message-text']);
-
-      switch(Number(code)) {
-      case MessageBox.ERROR:
-        MessageBox.error(text);
-        break;
-      case MessageBox.WARN:
-        MessageBox.warn(text);
-        break;
-      case MessageBox.INFO:
-        MessageBox.info(text);
-        break;
-      case MessageBox.SUCCESS:
-        MessageBox.success(text);
-        break;
+    var msgs = window.sessionStorage.getItem(['airone-message']);
+    if(msgs) {
+      for(let msg of JSON.parse(msgs)) {
+        switch(Number(msg['code'])) {
+        case MessageBox.ERROR:
+          MessageBox.error(msg['text']);
+          break;
+        case MessageBox.WARN:
+          MessageBox.warn(msg['text']);
+          break;
+        case MessageBox.INFO:
+          MessageBox.info(msg['text']);
+          break;
+        case MessageBox.SUCCESS:
+          MessageBox.success(msg['text']);
+          break;
+        }
       }
+      window.sessionStorage.removeItem(['airone-message']);
     }
   });
 };
 MessageBox.registerReadyFunction();
 
 MessageBox.setNextOnLoadMessage = function(code, text){
-  window.sessionStorage.setItem(['airone-message-code'], [code.toString()]);
-  window.sessionStorage.setItem(['airone-message-text'], [text]);
+  // To display multiple messages, set localStorage as Array
+  var data = window.sessionStorage.getItem(['airone-message']);
+  if(data) {
+    data = JSON.parse(data);
+    data.push({'code': code.toString(), 'text': text});
+    window.sessionStorage.setItem(['airone-message'], JSON.stringify(data));
+  } else {
+    window.sessionStorage.setItem(['airone-message'], JSON.stringify([{'code': code.toString(), 'text': text}]));
+  }
 };
 
 MessageBox._showMessage = function(text, style) {

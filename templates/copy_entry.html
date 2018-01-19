@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block title %}Copy Entry{% endblock %}
+
+{% block nav_sub_header %}
+{% load bitwise_tags %}
+<div class="conatiner-fluid">
+  <ul class="breadcrumb airone-breadcrumb">
+    <li class="breadcrumb-item"><a href="/">TOP</a></li>
+    <li class="breadcrumb-item"><a href='/entry/{{ entry.schema.id }}'>{{ entry.schema.name }}</a></li>
+    {% if entry.is_deleted %}
+    <li class="breadcrumb-item"><a href='/entry/show/{{ entry.id }}'>{{ entry.name }} [削除済]</a></li>
+    {% elif entry.status|bitwise_and:STATUS_ENTRY.EDITING %}
+    <li class="breadcrumb-item"><a href='/entry/show/{{ entry.id }}'>{{ entry.name }} [編集中]</a></li>
+    {% else %}
+    <li class="breadcrumb-item"><a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a></li>
+    {% endif %}
+    <li class="breadcrumb-item">コピー</li>
+  </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <form url='{{ form_url }}' method='post'>
+  <div class="row">
+    <div class="col">
+      <div class="float-left">
+        <p>入力した各行毎に <a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a> と同じ属性値を持つ別エントリを作成</p>
+      </div>
+      <div class="float-right">
+        <input type="submit" class="btn btn-primary" value="作成"></button>
+      </div>
+    </div>
+  </div>
+  <div class='row'>
+    <div class="col-5">
+      <textarea id="creating_entries" cols="40" rows="10"></textarea>
+    </div>
+    <div class="col-7">
+      <p class='text-muted'>例：'vm0001', 'vm0002', ... 'vm0006' の 6 エントリを作成する場合</p>
+      <textarea class="input-disabled" cols="40" rows="8" disabled="True">
+vm0001
+vm0002
+vm0003
+vm0004
+vm0005
+vm0006
+      </textarea>
+    </div>
+  </div>
+  {% csrf_token %}
+  </form>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+$('form').submit(function(event){
+  event.preventDefault();
+
+  // clear old warning
+  MessageBox.clear();
+
+  var context = {
+    'entries': $(this).find("#creating_entries").val(),
+  };
+  HttpPost($(this), context).done(function(data) {
+    for(let r of data.results) {
+      MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, r.msg);
+    }
+    location.href = '{{ redirect_url }}';
+  }).fail(function(data) {
+    MessageBox.error(data.responseText);
+  });
+});
+
+</script>
+{% endblock %}

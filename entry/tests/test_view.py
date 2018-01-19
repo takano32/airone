@@ -1770,3 +1770,63 @@ class ViewTest(AironeViewTest):
 
         updated_entry = Entry.objects.get(id=entry.id)
         self.assertEqual(updated_entry.attrs.get(name='arr_named_ref').values.count(), 2)
+
+    def test_get_copy_with_invalid_entry(self):
+        user = self.admin_login()
+
+        resp = self.client.get(reverse('entry:index', args=[9999]))
+        self.assertEqual(resp.status_code, 400)
+
+    def test_get_copy_with_valid_entry(self):
+        user = self.admin_login()
+
+        entry = Entry.objects.create(name='entry', created_user=user, schema=self._entity)
+
+        resp = self.client.get(reverse('entry:copy', args=[entry.id]))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_post_copy_without_mandatory_parameter(self):
+        user = self.admin_login()
+
+        entry = Entry.objects.create(name='entry', created_user=user, schema=self._entity)
+
+        resp = self.client.post(reverse('entry:do_copy', args=[entry.id]),
+                                json.dumps({}), 'application/json')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_post_copy_with_invalid_entry(self):
+        user = self.admin_login()
+
+        params = {
+            'entries': 'foo\nbar\nbaz',
+        }
+        resp = self.client.post(reverse('entry:do_copy', args=[9999]),
+                                json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_post_copy_with_valid_entry(self):
+        user = self.admin_login()
+
+        entry = Entry.objects.create(name='entry', created_user=user, schema=self._entity)
+        entry.complement_attrs(user)
+
+        entry_count = Entry.objects.filter(schema=self._entity).count()
+
+        params = {
+            # 'foo' is duplicated
+            'entries': 'foo\nbar\nbaz\nfoo',
+        }
+        resp = self.client.post(reverse('entry:do_copy', args=[entry.id]),
+                                json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Type'], 'application/json')
+        self.assertTrue('results' in resp.json())
+
+        self.assertEqual(Entry.objects.filter(schema=self._entity).count(), entry_count + 3)
+        for name in ['foo', 'bar', 'baz']:
+            self.assertEqual(Entry.objects.filter(name=name, schema=self._entity).count(), 1)
+
+        results = resp.json()['results']
+        self.assertEqual(len(results), 4)
+        self.assertEqual(len([x for x in results if x['status'] == 'fail']), 1)
+        self.assertEqual(len([x for x in results if x['status'] == 'success']), 3)

@@ -330,3 +330,55 @@ def do_delete(request, entry_id, recv_data):
     delete_entry.delay(entry.id)
 
     return JsonResponse(ret)
+
+@airone_profile
+@http_get
+@check_permission(Entry, ACLType.Writable)
+def copy(request, entry_id):
+    user = User.objects.get(id=request.user.id)
+
+    if not Entry.objects.filter(id=entry_id).count():
+        return HttpResponse('Failed to get an Entry object of specified id', status=400)
+
+    entry = Entry.objects.get(id=entry_id)
+
+    context = {
+        'form_url': '/entry/do_copy/%s' % entry.id,
+        'redirect_url': '/entry/%s' % entry.schema.id,
+        'entry': entry,
+    }
+    return render(request, 'copy_entry.html', context)
+
+@airone_profile
+@http_post([
+    {'name': 'entries', 'type': str},
+])
+@http_post([])
+@check_permission(Entry, ACLType.Writable)
+def do_copy(request, entry_id, recv_data):
+    user = User.objects.get(id=request.user.id)
+
+    # validation check
+    if 'entries' not in recv_data:
+        return HttpResponse('Malformed data is specified (%s)' % recv_data, status=400)
+
+    if not Entry.objects.filter(id=entry_id).count():
+        return HttpResponse('Failed to get an Entry object of specified id', status=400)
+
+    ret = []
+    entry = Entry.objects.get(id=entry_id)
+    for new_name in [x for x in recv_data['entries'].split('\n') if x]:
+        if Entry.objects.filter(schema=entry.schema, name=new_name).count() > 0:
+            ret.append({
+                'status': 'fail',
+                'msg': 'A same named entry (%s) is already existed' % new_name,
+            })
+            continue
+
+        new_entry = entry.clone(user, name=new_name)
+        ret.append({
+            'status': 'success',
+            'msg': "Success to create new entry '%s'" % new_name,
+        })
+
+    return JsonResponse({'results': ret})

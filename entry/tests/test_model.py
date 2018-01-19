@@ -535,3 +535,130 @@ class ModelTest(TestCase):
         self.assertEqual(results[1]['attr_value'][0]['value'], 'key_1')
         self.assertEqual(results[1]['attr_value'][1]['value'], 'key_2')
         self.assertEqual(results[1]['attr_value'][2]['value'], 'key_3')
+
+    def test_clone_attribute_value(self):
+        basic_params = {
+            'created_user': self._user,
+            'parent_attr': self._attr,
+        }
+        attrv = AttributeValue.objects.create(value='hoge', **basic_params)
+
+        for i in range(0, 10):
+            attrv.data_array.add(AttributeValue.objects.create(value=str(i), **basic_params))
+
+        clone = attrv.clone(self._user)
+
+        self.assertIsNotNone(clone)
+        self.assertNotEqual(clone.id, attrv.id)
+        self.assertNotEqual(clone.created_time, attrv.created_time)
+
+        # check that data_array is cleared after cloning
+        self.assertEqual(attrv.data_array.count(), 10)
+        self.assertEqual(clone.data_array.count(), 0)
+
+        # check that value and permission will be inherited from original one
+        self.assertEqual(clone.value, attrv.value)
+
+    def test_clone_attribute_without_permission(self):
+        unknown_user = User.objects.create(username='unknown')
+
+        attr = self.make_attr(name='attr', attrtype=AttrTypeValue['array_string'])
+        attr.is_public = False
+        attr.save()
+        self.assertIsNone(attr.clone(unknown_user))
+
+    def test_clone_attribute_typed_string(self):
+        attr = self.make_attr(name='attr', attrtype=AttrTypeValue['string'])
+        attr.save()
+
+        params = {
+            'parent_attr': attr,
+            'created_user': self._user,
+            'status': AttributeValue.STATUS_LATEST,
+            'value': 'hoge',
+        }
+        attr.values.add(AttributeValue.objects.create(**params))
+
+        cloned_attr = attr.clone(self._user)
+        self.assertIsNotNone(cloned_attr)
+        self.assertNotEqual(cloned_attr.id, attr.id)
+        self.assertEqual(cloned_attr.name, attr.name)
+        self.assertEqual(cloned_attr.values.count(), attr.values.count())
+        self.assertNotEqual(cloned_attr.values.last(), attr.values.last())
+
+    def test_clone_attribute_typed_array_string(self):
+        attr = self.make_attr(name='attr', attrtype=AttrTypeValue['array_string'])
+        attr.save()
+
+        params = {
+            'parent_attr': attr,
+            'created_user': self._user,
+            'status': AttributeValue.STATUS_LATEST | AttributeValue.STATUS_DATA_ARRAY_PARENT,
+        }
+        parent_attrv = AttributeValue.objects.create(**params)
+        for i in range(0, 10):
+            params['status'] = AttributeValue.STATUS_LATEST
+            params['value'] = str(i)
+            parent_attrv.data_array.add(AttributeValue.objects.create(**params))
+
+        attr.values.add(parent_attrv)
+
+        cloned_attr = attr.clone(self._user)
+        self.assertIsNotNone(cloned_attr)
+        self.assertNotEqual(cloned_attr.id, attr.id)
+        self.assertEqual(cloned_attr.name, attr.name)
+        self.assertEqual(cloned_attr.values.count(), attr.values.count())
+        self.assertNotEqual(cloned_attr.values.last(), attr.values.last())
+
+        # checks that AttributeValues that parent_attr has also be cloned
+        parent_attrv = attr.values.last()
+        cloned_attrv = cloned_attr.values.last()
+
+        self.assertEqual(parent_attrv.data_array.count(), cloned_attrv.data_array.count())
+        for v1, v2 in zip(parent_attrv.data_array.all(), cloned_attrv.data_array.all()):
+            self.assertNotEqual(v1, v2)
+            self.assertEqual(v1.value, v2.value)
+
+    def test_clone_entry(self):
+        self._entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr',
+            'type': AttrTypeValue['string'],
+            'created_user': self._user,
+            'parent_entity': self._entity,
+        }))
+
+        entry = Entry.objects.create(name='entry', schema=self._entity, created_user=self._user)
+        entry.complement_attrs(self._user)
+
+        clone = entry.clone(self._user)
+
+        self.assertIsNotNone(clone)
+        self.assertNotEqual(clone.id, entry.id)
+        self.assertEqual(clone.name, entry.name)
+        self.assertEqual(clone.attrs.count(), entry.attrs.count())
+        self.assertNotEqual(clone.attrs.last(), entry.attrs.last())
+
+    def test_clone_entry_with_extra_params(self):
+        entry = Entry.objects.create(name='entry', schema=self._entity, created_user=self._user)
+        entry.complement_attrs(self._user)
+
+        clone = entry.clone(self._user, name='cloned_entry')
+
+        self.assertIsNotNone(clone)
+        self.assertNotEqual(clone.id, entry.id)
+        self.assertEqual(clone.name, 'cloned_entry')
+
+    def test_clone_entry_without_permission(self):
+        unknown_user = User.objects.create(username='unknown_user')
+
+        entry = Entry.objects.create(name='entry',
+                                     schema=self._entity,
+                                     created_user=self._user,
+                                     is_public=False)
+
+        entry.complement_attrs(self._user)
+        self.assertIsNone(entry.clone(unknown_user))
+
+        # set permission to access, then it can be cloned
+        unknown_user.permissions.add(entry.readable)
+        self.assertIsNotNone(entry.clone(unknown_user))

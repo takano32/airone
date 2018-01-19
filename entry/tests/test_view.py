@@ -186,7 +186,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': '0', 'value': ['fuga']},
+                {'id': '0', 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[0]),
@@ -205,7 +205,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': ['hoge']},
+                {'id': str(self._entity_attr.id), 'value': [{'data': 'hoge', 'index': '0'}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -242,7 +242,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(attr_base.id), 'value': ['hoge']},
+                {'id': str(attr_base.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -270,8 +270,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': ['hoge']},
-                {'id': str(self._entity_attr_optional.id), 'value': []},
+                {'id': str(self._entity_attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(self._entity_attr_optional.id), 'value': [], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -296,7 +296,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': '',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': ['hoge']},
+                {'id': str(self._entity_attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -325,8 +325,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'new_entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': ['hoge']},
-                {'id': str(attr_base.id), 'value': [str(entry.id)]},
+                {'id': str(self._entity_attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(attr_base.id), 'value': [{'data': str(entry.id), 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -348,8 +348,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': ['hoge']},
-                {'id': '9999', 'value': ['invalid value']},
+                {'id': str(self._entity_attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': '9999', 'value': ['invalid value'], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -376,8 +376,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'new_entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': ['hoge']},
-                {'id': str(attr_base.id), 'value': ['0']},
+                {'id': str(self._entity_attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(attr_base.id), 'value': [{'data': '0', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -385,7 +385,11 @@ class ViewTest(AironeViewTest):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(Entry.objects.last().attrs.get(name='ref_attr').values.last().value, '')
+
+        new_entry = Entry.objects.get(name='new_entry')
+        self.assertEqual(new_entry.attrs.get(schema=self._entity_attr).values.count(), 1)
+        self.assertEqual(new_entry.attrs.get(schema=self._entity_attr).values.last().value, 'hoge')
+        self.assertEqual(new_entry.attrs.get(schema=attr_base).values.count(), 0)
 
     def test_get_edit_without_login(self):
         resp = self.client.get(reverse('entry:edit', args=[0]))
@@ -439,7 +443,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
 
     def test_post_edit_without_login(self):
-        params = {'attrs': [{'id': '0', 'value': ['hoge']}]}
+        params = {'attrs': [{'id': '0', 'value': [], 'referral_key': []}]}
         resp = self.client.post(reverse('entry:do_edit', args=[0]),
                                 json.dumps(params), 'application/json')
 
@@ -449,7 +453,7 @@ class ViewTest(AironeViewTest):
     def test_post_edit_with_invalid_param(self):
         self.admin_login()
 
-        params = {'attrs': [{'id': '0', 'value': ['hoge']}]}
+        params = {'attrs': [{'id': '0', 'value': [], 'referral_key': []}]}
         resp = self.client.post(reverse('entry:do_edit', args=[0]),
                                 json.dumps(params), 'application/json')
 
@@ -504,8 +508,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(Attribute.objects.get(name='foo').id), 'value': ['hoge']},
-                {'id': str(Attribute.objects.get(name='bar').id), 'value': ['fuga']},
+                {'id': str(Attribute.objects.get(name='foo').id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(Attribute.objects.get(name='bar').id), 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -547,8 +551,8 @@ class ViewTest(AironeViewTest):
             'entry_name': entry.name,
             'attrs': [
                 # include blank value
-                {'id': str(Attribute.objects.get(name='foo').id), 'value': ['']},
-                {'id': str(Attribute.objects.get(name='bar').id), 'value': ['fuga']},
+                {'id': str(Attribute.objects.get(name='foo').id), 'value': [{'data': '', 'index': 0}], 'referral_key': []},
+                {'id': str(Attribute.objects.get(name='bar').id), 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -589,10 +593,14 @@ class ViewTest(AironeViewTest):
 
         params = {
             'entry_name': entry.name,
-            'attrs': [
-                # include blank value
-                {'id': str(attr.id), 'value': ['hoge', 'puyo']},
-            ],
+            'attrs': [{
+                'id': str(attr.id),
+                'value': [
+                    {'data': 'hoge', 'index': 0},
+                    {'data': 'puyo', 'index': 1},
+                ],
+                'referral_key': [],
+            }],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
                                 json.dumps(params),
@@ -646,10 +654,14 @@ class ViewTest(AironeViewTest):
 
         params = {
             'entry_name': entry.name,
-            'attrs': [
-                # include blank value
-                {'id': str(attr.id), 'value': [e2.id, e3.id]},
-            ],
+            'attrs': [{
+                'id': str(attr.id),
+                'value': [
+                    {'data': e2.id, 'index': 0},
+                    {'data': e3.id, 'index': 1},
+                ],
+                'referral_key': [],
+            }],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
                                 json.dumps(params),
@@ -727,7 +739,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'old_entry',
             'attrs': [
-                {'id': str(attr.id), 'value': [str(new_entry.id)]},
+                {'id': str(attr.id), 'value': [{'data': str(new_entry.id), 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -763,7 +775,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(attr.id), 'value': ['0']},
+                {'id': str(attr.id), 'value': [{'data': '0', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -794,7 +806,7 @@ class ViewTest(AironeViewTest):
             'entry_name': entry.name,
             'attrs': [
                 # include blank value
-                {'id': str(attr.id), 'value': []},
+                {'id': str(attr.id), 'value': [], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -907,9 +919,15 @@ class ViewTest(AironeViewTest):
 
         params = {
             'entry_name': 'entry-test',
-            'attrs': [
-                {'id': str(attr_base.id), 'value': ['hoge', 'fuga', 'puyo']},
-            ],
+            'attrs': [{
+                'id': str(attr_base.id),
+                'value': [
+                    {'data': 'hoge', 'index': 0},
+                    {'data': 'fuga', 'index': 1},
+                    {'data': 'puyo', 'index': 2},
+                ],
+                'referral_key': [],
+            }],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
                                 json.dumps(params),
@@ -955,9 +973,14 @@ class ViewTest(AironeViewTest):
 
         params = {
             'entry_name': 'entry-test',
-            'attrs': [
-                {'id': str(attr_base.id), 'value': [str(referral.id), str(referral.id)]},
-            ],
+            'attrs': [{
+                'id': str(attr_base.id),
+                'value': [
+                    {'data': str(referral.id), 'index': 0},
+                    {'data': str(referral.id), 'index': 1},
+                ],
+                'referral_key': [],
+            }],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
                                 json.dumps(params),
@@ -995,8 +1018,16 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': ['hoge']},
-                {'id': str(textattr.id), 'value': ['fuga']},
+                {
+                    'id': str(self._entity_attr.id),
+                    'value': [{'data': 'hoge', 'index': 0}],
+                    'referral_key': [],
+                },
+                {
+                    'id': str(textattr.id),
+                    'value': [{'data': 'fuga', 'index': 0}],
+                    'referral_key': [],
+                },
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -1021,9 +1052,11 @@ class ViewTest(AironeViewTest):
 
         params = {
             'entry_name': 'entry',
-            'attrs': [
-                {'id': str(self._entity_attr.id), 'value': ['A' * AttributeValue.MAXIMUM_VALUE_SIZE]},
-            ],
+            'attrs': [{
+                'id': str(self._entity_attr.id),
+                'value': [{'data': 'A' * AttributeValue.MAXIMUM_VALUE_SIZE, 'index': 0}],
+                'referral_key': [],
+            }],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
                                 json.dumps(params),
@@ -1046,9 +1079,11 @@ class ViewTest(AironeViewTest):
 
         params = {
             'entry_name': 'entry',
-            'attrs': [
-                {'id': str(attr.id), 'value': ['A' * AttributeValue.MAXIMUM_VALUE_SIZE]},
-            ],
+            'attrs': [{
+                'id': str(attr.id),
+                'value': [{'data': 'A' * AttributeValue.MAXIMUM_VALUE_SIZE, 'index': 0}],
+                'referral_key': [],
+            }],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
                                 json.dumps(params),
@@ -1064,15 +1099,21 @@ class ViewTest(AironeViewTest):
 
         params = {
             'entry_name': 'entry',
-            'attrs': [
-                {'id': str(self._entity_attr.id), 'value': ['A' * AttributeValue.MAXIMUM_VALUE_SIZE + 'A']},
-            ],
+            'attrs': [{
+                'id': str(self._entity_attr.id),
+                'value': {
+                    'data': ['A' * AttributeValue.MAXIMUM_VALUE_SIZE + 'A'],
+                    'index': 0,
+                },
+                'referral_key': [],
+            }],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
                                 json.dumps(params),
                                 'application/json')
 
         self.assertEqual(resp.status_code, 400)
+        self.assertEqual(Entry.objects.count(), 0)
 
     @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
     def test_post_edit_exceeding_limit_of_value(self):
@@ -1083,15 +1124,18 @@ class ViewTest(AironeViewTest):
 
         params = {
             'entry_name': 'entry',
-            'attrs': [
-                {'id': str(attr.id), 'value': ['A' * AttributeValue.MAXIMUM_VALUE_SIZE + 'A']},
-            ],
+            'attrs': [{
+                'id': str(attr.id),
+                'value': [{'data': 'A' * AttributeValue.MAXIMUM_VALUE_SIZE + 'A', 'index': 0}],
+                'referral_key': [],
+            }],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
                                 json.dumps(params),
                                 'application/json')
 
         self.assertEqual(resp.status_code, 400)
+        self.assertEqual(attr.values.count(), 0)
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_try_to_create_duplicate_name_of_entry(self):
@@ -1103,7 +1147,11 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': ['hoge']},
+                {
+                    'id': str(self._entity_attr.id),
+                    'value': [{'data': 'hoge', 'index': 0}],
+                    'referral_key': [],
+                },
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -1124,7 +1172,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(dup_attr.id), 'value': ['hoge']},
+                {'id': str(dup_attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[dup_entry.id]),
@@ -1154,8 +1202,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': ['hoge']},
-                {'id': str(attr.id), 'value': ['fuga']},
+                {'id': str(self._entity_attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(attr.id), 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -1191,8 +1239,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry1',
             'attrs': [
-                {'id': str(attrs[0].id), 'value': ['hoge']},
-                {'id': str(attrs[1].id), 'value': ['fuga']},
+                {'id': str(attrs[0].id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(attrs[1].id), 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
             ],
         }
 
@@ -1227,7 +1275,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entity_attr.id), 'value': [True]},
+                {'id': str(entity_attr.id), 'value': [{'data': True, 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -1247,7 +1295,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entry.attrs.get(name='attr_bool').id), 'value': [False]},
+                {'id': str(entry.attrs.get(name='attr_bool').id), 'value': [{'data': False, 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -1274,7 +1322,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(attr_base.id), 'value': []},
+                {'id': str(attr_base.id), 'value': [], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -1303,7 +1351,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'Updated Entry',
             'attrs': [
-                {'id': str(entry.attrs.get(name='attr').id), 'value': []},
+                {'id': str(entry.attrs.get(name='attr').id), 'value': [], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -1341,9 +1389,21 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entity.attrs.get(name='ref').id), 'value': [str(ref_entry1.id)]},
-                {'id': str(entity.attrs.get(name='arr_ref').id), 'value': [str(ref_entry1.id),
-                                                                           str(ref_entry2.id)]},
+                {
+                    'id': str(entity.attrs.get(name='ref').id),
+                    'value': [
+                        {'data': str(ref_entry1.id), 'index': 0},
+                    ],
+                    'referral_key': [],
+                },
+                {
+                    'id': str(entity.attrs.get(name='arr_ref').id),
+                    'value': [
+                        {'data': str(ref_entry1.id), 'index': 0},
+                        {'data': str(ref_entry2.id), 'index': 1},
+                    ],
+                    'referral_key': [],
+                },
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -1362,8 +1422,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entry.attrs.get(name='ref').id), 'value': []},
-                {'id': str(entry.attrs.get(name='arr_ref').id), 'value': []},
+                {'id': str(entry.attrs.get(name='ref').id), 'value': [], 'referral_key': []},
+                {'id': str(entry.attrs.get(name='arr_ref').id), 'value': [], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -1378,9 +1438,21 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entry.attrs.get(name='ref').id), 'value': [str(ref_entry2.id)]},
-                {'id': str(entry.attrs.get(name='arr_ref').id), 'value': [str(ref_entry2.id),
-                                                                          str(ref_entry3.id)]},
+                {
+                    'id': str(entry.attrs.get(name='ref').id),
+                    'value': [
+                        {'data': str(ref_entry2.id), 'index': 0},
+                    ],
+                    'referral_key': [],
+                },
+                {
+                    'id': str(entry.attrs.get(name='arr_ref').id),
+                    'value': [
+                        {'data': str(ref_entry2.id), 'index': 0},
+                        {'data': str(ref_entry3.id), 'index': 1},
+                    ],
+                    'referral_key': [],
+                },
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -1402,3 +1474,299 @@ class ViewTest(AironeViewTest):
         self.assertEqual(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
         self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
         self.assertEqual(ref_entry3.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
+
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    def test_create_entry_with_named_ref(self):
+        user = self.admin_login()
+
+        ref_entity = Entity.objects.create(name='referred_entity', created_user=user)
+        ref_entry = Entry.objects.create(name='referred_entry', created_user=user, schema=ref_entity)
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        new_attr_params = {
+            'name': 'named_ref',
+            'type': AttrTypeValue['named_object'],
+            'created_user': user,
+            'parent_entity': entity,
+        }
+        attr_base = EntityAttr.objects.create(**new_attr_params)
+        attr_base.referral.add(ref_entity)
+
+        entity.attrs.add(attr_base)
+
+        # try to create with empty params
+        params = {
+            'entry_name': 'new_entry1',
+            'attrs': [{
+                'id': str(attr_base.id),
+                'referral_key': [],
+                'value': [],
+            }],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]), json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        entry = Entry.objects.get(name='new_entry1')
+        self.assertEqual(entry.attrs.get(name='named_ref').values.count(), 0)
+
+        # try to create only with value which is a reference for other entry
+        params = {
+            'entry_name': 'new_entry2',
+            'attrs': [{
+                'id': str(attr_base.id),
+                'value': [{'data': str(ref_entry.id), 'index': 0}],
+                'referral_key': [],
+            }],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]), json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        entry = Entry.objects.get(name='new_entry2')
+        self.assertEqual(entry.attrs.get(name='named_ref').values.count(), 1)
+        self.assertEqual(entry.attrs.get(name='named_ref').values.last().value, '')
+        self.assertEqual(entry.attrs.get(name='named_ref').values.last().referral.id, ref_entry.id)
+
+        # try to create only with referral_key
+        params = {
+            'entry_name': 'new_entry3',
+            'attrs': [{
+                'id': str(attr_base.id),
+                'value': [],
+                'referral_key': [{'data': 'hoge', 'index': 0}],
+            }],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]), json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        entry = Entry.objects.get(name='new_entry3')
+        self.assertEqual(entry.attrs.get(name='named_ref').values.count(), 1)
+        self.assertEqual(entry.attrs.get(name='named_ref').values.last().value, 'hoge')
+        self.assertEqual(entry.attrs.get(name='named_ref').values.last().referral, None)
+
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    def test_create_entry_with_array_named_ref(self):
+        user = self.admin_login()
+
+        ref_entity = Entity.objects.create(name='referred_entity', created_user=user)
+        ref_entry = Entry.objects.create(name='referred_entry', created_user=user, schema=ref_entity)
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        new_attr_params = {
+            'name': 'arr_named_ref',
+            'type': AttrTypeValue['array_named_object'],
+            'created_user': user,
+            'parent_entity': entity,
+        }
+        attr_base = EntityAttr.objects.create(**new_attr_params)
+        attr_base.referral.add(ref_entity)
+
+        entity.attrs.add(attr_base)
+
+        params = {
+            'entry_name': 'new_entry',
+            'attrs': [{
+                'id': str(attr_base.id),
+                'value': [
+                    {'data': str(ref_entry.id), 'index': 0},
+                    {'data': str(ref_entry.id), 'index': 1},
+                ],
+                'referral_key': [
+                    {'data': 'hoge', 'index': 1},
+                    {'data': 'fuga', 'index': 2},
+                ],
+            }],
+        }
+
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]), json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        entry = Entry.objects.get(name='new_entry')
+        self.assertEqual(entry.attrs.get(name='arr_named_ref').values.count(), 1)
+
+        attrv = entry.attrs.get(name='arr_named_ref').values.last()
+        self.assertTrue(attrv.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT))
+        self.assertEqual(attrv.data_array.count(), 3)
+
+        self.assertEqual(attrv.data_array.all()[0].value, '')
+        self.assertEqual(attrv.data_array.all()[0].referral.id, ref_entry.id)
+
+        self.assertEqual(attrv.data_array.all()[1].value, 'hoge')
+        self.assertEqual(attrv.data_array.all()[1].referral.id, ref_entry.id)
+
+        self.assertEqual(attrv.data_array.all()[2].value, 'fuga')
+        self.assertEqual(attrv.data_array.all()[2].referral, None)
+
+    @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
+    def test_edit_entry_with_named_ref(self):
+        user = self.admin_login()
+
+        ref_entity = Entity.objects.create(name='referred_entity', created_user=user)
+        ref_entry = Entry.objects.create(name='referred_entry', created_user=user, schema=ref_entity)
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+
+        attr_base = EntityAttr.objects.create(**{
+            'name': 'named_ref',
+            'type': AttrTypeValue['named_object'],
+            'created_user': user,
+            'parent_entity': entity,
+        })
+        attr_base.referral.add(ref_entity)
+
+        entity.attrs.add(attr_base)
+
+        entry = Entry.objects.create(name='entry', created_user=user, schema=entity)
+        entry.complement_attrs(user)
+
+        attr = entry.attrs.get(name='named_ref')
+        attr.values.add(AttributeValue.objects.create(**{
+            'created_user': user,
+            'parent_attr': attr,
+            'value': 'hoge',
+            'referral': ref_entry,
+            'status': AttributeValue.STATUS_LATEST
+        }))
+
+        # try to update with same data (expected not to be updated)
+        params = {
+            'entry_name': 'updated_entry',
+            'attrs': [{
+                'id': str(entry.attrs.get(name='named_ref').id),
+                'value': [{'data': str(ref_entry.id), 'index': 0}],
+                'referral_key': [{'data': 'hoge', 'index': 0}],
+            }],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]), json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        updated_entry = Entry.objects.get(id=entry.id)
+        self.assertEqual(updated_entry.name, 'updated_entry')
+        self.assertEqual(updated_entry.attrs.get(name='named_ref').values.count(), 1)
+
+        # try to update with different data (expected to be updated)
+        ref_entry2 = Entry.objects.create(name='referred_entry2', created_user=user, schema=ref_entity)
+        params = {
+            'entry_name': 'updated_entry',
+            'attrs': [{
+                'id': str(entry.attrs.get(name='named_ref').id),
+                'value': [{'data': str(ref_entry2.id), 'index': 0}],
+                'referral_key': [{'data': 'fuga', 'index': 0}],
+            }],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]), json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        updated_entry = Entry.objects.get(id=entry.id)
+        self.assertEqual(updated_entry.attrs.get(name='named_ref').values.count(), 2)
+        self.assertEqual(updated_entry.attrs.get(name='named_ref').values.last().value, 'fuga')
+        self.assertEqual(updated_entry.attrs.get(name='named_ref').values.last().referral.id, ref_entry2.id)
+
+    @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
+    def test_edit_entry_with_array_named_ref(self):
+        user = self.admin_login()
+
+        ref_entity = Entity.objects.create(name='referred_entity', created_user=user)
+        ref_entry = Entry.objects.create(name='referred_entry', created_user=user, schema=ref_entity)
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        new_attr_params = {
+            'name': 'arr_named_ref',
+            'type': AttrTypeValue['array_named_object'],
+            'created_user': user,
+            'parent_entity': entity,
+        }
+        attr_base = EntityAttr.objects.create(**new_attr_params)
+        attr_base.referral.add(ref_entity)
+
+        entity.attrs.add(attr_base)
+
+        # create an Entry associated to the 'entity'
+        entry = Entry.objects.create(name='entry', created_user=user, schema=entity)
+        entry.complement_attrs(user)
+
+        attr = entry.attrs.get(name='arr_named_ref')
+        self.assertTrue(attr.is_updated([ref_entry.id]))
+
+        attrv = attr.get_latest_value()
+
+        r_entries = []
+        for i in range(0, 3):
+            r_entry = Entry.objects.create(name='r_%d' % i, created_user=user, schema=ref_entity)
+            r_entries.append(r_entry.id)
+
+            attrv.data_array.add(AttributeValue.objects.create(**{
+                'parent_attr': attr,
+                'created_user': user,
+                'status': AttributeValue.STATUS_LATEST,
+                'value': 'key_%d' % i,
+                'referral': r_entry,
+            }))
+
+        attr.values.add(attrv)
+
+        # try to update with same data (expected not to be updated)
+        params = {
+            'entry_name': 'updated_entry',
+            'attrs': [{
+                'id': str(entry.attrs.get(name='arr_named_ref').id),
+                'value': [{'data': str(r), 'index': i} for i, r in enumerate(r_entries)],
+                'referral_key': [{'data': 'key_%d' % i, 'index': i} for i in range(0, 3)],
+            }],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]), json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        updated_entry = Entry.objects.get(id=entry.id)
+        self.assertEqual(updated_entry.name, 'updated_entry')
+        self.assertEqual(updated_entry.attrs.get(name='arr_named_ref').values.count(), 1)
+
+        # try to update with different data (expected to be updated)
+        params = {
+            'entry_name': 'updated_entry',
+            'attrs': [{
+                'id': str(entry.attrs.get(name='arr_named_ref').id),
+                'value': [
+                    {'data': r_entries[1], 'index': 1},
+                    {'data': r_entries[2], 'index': 2},
+                ],
+                'referral_key': [{'data': 'hoge_%d' % i, 'index': i} for i in range(0, 2)],
+            }],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]), json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        updated_entry = Entry.objects.get(id=entry.id)
+        self.assertEqual(updated_entry.attrs.get(name='arr_named_ref').values.count(), 2)
+
+        new_attrv = updated_entry.attrs.get(name='arr_named_ref').values.last()
+        self.assertEqual(new_attrv.data_array.count(), 3)
+
+        contexts = [{
+            'name': x.value,
+            'referral': x.referral.id if x.referral else None,
+        } for x in new_attrv.data_array.all()]
+
+        self.assertTrue({'name': 'hoge_0', 'referral': None} in contexts)
+        self.assertTrue({'name': 'hoge_1', 'referral': r_entries[1]} in contexts)
+        self.assertTrue({'name': '', 'referral': r_entries[2]} in contexts)
+
+        # try to update with same data but order is different (expected not to be updated)
+        params = {
+            'entry_name': 'updated_entry',
+            'attrs': [{
+                'id': str(entry.attrs.get(name='arr_named_ref').id),
+                'value': [
+                    {'data': r_entries[2], 'index': 2},
+                    {'data': r_entries[1], 'index': 1},
+                ],
+                'referral_key': [
+                    {'data': 'hoge_1', 'index': 1},
+                    {'data': 'hoge_0', 'index': 0},
+                ],
+            }],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]), json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        updated_entry = Entry.objects.get(id=entry.id)
+        self.assertEqual(updated_entry.attrs.get(name='arr_named_ref').values.count(), 2)

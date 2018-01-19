@@ -40,14 +40,14 @@
             <td><input type="text" class="attr_name" value="{{ attr.name }}"/></td>
             <td>
               <div class='row'>
-                <div class='col-3'>
+                <div class='col-4'>
                   <select class="attr_type">
                     {% for type in attr_types %}
                     <option value="{{ type.TYPE }}" {% if attr.type == type.TYPE %}selected="selected"{% endif %}>{{ type.NAME }}</option>
                     {% endfor %}
                   </select>
                 </div>
-                <div class='col-9'>
+                <div class='col-8'>
 
                   <ul class='list-group'>
                     {% for entity in entities %}
@@ -106,7 +106,7 @@
             <td>
 
               <div class='row'>
-                <div class='col-3'>
+                <div class='col-4'>
 
               <select class="attr_type">
                 {% for type in attr_types %}
@@ -115,7 +115,7 @@
               </select>
 
                 </div>
-                <div class='col-9'>
+                <div class='col-8'>
 
                   <ul class='list-group' style="display:none">
                   </ul>

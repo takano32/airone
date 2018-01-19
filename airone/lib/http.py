@@ -1,4 +1,5 @@
 import json
+import importlib
 
 from django.http import HttpResponseRedirect
 from django.http import HttpResponse
@@ -130,6 +131,12 @@ def render(request, template, context={}):
         'DEL_ATTR': History.DEL_ATTR,
         'DEL_ENTRY': History.DEL_ENTRY,
     }
+
+    # set constant values which are defined in each applications
+    context['config'] = {}
+    for app in ['entry']:
+        config = importlib.import_module('%s.settings' % app).CONFIG
+        context['config'][app] = config.TEMPLATE_CONFIG
 
     context['attr_type'] = {}
     for attr_type in AttrTypes:

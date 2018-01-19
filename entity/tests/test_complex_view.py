@@ -59,7 +59,7 @@ class ComplexViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(attr.id), 'value': ['attr-value']},
+                {'id': str(attr.id), 'value': [{'data': 'attr-value', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -131,9 +131,23 @@ class ComplexViewTest(AironeViewTest):
         params = {
             'entry_name': entry.name,
             'attrs': [
-                {'id': str(attr_str.id), 'value': ['hoge']},
-                {'id': str(attr_arr_str.id), 'value': ['foo', 'bar']},
-                {'id': str(attr_arr_obj.id), 'value': [refer_entry.id]},
+                {
+                    'id': str(attr_str.id),
+                    'value': [{'data': 'hoge', 'index': 0}],
+                    'referral_key': []
+                },
+                {
+                    'id': str(attr_arr_str.id),
+                    'value': [
+                        {'data': 'foo', 'index': 0},
+                        {'data': 'bar', 'index': 1},
+                    ],
+                    'referral_key': []
+                },
+                {
+                    'id': str(attr_arr_obj.id),
+                    'value': [{'data': refer_entry.id, 'index': 0}],
+                    'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -208,7 +222,7 @@ class ComplexViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry1',
             'attrs': [
-                {'id': str(entityattr.id), 'value': ['attr-value']},
+                {'id': str(entityattr.id), 'value': [{'data': 'attr-value', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -225,7 +239,7 @@ class ComplexViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry2',
             'attrs': [
-                {'id': str(entityattr.id), 'value': ['attr-value']},
+                {'id': str(entityattr.id), 'value': [{'data': 'attr-value', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),

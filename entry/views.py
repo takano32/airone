@@ -8,8 +8,6 @@ from django.db.models import Q
 
 from airone.lib.http import http_get, http_post, check_permission, render
 from airone.lib.http import get_download_response
-from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
-from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
 from airone.lib.types import AttrTypeValue
 from airone.lib.acl import get_permitted_objects
 from airone.lib.acl import ACLType
@@ -104,18 +102,18 @@ def do_create(request, entity_id, recv_data):
     if Entry.objects.filter(schema=entity_id, name=recv_data['entry_name']).count():
         return HttpResponse('Duplicate name entry is existed', status=400)
 
+    # validate contexts of each attributes
+    for attr_data in recv_data['attrs']:
+        # Checks specified value exceeds the limit of AttributeValue
+        if any([len(str(y['data']).encode('utf-8')) > AttributeValue.MAXIMUM_VALUE_SIZE for y in attr_data['value']]):
+            return HttpResponse('Passed value is exceeded the limit', status=400)
+
     # Create a new Entry object
     entry = Entry(name=recv_data['entry_name'],
                   created_user=user,
                   schema=entity,
                   status=Entry.STATUS_CREATING)
     entry.save()
-
-    # Checks specified value exceeds the limit of AttributeValue
-    if any([any([len(str(y).encode('utf-8')) > AttributeValue.MAXIMUM_VALUE_SIZE
-                 for y in x['value']])
-            for x in recv_data['attrs']]):
-        return HttpResponse('Passed value is exceeded the limit', status=400)
 
     # register a task to create Attributes for the created entry
     val = create_entry_attrs.delay(user.id, entry.id, recv_data)
@@ -181,26 +179,26 @@ def do_edit(request, entry_id, recv_data):
     user = User.objects.get(id=request.user.id)
     entry = Entry.objects.get(id=entry_id)
 
-    if custom_view.is_custom_do_edit_entry(entry.schema.name):
-        (is_continue, code, msg) = custom_view.call_custom_do_edit_entry(entry.schema.name,
-                                                                         request, recv_data,
-                                                                         user, entry)
-        if not is_continue:
-            return HttpResponse('', status=code)
-
     # checks that a same name entry corresponding to the entity is existed.
     query = Q(schema=entry.schema, name=recv_data['entry_name']) & ~Q(id=entry.id)
     if Entry.objects.filter(query).count():
         return HttpResponse('Duplicate name entry is existed', status=400)
 
     # Checks specified value exceeds the limit of AttributeValue
-    if any([any([len(str(y).encode('utf-8')) > AttributeValue.MAXIMUM_VALUE_SIZE
-                 for y in x['value']])
-            for x in recv_data['attrs']]):
-        return HttpResponse('Passed value is exceeded the limit', status=400)
+    for attr_data in recv_data['attrs']:
+        # Checks specified value exceeds the limit of AttributeValue
+        if any([len(str(y['data']).encode('utf-8')) > AttributeValue.MAXIMUM_VALUE_SIZE for y in attr_data['value']]):
+            return HttpResponse('Passed value is exceeded the limit', status=400)
 
     if entry.get_status(Entry.STATUS_CREATING):
         return HttpResponse('Target entry is now under processing', status=400)
+
+    if custom_view.is_custom_do_edit_entry(entry.schema.name):
+        (is_continue, code, msg) = custom_view.call_custom_do_edit_entry(entry.schema.name,
+                                                                         request, recv_data,
+                                                                         user, entry)
+        if not is_continue:
+            return HttpResponse('', status=code)
 
     # update name of Entry object
     entry.name = recv_data['entry_name']

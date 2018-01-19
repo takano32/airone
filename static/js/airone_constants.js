@@ -2,6 +2,7 @@
 var ATTR_TYPE = {
   object: 1 << 0,
   string: 1 << 1,
+  named_object: 1 << 4,
   array: 1 << 10,
 };
 

@@ -5,6 +5,7 @@ _ATTR_STRING_TYPE = 1 << 1
 _ATTR_TEXT_TYPE = 1 << 2
 _ATTR_BOOL_TYPE = 1 << 3
 _ATTR_ARRAY_TYPE = 1 << 10
+_ATTR_NAMED_TYPE = 1 << 11
 
 class MetaAttrType(type):
     def __eq__(cls, comp):
@@ -34,6 +35,10 @@ class AttrTypeStr(with_metaclass(MetaAttrType)):
     NAME = 'string'
     TYPE = _ATTR_STRING_TYPE
 
+class AttrTypeNamedObj(with_metaclass(MetaAttrType)):
+    NAME = 'named_entry'
+    TYPE = _ATTR_OBJECT_TYPE | _ATTR_NAMED_TYPE
+
 class AttrTypeArrObj(with_metaclass(MetaAttrType)):
     NAME = 'array_entry'
     TYPE = _ATTR_OBJECT_TYPE | _ATTR_ARRAY_TYPE
@@ -41,6 +46,10 @@ class AttrTypeArrObj(with_metaclass(MetaAttrType)):
 class AttrTypeArrStr(with_metaclass(MetaAttrType)):
     NAME = 'array_string'
     TYPE = _ATTR_STRING_TYPE | _ATTR_ARRAY_TYPE
+
+class AttrTypeArrNamedObj(with_metaclass(MetaAttrType)):
+    NAME = 'array_named_entry'
+    TYPE = _ATTR_OBJECT_TYPE | _ATTR_NAMED_TYPE | _ATTR_ARRAY_TYPE
 
 class AttrTypeText(with_metaclass(MetaAttrType)):
     NAME = 'textarea'
@@ -53,17 +62,22 @@ class AttrTypeBoolean(with_metaclass(MetaAttrType)):
 AttrTypes = [
     AttrTypeStr,
     AttrTypeObj,
+    AttrTypeNamedObj,
     AttrTypeArrStr,
     AttrTypeArrObj,
+    AttrTypeArrNamedObj,
     AttrTypeText,
     AttrTypeBoolean,
 ]
 AttrTypeValue = {
     'object': AttrTypeObj.TYPE,
     'string': AttrTypeStr.TYPE,
+    'named': _ATTR_NAMED_TYPE,
+    'named_object': AttrTypeNamedObj.TYPE,
     'array': _ATTR_ARRAY_TYPE,
     'array_object': AttrTypeArrObj.TYPE,
     'array_string': AttrTypeArrStr.TYPE,
+    'array_named_object': AttrTypeArrNamedObj.TYPE,
     'text': AttrTypeText.TYPE,
     'boolean': AttrTypeBoolean.TYPE,
 }

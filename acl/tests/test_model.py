@@ -9,7 +9,7 @@ from airone.lib.acl import ACLType
 
 class ModelTest(TestCase):
     def setUp(self):
-        self.user =  User.objects.create(username='foo', email='hoge@fuga.com', password='fuga')
+        self.user = User.objects.create(username='foo', email='hoge@fuga.com', password='fuga')
 
     def test_acl_base(self):
         # chacks to enable embedded acl field

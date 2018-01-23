@@ -1,3 +1,6 @@
+from copy import deepcopy
+from datetime import datetime
+
 from django.db import models
 from django.db.models import Q
 from django.core.cache import cache
@@ -15,6 +18,7 @@ class AttributeValue(models.Model):
     # This is a constant that indicates target object binds multiple AttributeValue objects.
     STATUS_DATA_ARRAY_PARENT = 1 << 0
     STATUS_LATEST = 1 << 1
+
     MAXIMUM_VALUE_SIZE = (1 << 16)
 
     value = models.TextField()
@@ -36,6 +40,21 @@ class AttributeValue(models.Model):
 
     def get_status(self, val):
         return self.status & val
+
+    def clone(self, user):
+        clone = AttributeValue.objects.get(id=self.id)
+
+        # By removing the primary key, we can clone a django model instance
+        clone.pk = None
+
+        # update basic parameters to new one
+        clone.created_user = user
+        clone.created_time = datetime.now()
+        clone.save()
+
+        clone.data_array.clear()
+
+        return clone
 
     def reconstruct_referral_cache(self):
         """
@@ -167,6 +186,33 @@ class Attribute(ACLBase):
 
     def get_latest_value(self):
         return self.get_values().last()
+
+    def clone(self, user):
+        if not user.has_permission(self, ACLType.Readable):
+            return None
+
+        # We can't clone an instance by the way (.pk=None and save) like AttributeValue,
+        # since the subclass instance refers to the parent_link's primary key during save.
+        params = {
+            'name': self.name,
+            'created_user': user,
+            'schema': self.schema,
+            'parent_entry': self.parent_entry,
+        }
+        clone = Attribute.objects.create(**params)
+
+        attrv = self.get_latest_value()
+        if attrv:
+            new_attrv = attrv.clone(user)
+
+            # When the Attribute is array, this method also clone co-AttributeValues
+            if self.schema.type & AttrTypeValue['array']:
+                for co_attrv in attrv.data_array.all():
+                    new_attrv.data_array.add(co_attrv.clone(user))
+
+            clone.values.add(new_attrv)
+
+        return clone
 
     def get_value_history(self, user):
         # At the first time, checks the ermission to read
@@ -418,3 +464,23 @@ class Entry(ACLBase):
             # reset referred_entries cache
             for entry in [Entry.objects.get(id=x) for x in referred_ids]:
                 entry.get_referred_objects(use_cache=False)
+
+    def clone(self, user, **extra_params):
+        if (not user.has_permission(self, ACLType.Readable) or
+            not user.has_permission(self.schema, ACLType.Readable)):
+            return None
+
+        # We can't clone an instance by the way (.pk=None and save) like AttributeValue,
+        # since the subclass instance refers to the parent_link's primary key during save.
+        params = {
+            'name': self.name,
+            'created_user': user,
+            'schema': self.schema,
+            **extra_params,
+        }
+        clone = Entry.objects.create(**params)
+
+        for attr in self.attrs.filter(is_active=True):
+            clone.attrs.add(attr.clone(user))
+
+        return clone

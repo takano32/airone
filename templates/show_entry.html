@@ -226,7 +226,7 @@ var complete_processing = function(data) {
 
     container.append(new_elem);
   }
-  $('#referral_entry_count').text(`エントリ数：${ data['found_count'] } / {{ referred_total }}`);
+  $('#referral_entry_count').text(`エントリ数：${ data['found_count'] } / ${ data['total_count'] }`);
 }
 
 $(document).ready(function() {

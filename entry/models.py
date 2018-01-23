@@ -314,7 +314,10 @@ class Entry(ACLBase):
         referred_entries = []
         total_count = 0
         cond = {
-            'where': ['status & %d > 0' % AttributeValue.STATUS_LATEST],
+            'where': [
+                'status & %d > 0' % AttributeValue.STATUS_LATEST,
+                'status & %d = 0' % AttributeValue.STATUS_DATA_ARRAY_PARENT,
+            ],
         }
 
         cached_value = self.get_cache(self.CACHE_REFERRED_ENTRY)
@@ -322,18 +325,12 @@ class Entry(ACLBase):
             return cached_value
 
         for attrvalue in AttributeValue.objects.filter(referral=self).extra(**cond):
-            if not attrvalue.get_status(AttributeValue.STATUS_LATEST):
-                continue
-
             if (not attrvalue.parent_attr.is_active or
                 not attrvalue.parent_attr.parent_entry.is_active):
                 continue
 
             # update total count of referred values
-            if attrvalue.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT):
-                total_count += attrvalue.data_array.count()
-            else:
-                total_count += 1
+            total_count += 1
 
             referred_obj = attrvalue.parent_attr.parent_entry
             if not (referred_obj not in referred_entries and referred_obj != self):

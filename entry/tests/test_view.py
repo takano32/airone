@@ -1364,6 +1364,7 @@ class ViewTest(AironeViewTest):
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
     @patch('entry.views.delete_entry.delay', Mock(side_effect=tasks.delete_entry))
+    @patch('entry.tasks._reconstruct_referral_cache.delay', Mock(side_effect=tasks._reconstruct_referral_cache))
     def test_referred_entry_cache(self):
         user = self.admin_login()
 

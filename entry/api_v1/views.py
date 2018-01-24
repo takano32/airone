@@ -2,12 +2,14 @@ from django.http import HttpResponse
 from django.http.response import JsonResponse
 from airone.lib.http import http_get
 from airone.lib.types import AttrTypeValue
+from airone.lib.profile import airone_profile
 
 from entry.models import Entry, Attribute
 from entity.models import Entity
 from entry.settings import CONFIG
 
 
+@airone_profile
 @http_get
 def get_referrals(request, entry_id):
     """

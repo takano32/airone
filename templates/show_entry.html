@@ -56,7 +56,7 @@
             </ul>
           {% elif attr.type == attr_type.array_entry %}
             <ul class='list-group'>
-            {% for refer in attr.last_referral %}
+            {% for refer in attr.last_value %}
               <li class='list-group-item'>
                 <a href='/entry/show/{{ refer.id }}'>
                   {{ refer.name }}

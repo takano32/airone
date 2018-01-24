@@ -41,11 +41,15 @@ class AttributeValue(models.Model):
     def get_status(self, val):
         return self.status & val
 
-    def clone(self, user):
+    def clone(self, user, **extra_params):
         clone = AttributeValue.objects.get(id=self.id)
 
         # By removing the primary key, we can clone a django model instance
         clone.pk = None
+
+        # set extra configure
+        for (k, v) in extra_params.items():
+            setattr(clone, k, v)
 
         # update basic parameters to new one
         clone.created_user = user
@@ -187,7 +191,7 @@ class Attribute(ACLBase):
     def get_latest_value(self):
         return self.get_values().last()
 
-    def clone(self, user):
+    def clone(self, user, **extra_params):
         if not user.has_permission(self, ACLType.Readable):
             return None
 
@@ -198,12 +202,13 @@ class Attribute(ACLBase):
             'created_user': user,
             'schema': self.schema,
             'parent_entry': self.parent_entry,
+            **extra_params,
         }
         clone = Attribute.objects.create(**params)
 
         attrv = self.get_latest_value()
         if attrv:
-            new_attrv = attrv.clone(user)
+            new_attrv = attrv.clone(user, parent_attr=clone)
 
             # When the Attribute is array, this method also clone co-AttributeValues
             if self.schema.type & AttrTypeValue['array']:
@@ -485,6 +490,6 @@ class Entry(ACLBase):
         clone = Entry.objects.create(**params)
 
         for attr in self.attrs.filter(is_active=True):
-            clone.attrs.add(attr.clone(user))
+            clone.attrs.add(attr.clone(user, parent_entry=clone))
 
         return clone

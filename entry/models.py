@@ -393,17 +393,24 @@ class Entry(ACLBase):
 
                 if attr.schema.type == AttrTypeStr or attr.schema.type == AttrTypeText:
                     attrinfo['last_value'] = last_value.value
+
                 elif attr.schema.type == AttrTypeObj and last_value.referral:
                     attrinfo['last_referral'] = last_value.referral
+
                 elif attr.schema.type == AttrTypeArrStr:
+                    # this dict-key 'last_value' is uniformed with all array types
                     attrinfo['last_value'] = [x.value for x in last_value.data_array.all()]
+
                 elif attr.schema.type == AttrTypeArrObj:
-                    attrinfo['last_referral'] = [x.referral for x in last_value.data_array.all()]
+                    attrinfo['last_value'] = [x.referral for x in last_value.data_array.all()]
+
                 elif attr.schema.type == AttrTypeValue['boolean']:
                     attrinfo['last_value'] = last_value.boolean
+
                 elif attr.schema.type == AttrTypeValue['named_object']:
                     attrinfo['last_value'] = last_value.value
                     attrinfo['last_referral'] = last_value.referral
+
                 elif attr.schema.type == AttrTypeValue['array_named_object']:
                     values = [x.value for x in last_value.data_array.all()]
                     referrals = [x.referral for x in last_value.data_array.all()]

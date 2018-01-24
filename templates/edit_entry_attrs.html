@@ -51,11 +51,7 @@
           {% endfor %}
         </select>
 
-        {% if attr.referrals|length > 100 %}
         <input type="text" class="narrow_down_referral" placeholder="絞り込み" style="width: 100%" use_api="True" attr_id="{{ attr.id }}"/>
-        {% else %}
-          <input type="text" class="narrow_down_referral" placeholder="絞り込み" style="width: 100%"/>
-        {% endif %}
 
             {% else %}
               <input type='text' class='attr_value' attr_id='{{ attr.id }}' index='0'/>
@@ -100,7 +96,7 @@
           {% endfor %}
         </select>
 
-        <input type="text" class="narrow_down_referral" placeholder="絞り込み"  style="width: 100%"/>
+        <input type="text" class="narrow_down_referral" placeholder="絞り込み" style="width: 100%" use_api="True" attr_id="{{ attr.id }}"/>
 
         </div>
       </div>

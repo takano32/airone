@@ -1,8 +1,12 @@
+import logging
+
 from airone.lib.acl import ACLType
 from airone.lib.types import AttrTypeValue
 from airone.celery import app
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
+
+Logger = logging.getLogger(__name__)
 
 
 def _merge_referrals_by_index(ref_list, name_list):
@@ -33,6 +37,13 @@ def _merge_referrals_by_index(ref_list, name_list):
             result[name_info['index']]['name_info'] = name_info['data']
 
     return result
+
+@app.task(bind=True)
+def _reconstruct_referral_cache(self, attrv_id):
+    if not AttributeValue.objects.filter(id=attrv_id).count():
+        Logger.error('[entry.tasks._reconstruct_referral_cache] target AttributeValue(id:%d) is not existed' % attrv_id)
+    else:
+        AttributeValue.objects.get(id=attrv_id).reconstruct_referral_cache()
 
 @app.task(bind=True)
 def create_entry_attrs(self, user_id, entry_id, recv_data):
@@ -121,7 +132,7 @@ def create_entry_attrs(self, user_id, entry_id, recv_data):
             attrv.save()
 
             # reconstructs referral_cache for each entries that target attrv refer to
-            attrv.reconstruct_referral_cache()
+            _reconstruct_referral_cache.delay(attrv.id)
 
             # set AttributeValue to Attribute
             attr.values.add(attrv)
@@ -178,7 +189,7 @@ def edit_entry_attrs(self, user_id, entry_id, recv_data):
                 [x.del_status(AttributeValue.STATUS_LATEST) for x in old_value.data_array.all()]
 
             # update referral_cache because of chaning the destination of reference
-            old_value.reconstruct_referral_cache()
+            _reconstruct_referral_cache.delay(old_value.id)
 
         # Add a new AttributeValue object only at updating value
         attr_value = AttributeValue.objects.create(created_user=user, parent_attr=attr)
@@ -237,7 +248,7 @@ def edit_entry_attrs(self, user_id, entry_id, recv_data):
         attr_value.save()
 
         # reconstructs referral_cache for each entries that target attrv refer to
-        attr_value.reconstruct_referral_cache()
+        _reconstruct_referral_cache.delay(attr_value.id)
 
         # append new AttributeValue
         attr.values.add(attr_value)

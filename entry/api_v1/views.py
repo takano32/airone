@@ -5,7 +5,7 @@ from airone.lib.types import AttrTypeValue
 from airone.lib.profile import airone_profile
 
 from entry.models import Entry, Attribute
-from entity.models import Entity
+from entity.models import Entity, EntityAttr
 from entry.settings import CONFIG
 
 
@@ -66,19 +66,24 @@ def get_attr_referrals(request, attr_id):
     """
     This returns entries that target attribute refers to.
     """
-    if not Attribute.objects.filter(id=attr_id).count():
+    if (not Attribute.objects.filter(id=attr_id).count() and
+        not EntityAttr.objects.filter(id=attr_id).count()):
         return HttpResponse('Failed to get target attribute(%s)' % attr_id, status=400)
 
-    attr = Attribute.objects.get(id=attr_id)
-    if (attr.schema.type != AttrTypeValue['object'] and
-        attr.schema.type != AttrTypeValue['array_object']):
+    attr = None
+    if Attribute.objects.filter(id=attr_id).count():
+        attr = Attribute.objects.get(id=attr_id).schema
+    else:
+        attr = EntityAttr.objects.get(id=attr_id)
+
+    if not attr.type & AttrTypeValue['object']:
         return HttpResponse('Target Attribute does not referring type', status=400)
 
     if 'keyword' not in request.GET:
         return HttpResponse('Keyword is mandatory to response in this request', status=400)
 
     results = []
-    for referral in attr.schema.referral.all():
+    for referral in attr.referral.all():
         results += [{'id': x.id, 'name': x.name}
                     for x in Entry.objects.filter(schema=referral,
                                                   is_active=True,

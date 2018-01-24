@@ -145,3 +145,35 @@ class ViewTest(AironeViewTest):
                                {'keyword': 'hoge'})
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.json()['results']), 0)
+
+    def test_get_attr_referrals_with_entity_attr(self):
+        """
+        This test is needed because the get_attr_referrals API will receive an ID
+        of Attribute from entry.edit view, but also receive an EntityAttr's one
+        from entry.create view.
+        """
+        admin = self.admin_login()
+
+        # create Entity&Entries
+        ref_entity = Entity.objects.create(name='Referred Entity', created_user=admin)
+        for index in range(0, CONFIG.MAX_LIST_REFERRALS + 1):
+            Entry.objects.create(name='e-%s' % index, schema=ref_entity, created_user=admin)
+
+        entity = Entity.objects.create(name='Entity', created_user=admin)
+        entity_attr = EntityAttr.objects.create(**{
+            'name': 'Refer',
+            'type': AttrTypeValue['named_object'],
+            'created_user': admin,
+            'parent_entity': entity,
+        })
+        entity_attr.referral.add(ref_entity)
+        entity.attrs.add(entity_attr)
+
+        resp = self.client.get(reverse('entry:api_v1:get_attr_referrals', args=[entity_attr.id]),
+                               {'keyword': 'e-1'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Type'], 'application/json')
+        self.assertTrue('results' in resp.json())
+
+        # This means e-1 and 'e-10' to 'e-19' are returned
+        self.assertEqual(len(resp.json()['results']), 11)

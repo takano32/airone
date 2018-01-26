@@ -41,20 +41,24 @@ class AttributeValue(models.Model):
     def get_status(self, val):
         return self.status & val
 
-    def clone(self, user):
-        clone = AttributeValue.objects.get(id=self.id)
+    def clone(self, user, **extra_params):
+        cloned_value = AttributeValue.objects.get(id=self.id)
 
         # By removing the primary key, we can clone a django model instance
-        clone.pk = None
+        cloned_value.pk = None
+
+        # set extra configure
+        for (k, v) in extra_params.items():
+            setattr(cloned_value, k, v)
 
         # update basic parameters to new one
-        clone.created_user = user
-        clone.created_time = datetime.now()
-        clone.save()
+        cloned_value.created_user = user
+        cloned_value.created_time = datetime.now()
+        cloned_value.save()
 
-        clone.data_array.clear()
+        cloned_value.data_array.clear()
 
-        return clone
+        return cloned_value
 
     def reconstruct_referral_cache(self):
         """
@@ -187,7 +191,7 @@ class Attribute(ACLBase):
     def get_latest_value(self):
         return self.get_values().last()
 
-    def clone(self, user):
+    def clone(self, user, **extra_params):
         if not user.has_permission(self, ACLType.Readable):
             return None
 
@@ -198,21 +202,22 @@ class Attribute(ACLBase):
             'created_user': user,
             'schema': self.schema,
             'parent_entry': self.parent_entry,
+            **extra_params,
         }
-        clone = Attribute.objects.create(**params)
+        cloned_attr = Attribute.objects.create(**params)
 
         attrv = self.get_latest_value()
         if attrv:
-            new_attrv = attrv.clone(user)
+            new_attrv = attrv.clone(user, parent_attr=cloned_attr)
 
             # When the Attribute is array, this method also clone co-AttributeValues
             if self.schema.type & AttrTypeValue['array']:
                 for co_attrv in attrv.data_array.all():
                     new_attrv.data_array.add(co_attrv.clone(user))
 
-            clone.values.add(new_attrv)
+            cloned_attr.values.add(new_attrv)
 
-        return clone
+        return cloned_attr
 
     def get_value_history(self, user):
         # At the first time, checks the ermission to read
@@ -482,9 +487,9 @@ class Entry(ACLBase):
             'schema': self.schema,
             **extra_params,
         }
-        clone = Entry.objects.create(**params)
+        cloned_entry = Entry.objects.create(**params)
 
         for attr in self.attrs.filter(is_active=True):
-            clone.attrs.add(attr.clone(user))
+            cloned_entry.attrs.add(attr.clone(user, parent_entry=cloned_entry))
 
-        return clone
+        return cloned_entry

@@ -630,13 +630,31 @@ class ModelTest(TestCase):
         entry = Entry.objects.create(name='entry', schema=self._entity, created_user=self._user)
         entry.complement_attrs(self._user)
 
+        entry_attr = entry.attrs.last()
+        for i in range(0, 10):
+            entry_attr.values.add(AttributeValue.objects.create(**{
+                'parent_attr': entry_attr,
+                'created_user': self._user,
+                'status': AttributeValue.STATUS_LATEST,
+                'value': str(i),
+            }))
+
         clone = entry.clone(self._user)
 
         self.assertIsNotNone(clone)
         self.assertNotEqual(clone.id, entry.id)
         self.assertEqual(clone.name, entry.name)
         self.assertEqual(clone.attrs.count(), entry.attrs.count())
-        self.assertNotEqual(clone.attrs.last(), entry.attrs.last())
+        self.assertNotEqual(clone.attrs.last(), entry_attr)
+
+        # checks parent_entry in the cloned Attribute object is updated
+        clone_attr = clone.attrs.last()
+        self.assertEqual(entry_attr.parent_entry, entry)
+        self.assertEqual(clone_attr.parent_entry, clone)
+
+        # checks parent_entry in the cloned AttributeValue object is updated
+        self.assertEqual(entry_attr.values.last().parent_attr, entry_attr)
+        self.assertEqual(clone_attr.values.last().parent_attr, clone_attr)
 
     def test_clone_entry_with_extra_params(self):
         entry = Entry.objects.create(name='entry', schema=self._entity, created_user=self._user)

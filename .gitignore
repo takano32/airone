@@ -140,3 +140,8 @@ tags
 
 # dumped SQL data for backup
 *.sql
+
+# ignores customviews
+custom_view/*
+custom_view/__init__.py
+templates/custom_view

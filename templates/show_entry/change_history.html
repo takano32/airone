@@ -1,0 +1,90 @@
+<div class="row">
+  <div class="col">
+    <hr/>
+    <h3>変更履歴</h3>
+    <table class="table table-bordered">
+      <tr>
+        <th>属性値</th>
+        <th>設定値</th>
+        <th>ユーザ名</th>
+        <th>更新日時</th>
+      </tr>
+      {% for history in value_history %}
+      <tr>
+        <td>{{ history.attr_name }}</td>
+        {% if history.attr_type == attr_type.string %}
+          <td><p class='url_conv'>{{ history.attr_value }}</p></td>
+        {% elif history.attr_type == attr_type.textarea %}
+          <td><pre class='url_conv'>{{ history.attr_value }}</pre></td>
+        {% elif history.attr_type == attr_type.entry and history.attr_value %}
+          <td><a href='/entry/show/{{ history.attr_value.id}}'>{{ history.attr_value.name }}</a></td>
+        {% elif history.attr_type == attr_type.array_string %}
+          <td>
+            <ul class='list-group'>
+            {% for attrv in history.attr_value %}
+              <li class='list-group-item'>{{ attrv }}</li>
+            {% endfor %}
+            </ul>
+          </td>
+
+        {% elif history.attr_type == attr_type.array_entry %}
+          <td>
+            <ul class='list-group'>
+            {% for attrv in history.attr_value %}
+              <li class='list-group-item'>
+                <a href='/entry/show/{{ attrv.id }}'>
+                  {{ attrv.name }}
+                </a>
+              </li>
+            {% endfor %}
+            </ul>
+          </td>
+        {% elif history.attr_type == attr_type.boolean %}
+          <td>
+            {% if history.attr_value %}
+            <input type="checkbox" disabled='True' checked='True'/>
+            {% else %}
+            <input type="checkbox" disabled='True' />
+            {% endif %}
+          </td>
+
+        {% elif history.attr_type == attr_type.named_entry %}
+          <td>
+            <div class='row'>
+              <div class='col-3'>
+                {{ history.attr_value.value }}
+              </div>
+              <div class='col-9'>
+                <a href='/entry/show/{{ history.attr_value.referral.id }}'>{{ history.attr_value.referral.name }}</a>
+              </div>
+            </div>
+          </td>
+
+        {% elif history.attr_type == attr_type.array_named_entry %}
+          <td>
+            <ul class='list-group'>
+            {% for attrv in history.attr_value %}
+              <li class='list-group-item'>
+                <div class='row'>
+                  <div class='col-3'>
+                    {{ attrv.value }}
+                  </div>
+                  <div class='col-9'>
+                    <a href='/entry/show/{{ attrv.referral.id }}'>{{ attrv.referral.name }}</a>
+                  </div>
+                </div>
+              </li>
+            {% endfor %}
+            </ul>
+          </td>
+
+        {% else %}
+          <td></td>
+        {% endif %}
+        <td>{{ history.created_user }}</td>
+        <td>{{ history.created_time }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>

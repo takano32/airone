@@ -198,7 +198,7 @@ def do_edit(request, entry_id, recv_data):
                                                                          request, recv_data,
                                                                          user, entry)
         if not is_continue:
-            return HttpResponse('', status=code)
+            return HttpResponse(msg, status=code)
 
     # update name of Entry object
     entry.name = recv_data['entry_name']

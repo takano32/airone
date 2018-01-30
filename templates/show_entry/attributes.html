@@ -1,0 +1,73 @@
+<div class='row'>
+  <div class='col'>
+    <table class="table table-bordered">
+      <tr>
+        <th>属性</th>
+        <th>属性値</th>
+      </tr>
+      {% for attr in attributes %}
+      <tr>
+        <td>{{ attr.name }}</td>
+        <td>
+        {% if attr.type == attr_type.string %}
+          <p class='url_conv'>{{ attr.last_value }}</p>
+        {% elif attr.type == attr_type.textarea %}
+          <pre class='url_conv'>{{ attr.last_value }}</pre>
+        {% elif attr.type == attr_type.entry and attr.last_referral %}
+          <a href='/entry/show/{{ attr.last_referral.id }}'>{{ attr.last_referral.name }}</a>{% if attr.last_referral.deleted %}(deleted){% endif %}
+        {% elif attr.type == attr_type.array_string %}
+          <ul class='list-group'>
+          {% for value in attr.last_value %}
+            <li class='list-group-item'>{{ value }}</li>
+          {% endfor %}
+          </ul>
+        {% elif attr.type == attr_type.array_entry %}
+          <ul class='list-group'>
+          {% for refer in attr.last_value %}
+            <li class='list-group-item'>
+              <a href='/entry/show/{{ refer.id }}'>
+                {{ refer.name }}
+              </a>
+              {% if refer.deleted %}(deleted){% endif %}
+            </li>
+          {% endfor %}
+          </ul>
+        {% elif attr.type == attr_type.boolean %}
+          {% if attr.last_value %}
+          <input type="checkbox" disabled='True' checked='True'/>
+          {% else %}
+          <input type="checkbox" disabled='True' />
+          {% endif %}
+        {% elif attr.type == attr_type.named_entry %}
+          <div class='row'>
+            <div class='col-3'>
+              <p class='url_conv'>{{ attr.last_value }}</p>
+            </div>
+            <div class='col-9'>
+              <a href='/entry/show/{{ attr.last_referral.id }}'>{{ attr.last_referral.name }}</a>{% if attr.last_referral.deleted %}(deleted){% endif %}
+            </div>
+          </div>
+
+        {% elif attr.type == attr_type.array_named_entry %}
+          <ul class='list-group'>
+          {% for data in attr.last_value %}
+            <li class='list-group-item'>
+              <div class='row'>
+                <div class='col-3'>
+                  <p class='url_conv'>{{ data.value }}</p>
+                </div>
+                <div class='col-9'>
+                  <a href='/entry/show/{{ data.referral.id }}'>{{ data.referral.name }}</a>{% if data.referral.deleted %}(deleted){% endif %}
+                </div>
+              </div>
+            </li>
+          {% endfor %}
+          </ul>
+
+        {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>

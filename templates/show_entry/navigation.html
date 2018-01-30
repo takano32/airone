@@ -1,0 +1,14 @@
+{% load bitwise_tags %}
+<div class="conatiner-fluid">
+  <ul class="breadcrumb airone-breadcrumb">
+    <li class="breadcrumb-item"><a href="/">TOP</a></li>
+    <li class="breadcrumb-item"><a href='/entry/{{ entry.schema.id }}'>{{ entry.schema.name }}</a></li>
+    {% if entry.is_deleted %}
+      <li class="breadcrumb-item">{{ entry.name }} [削除済]</li>
+    {% elif entry.status|bitwise_and:STATUS_ENTRY.EDITING %}
+      <li class="breadcrumb-item">{{ entry.name }} [編集中]</li>
+    {% else %}
+      <li class="breadcrumb-item">{{ entry.name }}</li>
+    {% endif %}
+  </ul>
+</div>

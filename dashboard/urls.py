@@ -10,4 +10,5 @@ urlpatterns = [
     url(r'^import/$', views.import_data, name='import'),
     url(r'^do_import/$', views.do_import_data, name='do_import'),
     url(r'^search/$', views.search, name='search'),
+    url(r'^advanced_search$', views.advanced_search, name='advanced_search'),
 ]

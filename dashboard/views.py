@@ -10,7 +10,7 @@ from airone.lib.profile import airone_profile
 from django.http import HttpResponse
 from entity.admin import EntityResource, EntityAttrResource
 from entry.admin import EntryResource, AttrResource, AttrValueResource
-from entity.models import Entity
+from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
 from .settings import CONFIG
@@ -95,4 +95,18 @@ def search(request):
 
     return render(request, 'show_search_results.html', {
         'results': sum([x.search(query) for x in target_models], [])
+    })
+
+@http_get
+def advanced_search(request):
+    attrs = [{
+        'id': attr.id,
+        'type': attr.type,
+        'name': "%s / %s" % (attr.parent_entity.name, attr.name),
+        'referral': ','.join([str(x.id) for x in attr.referral.all()]),
+    } for attr in EntityAttr.objects.filter(is_active=True)]
+
+    return render(request, 'advanced_search.html', {
+        'attrs': sorted(attrs, key=lambda x: x['name']),
+        'entities': Entity.objects.filter(is_active=True),
     })

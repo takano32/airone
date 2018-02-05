@@ -115,10 +115,7 @@ def search_entries(request, entity_ids, recv_data):
 @http_get
 def get_entries(request, entity_ids):
     total_entries = []
-    for entity_id in entity_ids.split(','):
-        if not Entity.objects.filter(id=entity_id).count():
-            return HttpResponse('Failed to get entity(%s)' % entity_id, status=400)
-
+    for entity_id in [x for x in entity_ids.split(',') if x and Entity.objects.filter(id=x, is_active=True).count()]:
         entries = Entry.objects.order_by('name').filter(schema__id=entity_id, is_active=True)
         if 'keyword' in request.GET:
             entries = entries.filter(name__regex=request.GET.get('keyword'))

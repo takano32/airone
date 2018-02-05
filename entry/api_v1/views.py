@@ -1,6 +1,8 @@
+import re
+
 from django.http import HttpResponse
 from django.http.response import JsonResponse
-from airone.lib.http import http_get
+from airone.lib.http import http_get, http_post
 from airone.lib.types import AttrTypeValue
 from airone.lib.profile import airone_profile
 
@@ -39,24 +41,99 @@ def get_referrals(request, entry_id):
         'total_count': total_count
     })
 
+@http_post([
+    {'name': 'cond_params', 'type': list, 'meta': [
+        {'name': 'type', 'type': str,
+         'checker': lambda x: x['type'] == 'text' or x['type'] == 'entry'},
+    ]},
+])
+def search_entries(request, entity_ids, recv_data):
+    cond_link = 'or'
+    if 'cond_link' in recv_data and any([x for x in ['and', 'or'] if x == recv_data['cond_link']]):
+        cond_link = recv_data['cond_link']
+
+    total_entries = []
+    for entity_id in entity_ids.split(','):
+        if not Entity.objects.filter(id=entity_id).count():
+            return HttpResponse('Failed to get entity(%s)' % entity_id, status=400)
+
+        entries = Entry.objects.order_by('name').filter(schema__id=entity_id, is_active=True)
+        total_entries += entries.all()
+
+    if not total_entries:
+        return JsonResponse({'results': []})
+
+    def _is_match_value(attrv, cond):
+        if cond['type'] == 'text':
+            return re.match(r'.*%s' % cond['value'], attrv.value)
+        else:
+            return int(cond['value']) == attrv.referral.id
+
+    def _is_match_attrs(attrs, cond):
+        # Ignore he case a value is not specified
+        if 'value' not in cond or not cond['value']:
+            return False
+
+        for attr in attrs:
+            # The case specified condition doesn't match with attribute type
+            if ((cond['type'] == 'text' and not attr.schema.type & AttrTypeValue['string']) or
+                (cond['type'] == 'entry' and not attr.schema.type & AttrTypeValue['object'])):
+                continue
+
+            # The case target attribute has no value
+            attrv = attr.get_latest_value()
+            if not attrv:
+                continue
+
+            if attr.schema.type & AttrTypeValue['array']:
+                ret = any([_is_match_value(x, cond) for x in attrv.data_array.all()])
+            else:
+                ret = _is_match_value(attrv, cond)
+
+            # Interrupt search processing when a matched parameter is found
+            if ret:
+                return True
+
+    def _is_match_entry(entry):
+        attrs = entry.attrs.filter(is_active=True)
+        if cond_link == 'or':
+            return any([_is_match_attrs(attrs, cond) for cond in recv_data['cond_params']])
+        else:
+            return all([_is_match_attrs(attrs, cond) for cond in recv_data['cond_params']])
+
+    ret_entries = [x for x in total_entries if _is_match_entry(x)]
+
+    return JsonResponse({
+        'results': [{
+            'id': x.id,
+            'name': x.name,
+            'schema_id': x.schema.id,
+            'schema_name': x.schema.name,
+        } for x in ret_entries],
+    })
+
 @http_get
-def get_entries(request, entity_id):
-    if not Entity.objects.filter(id=entity_id).count():
-        return HttpResponse('Failed to get entity(%s)' % entity_id, status=400)
+def get_entries(request, entity_ids):
+    total_entries = []
+    for entity_id in entity_ids.split(','):
+        if not Entity.objects.filter(id=entity_id).count():
+            return HttpResponse('Failed to get entity(%s)' % entity_id, status=400)
 
-    entries = Entry.objects.order_by('name').filter(schema=Entity.objects.get(id=entity_id), is_active=True)
-    if 'keyword' in request.GET:
-        entries = entries.filter(name__regex=request.GET.get('keyword'))
+        entries = Entry.objects.order_by('name').filter(schema__id=entity_id, is_active=True)
+        if 'keyword' in request.GET:
+            entries = entries.filter(name__regex=request.GET.get('keyword'))
 
-    if(len(entries) > CONFIG.MAX_LIST_ENTRIES):
-        entries = entries[0:CONFIG.MAX_LIST_ENTRIES]
+        total_entries += entries.all()
+
+    if(len(total_entries) > CONFIG.MAX_LIST_ENTRIES):
+        total_entries = total_entries[0:CONFIG.MAX_LIST_ENTRIES]
 
     # serialize data for each entries to convert json format
     entries_data = [{
         'id': x.id,
         'name': x.name,
         'status': x.status,
-    } for x in entries]
+    } for x in total_entries]
 
     # return entries as JSON
     return JsonResponse({'results': entries_data})

@@ -14,7 +14,7 @@ class ViewTest(AironeViewTest):
     def test_get_entries(self):
         admin = self.admin_login()
 
-        # create Entity&Entries
+        # create Entity & Entries
         entity = Entity.objects.create(name='Entity', created_user=admin)
         for index in range(0, CONFIG.MAX_LIST_ENTRIES + 1):
             name = 'e-%s' % index
@@ -44,6 +44,33 @@ class ViewTest(AironeViewTest):
 
         self.assertTrue('results' in resp.json())
         self.assertEqual(len(resp.json()['results']), 0)
+
+    def test_get_entries_with_multiple_ids(self):
+        admin = self.admin_login()
+
+        # create Entities & Entries
+        for entity_name in ['Entity1', 'Entity2']:
+            entity = Entity.objects.create(name='Entity', created_user=admin)
+            for index in range(0, 10):
+                name = 'e-%s' % index
+                Entry.objects.create(name=name, schema=entity, created_user=admin)
+
+        # specify multiple IDs of Entity
+        entity_ids = '%s,%s' % (Entity.objects.first().id, Entity.objects.last().id)
+        resp = self.client.get('/entry/api/v1/get_entries/%s/' % (entity_ids))
+        self.assertEqual(resp.status_code, 200)
+
+        self.assertTrue('results' in resp.json())
+        self.assertEqual(len(resp.json()['results']), 20)
+
+        # specify multiple IDs including invalid ones
+        # this expects that the only entries of valid id will be returned.
+        entity_ids = ',,,%s,,,,,9999' % Entity.objects.first().id
+        resp = self.client.get('/entry/api/v1/get_entries/%s/' % entity_ids)
+        self.assertEqual(resp.status_code, 200)
+
+        self.assertTrue('results' in resp.json())
+        self.assertEqual(len(resp.json()['results']), 10)
 
     def test_get_entries_with_multiple_entities(self):
         admin = self.admin_login()

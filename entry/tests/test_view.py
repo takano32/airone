@@ -281,12 +281,14 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(Entry.objects.count(), 1)
         self.assertEqual(Attribute.objects.count(), 2)
-        self.assertEqual(AttributeValue.objects.count(), 1)
+
+        # Even if an empty value is specified, an AttributeValue will be create for creating.
+        self.assertEqual(AttributeValue.objects.count(), 2)
 
         entry = Entry.objects.last()
         self.assertEqual(entry.attrs.count(), 2)
         self.assertEqual(entry.attrs.get(name='test').values.count(), 1)
-        self.assertEqual(entry.attrs.get(name='test-optional').values.count(), 0)
+        self.assertEqual(entry.attrs.get(name='test-optional').values.count(), 1)
         self.assertEqual(entry.attrs.get(name='test').values.last().value, 'hoge')
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
@@ -389,7 +391,8 @@ class ViewTest(AironeViewTest):
         new_entry = Entry.objects.get(name='new_entry')
         self.assertEqual(new_entry.attrs.get(schema=self._entity_attr).values.count(), 1)
         self.assertEqual(new_entry.attrs.get(schema=self._entity_attr).values.last().value, 'hoge')
-        self.assertEqual(new_entry.attrs.get(schema=attr_base).values.count(), 0)
+        # Even if an empty value is specified, an AttributeValue will be create for creating.
+        self.assertEqual(new_entry.attrs.get(schema=attr_base).values.count(), 1)
 
     def test_get_edit_without_login(self):
         resp = self.client.get(reverse('entry:edit', args=[0]))
@@ -1415,6 +1418,7 @@ class ViewTest(AironeViewTest):
 
         # checks referred_object cache is set
         entry = Entry.objects.get(name='entry')
+
         self.assertEqual(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 2))
         self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 1))
         self.assertIsNone(ref_entry3.get_cache(Entry.CACHE_REFERRED_ENTRY))
@@ -1431,6 +1435,7 @@ class ViewTest(AironeViewTest):
                                 json.dumps(params), 'application/json')
 
         self.assertEqual(resp.status_code, 200)
+
         self.assertEqual(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
         self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
         self.assertIsNone(ref_entry3.get_cache(Entry.CACHE_REFERRED_ENTRY))
@@ -1686,7 +1691,7 @@ class ViewTest(AironeViewTest):
         entry.complement_attrs(user)
 
         attr = entry.attrs.get(name='arr_named_ref')
-        self.assertTrue(attr.is_updated([ref_entry.id]))
+        self.assertTrue(attr.is_updated([{'id': ref_entry.id}]))
 
         attrv = attr.get_latest_value()
 

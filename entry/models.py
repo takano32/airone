@@ -30,6 +30,14 @@ class AttributeValue(models.Model):
     status = models.IntegerField(default=0)
     boolean = models.BooleanField(default=False)
 
+    # The reason why the 'data_type' parameter is also needed in addition to the Attribute is that
+    # the value of 'type' in Attribute may be changed dynamically.
+    #
+    # If that value is changed after making AttributeValue, we can't know the old type of Attribute.
+    # So it's necessary to save the value of AttrTypeVelue for each AttributeValue instance.
+    # And this value is constract, this parameter will never be changed after creating.
+    data_type = models.IntegerField(default=0)
+
     def set_status(self, val):
         self.status |= val
         self.save()
@@ -91,6 +99,14 @@ class AttributeValue(models.Model):
 
         return results
 
+    @classmethod
+    def create(kls, user, attr, **params):
+        return kls.objects.create(created_user=user,
+                                  parent_attr=attr,
+                                  status=kls.STATUS_LATEST,
+                                  data_type=attr.schema.type,
+                                  **params)
+
 class Attribute(ACLBase):
     values = models.ManyToManyField(AttributeValue)
 
@@ -103,7 +119,7 @@ class Attribute(ACLBase):
         self.objtype = ACLObjType.EntryAttr
 
     # This checks whether each specified attribute needs to update
-    def is_updated(self, recv_value, recv_key=None):
+    def is_updated(self, recv_value):
         # the case new attribute-value is specified
         if self.values.count() == 0:
             # the result depends on the specified value
@@ -146,22 +162,23 @@ class Attribute(ACLBase):
             return last_value.boolean != recv_value
 
         elif self.schema.type == AttrTypeValue['named_object']:
-            if last_value.value != recv_key:
+            if last_value.value != recv_value['name']:
                 return True
 
-            if not last_value.referral and recv_value:
+            if not last_value.referral and recv_value['id']:
                 return True
 
-            if last_value.referral and recv_value and last_value.referral.id != int(recv_value):
+            if (last_value.referral and recv_value['id'] and
+                last_value.referral.id != int(recv_value['id'])):
                 return True
 
         elif self.schema.type == AttrTypeValue['array_named_object']:
             current_refs = [x.referral.id for x in last_value.data_array.all() if x.referral]
-            if sorted(current_refs) != sorted([int(x) for x in recv_value if x]):
+            if sorted(current_refs) != sorted([int(x['id']) for x in recv_value if 'id' in x]):
                 return True
 
             current_keys = [x.value for x in last_value.data_array.all() if x.value]
-            if sorted(current_keys) != sorted(recv_key):
+            if sorted(current_keys) != sorted([x['name'] for x in recv_value if 'name' in x]):
                 return True
 
         return False
@@ -256,6 +273,125 @@ class Attribute(ACLBase):
             'created_time': attrv.created_time,
             'created_user': attrv.created_user.username,
         } for attrv in self.values.all()]
+
+    def _validate_value(self, value):
+        if self.schema.type & AttrTypeValue['array']:
+            if(self.schema.type & AttrTypeValue['named']):
+                return all([x for x in value if isinstance(x, dict) or isinstance(x, type({}.values()))])
+
+            if(self.schema.type & AttrTypeValue['object']):
+                return all([x for x in value if isinstance(x, str)])
+
+            if(self.schema.type & AttrTypeValue['string'] or self.schema.type & AttrTypeValue['text']):
+                return all([x for x in value if isinstance(x, str)])
+
+        if(self.schema.type & AttrTypeValue['named']):
+            return isinstance(value, dict)
+
+        if(self.schema.type & AttrTypeValue['string'] or self.schema.type & AttrTypeValue['text']):
+            return isinstance(value, str)
+
+        if(self.schema.type & AttrTypeValue['object']):
+            return isinstance(value, str)
+
+        if(self.schema.type & AttrTypeValue['boolean']):
+            return isinstance(value, bool)
+
+        if(self.schema.type & AttrTypeValue['group']):
+            return isinstance(value, Group)
+
+        return False
+
+    def add_value(self, user, value):
+        """This method make AttributeValue and set it as the latest one"""
+
+        # checks the type of specified value is acceptable for this Attribute object
+        if not self._validate_value(value):
+            raise TypeError('"%s" is not acceptable [attr_type:%d]' % (str(value), self.schema.type))
+
+        # Clear the flag that means target AttrValues are latet from the Values
+        # that are already created.
+        cond_latest = {
+            'where': ['status & %d > 0' % AttributeValue.STATUS_LATEST],
+        }
+        for old_value in self.values.extra(**cond_latest):
+            old_value.del_status(AttributeValue.STATUS_LATEST)
+
+            # Sync db to update status value of AttributeValue,
+            # because the referred cache reconstruct processing checks this status value.
+            old_value.save()
+
+            if self.schema.type & AttrTypeValue['array']:
+                # also clear the latest flags on the values in data_array
+                [x.del_status(AttributeValue.STATUS_LATEST) for x in old_value.data_array.all()]
+
+        # Initialize AttrValue as None, because this may not created
+        # according to the specified parameters.
+        attr_value = None
+
+        # set attribute value according to the attribute-type
+        if (self.schema.type == AttrTypeValue['string'] or
+            self.schema.type == AttrTypeValue['text']):
+
+            attr_value = AttributeValue.create(user, self)
+            attr_value.value = value
+
+        elif self.schema.type == AttrTypeValue['object']:
+            attr_value = AttributeValue.create(user, self)
+            # set None if the referral entry is not specified
+            if value and Entry.objects.filter(id=value).count():
+                attr_value.referral = Entry.objects.get(id=value)
+            else:
+                attr_value.referral = None
+
+        elif self.schema.type == AttrTypeValue['boolean']:
+            attr_value = AttributeValue.create(user, self)
+            attr_value.boolean = value
+
+        elif (self.schema.type == AttrTypeValue['named_object'] and
+              ('id' in value and value['id'] or 'name' in value and value['name'])):
+
+            attr_value = AttributeValue.create(user, self)
+            attr_value.value = value['name']
+
+            if value['id'] and Entry.objects.filter(id=value['id']).count():
+                attr_value.referral = Entry.objects.get(id=value['id'])
+            else:
+                attr_value.referral = None
+
+        elif self.schema.type & AttrTypeValue['array']:
+            attr_value = AttributeValue.create(user, self)
+            # set status of parent data_array
+            attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
+
+            # create and append updated values
+            if self.schema.type == AttrTypeValue['array_string']:
+                [attr_value.data_array.add(AttributeValue.create(user, self, value=v)) for v in value]
+
+            elif self.schema.type == AttrTypeValue['array_object']:
+                [attr_value.data_array.add(AttributeValue.create(user, self, referral=Entry.objects.get(id=v)))
+                        for v in value]
+
+            elif self.schema.type == AttrTypeValue['array_named_object']:
+                for data in value:
+                    referral = None
+                    if 'id' in data and Entry.objects.filter(id=data['id']).count():
+                        referral = Entry.objects.get(id=data['id'])
+
+                    attr_value.data_array.add(AttributeValue.create(**{
+                        'user': user,
+                        'attr': self,
+                        'value': data['name'] if 'name' in data else '',
+                        'referral': referral,
+                    }))
+
+        if attr_value:
+            attr_value.save()
+
+            # append new AttributeValue
+            self.values.add(attr_value)
+
+        return attr_value
 
 class Entry(ACLBase):
     # This flag is set just after created or edited, then cleared at completion of the processing

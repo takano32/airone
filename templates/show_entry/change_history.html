@@ -78,6 +78,9 @@
             </ul>
           </td>
 
+        {% elif history.attr_type == attr_type.group %}
+          <td><a href='/group/edit/{{ history.attr_value.id}}'>{{ history.attr_value.name }}</a></td>
+
         {% else %}
           <td></td>
         {% endif %}

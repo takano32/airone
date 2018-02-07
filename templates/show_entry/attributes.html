@@ -64,6 +64,9 @@
           {% endfor %}
           </ul>
 
+        {% elif attr.type == attr_type.group %}
+          <a href='/group/edit/{{ attr.last_referral.id }}'>{{ attr.last_referral.name }}</a>
+
         {% endif %}
         </td>
       </tr>

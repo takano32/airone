@@ -113,6 +113,18 @@
         <input type="checkbox" class="attr_value" attr_id="{{ attr.id }}" enabled="True" />
       {% endif %}
 
+    {% elif attr.type|bitwise_and:attr_type.group %}
+
+      <select class="attr_value" attr_id="{{ attr.id }}" enabled="True" index='0' size='5' style="width: 100%">
+          {% if not attr.is_mandatory %}
+          <option value='0'>- NOT SET -</option>
+          {% endif %}
+
+          {% for group in groups %}
+          <option value="{{ group.id }}"{% if group.id == attr.last_referral.id %} selected="selected" {% endif %}>{{ group.name }}</option>
+          {% endfor %}
+      </select>
+
     {% else %}
 
       <input type="text" class="attr_value" attr_id="{{ attr.id }}" enabled="True" value="{{ attr.last_value }}" {%if attr.is_mandatory%}mandatory="true"{%endif%}/>

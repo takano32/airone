@@ -433,6 +433,9 @@ class ModelTest(TestCase):
 
         self.assertEqual(len(attr.get_value_history(self._user)), 3)
 
+        # checks data_type is set as the current type of Attribute if it's not set
+        self.assertTrue(all([v.data_type == AttrTypeValue['string'] for v in attr.values.all()]))
+
     def test_delete_entry(self):
         entity = Entity.objects.create(name='ReferredEntity', created_user=self._user)
         entry = Entry.objects.create(name='entry', created_user=self._user, schema=entity)
@@ -729,3 +732,39 @@ class ModelTest(TestCase):
             # checks that validation processing works well
             if 'invalid_values' in info:
                 [self.assertRaises(TypeError, lambda: attr.add_value(user, x)) for x in info['invalid_values']]
+
+    def test_update_data_type_of_attrvalue(self):
+        """
+        This test checks that data_type parameter of AttributeValue will be changed after
+        calling 'get_available_attrs' method if that parameter is not set.
+
+        Basically, the data_type of AttributeValue is same with the type of Attribute. But,
+        some AttributeValues which are registered before adding this parameter do not have
+        available value. So this processing is needed to set. This assumes unknown typed
+        AttributeValue as the current type of Attribute.
+        """
+        user = User.objects.create(username='hoge')
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr',
+            'type': AttrTypeValue['string'],
+            'created_user': user,
+            'parent_entity': entity,
+        }))
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+
+        attrv = entry.attrs.first().add_value(user, 'hoge')
+
+        # vanish data_type of initial AttributeValue instance
+        attrv.data_type = 0
+        attrv.save()
+
+        # this processing complements data_type parameter of latest AttributeValue
+        # as the current type of Attribute instance
+        results = entry.get_available_attrs(self._user)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['last_value'], 'hoge')
+        self.assertEqual(AttributeValue.objects.get(id=attrv.id).data_type, AttrTypeValue['string'])

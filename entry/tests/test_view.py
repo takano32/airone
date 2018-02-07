@@ -1836,3 +1836,92 @@ class ViewTest(AironeViewTest):
         self.assertEqual(len(results), 4)
         self.assertEqual(len([x for x in results if x['status'] == 'fail']), 1)
         self.assertEqual(len([x for x in results if x['status'] == 'success']), 3)
+
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    def test_create_entry_with_group_attr(self):
+        admin = self.admin_login()
+
+        group = Group.objects.create(name='group')
+        admin.groups.add(group)
+
+        entity = Entity.objects.create(name='entity', created_user=admin)
+        entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr_group',
+            'type': AttrTypeValue['group'],
+            'created_user': admin,
+            'parent_entity': entity,
+        }))
+
+        params = {
+            'entry_name': 'entry',
+            'attrs': [{
+                'id': str(entity.attrs.first().id),
+                'value': [{'index': 0, 'data': str(group.id)}],
+            }],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                        json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        entry = Entry.objects.get(name='entry', schema=entity)
+        self.assertEqual(entry.attrs.count(), 1)
+
+        attrv = entry.attrs.first().get_latest_value()
+        self.assertIsNotNone(attrv)
+        self.assertEqual(attrv.value, str(group.id))
+        self.assertEqual(attrv.data_type, AttrTypeValue['group'])
+
+    @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
+    def test_edit_entry_with_group_attr(self):
+        admin = self.admin_login()
+
+        for index in range(0, 10):
+            group = Group.objects.create(name='group-%d' % (index))
+            admin.groups.add(group)
+
+        entity = Entity.objects.create(name='entity', created_user=admin)
+        entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr_group',
+            'type': AttrTypeValue['group'],
+            'created_user': admin,
+            'parent_entity': entity,
+        }))
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=admin)
+        entry.complement_attrs(admin)
+
+        attr = entry.attrs.first()
+        attr.add_value(admin, str(Group.objects.get(name='group-0').id))
+
+        # Specify a value which is same with the latest one, then AirOne do not update it.
+        attrv_count = AttributeValue.objects.count()
+        params = {
+            'entry_name': 'entry',
+            'attrs': [{
+                'id': str(attr.id),
+                'value': [{'index': 0, 'data': str(Group.objects.get(name='group-0').id)}],
+            }],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                        json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(AttributeValue.objects.count(), attrv_count)
+
+        # Specify a different value to add a new AttributeValue
+        params = {
+            'entry_name': 'entry',
+            'attrs': [{
+                'id': str(attr.id),
+                'value': [{'index': 0, 'data': str(Group.objects.get(name='group-1').id)}],
+            }],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                        json.dumps(params), 'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(AttributeValue.objects.count(), attrv_count + 1)
+
+        attrv = attr.get_latest_value()
+        self.assertIsNotNone(attrv)
+        self.assertEqual(attrv.value, str(Group.objects.get(name='group-1').id))

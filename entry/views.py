@@ -18,6 +18,7 @@ from entity.admin import EntityResource
 from entry.models import Entry, Attribute, AttributeValue
 from entry.admin import EntryResource, AttrResource, AttrValueResource
 from user.models import User
+from group.models import Group
 from .settings import CONFIG
 from .tasks import create_entry_attrs, edit_entry_attrs, delete_entry
 
@@ -69,6 +70,7 @@ def create(request, entity_id):
             {'href': '/entry/%s' % entity.id, 'text': '%s' % entity.name},
             {'text': '新規エントリ作成 (%s)' % entity.name},
         ],
+        'groups': Group.objects.filter(is_active=True),
         'attributes': [{
             'id': x.id,
             'type': x.type,
@@ -142,6 +144,7 @@ def edit(request, entry_id):
 
     context = {
         'entry': entry,
+        'groups': Group.objects.filter(is_active=True),
         'nav_headers': [
             {'href': '/', 'text': 'TOP'},
             {'href': '/entry/%s' % entry.schema.id, 'text': '%s' % entry.schema.name},
@@ -261,11 +264,9 @@ def show(request, entry_id):
     (referred_objects, referred_total) = entry.get_referred_objects(CONFIG.MAX_LIST_REFERRALS,
                                                                     use_cache=True)
 
-    attrs = entry.get_available_attrs(user)
-
     context = {
         'entry': entry,
-        'attributes': attrs,
+        'attributes': entry.get_available_attrs(user),
         'value_history': sorted(value_history, key=lambda x: x['created_time']),
         'referred_objects': referred_objects[0:CONFIG.MAX_LIST_REFERRALS],
         'referred_total': referred_total,

@@ -299,10 +299,10 @@ class ModelTest(TestCase):
                                                       referral=ref_entry1,
                                                       status=AttributeValue.STATUS_LATEST))
 
-        self.assertFalse(attr.is_updated(ref_entry1.id, 'hoge'))
-        self.assertTrue(attr.is_updated(ref_entry2.id, 'hoge'))
-        self.assertTrue(attr.is_updated(ref_entry1.id, 'fuga'))
-        self.assertTrue(attr.is_updated(ref_entry1.id, ''))
+        self.assertFalse(attr.is_updated({'id': ref_entry1.id, 'name': 'hoge'}))
+        self.assertTrue(attr.is_updated({'id': ref_entry2.id, 'name': 'hoge'}))
+        self.assertTrue(attr.is_updated({'id': ref_entry1.id, 'name': 'fuga'}))
+        self.assertTrue(attr.is_updated({'id': ref_entry1.id, 'name': ''}))
 
     def test_attr_helper_of_attribute_with_array_named_ref(self):
         ref_entity = Entity.objects.create(name='referred_entity', created_user=self._user)
@@ -325,7 +325,7 @@ class ModelTest(TestCase):
         entry.complement_attrs(self._user)
 
         attr = entry.attrs.get(name='arr_named_ref')
-        self.assertTrue(attr.is_updated([ref_entry.id]))
+        self.assertTrue(attr.is_updated([{'id': ref_entry.id}]))
 
         attrv = AttributeValue.objects.create(**{
             'parent_attr': attr,
@@ -336,7 +336,7 @@ class ModelTest(TestCase):
         r_entries = []
         for i in range(0, 3):
             r_entry = Entry.objects.create(name='r_%d' % i, created_user=self._user, schema=ref_entity)
-            r_entries.append(r_entry.id)
+            r_entries.append({'id': r_entry.id})
 
             attrv.data_array.add(AttributeValue.objects.create(**{
                 'parent_attr': attr,
@@ -349,10 +349,11 @@ class ModelTest(TestCase):
         attr.values.add(attrv)
 
         # this processing doesn't care the order of contet
-        self.assertFalse(attr.is_updated(r_entries, ['key_0', 'key_2', 'key_1']))
-        self.assertTrue(attr.is_updated([], ['key_0', 'key_1', 'key_2']))
-        self.assertTrue(attr.is_updated(r_entries, ['key_0', 'key_1']))
-        self.assertTrue(attr.is_updated(r_entries, []))
+        self.assertFalse(attr.is_updated([{**x, 'name': y} for x, y in zip(r_entries, ['key_0', 'key_2', 'key_1'])]))
+
+        self.assertTrue(attr.is_updated([{'name': x} for x in ['key_0', 'key_1', 'key_2']]))
+        self.assertTrue(attr.is_updated([{**x, 'name': y} for x, y in zip(r_entries, ['key_0', 'key_1'])]))
+        self.assertTrue(attr.is_updated(r_entries))
 
     def test_for_boolean_attr_and_value(self):
         attr = self.make_attr('attr_bool', AttrTypeValue['boolean'])
@@ -432,6 +433,9 @@ class ModelTest(TestCase):
 
         self.assertEqual(len(attr.get_value_history(self._user)), 3)
 
+        # checks data_type is set as the current type of Attribute if it's not set
+        self.assertTrue(all([v.data_type == AttrTypeValue['string'] for v in attr.values.all()]))
+
     def test_delete_entry(self):
         entity = Entity.objects.create(name='ReferredEntity', created_user=self._user)
         entry = Entry.objects.create(name='entry', created_user=self._user, schema=entity)
@@ -495,7 +499,7 @@ class ModelTest(TestCase):
         entry.complement_attrs(self._user)
 
         attr = entry.attrs.get(name='arr_named_ref')
-        self.assertTrue(attr.is_updated([ref_entry.id]))
+        self.assertTrue(attr.is_updated([{'id': ref_entry.id}]))
 
         attrv = AttributeValue.objects.create(**{
             'parent_attr': attr,
@@ -680,3 +684,108 @@ class ModelTest(TestCase):
         # set permission to access, then it can be cloned
         unknown_user.permissions.add(entry.readable)
         self.assertIsNotNone(entry.clone(unknown_user))
+
+    def test_set_value_method(self):
+        user = User.objects.create(username='hoge')
+
+        # create referred Entity and Entries
+        ref_entity = Entity.objects.create(name='Referred Entity', created_user=user)
+        for index in range(0, 10):
+            last_ref = Entry.objects.create(name='r-%s' % index, schema=ref_entity, created_user=user)
+
+        attr_info = {
+            'str': {'type': AttrTypeValue['string'], 'value': 'foo',
+                    'invalid_values': [123, last_ref, True]},
+            'obj': {'type': AttrTypeValue['object'], 'value': str(last_ref.id)},
+            'name': {'type': AttrTypeValue['named_object'],
+                     'value': {'name': 'bar', 'id': str(last_ref.id)}},
+            'bool': {'type': AttrTypeValue['boolean'], 'value': False},
+            'arr_str': {'type': AttrTypeValue['array_string'], 'value': ['foo', 'bar', 'baz']},
+            'arr_obj': {'type': AttrTypeValue['array_object'],
+                        'value': [str(x.id) for x in Entry.objects.filter(schema=ref_entity)]},
+            'arr_name': {'type': AttrTypeValue['array_named_object'],
+                         'value': [{'name': 'hoge', 'id': str(last_ref.id)}]},
+        }
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        for attr_name, info in attr_info.items():
+            attr = EntityAttr.objects.create(name=attr_name,
+                                             type=info['type'],
+                                             created_user=user,
+                                             parent_entity=entity)
+
+            if info['type'] & AttrTypeValue['object']:
+                attr.referral.add(ref_entity)
+
+            entity.attrs.add(attr)
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+
+        for attr_name, info in attr_info.items():
+            attr = entry.attrs.get(name=attr_name)
+            attrv = attr.add_value(user, info['value'])
+
+            self.assertEqual(attrv, attr.get_latest_value())
+            self.assertEqual(attr.values.last().data_type, info['type'])
+
+            # checks that validation processing works well
+            if 'invalid_values' in info:
+                [self.assertRaises(TypeError, lambda: attr.add_value(user, x)) for x in info['invalid_values']]
+
+    def test_set_attrvalue_to_entry_attr_without_availabe_value(self):
+        user = User.objects.create(username='hoge')
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr',
+            'type': AttrTypeValue['object'],
+            'created_user': user,
+            'parent_entity': entity,
+        }))
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+
+        attr  = entry.attrs.first()
+        attrv = attr.add_value(user, None)
+
+        self.assertIsNotNone(attrv)
+        self.assertEqual(attr.values.count(), 1)
+        self.assertIsNone(attr.values.first().referral)
+
+    def test_update_data_type_of_attrvalue(self):
+        """
+        This test checks that data_type parameter of AttributeValue will be changed after
+        calling 'get_available_attrs' method if that parameter is not set.
+
+        Basically, the data_type of AttributeValue is same with the type of Attribute. But,
+        some AttributeValues which are registered before adding this parameter do not have
+        available value. So this processing is needed to set. This assumes unknown typed
+        AttributeValue as the current type of Attribute.
+        """
+        user = User.objects.create(username='hoge')
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr',
+            'type': AttrTypeValue['string'],
+            'created_user': user,
+            'parent_entity': entity,
+        }))
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+
+        attrv = entry.attrs.first().add_value(user, 'hoge')
+
+        # vanish data_type of initial AttributeValue instance
+        attrv.data_type = 0
+        attrv.save()
+
+        # this processing complements data_type parameter of latest AttributeValue
+        # as the current type of Attribute instance
+        results = entry.get_available_attrs(self._user)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['last_value'], 'hoge')
+        self.assertEqual(AttributeValue.objects.get(id=attrv.id).data_type, AttrTypeValue['string'])

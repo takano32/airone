@@ -4,6 +4,7 @@ _ATTR_OBJECT_TYPE = 1 << 0
 _ATTR_STRING_TYPE = 1 << 1
 _ATTR_TEXT_TYPE = 1 << 2
 _ATTR_BOOL_TYPE = 1 << 3
+_ATTR_GROUP_TYPE = 1 << 4
 _ATTR_ARRAY_TYPE = 1 << 10
 _ATTR_NAMED_TYPE = 1 << 11
 
@@ -59,6 +60,10 @@ class AttrTypeBoolean(with_metaclass(MetaAttrType)):
     NAME = 'boolean'
     TYPE = _ATTR_BOOL_TYPE
 
+class AttrTypeGroup(with_metaclass(MetaAttrType)):
+    NAME = 'group'
+    TYPE = _ATTR_GROUP_TYPE
+
 AttrTypes = [
     AttrTypeStr,
     AttrTypeObj,
@@ -68,6 +73,7 @@ AttrTypes = [
     AttrTypeArrNamedObj,
     AttrTypeText,
     AttrTypeBoolean,
+    AttrTypeGroup,
 ]
 AttrTypeValue = {
     'object': AttrTypeObj.TYPE,
@@ -80,4 +86,5 @@ AttrTypeValue = {
     'array_named_object': AttrTypeArrNamedObj.TYPE,
     'text': AttrTypeText.TYPE,
     'boolean': AttrTypeBoolean.TYPE,
+    'group': AttrTypeGroup.TYPE,
 }

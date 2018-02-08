@@ -2,8 +2,8 @@
 var ATTR_TYPE = {
   object: 1 << 0,
   string: 1 << 1,
-  named_object: 1 << 4,
   array: 1 << 10,
+  named_object: 1 << 11,
 };
 
 // This phrase is used in the confirmation popup.

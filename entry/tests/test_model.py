@@ -733,6 +733,27 @@ class ModelTest(TestCase):
             if 'invalid_values' in info:
                 [self.assertRaises(TypeError, lambda: attr.add_value(user, x)) for x in info['invalid_values']]
 
+    def test_set_attrvalue_to_entry_attr_without_availabe_value(self):
+        user = User.objects.create(username='hoge')
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr',
+            'type': AttrTypeValue['object'],
+            'created_user': user,
+            'parent_entity': entity,
+        }))
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+
+        attr  = entry.attrs.first()
+        attrv = attr.add_value(user, None)
+
+        self.assertIsNotNone(attrv)
+        self.assertEqual(attr.values.count(), 1)
+        self.assertIsNone(attr.values.first().referral)
+
     def test_update_data_type_of_attrvalue(self):
         """
         This test checks that data_type parameter of AttributeValue will be changed after

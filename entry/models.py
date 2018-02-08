@@ -296,7 +296,7 @@ class Attribute(ACLBase):
                 return all([x for x in value if isinstance(x, dict) or isinstance(x, type({}.values()))])
 
             if(self.schema.type & AttrTypeValue['object']):
-                return all([x for x in value if isinstance(x, str)])
+                return all([x for x in value if isinstance(x, str) or x is None])
 
             if(self.schema.type & AttrTypeValue['string'] or self.schema.type & AttrTypeValue['text']):
                 return all([x for x in value if isinstance(x, str)])
@@ -308,7 +308,7 @@ class Attribute(ACLBase):
             return isinstance(value, str)
 
         if(self.schema.type & AttrTypeValue['object']):
-            return isinstance(value, str)
+            return isinstance(value, str) or value is None
 
         if(self.schema.type & AttrTypeValue['boolean']):
             return isinstance(value, bool)

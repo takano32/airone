@@ -30,7 +30,13 @@ class EntryAPI(APIView):
 
         return Response({'result': entry.id})
 
-    def get(self, request, format=None):
-        entries = Entry.objects.filter(is_active=True)
-        sel = GetEntrySerializer(entries, many=True)
-        return Response(sel.data)
+####
+# Disable this REST API endpoint to get whole entries because of the following reaons for a while.
+#
+# 1. There is no requirement to get whole entries from API.
+# 2. This processing requires large amount of CPU time.
+#
+#    def get(self, request, format=None):
+#        entries = Entry.objects.filter(is_active=True)
+#        sel = GetEntrySerializer(entries, many=True)
+#        return Response(sel.data)

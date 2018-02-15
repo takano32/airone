@@ -296,7 +296,9 @@ class Attribute(ACLBase):
                 return all([x for x in value if isinstance(x, dict) or isinstance(x, type({}.values()))])
 
             if(self.schema.type & AttrTypeValue['object']):
-                return all([x for x in value if isinstance(x, str) or x is None])
+                return all([x for x in value if (isinstance(x, str) or
+                                                 isinstance(x, Entry) or
+                                                 x is None)])
 
             if(self.schema.type & AttrTypeValue['string'] or self.schema.type & AttrTypeValue['text']):
                 return all([x for x in value if isinstance(x, str)])
@@ -308,13 +310,16 @@ class Attribute(ACLBase):
             return isinstance(value, str)
 
         if(self.schema.type & AttrTypeValue['object']):
-            return isinstance(value, str) or value is None
+            return isinstance(value, str) or isinstance(value, Entry) or value is None
 
         if(self.schema.type & AttrTypeValue['boolean']):
             return isinstance(value, bool)
 
         if(self.schema.type & AttrTypeValue['group']):
-            return isinstance(value, str) and Group.objects.filter(id=int(value)).count()
+            if isinstance(value, Group):
+                return True
+            elif isinstance(value, str):
+                return Group.objects.filter(id=int(value))
 
         return False
 
@@ -356,10 +361,13 @@ class Attribute(ACLBase):
         elif self.schema.type == AttrTypeValue['object']:
             attr_value = AttributeValue.create(user, self)
             # set None if the referral entry is not specified
-            if value and Entry.objects.filter(id=value).count():
+            attr_value.referral = None
+            if not value:
+                pass
+            elif isinstance(value, str) and Entry.objects.filter(id=value):
                 attr_value.referral = Entry.objects.get(id=value)
-            else:
-                attr_value.referral = None
+            elif isinstance(value, Entry):
+                attr_value.referral = value
 
         elif self.schema.type == AttrTypeValue['boolean']:
             attr_value = AttributeValue.create(user, self)
@@ -371,8 +379,13 @@ class Attribute(ACLBase):
             attr_value = AttributeValue.create(user, self)
             attr_value.value = value['name']
 
-            if value['id'] and Entry.objects.filter(id=value['id']).count():
+            attr_value.referral = None
+            if not value['id']:
+                pass
+            elif isinstance(value['id'], str) and Entry.objects.filter(id=value['id']):
                 attr_value.referral = Entry.objects.get(id=value['id'])
+            elif isinstance(value['id'], Entry):
+                attr_value.referral = value['id']
             else:
                 attr_value.referral = None
 
@@ -386,14 +399,29 @@ class Attribute(ACLBase):
                 [attr_value.data_array.add(AttributeValue.create(user, self, value=v)) for v in value]
 
             elif self.schema.type == AttrTypeValue['array_object']:
-                [attr_value.data_array.add(AttributeValue.create(user, self, referral=Entry.objects.get(id=v)))
-                        for v in value]
+                for v in value:
+                    ref = None
+                    if isinstance(v, str):
+                        ref = Entry.objects.get(id=int(v))
+                    if isinstance(v, int):
+                        ref = Entry.objects.get(id=v)
+                    elif isinstance(v, Entry):
+                        ref = v
+
+                    attr_value.data_array.add(AttributeValue.create(user, self, referral=ref))
 
             elif self.schema.type == AttrTypeValue['array_named_object']:
                 for data in value:
+
                     referral = None
-                    if 'id' in data and Entry.objects.filter(id=data['id']).count():
+                    if 'id' not in data or not data['id']:
+                        pass
+                    elif isinstance(data['id'], str) and Entry.objects.filter(id=int(data['id'])):
+                        referral = Entry.objects.get(id=int(data['id']))
+                    elif isinstance(data['id'], int) and Entry.objects.filter(id=data['id']):
                         referral = Entry.objects.get(id=data['id'])
+                    elif isinstance(data['id'], Entry):
+                        referral = data['id']
 
                     attr_value.data_array.add(AttributeValue.create(**{
                         'user': user,

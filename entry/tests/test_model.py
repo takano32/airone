@@ -705,6 +705,8 @@ class ModelTest(TestCase):
                         'value': [str(x.id) for x in Entry.objects.filter(schema=ref_entity)]},
             'arr_name': {'type': AttrTypeValue['array_named_object'],
                          'value': [{'name': 'hoge', 'id': str(last_ref.id)}]},
+            'group': {'type': AttrTypeValue['group'], 'value':
+                      str(Group.objects.create(name='group').id)}
         }
 
         entity = Entity.objects.create(name='entity', created_user=user)
@@ -732,6 +734,29 @@ class ModelTest(TestCase):
             # checks that validation processing works well
             if 'invalid_values' in info:
                 [self.assertRaises(TypeError, lambda: attr.add_value(user, x)) for x in info['invalid_values']]
+
+        # check update attr-value with specifying entry directly
+        new_ref = Entry.objects.get(schema=ref_entity, name='r-1')
+        entry.attrs.get(name='obj').add_value(user, new_ref)
+        entry.attrs.get(name='name').add_value(user, {'name': 'new_value', 'id': new_ref})
+        entry.attrs.get(name='arr_obj').add_value(user, [new_ref])
+        entry.attrs.get(name='arr_name').add_value(user, [{'name': 'new_value', 'id': new_ref}])
+
+        latest_value = entry.attrs.get(name='obj').get_latest_value()
+        self.assertEqual(latest_value.referral.id, new_ref.id)
+
+        latest_value = entry.attrs.get(name='name').get_latest_value()
+        self.assertEqual(latest_value.value, 'new_value')
+        self.assertEqual(latest_value.referral.id, new_ref.id)
+
+        latest_value = entry.attrs.get(name='arr_obj').get_latest_value()
+        self.assertEqual(latest_value.data_array.count(), 1)
+        self.assertEqual(latest_value.data_array.last().referral.id, new_ref.id)
+
+        latest_value = entry.attrs.get(name='arr_name').get_latest_value()
+        self.assertEqual(latest_value.data_array.count(), 1)
+        self.assertEqual(latest_value.data_array.last().value, 'new_value')
+        self.assertEqual(latest_value.data_array.last().referral.id, new_ref.id)
 
     def test_set_attrvalue_to_entry_attr_without_availabe_value(self):
         user = User.objects.create(username='hoge')

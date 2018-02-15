@@ -11,6 +11,8 @@ from entity.models import Entity, EntityAttr
 from entry.models import Entry
 from group.models import Group
 
+from unittest import skip
+
 
 class APITest(AironeViewTest):
     def test_post_entry(self):
@@ -208,6 +210,7 @@ class APITest(AironeViewTest):
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(Entry.objects.filter(schema=entity, name='invalid-entry').count(), 0)
 
+    @skip('The API endpoint to get was disabled')
     def test_get_entry(self):
         admin = self.admin_login()
 

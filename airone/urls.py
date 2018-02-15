@@ -17,6 +17,8 @@ from django.conf.urls import url, include
 from django.contrib import admin
 from django.views.generic import RedirectView
 
+from api_v1.urls import urlpatterns as api_v1_urlpatterns
+
 urlpatterns = [
     url(r'^$', RedirectView.as_view(url='dashboard/')),
     url(r'^acl/', include('acl.urls', namespace='acl')),
@@ -26,4 +28,6 @@ urlpatterns = [
     url(r'^dashboard/', include('dashboard.urls', namespace='dashboard')),
     url(r'^entry/', include('entry.urls', namespace='entry')),
     url(r'^admin/', admin.site.urls),
+    url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+    url(r'^api/v1/', include(api_v1_urlpatterns)),
 ]

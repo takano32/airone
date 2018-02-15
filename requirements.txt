@@ -5,3 +5,5 @@ mock==2.0.0
 coverage>=4.4.1
 celery==4.1.0
 python-memcached==1.59
+djangorestframework==3.7.7
+django-filter==1.1.0

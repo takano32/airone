@@ -5,6 +5,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from airone.lib.acl import ACLType
 from user.models import User
 from entry.models import Entry
 
@@ -21,12 +22,23 @@ class EntryAPI(APIView):
             }
             return Response(ret, status=status.HTTP_400_BAD_REQUEST)
 
+        # checking that target user has permission to create an entry
+        if not user.has_permission(sel.validated_data['entity'], ACLType.Writable):
+            return Response({'result': 'Permission denied to create(or update) entry'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
         entry = Entry.objects.create(name=sel.validated_data['name'],
                                      schema=sel.validated_data['entity'],
                                      created_user=user)
         entry.complement_attrs(user)
         for name, value in sel.validated_data['attrs'].items():
-            entry.attrs.get(name=name).add_value(user, value)
+            # If user doesn't have readable permission for target Attribute, it won't be created.
+            if not entry.attrs.filter(name=name):
+                continue
+
+            attr = entry.attrs.get(name=name)
+            if user.has_permission(attr.schema, ACLType.Writable):
+                attr.add_value(user, value)
 
         return Response({'result': entry.id})
 

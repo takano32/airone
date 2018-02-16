@@ -210,6 +210,53 @@ class APITest(AironeViewTest):
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(Entry.objects.filter(schema=entity, name='invalid-entry').count(), 0)
 
+    def test_post_entry_without_permissoin(self):
+        admin = self.admin_login()
+
+        entity = Entity.objects.create(name='Entity', created_user=admin, is_public=False)
+        attr_params = [
+            {'name': 'attr1', 'type': AttrTypeValue['string'], 'is_public': True},
+            {'name': 'attr2', 'type': AttrTypeValue['string'], 'is_public': False},
+        ]
+        for attr_info in attr_params:
+            entity.attrs.add(EntityAttr.objects.create(**{
+                'name': attr_info['name'],
+                'type': attr_info['type'],
+                'is_public': attr_info['is_public'],
+                'created_user': admin,
+                'parent_entity': entity,
+            }))
+
+        # re-login as guest
+        guest = self.guest_login()
+
+        # checks that we can't create a new entry because of lack of permission
+        params = {
+            'name': 'entry',
+            'entity': entity.name,
+            'attrs': {'attr1': 'hoge', 'attr2': 'fuga'},
+        }
+        resp = self.client.post('/api/v1/entry', json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()['result'], 'Permission denied to create(or update) entry')
+
+        # Set permisson to create new entry
+        guest.permissions.add(entity.writable)
+
+        # checks that we can create an entry but attr2 doesn't set because
+        # guest doesn't have permission of writable for attr2
+        params = {
+            'name': 'entry',
+            'entity': entity.name,
+            'attrs': {'attr1': 'hoge', 'attr2': 'fuga'},
+        }
+        resp = self.client.post('/api/v1/entry', json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        entry = Entry.objects.get(name='entry', schema=entity)
+        self.assertEqual(entry.attrs.count(), 1)
+        self.assertEqual(entry.attrs.last().name, 'attr1')
+
     @skip('The API endpoint to get was disabled')
     def test_get_entry(self):
         admin = self.admin_login()

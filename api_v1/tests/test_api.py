@@ -257,6 +257,51 @@ class APITest(AironeViewTest):
         self.assertEqual(entry.attrs.count(), 1)
         self.assertEqual(entry.attrs.last().name, 'attr1')
 
+    def test_update_entry(self):
+        admin = self.admin_login()
+
+        entity = Entity.objects.create(name='Entity', created_user=admin, is_public=False)
+        entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr',
+            'type': AttrTypeValue['string'],
+            'created_user': admin,
+            'parent_entity': entity,
+        }))
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=admin)
+        entry.complement_attrs(admin)
+
+        # update entry by sending request to /api/v1/entry
+        params = {
+            'name': entry.name,
+            'entity': entity.name,
+            'attrs': {'attr': 'hoge'},
+        }
+        resp = self.client.post('/api/v1/entry', json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        self.assertEqual(resp.json()['result'], entry.id)
+
+        attrv = entry.attrs.last().get_latest_value()
+        self.assertIsNotNone(attrv)
+        self.assertEqual(attrv.value, 'hoge')
+
+        # update entry by specifying entry ID
+        params = {
+            'id': entry.id,
+            'name': 'updated_entry',
+            'entity': entity.name,
+            'attrs': {'attr': 'fuga'},
+        }
+        resp = self.client.post('/api/v1/entry', json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        self.assertEqual(resp.json()['result'], entry.id)
+
+        entry = Entry.objects.get(id=resp.json()['result'])
+        self.assertEqual(entry.name, 'updated_entry')
+        self.assertEqual(entry.attrs.last().get_latest_value().value, 'fuga')
+
     @skip('The API endpoint to get was disabled')
     def test_get_entry(self):
         admin = self.admin_login()

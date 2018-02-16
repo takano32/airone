@@ -68,6 +68,7 @@ class GetEntrySerializer(serializers.ModelSerializer):
         } for x in obj.attrs.filter(is_active=True)]
 
 class PostEntrySerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=False)
     entity = serializers.CharField(required=True, max_length=100)
     name = serializers.CharField(required=True, max_length=100)
     attrs = serializers.DictField(required=True)
@@ -160,11 +161,11 @@ class PostEntrySerializer(serializers.Serializer):
         # checks specified entity is existed
         if not Entity.objects.filter(is_active=True, name=data['entity']):
             raise ValidationError('Invalid Entity is specified (%s)' % data['entity'])
-
-        # checks duplicate name entry is not existed
         entity = data['entity'] = Entity.objects.get(is_active=True, name=data['entity'])
-        if Entry.objects.filter(is_active=True, schema=entity, name=data['name']):
-            raise ValidationError('A same name entry is existed')
+
+        # checks specified entry-id is valid
+        if 'id' in data and not Entry.objects.filter(id=data['id']):
+            raise ValidationError('Invalid Entry-ID is specified (%d)' % data['id'])
 
         # checks mandatory keys are specified
         if not all([False for x

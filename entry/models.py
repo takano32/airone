@@ -125,7 +125,11 @@ class Attribute(ACLBase):
         # the case new attribute-value is specified
         if self.values.count() == 0:
             # the result depends on the specified value
-            return recv_value
+            if isinstance(recv_value, bool):
+                # the case that first value is 'False' at the boolean typed parameter
+                return True
+            else:
+                return recv_value
 
         last_value = self.values.last()
         if ((self.schema.type == AttrTypeStr or self.schema.type == AttrTypeText) and
@@ -133,6 +137,10 @@ class Attribute(ACLBase):
             return True
 
         elif self.schema.type == AttrTypeObj:
+            # formalize recv_value type
+            if isinstance(recv_value, Entry):
+                recv_value = recv_value.id
+
             if not last_value.referral and not recv_value:
                 return False
             elif last_value.referral and not recv_value:
@@ -155,9 +163,14 @@ class Attribute(ACLBase):
             # the case of changing value
             if last_value.data_array.count() != len(recv_value):
                 return True
+
             # the case of appending or deleting
-            for id in recv_value:
-                if not last_value.data_array.filter(referral=id).count():
+            for value in recv_value:
+                # formalize value type
+                if isinstance(value, Entry):
+                    value = value.id
+
+                if not last_value.data_array.filter(referral=value).count():
                     return True
 
         elif self.schema.type == AttrTypeValue['boolean']:
@@ -170,6 +183,10 @@ class Attribute(ACLBase):
             if last_value.value != recv_value['name']:
                 return True
 
+            # formalize recv_value['id'] type
+            if isinstance(recv_value['id'], Entry):
+                recv_value['id'] = recv_value['id'].id
+
             if not last_value.referral and recv_value['id']:
                 return True
 
@@ -178,8 +195,16 @@ class Attribute(ACLBase):
                 return True
 
         elif self.schema.type == AttrTypeValue['array_named_object']:
+            def get_entry_id(value):
+                if isinstance(value, Entry):
+                    return value.id
+                elif isinstance(value, str):
+                    return int(value)
+                else:
+                    return value
+
             current_refs = [x.referral.id for x in last_value.data_array.all() if x.referral]
-            if sorted(current_refs) != sorted([int(x['id']) for x in recv_value if 'id' in x]):
+            if sorted(current_refs) != sorted([get_entry_id(x['id']) for x in recv_value if 'id' in x]):
                 return True
 
             current_keys = [x.value for x in last_value.data_array.all() if x.value]

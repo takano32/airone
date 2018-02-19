@@ -125,7 +125,11 @@ class Attribute(ACLBase):
         # the case new attribute-value is specified
         if self.values.count() == 0:
             # the result depends on the specified value
-            return recv_value
+            if isinstance(recv_value, bool):
+                # the case that first value is 'False' at the boolean typed parameter
+                return True
+            else:
+                return recv_value
 
         last_value = self.values.last()
         if ((self.schema.type == AttrTypeStr or self.schema.type == AttrTypeText) and

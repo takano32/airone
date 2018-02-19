@@ -50,7 +50,7 @@ class EntryAPI(APIView):
                 continue
 
             attr = entry.attrs.get(name=name)
-            if user.has_permission(attr.schema, ACLType.Writable):
+            if user.has_permission(attr.schema, ACLType.Writable) and attr.is_updated(value):
                 attr.add_value(user, value)
 
         return Response({'result': entry.id})

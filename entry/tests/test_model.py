@@ -209,6 +209,10 @@ class ModelTest(TestCase):
         self.assertFalse(attr.is_updated(e1.id))
         self.assertTrue(attr.is_updated(e2.id))
 
+        # checks that this method accepts Entry
+        self.assertFalse(attr.is_updated(e1))
+        self.assertTrue(attr.is_updated(e2))
+
     def test_attr_helper_of_attribute_with_array_string_vlaues(self):
         entity = Entity.objects.create(name='e2', created_user=self._user)
         entry = Entry.objects.create(name='_E', created_user=self._user, schema=entity)
@@ -270,6 +274,10 @@ class ModelTest(TestCase):
         self.assertTrue(attr.is_updated([e1.id, e2.id, e3.id])) # create
         self.assertTrue(attr.is_updated([e1.id, e3.id, e4.id])) # create & update
 
+        # checks that this method also accepts Entry
+        self.assertFalse(attr.is_updated([e2, e1]))
+        self.assertTrue(attr.is_updated([e1, e3]))
+
     def test_attr_helper_of_attribute_with_named_ref(self):
         ref_entity = Entity.objects.create(name='referred_entity', created_user=self._user)
         ref_entry1 = Entry.objects.create(name='referred_entry1', created_user=self._user, schema=ref_entity)
@@ -326,6 +334,9 @@ class ModelTest(TestCase):
 
         attr = entry.attrs.get(name='arr_named_ref')
         self.assertTrue(attr.is_updated([{'id': ref_entry.id}]))
+
+        # checks that this method also accepts Entry
+        self.assertTrue(attr.is_updated([{'id': ref_entry}]))
 
         attrv = AttributeValue.objects.create(**{
             'parent_attr': attr,

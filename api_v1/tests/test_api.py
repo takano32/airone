@@ -8,7 +8,7 @@ from airone.lib.test import AironeViewTest
 from airone.lib.types import AttrTypeValue
 
 from entity.models import Entity, EntityAttr
-from entry.models import Entry
+from entry.models import Entry, AttributeValue
 from group.models import Group
 
 from unittest import skip
@@ -301,6 +301,19 @@ class APITest(AironeViewTest):
         entry = Entry.objects.get(id=resp.json()['result'])
         self.assertEqual(entry.name, 'updated_entry')
         self.assertEqual(entry.attrs.last().get_latest_value().value, 'fuga')
+
+        # update with same value of current one, this expects that no attributes are updated
+        attr_value_count = AttributeValue.objects.count()
+        # update entry by specifying entry ID
+        params = {
+            'id': entry.id,
+            'name': 'updated_entry',
+            'entity': entity.name,
+            'attrs': {'attr': 'fuga'},
+        }
+        resp = self.client.post('/api/v1/entry', json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(AttributeValue.objects.count(), attr_value_count)
 
     @skip('The API endpoint to get was disabled')
     def test_get_entry(self):

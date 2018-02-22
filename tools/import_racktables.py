@@ -2,6 +2,7 @@ import MySQLdb
 
 import django
 import os
+import re
 import sys
 import socket, struct
 
@@ -61,6 +62,22 @@ class Driver(object):
             query += ' where %s' % condition
 
         return self._db_query(query)
+
+    def screen_dict_value(self, data):
+        """
+        This processing transforms raw data to user friendable one for name
+        """
+        # Removing URL information from name
+        m = re.match(r'\[\[([a-zA-Z0-9_,%\-\ ]+) \| .*\]\]', data)
+        if m:
+            data = m.group(1)
+
+        # Removing all unnecessary characters
+        data = data.replace('%GPASS%', ' ')
+        data = re.sub(r'^.*%GSKIP%', '', data)
+        data = re.sub(r'%L[0-9]*,[0-9]*[HV]?%$', '', data)
+
+        return data
 
     def get_admin(self):
         if User.objects.filter(username='admin').count():
@@ -123,10 +140,11 @@ class Driver(object):
                 sys.stdout.write('\r%s: %6d/%6d (%6d/%6d)' % (msg, data_attr_index+1, data_attr_len, data_index+1, data_len))
                 sys.stdout.flush()
 
-                if all_entry.filter(name=data_attr['dict_value']).count():
-                    entry = all_entry.get(name=data_attr['dict_value'])
+                attr_name = self.screen_dict_value(data_attr['dict_value'])
+                if all_entry.filter(name=attr_name).count():
+                    entry = all_entry.get(name=attr_name)
                 else:
-                    entry = Entry.objects.create(name=data_attr['dict_value'],
+                    entry = Entry.objects.create(name=attr_name,
                                                  schema=entity,
                                                  created_user=user)
 
@@ -144,10 +162,8 @@ class Driver(object):
 
         objtypes = [x['objtype_id'] for x in obj_all]
 
-        def create_entry_for_object(entity, user, obj_data):
-            entry = Entry.objects.create(name=obj_data['name'], schema=entity, created_user=user)
+        def update_entry_attr_value(entry, user, obj_data):
             entry.complement_attrs(user)
-
             for attval in [x for x in attrval_all if x['object_id'] == obj_data['id']]:
                 rk_attr = [x for x in attr_all if x['id'] == attval['attr_id']][0]
 
@@ -162,29 +178,27 @@ class Driver(object):
                     elif rk_attr['type'] == 'float':
                         value = attval['float_value']
                     elif rk_attr['type'] == 'date':
-                        vttalue = datetime.fromtimestamp(int(attval['uint_value'])).strftime('%Y-%m-%d %H:%M:%S')
+                        value = datetime.fromtimestamp(int(attval['uint_value'])).strftime('%Y-%m-%d %H:%M:%S')
                     elif rk_attr['type'] == 'dict':
-                        referral = self.dict_map[int(attval['uint_value'])]
+                        value = self.dict_map[int(attval['uint_value'])]
 
-                    attr = entry.attrs.get(name=rk_attr['name'])
-                    attr.values.add(AttributeValue.objects.create(**{
-                        'created_user': user,
-                        'parent_attr': attr,
-                        'referral': referral,
-                        'value': value,
-                        'status': AttributeValue.STATUS_LATEST,
-                    }))
+                    if entry.attrs.filter(name=rk_attr['name']):
+                        attr = entry.attrs.get(name=rk_attr['name'])
+                        if attr.is_updated(value):
+                            attr.add_value(user, value)
+                    else:
+                        print('[Warning] (%s) has no attr (%s)' % (entry.name, str(rk_attr)))
+
                 except KeyError as e:
-                    print('[WARNING] Failed to set AttributeValue from (Dictionary: "%s")' % attval)
-
-            return entry
+                    print('[WARNING] Failed to set AttributeValue from (Dictionary: "%s") [entry:%s (%s)]' % (attval, entry.name, entry.schema.name))
 
         # create Entities
         for data in [x for x in dict_all if x['dict_key'] in objtypes]:
+            entity_name = self.screen_dict_value(data['dict_value'])
 
-            if not Entity.objects.filter(name=data['dict_value']).count():
-                sys.stdout.write('\nCreate Entity "%s"' % data['dict_value'])
-                entity = self.get_entity(data['dict_value'], user)
+            if not Entity.objects.filter(name=entity_name).count():
+                sys.stdout.write('\nCreate Entity "%s"' % entity_name)
+                entity = self.get_entity(entity_name, user)
 
                 # get EntityAttrs
                 for attr_data in self._fetch_db('AttributeValue',
@@ -213,8 +227,8 @@ class Driver(object):
 
                     entity.attrs.add(entity_attr)
             else:
-                entity = self.get_entity(data['dict_value'], user)
-                sys.stdout.write('\nEntity "%s" has already been created' % data['dict_value'])
+                entity = self.get_entity(entity_name, user)
+                sys.stdout.write('\nEntity "%s" has already been created' % entity_name)
 
             # set status top level
             entity.set_status(Entity.STATUS_TOP_LEVEL)
@@ -223,13 +237,21 @@ class Driver(object):
             part_of_all = [x for x in obj_all if x['objtype_id'] == data['dict_key']]
             obj_len = len(part_of_all)
             for obj_index, obj_data in enumerate(part_of_all):
-                sys.stdout.write('\rCreate Entry for "%s" (%6d/%6d)' % (data['dict_value'], obj_index+1, obj_len))
+                sys.stdout.write('\rCreate Entry for "%s" (%6d/%6d)' % (entity_name, obj_index+1, obj_len))
                 sys.stdout.flush()
 
                 if not Entry.objects.filter(name=obj_data['name'], schema=entity).count():
-                    self.object_map[int(obj_data['id'])] = create_entry_for_object(entity, user, obj_data)
+                    entry = self.object_map[int(obj_data['id'])] = Entry.objects.create(name=obj_data['name'],
+                                                                                        schema=entity,
+                                                                                        created_user=user)
+
+                    entry.complement_attrs(user)
                 else:
-                    self.object_map[int(obj_data['id'])] = Entry.objects.get(name=obj_data['name'], schema=entity)
+                    entry = self.object_map[int(obj_data['id'])] = Entry.objects.get(name=obj_data['name'],
+                                                                                     schema=entity)
+
+                # update each AttributeValue of entry
+                update_entry_attr_value(entry, user, obj_data)
 
     def create_ports_and_links(self):
         user = self.get_admin()

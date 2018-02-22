@@ -326,13 +326,13 @@ class Attribute(ACLBase):
                                                  x is None)])
 
             if(self.schema.type & AttrTypeValue['string'] or self.schema.type & AttrTypeValue['text']):
-                return all([x for x in value if isinstance(x, str)])
+                return all([x for x in value if isinstance(str(x), str)])
 
         if(self.schema.type & AttrTypeValue['named']):
             return isinstance(value, dict)
 
         if(self.schema.type & AttrTypeValue['string'] or self.schema.type & AttrTypeValue['text']):
-            return isinstance(value, str)
+            return isinstance(str(value), str)
 
         if(self.schema.type & AttrTypeValue['object']):
             return isinstance(value, str) or isinstance(value, Entry) or value is None
@@ -381,7 +381,7 @@ class Attribute(ACLBase):
             self.schema.type == AttrTypeValue['group']):
 
             attr_value = AttributeValue.create(user, self)
-            attr_value.value = value
+            attr_value.value = str(value)
 
         elif self.schema.type == AttrTypeValue['object']:
             attr_value = AttributeValue.create(user, self)

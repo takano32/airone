@@ -744,7 +744,7 @@ class ModelTest(TestCase):
 
             # checks that validation processing works well
             if 'invalid_values' in info:
-                [self.assertRaises(TypeError, lambda: attr.add_value(user, x)) for x in info['invalid_values']]
+                [self.assertEqual(attr.add_value(user, x).value, str(x)) for x in info['invalid_values']]
 
         # check update attr-value with specifying entry directly
         new_ref = Entry.objects.get(schema=ref_entity, name='r-1')

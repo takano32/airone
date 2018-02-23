@@ -190,7 +190,7 @@ class Driver(object):
                         print('[Warning] (%s) has no attr (%s)' % (entry.name, str(rk_attr)))
 
                 except KeyError as e:
-                    print('[WARNING] Failed to set AttributeValue from (Dictionary: "%s") [entry:%s (%s)]' % (attval, entry.name, entry.schema.name))
+                    print('[WARNING] Failed to set AttributeValue from (Dictionary: "%s") (rk_attr: "%s") [entry:%s (%s)]' % (attval, rk_attr, entry.name, entry.schema.name))
 
         # create Entities
         for data in [x for x in dict_all if x['dict_key'] in objtypes]:

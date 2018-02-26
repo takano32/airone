@@ -44,7 +44,7 @@
             <td>{{ list_user.email }}</td>
             <td>{{ list_user.date_joined }}</td>
             <td>
-              {% if user.is_superuser %}
+              {% if user.is_superuser or list_user.id == user.id%}
                 <a href='/user/edit/{{ list_user.id }}'><button type='button' class='btn btn-info btn-sm'>編集</button></a>
               {% else %}
                 <button type="button" class="btn btn-secondary btn-sm">編集</button>

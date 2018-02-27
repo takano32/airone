@@ -423,3 +423,8 @@ class APITest(AironeViewTest):
                 self.assertEqual(attrinfo['value'][0]['name'], 'name-0')
                 self.assertEqual(attrinfo['value'][0]['ref_id'], ref_e[0].id)
                 self.assertEqual(attrinfo['value'][0]['ref_name'], ref_e[0].name)
+
+    def test_refresh_token(self):
+        admin = self.admin_login()
+
+        resp = self.client.post('/api/v1/user/refresh_token', json.dumps({}), 'application/json')

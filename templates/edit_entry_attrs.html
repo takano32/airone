@@ -41,13 +41,16 @@
           <option value='0'>- NOT SET -</option>
           {% endif %}
 
+          <!-- show selected referral entry on the top of list -->
+          {% if attr.last_referral %}
+          <option value="{{ attr.last_referral.id }}" selected='selected'>{{ attr.last_referral.name }}</option>
+          {% endif %}
+
+          <!-- show other referral entries except for selected one -->
           {% for referral in attr.referrals|slice:":100" %}
-          <option value="{{ referral.id }}"
-            {% if referral.id == attr.last_referral.id %}
-              selected="selected"
-            {% endif %}>
-            {{ referral.name }}
-          </option>
+          {% if referral.id != attr.last_referral.id %}
+          <option value="{{ referral.id }}">{{ referral.name }}</option>
+          {% endif %}
           {% endfor %}
         </select>
 
@@ -91,8 +94,16 @@
           <option value='0'>- NOT SET -</option>
           {% endif %}
 
+          <!-- show selected referral entry on the top of list -->
+          {% if attr.last_referral %}
+          <option value="{{ attr.last_referral.id }}" selected='selected'>{{ attr.last_referral.name }}</option>
+          {% endif %}
+
+          <!-- show other referral entries except for selected one -->
           {% for referral in attr.referrals|slice:":100" %}
-          <option value="{{ referral.id }}"{% if referral.id == attr.last_referral.id %} selected="selected" {% endif %}>{{ referral.name }}</option>
+          {% if referral.id != attr.last_referral.id %}
+          <option value="{{ referral.id }}">{{ referral.name }}</option>
+          {% endif %}
           {% endfor %}
         </select>
 

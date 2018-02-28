@@ -325,14 +325,14 @@ class Attribute(ACLBase):
                                                  isinstance(x, Entry) or
                                                  x is None)])
 
-            if(self.schema.type & AttrTypeValue['string'] or self.schema.type & AttrTypeValue['text']):
-                return all([x for x in value if isinstance(str(x), str)])
+            if self.schema.type & AttrTypeValue['string']:
+                return True
 
         if(self.schema.type & AttrTypeValue['named']):
             return isinstance(value, dict)
 
         if(self.schema.type & AttrTypeValue['string'] or self.schema.type & AttrTypeValue['text']):
-            return isinstance(str(value), str)
+            return True
 
         if(self.schema.type & AttrTypeValue['object']):
             return isinstance(value, str) or isinstance(value, Entry) or value is None

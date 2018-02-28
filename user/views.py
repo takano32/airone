@@ -65,24 +65,17 @@ def edit(request, user_id):
     if not current_user.is_superuser and current_user != user:
         return HttpResponse("You don't have permission to access", status=400)
 
-    token = ''
-    if current_user == user:
-        (token, _) = Token.objects.get_or_create(user=user)
-
+    (token, _) = Token.objects.get_or_create(user=user)
     context = {
         'user_id': int(user_id),
         'user_name': user.username,
         'user_email': user.email,
         'user_password': user.password,
         'user_is_superuser': user.is_superuser,
+        'token': token if current_user == user else '',
+        'token_lifetime': user.token_lifetime,
+        'token_expire': token.created + timedelta(seconds=user.token_lifetime),
     }
-    if token:
-        context = {
-            'token': token,
-            'token_lifetime': user.token_lifetime,
-            'token_expire': token.created + timedelta(seconds=user.token_lifetime),
-            **context,
-        }
 
     return render(request, 'edit_user.html', context)
 
@@ -90,7 +83,6 @@ def edit(request, user_id):
     {'name': 'name', 'type': str, 'checker': lambda x: x['name']},
     {'name': 'email', 'type': str, 'checker': lambda x: x['email']},
 ])
-#@check_superuser
 def do_edit(request, user_id, recv_data):
     access_user = User.objects.get(id=request.user.id)
     target_user = User.objects.get(id=user_id)
@@ -99,7 +91,7 @@ def do_edit(request, user_id, recv_data):
     if 'token_lifetime' in recv_data:
 
         # Validate specified token_lifetime
-        if (not re.match(r'^[0-9]*$', recv_data['token_lifetime']) or
+        if (not re.match(r'^[0-9]+$', recv_data['token_lifetime']) or
             int(recv_data['token_lifetime']) < 1 or
             int(recv_data['token_lifetime']) > User.MAXIMUM_TOKEN_LIFETIME):
             return HttpResponse("Invalid token lifetime is specified", status=400)

@@ -1,4 +1,7 @@
 import json
+import re
+
+from datetime import datetime,timedelta
 
 from django.template import loader
 from django.http import HttpResponse
@@ -9,6 +12,9 @@ from airone.lib.http import HttpResponseSeeOther
 from airone.lib.http import http_get, http_post
 from airone.lib.http import render
 from airone.lib.http import check_superuser
+
+from rest_framework.authtoken.models import Token
+from datetime import datetime,timedelta
 
 from .models import User
 
@@ -53,17 +59,22 @@ def do_create(request, recv_data):
     return JsonResponse({})
 
 @http_get
-@check_superuser
 def edit(request, user_id):
-
+    current_user = User.objects.get(id=request.user.id)
     user = User.objects.get(id=user_id)
+    if not current_user.is_superuser and current_user != user:
+        return HttpResponse("You don't have permission to access", status=400)
 
+    (token, _) = Token.objects.get_or_create(user=user)
     context = {
         'user_id': int(user_id),
         'user_name': user.username,
         'user_email': user.email,
         'user_password': user.password,
         'user_is_superuser': user.is_superuser,
+        'token': token if current_user == user else '',
+        'token_lifetime': user.token_lifetime,
+        'token_expire': token.created + timedelta(seconds=user.token_lifetime),
     }
 
     return render(request, 'edit_user.html', context)
@@ -72,29 +83,44 @@ def edit(request, user_id):
     {'name': 'name', 'type': str, 'checker': lambda x: x['name']},
     {'name': 'email', 'type': str, 'checker': lambda x: x['email']},
 ])
-@check_superuser
 def do_edit(request, user_id, recv_data):
+    access_user = User.objects.get(id=request.user.id)
+    target_user = User.objects.get(id=user_id)
 
-    old_data = User.objects.get(id=user_id)
-    # validate duplication of username
-    if old_data.username != recv_data['name']:
-        if User.objects.filter(username=recv_data['name']).count():
+    # The case token_lifetime prameter is specified to update
+    if 'token_lifetime' in recv_data:
+
+        # Validate specified token_lifetime
+        if (not re.match(r'^[0-9]+$', recv_data['token_lifetime']) or
+            int(recv_data['token_lifetime']) < 1 or
+            int(recv_data['token_lifetime']) > User.MAXIMUM_TOKEN_LIFETIME):
+            return HttpResponse("Invalid token lifetime is specified", status=400)
+
+        target_user.token_lifetime = int(recv_data['token_lifetime'])
+
+    # Other parameters could be updated by only admin user
+    if access_user.is_superuser:
+
+        # validate duplication of username
+        if (target_user.username != recv_data['name'] and
+            User.objects.filter(username=recv_data['name']).count()):
             return HttpResponse("username is duplicated", status=400)
-    # validate duplication of email
-    if old_data.email != recv_data['email']:
-        if User.objects.filter(email=recv_data['email']).count():
+
+        # validate duplication of email
+        if (target_user.email != recv_data['email'] and
+            User.objects.filter(email=recv_data['email']).count()):
             return HttpResponse("email is duplicated", status=400)
 
-    is_superuser = False
-    if 'is_superuser' in recv_data:
-        is_superuser = True
+        # update each params
+        target_user.username = recv_data['name']
+        target_user.email = recv_data['email']
 
-    user = User(id=user_id,
-                username=recv_data['name'],
-                email=recv_data['email'],
-                is_superuser=is_superuser
-                )
-    user.save(update_fields=['username','email','is_superuser'])
+        if 'is_superuser' in recv_data:
+            target_user.is_superuser = True
+        else:
+            target_user.is_superuser = False
+
+    target_user.save(update_fields=['username','email','is_superuser', 'token_lifetime'])
 
     return JsonResponse({})
 

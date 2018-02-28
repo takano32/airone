@@ -22,8 +22,12 @@
   <div class="row">
     <div class="col">
       <form name='edit' url="/user/do_edit/{{ user_id }}" method='post'>
+
+        <!-- Top navigation buttons-->
         <p><input type="submit" class="btn btn-primary align-right" value='保存'/></p>
+
         <table class="table table-bordered">
+          {% if user.is_superuser %}
           <tr>
             <th>名前</th>
             <td><input type="text" name="name" value="{{ user_name }}" /><br/></td>
@@ -39,6 +43,40 @@
             {% else %}
             <td><input type="checkbox" name="is_superuser" value="{{ user_is_superuser }}" /><br/></td>
             {% endif %}
+          </tr>
+
+          {% else %}
+          <!-- The case who doens't have the priviledged level permission-->
+          <tr>
+            <th>名前</th>
+            <td>{{ user_name }}</td>
+            <input type='hidden' name='name' value='{{ user_name }}' />
+          </tr>
+          <tr>
+            <th>メールアドレス</th>
+            <td>{{ user_email }}</td>
+            <input type='hidden' name='email' value='{{ user_email }}' />
+          </tr>
+          {% endif %}
+
+          {% if token %}
+          <tr>
+            <th>AccessToken</th>
+            <td>
+              <p id='access_token'>{{ token }}</p>
+              <button type='button' id='refresh_token' class='btn btn-primary btn-sm'>Refresh</button>
+            </td>
+          </tr>
+          {% endif %}
+          <tr>
+            <th>AccessToken の有効期間 [sec]</th>
+            <td>
+              <p>
+                <input type="text" name="token_lifetime" value="{{ token_lifetime }}" />
+                (1 ~ 10^8 の範囲の整数のみ設定可能)
+              </p>
+              有効期限：{{ token_expire }}
+            </td>
           </tr>
         </table>
         {% csrf_token %}
@@ -57,9 +95,23 @@ $('form').submit(function(){
     MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, `Success to update User "${username}"`);
 
     location.href = '/user/';
+  }).fail(function(resp){
+    MessageBox.error(resp.responseText);
   });
 
   return false;
+});
+
+$("#refresh_token").on('click', function() {
+  $.ajax({
+    type: 'PUT',
+    url: "/api/v1/user/access_token",
+    headers: {
+      'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val(),
+    },
+  }).done(function(data){
+    $("#access_token").text(data['results']);
+  });
 });
 
 </script>

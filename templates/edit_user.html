@@ -95,6 +95,8 @@ $('form').submit(function(){
     MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, `Success to update User "${username}"`);
 
     location.href = '/user/';
+  }).fail(function(resp){
+    MessageBox.error(resp.responseText);
   });
 
   return false;
@@ -108,7 +110,7 @@ $("#refresh_token").on('click', function() {
       'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val(),
     },
   }).done(function(data){
-    $("#access_token").text(data['results'])
+    $("#access_token").text(data['results']);
   });
 });
 

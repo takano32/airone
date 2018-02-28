@@ -8,10 +8,11 @@ from datetime import datetime
 
 
 class User(DjangoUser):
-    authorized_type = models.IntegerField(default=0)
-    token_lifetime = models.IntegerField(default=86400)
-
     MAXIMUM_TOKEN_LIFETIME = 10 ** 8
+    TOKEN_LIFETIME = 86400
+
+    authorized_type = models.IntegerField(default=0)
+    token_lifetime = models.IntegerField(default=TOKEN_LIFETIME)
 
     # to make a polymorphism between the Group model
     @property

@@ -271,7 +271,7 @@ class ViewTest(TestCase):
 
         user = User.objects.get(username='guest')
 
-        for invalid_value in ['abcd', '-1', '0', str(User.MAXIMUM_TOKEN_LIFETIME + 1)]:
+        for invalid_value in ['abcd', '-1', '0', str(User.MAXIMUM_TOKEN_LIFETIME + 1), '']:
             params = {
                 'name': 'hoge',
                 'email':'hoge@hoge.com',

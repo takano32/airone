@@ -608,7 +608,7 @@ class Entry(ACLBase):
                 if last_value.data_type == AttrTypeStr or attr.schema.type == AttrTypeText:
                     attrinfo['last_value'] = last_value.value
 
-                elif last_value.data_type == AttrTypeObj and last_value.referral:
+                elif (last_value.data_type == AttrTypeObj and last_value.referral and last_value.referral.is_active):
                     attrinfo['last_referral'] = last_value.referral
 
                 elif last_value.data_type == AttrTypeArrStr:
@@ -616,18 +616,22 @@ class Entry(ACLBase):
                     attrinfo['last_value'] = [x.value for x in last_value.data_array.all()]
 
                 elif last_value.data_type == AttrTypeArrObj:
-                    attrinfo['last_value'] = [x.referral for x in last_value.data_array.all()]
+                    attrinfo['last_value'] = [x.referral for x in last_value.data_array.all() if x.referral.is_active]
 
                 elif last_value.data_type == AttrTypeValue['boolean']:
                     attrinfo['last_value'] = last_value.boolean
 
                 elif last_value.data_type == AttrTypeValue['named_object']:
                     attrinfo['last_value'] = last_value.value
-                    attrinfo['last_referral'] = last_value.referral
+
+                    if last_value.referral and last_value.referral.is_active:
+                        attrinfo['last_referral'] = last_value.referral
+                    else:
+                        attrinfo['last_referral'] = None
 
                 elif last_value.data_type == AttrTypeValue['array_named_object']:
                     values = [x.value for x in last_value.data_array.all()]
-                    referrals = [x.referral for x in last_value.data_array.all()]
+                    referrals = [x.referral for x in last_value.data_array.all() if x.referral.is_active]
 
                     attrinfo['last_value'] = sorted([{
                         'value': v,

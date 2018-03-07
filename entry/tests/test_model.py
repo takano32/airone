@@ -825,3 +825,59 @@ class ModelTest(TestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]['last_value'], 'hoge')
         self.assertEqual(AttributeValue.objects.get(id=attrv.id).data_type, AttrTypeValue['string'])
+
+    def test_get_deleted_referred_attrs(self):
+        user = User.objects.create(username='hoge')
+
+        # create referred Entity and Entries
+        ref_entity = Entity.objects.create(name='ReferredEntity', created_user=user)
+        ref_entry = Entry.objects.create(name='ReferredEntry', schema=ref_entity, created_user=user)
+
+        attr_info = {
+            'obj': {'type': AttrTypeValue['object'], 'value': ref_entry},
+            'name': {'type': AttrTypeValue['named_object'], 'value': {'name': 'hoge', 'id': ref_entry}},
+            'arr_obj': {'type': AttrTypeValue['array_object'], 'value': [ref_entry]},
+            'arr_name': {'type': AttrTypeValue['array_named_object'], 'value': [{'name': 'hoge', 'id': ref_entry}]},
+        }
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        for attr_name, info in attr_info.items():
+            attr = EntityAttr.objects.create(name=attr_name,
+                                             type=info['type'],
+                                             created_user=user,
+                                             parent_entity=entity)
+
+            attr.referral.add(ref_entity)
+            entity.attrs.add(attr)
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+        for attr_name, info in attr_info.items():
+            entry.attrs.get(name=attr_name).add_value(user, info['value'])
+
+        # checks all set vaialbles can be got correctly
+        available_attrs = entry.get_available_attrs(user)
+        self.assertEqual(len(available_attrs), len(attr_info))
+        for attr in available_attrs:
+            if attr['name'] == 'obj':
+                self.assertEqual(attr['last_referral'].id, ref_entry.id)
+            elif attr['name'] == 'name':
+                self.assertEqual(attr['last_referral'].id, ref_entry.id)
+            elif attr['name'] == 'arr_obj':
+                self.assertEqual([x.id for x in attr['last_value']], [ref_entry.id])
+            elif attr['name'] == 'arr_name':
+                self.assertEqual([x['referral'].id for x in attr['last_value']], [ref_entry.id])
+
+        # delete referral entry, then get available attrs
+        ref_entry.delete()
+        available_attrs = entry.get_available_attrs(user)
+        self.assertEqual(len(available_attrs), len(attr_info))
+        for attr in available_attrs:
+            if attr['name'] == 'obj':
+                self.assertEqual(attr['last_referral'], None)
+            elif attr['name'] == 'name':
+                self.assertEqual(attr['last_referral'], None)
+            elif attr['name'] == 'arr_obj':
+                self.assertEqual(attr['last_value'], [])
+            elif attr['name'] == 'arr_name':
+                self.assertEqual([x['referral'] for x in attr['last_value']], [])

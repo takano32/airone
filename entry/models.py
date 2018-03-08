@@ -204,11 +204,11 @@ class Attribute(ACLBase):
                     return value
 
             current_refs = [x.referral.id for x in last_value.data_array.all() if x.referral]
-            if sorted(current_refs) != sorted([get_entry_id(x['id']) for x in recv_value if 'id' in x]):
+            if sorted(current_refs) != sorted([get_entry_id(x['id']) for x in recv_value if 'id' in x and x['id']]):
                 return True
 
             current_keys = [x.value for x in last_value.data_array.all() if x.value]
-            if sorted(current_keys) != sorted([x['name'] for x in recv_value if 'name' in x]):
+            if sorted(current_keys) != sorted([x['name'] for x in recv_value if 'name' in x and x['name']]):
                 return True
 
         return False
@@ -616,7 +616,8 @@ class Entry(ACLBase):
                     attrinfo['last_value'] = [x.value for x in last_value.data_array.all()]
 
                 elif last_value.data_type == AttrTypeArrObj:
-                    attrinfo['last_value'] = [x.referral for x in last_value.data_array.all() if x.referral.is_active]
+                    attrinfo['last_value'] = [x.referral for x
+                            in last_value.data_array.all() if x.referral and x.referral.is_active]
 
                 elif last_value.data_type == AttrTypeValue['boolean']:
                     attrinfo['last_value'] = last_value.boolean
@@ -631,7 +632,8 @@ class Entry(ACLBase):
 
                 elif last_value.data_type == AttrTypeValue['array_named_object']:
                     values = [x.value for x in last_value.data_array.all()]
-                    referrals = [x.referral for x in last_value.data_array.all() if x.referral.is_active]
+                    referrals = [x.referral for x in
+                            last_value.data_array.all() if x.referral and x.referral.is_active]
 
                     attrinfo['last_value'] = sorted([{
                         'value': v,

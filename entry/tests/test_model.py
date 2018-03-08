@@ -881,3 +881,43 @@ class ModelTest(TestCase):
                 self.assertEqual(attr['last_value'], [])
             elif attr['name'] == 'arr_name':
                 self.assertEqual([x['referral'] for x in attr['last_value']], [])
+
+    def test_get_available_attrs_with_empty_referral(self):
+        user = User.objects.create(username='hoge')
+
+        ref_entity = Entity.objects.create(name='ReferredEntity', created_user=user)
+        entity = Entity.objects.create(name='entity', created_user=user)
+        attr_info = {
+            'obj': {'type': AttrTypeValue['object'], 'value': None},
+            'name': {'type': AttrTypeValue['named_object'], 'value': {'name': 'hoge', 'id': None}},
+            'arr_obj': {'type': AttrTypeValue['array_object'], 'value': []},
+            'arr_name': {'type': AttrTypeValue['array_named_object'], 'value': [{'name': 'hoge', 'id': None}]},
+        }
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        for attr_name, info in attr_info.items():
+            attr = EntityAttr.objects.create(name=attr_name,
+                                             type=info['type'],
+                                             created_user=user,
+                                             parent_entity=entity)
+
+            attr.referral.add(ref_entity)
+            entity.attrs.add(attr)
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+        for attr_name, info in attr_info.items():
+            entry.attrs.get(name=attr_name).add_value(user, info['value'])
+
+        # get empty values for each attributes
+        available_attrs = entry.get_available_attrs(user)
+        self.assertEqual(len(available_attrs), len(attr_info))
+        for attr in available_attrs:
+            if attr['name'] == 'obj':
+                self.assertEqual(attr['last_referral'], None)
+            elif attr['name'] == 'name':
+                self.assertEqual(attr['last_referral'], None)
+            elif attr['name'] == 'arr_obj':
+                self.assertEqual(attr['last_value'], [])
+            elif attr['name'] == 'arr_name':
+                self.assertEqual([x['referral'] for x in attr['last_value']], [])

@@ -4,6 +4,8 @@ from django.db import models
 from django.contrib.auth.models import User as DjangoUser
 from airone.lib.acl import ACLType, ACLTypeBase
 
+from rest_framework.authtoken.models import Token
+
 from datetime import datetime
 
 
@@ -18,6 +20,10 @@ class User(DjangoUser):
     @property
     def permissions(self):
         return self.user_permissions
+
+    @property
+    def token(self):
+        return Token.objects.get_or_create(user=self)[0]
 
     def has_permission(self, target_obj, permission_level):
         # A bypass processing to rapidly return.

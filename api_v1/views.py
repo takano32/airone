@@ -4,6 +4,9 @@ from .serializers import GetEntrySerializer
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.authentication import BasicAuthentication
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.authentication import SessionAuthentication
 
 from airone.lib.acl import ACLType
 from user.models import User
@@ -11,6 +14,8 @@ from entry.models import Entry
 
 
 class EntryAPI(APIView):
+    authentication_classes = (TokenAuthentication, BasicAuthentication, SessionAuthentication,)
+
     def post(self, request, format=None):
         user = User.objects.get(id=request.user.id)
         sel = PostEntrySerializer(data=request.data)

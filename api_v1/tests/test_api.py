@@ -10,6 +10,7 @@ from airone.lib.types import AttrTypeValue
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, AttributeValue
 from group.models import Group
+from user.models import User
 
 from unittest import skip
 
@@ -100,6 +101,22 @@ class APITest(AironeViewTest):
         for info in checklist:
             attr = new_entry.attrs.get(name=info['name'])
             info['check'](attr.get_latest_value())
+
+    def test_post_entry_with_token(self):
+        admin = User.objects.create(username='admin', is_superuser='True')
+
+        entity = Entity.objects.create(name='Entity', created_user=admin)
+        params = {
+            'name': 'Entry',
+            'entity': entity.name,
+            'attrs': {},
+        }
+
+        resp = self.client.post('/api/v1/entry', json.dumps(params), 'application/json', **{
+            'HTTP_AUTHORIZATION': 'Token %s' % str(admin.token),
+        })
+        self.assertEqual(Entry.objects.filter(schema=entity).count(), 1)
+        self.assertEqual(Entry.objects.filter(schema=entity).first().name, 'Entry')
 
     def test_post_entry_with_invalid_params(self):
         admin = self.admin_login()

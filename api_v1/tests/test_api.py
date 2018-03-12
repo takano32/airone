@@ -175,6 +175,24 @@ class APITest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(Entry.objects.filter(schema=entity, name='valid-entry').count(), 1)
 
+        # update entry which has been already created.
+        #
+        # This lacks mandatory parameter 'val', but this will be successful. Because that
+        # is created at the last request to create 'valid-entry'.
+        params = {
+            'name': 'valid-entry',
+            'entity': entity.name,
+            'attrs': {'ref': 'r-1'}
+        }
+        resp = self.client.post('/api/v1/entry', json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        entry = Entry.objects.get(schema=entity, name='valid-entry')
+        self.assertEqual(entry.attrs.get(name='val').get_latest_value().value, 'hoge')
+        self.assertIsNotNone(entry.attrs.get(name='ref').get_latest_value().referral)
+        self.assertEqual(entry.attrs.get(name='ref').get_latest_value().referral.id,
+                         Entry.objects.get(name='r-1', schema=ref_entity).id)
+
         # send request with invalid attr param
         params = {
             'name': 'invalid-entry',

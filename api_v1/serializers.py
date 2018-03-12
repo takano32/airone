@@ -163,12 +163,16 @@ class PostEntrySerializer(serializers.Serializer):
             raise ValidationError('Invalid Entity is specified (%s)' % data['entity'])
         entity = data['entity'] = Entity.objects.get(is_active=True, name=data['entity'])
 
+        entry = None
+        if Entry.objects.filter(schema=entity, name=data['name']):
+            entry = Entry.objects.get(schema=entity, name=data['name'])
+
         # checks specified entry-id is valid
         if 'id' in data and not Entry.objects.filter(id=data['id']):
             raise ValidationError('Invalid Entry-ID is specified (%d)' % data['id'])
 
-        # checks mandatory keys are specified
-        if not all([False for x
+        # checks mandatory keys are specified when a new Entry will be created
+        if not entry and not all([False for x
             in entity.attrs.filter(is_active=True, is_mandatory=True)
             if x.name not in data['attrs'].keys()]):
             raise ValidationError('Some mandatory attrs are not specified')

@@ -9,6 +9,7 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.authentication import SessionAuthentication
 
 from airone.lib.api import AironeAPIView
+from user.models import User as AironeUser
 
 
 class AccessTokenAPI(AironeAPIView):
@@ -16,9 +17,8 @@ class AccessTokenAPI(AironeAPIView):
 
     def get(self, request, format=None):
         user = DjangoUser.objects.get(id=request.user.id)
-        token, _ = Token.objects.get_or_create(user=user)
 
-        return Response({'results': str(token)})
+        return Response({'results': str(AironeUser(id=user.id).token)})
 
     @method_decorator(csrf_protect)
     def put(self, request, format=None):

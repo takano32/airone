@@ -653,7 +653,8 @@ class ViewTest(AironeViewTest):
                                 json.dumps(params),
                                 'application/json')
 
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(Entity.objects.filter(name='hoge'))
 
     def test_create_entity_attr_with_multiple_referral(self):
         user = self.admin_login()

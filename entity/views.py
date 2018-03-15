@@ -275,7 +275,6 @@ def do_edit(request, entity_id, recv_data):
         )}
     ]},
 ])
-@check_superuser
 def do_create(request, recv_data):
     # validation checks
     for attr in recv_data['attrs']:

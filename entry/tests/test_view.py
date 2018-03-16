@@ -844,17 +844,16 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
 
         obj = yaml.load(resp.content)
-        self.assertTrue('Entry' in obj)
-        self.assertTrue('Attribute' in obj)
-        self.assertTrue('AttributeValue' in obj)
+        self.assertTrue(self._entity.name in obj)
 
-        self.assertEqual(len(obj['Entry']), 1)
-        self.assertEqual(obj['Entry'][0]['id'], entry.id)
-        self.assertEqual(obj['Entry'][0]['name'], entry.name)
-        self.assertEqual(obj['Entry'][0]['entity'], self._entity.name)
+        self.assertEqual(len(obj[self._entity.name]), 1)
+        entry_data = obj[self._entity.name][0]
+        self.assertTrue(all(['name' in entry_data and 'attrs' in entry_data]))
 
-        self.assertEqual(len(obj['Attribute']), 2)
-        self.assertEqual(len(obj['AttributeValue']), 4)
+        self.assertEqual(entry_data['name'], entry.name)
+        self.assertEqual(len(entry_data['attrs']), entry.attrs.count())
+        self.assertEqual(entry_data['attrs']['foo'], 'fuga')
+        self.assertEqual(entry_data['attrs']['bar'], 'fuga')
 
     @patch('entry.views.delete_entry.delay', Mock(side_effect=tasks.delete_entry))
     def test_post_delete_entry(self):
@@ -1925,3 +1924,61 @@ class ViewTest(AironeViewTest):
         attrv = attr.get_latest_value()
         self.assertIsNotNone(attrv)
         self.assertEqual(attrv.value, str(Group.objects.get(name='group-1').id))
+
+    def test_import_entry(self):
+        user = self.admin_login()
+
+        # prepare to Entity and Entries which importing data refers to
+        ref_entity = Entity.objects.create(name='RefEntity', created_user=user)
+        ref_entry = Entry.objects.create(name='ref', created_user=user, schema=ref_entity)
+        group = Group.objects.create(name='group')
+
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        attr_info = {
+            'str': {'type': AttrTypeValue['string']},
+            'obj': {'type': AttrTypeValue['object']},
+            'grp': {'type': AttrTypeValue['group']},
+            'name': {'type': AttrTypeValue['named_object']},
+            'bool': {'type': AttrTypeValue['boolean']},
+            'arr1': {'type': AttrTypeValue['array_string']},
+            'arr2': {'type': AttrTypeValue['array_object']},
+            'arr3': {'type': AttrTypeValue['array_named_object']},
+        }
+        for attr_name, info in attr_info.items():
+            attr = EntityAttr.objects.create(name=attr_name,
+                                             type=info['type'],
+                                             created_user=user,
+                                             parent_entity=entity)
+
+            if info['type'] & AttrTypeValue['object']:
+                attr.referral.add(ref_entity)
+
+            entity.attrs.add(attr)
+
+        # import data from test file
+        fp = self.open_fixture_file('import_data.yaml')
+        resp = self.client.post(reverse('entry:do_import', args=[entity.id]), {'file': fp})
+
+        # check the import is success
+        self.assertEqual(resp.status_code, 303)
+        self.assertTrue(Entry.objects.filter(name='Entry', schema=entity))
+
+        entry = Entry.objects.get(name='Entry', schema=entity)
+        checklist = [
+            {'attr': 'str', 'checker': lambda x: x.value == 'foo'},
+            {'attr': 'obj', 'checker': lambda x: x.referral.id == ref_entry.id},
+            {'attr': 'grp', 'checker': lambda x: x.value == str(group.id)},
+            {'attr': 'name', 'checker': lambda x: x.value == 'foo' and x.referral.id == ref_entry.id},
+            {'attr': 'bool', 'checker': lambda x: x.boolean == False},
+            {'attr': 'arr1', 'checker': lambda x: x.data_array.count() == 3},
+            {'attr': 'arr2',
+             'checker': lambda x: x.data_array.count() == 1 and x.data_array.first().referral.id == ref_entry.id},
+            {'attr': 'arr3',
+             'checker': lambda x: x.data_array.count() == 1 and x.data_array.first().referral.id == ref_entry.id},
+        ]
+        for info in checklist:
+            attr = entry.attrs.get(name=info['attr'])
+            attrv = attr.get_latest_value()
+
+            self.assertIsNotNone(attrv)
+            self.assertTrue(info['checker'](attrv))

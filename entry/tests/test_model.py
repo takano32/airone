@@ -921,3 +921,158 @@ class ModelTest(TestCase):
                 self.assertEqual(attr['last_value'], [])
             elif attr['name'] == 'arr_name':
                 self.assertEqual([x['referral'] for x in attr['last_value']], [])
+
+    def test_get_value_of_attrv(self):
+        user = User.objects.create(username='hoge')
+
+        # create referred Entity and Entries
+        ref_entity = Entity.objects.create(name='Referred Entity', created_user=user)
+        for index in range(0, 10):
+            last_ref = Entry.objects.create(name='r-%s' % index, schema=ref_entity, created_user=user)
+
+        attr_info = {
+            'str': {'type': AttrTypeValue['string'], 'value': 'foo'},
+            'obj': {'type': AttrTypeValue['object'], 'value': str(last_ref.id)},
+            'name': {'type': AttrTypeValue['named_object'], 'value': {'name': 'bar', 'id': str(last_ref.id)}},
+            'bool': {'type': AttrTypeValue['boolean'], 'value': False},
+            'arr_str': {'type': AttrTypeValue['array_string'], 'value': ['foo', 'bar', 'baz']},
+            'arr_obj': {'type': AttrTypeValue['array_object'],
+                        'value': [str(x.id) for x in Entry.objects.filter(schema=ref_entity)]},
+            'arr_name': {'type': AttrTypeValue['array_named_object'],
+                         'value': [{'name': 'hoge', 'id': str(last_ref.id)}]},
+            'group': {'type': AttrTypeValue['group'], 'value': str(Group.objects.create(name='group').id)}
+        }
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        for attr_name, info in attr_info.items():
+            attr = EntityAttr.objects.create(name=attr_name,
+                                             type=info['type'],
+                                             created_user=user,
+                                             parent_entity=entity)
+
+            if info['type'] & AttrTypeValue['object']:
+                attr.referral.add(ref_entity)
+
+            entity.attrs.add(attr)
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+
+        for attr_name, info in attr_info.items():
+            attr = entry.attrs.get(name=attr_name)
+            attrv = attr.add_value(user, info['value'])
+
+        # test get_value method for each AttributeValue of Attribute types
+        expected_values = {
+            'str': str(attr_info['str']['value']),
+            'obj': Entry.objects.get(id=attr_info['obj']['value']).name,
+            'name': {attr_info['name']['value']['name']: Entry.objects.get(id=attr_info['name']['value']['id']).name},
+            'bool': attr_info['bool']['value'],
+            'arr_str': attr_info['arr_str']['value'],
+            'arr_obj': [Entry.objects.get(id=x).name for x in attr_info['arr_obj']['value']],
+            'arr_name': [{x['name']: Entry.objects.get(id=x['id']).name} for x in attr_info['arr_name']['value']],
+        }
+
+        for attr_name, value in expected_values.items():
+            attr = entry.attrs.get(name=attr_name)
+            self.assertEqual(attr.get_latest_value().get_value(), value)
+
+    def test_convert_value_to_register(self):
+        user = User.objects.create(username='hoge')
+
+        ref_entity = Entity.objects.create(name='Referred Entity', created_user=user)
+        ref_entry = Entry.objects.create(name='Ref Entry', schema=ref_entity, created_user=user)
+        attr_info = {
+            'str': {'type': AttrTypeValue['string']},
+            'obj': {'type': AttrTypeValue['object']},
+            'name': {'type': AttrTypeValue['named_object']},
+            'bool': {'type': AttrTypeValue['boolean']},
+            'arr1': {'type': AttrTypeValue['array_string']},
+            'arr2': {'type': AttrTypeValue['array_object']},
+            'arr3': {'type': AttrTypeValue['array_named_object']},
+            'group': {'type': AttrTypeValue['group']}
+        }
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        for attr_name, info in attr_info.items():
+            attr = EntityAttr.objects.create(name=attr_name,
+                                             type=info['type'],
+                                             created_user=user,
+                                             parent_entity=entity)
+
+            if info['type'] & AttrTypeValue['object']:
+                attr.referral.add(ref_entity)
+
+            entity.attrs.add(attr)
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+
+        group = Group.objects.create(name='Group')
+        checklist = [
+            {'attr': 'str', 'input': 'foo', 'checker': lambda x: x == 'foo'},
+            {'attr': 'obj', 'input': 'Ref Entry', 'checker': lambda x: x.id == ref_entry.id},
+            {'attr': 'obj', 'input': 'Invalid Entry', 'checker': lambda x: x == None},
+            {'attr': 'name', 'input': {'foo': ref_entry},
+             'checker': lambda x: x['name'] == 'foo' and x['id'].id == ref_entry.id},
+            {'attr': 'bool', 'input': False, 'checker': lambda x: x == False},
+            {'attr': 'arr1', 'input': ['foo', 'bar'], 'checker': lambda x: x == ['foo', 'bar']},
+            {'attr': 'arr2', 'input': ['Ref Entry'], 'checker': lambda x: len(x) == 1 and x[0].id == ref_entry.id},
+            {'attr': 'arr2', 'input': ['Ref Entry', 'Invalid Entry'],
+             'checker': lambda x: len(x) == 1 and x[0].id == ref_entry.id},
+            {'attr': 'arr3', 'input': [{'foo': 'Ref Entry'}],
+             'checker': lambda x: len(x) == 1 and x[0]['name'] == 'foo' and x[0]['id'].id == ref_entry.id},
+            {'attr': 'arr3', 'input': [{'foo': 'Ref Entry'}, {'bar': 'Invalid Entry'}],
+             'checker': lambda x: (len(x) == 2 and x[0]['name'] == 'foo' and x[0]['id'].id == ref_entry.id and
+                                  x[1]['name'] == 'bar' and x[1]['id'] == None)},
+            {'attr': 'group', 'input': 'Group', 'checker': lambda x: x == group.id},
+        ]
+        for info in checklist:
+            attr = entry.attrs.get(name=info['attr'])
+
+            converted_data = attr.convert_value_to_register(info['input'])
+            self.assertTrue(info['checker'](converted_data))
+
+            # create AttributeValue using converted value
+            attr.add_value(user, converted_data)
+
+            self.assertIsNotNone(attr.get_latest_value())
+
+    def test_export_entry(self):
+        user = User.objects.create(username='hoge')
+
+        ref_entity = Entity.objects.create(name='Referred Entity', created_user=user)
+        attr_info = {
+            'str1': {'type': AttrTypeValue['string'], 'is_public': True},
+            'str2': {'type': AttrTypeValue['string'], 'is_public': True},
+            'obj': {'type': AttrTypeValue['object'], 'is_public': True},
+            'invisible': {'type': AttrTypeValue['string'], 'is_public': False},
+        }
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        for attr_name, info in attr_info.items():
+            attr = EntityAttr.objects.create(name=attr_name,
+                                             type=info['type'],
+                                             created_user=user,
+                                             parent_entity=entity,
+                                             is_public=info['is_public'])
+
+            if info['type'] & AttrTypeValue['object']:
+                attr.referral.add(ref_entity)
+
+            entity.attrs.add(attr)
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+        entry.attrs.get(name='str1').add_value(user, 'hoge')
+
+        entry.attrs.get(name='str2').add_value(user, 'foo')
+        entry.attrs.get(name='str2').add_value(user, 'bar') # update AttributeValue of Attribute 'str2'
+
+        exported_data = entry.export(user)
+        self.assertEqual(exported_data['name'], entry.name)
+        self.assertEqual(len(exported_data['attrs']), len([x for x in attr_info.values() if x['is_public']]))
+
+        self.assertEqual(exported_data['attrs']['str1'], 'hoge')
+        self.assertEqual(exported_data['attrs']['str2'], 'bar')
+        self.assertIsNone(exported_data['attrs']['obj'])

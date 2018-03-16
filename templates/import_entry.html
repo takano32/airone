@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block title %}Import Entry{% endblock %}
+
+{% block nav_sub_header %}
+<div class="conatiner-fluid">
+  <ul class="breadcrumb airone-breadcrumb">
+    <li class="breadcrumb-item"><a href="/">TOP</a></li>
+    <li class="breadcrumb-item"><a href="/entry/{{ entity.id }}">{{ entity.name }}</a></li>
+    <li class="breadcrumb-item">インポート</li>
+  </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<form action='/entry/do_import/{{ entity.id }}/' method='POST' enctype='multipart/form-data'>
+  {% csrf_token %}
+  <input type="file" id="upfile" name="file"/>
+  <input type="submit" id="send" value="アップロード" disabled="True" />
+</form>
+{% endblock %}

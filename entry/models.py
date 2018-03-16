@@ -86,6 +86,47 @@ class AttributeValue(models.Model):
             for referral in referrals:
                 referral.get_referred_objects(use_cache=False)
 
+    def get_value(self):
+        """
+        This returns registered value according to the type of Attribute
+        """
+        def get_named_value(attrv):
+            if attrv.referral:
+                return {attrv.value: attrv.referral.name}
+            else:
+                return {attrv.value: None}
+
+        if (self.parent_attr.schema.type == AttrTypeValue['string'] or
+            self.parent_attr.schema.type == AttrTypeValue['text']):
+            return self.value
+
+        elif self.parent_attr.schema.type == AttrTypeValue['boolean']:
+            return self.boolean
+
+        elif self.parent_attr.schema.type == AttrTypeValue['object']:
+            if self.referral:
+                return self.referral.name
+
+        elif self.parent_attr.schema.type == AttrTypeValue['named_object']:
+            return get_named_value(self)
+
+        elif self.parent_attr.schema.type == AttrTypeValue['group']:
+            group = None
+            if Group.objects.filter(id=int(self.value)):
+                return Group.objects.get(id=int(self.value)).name
+
+        elif self.parent_attr.schema.type & AttrTypeValue['array']:
+            if self.parent_attr.schema.type == AttrTypeValue['array_string']:
+                return [x.value for x in self.data_array.all()]
+
+            elif self.parent_attr.schema.type == AttrTypeValue['array_object']:
+                return [x.referral.name for x in self.data_array.all() if x.referral]
+
+            elif self.parent_attr.schema.type == AttrTypeValue['array_named_object']:
+                return [get_named_value(x) for x in self.data_array.all()]
+
+        return None
+
     @classmethod
     def search(kls, query):
         results = []
@@ -345,6 +386,8 @@ class Attribute(ACLBase):
                 return True
             elif isinstance(value, str):
                 return Group.objects.filter(id=int(value))
+            elif isinstance(value, int):
+                return Group.objects.filter(id=value)
 
         return False
 
@@ -376,12 +419,16 @@ class Attribute(ACLBase):
         attr_value = None
 
         # set attribute value according to the attribute-type
-        if (self.schema.type == AttrTypeValue['string'] or
-            self.schema.type == AttrTypeValue['text'] or
-            self.schema.type == AttrTypeValue['group']):
-
+        if self.schema.type == AttrTypeValue['string'] or self.schema.type == AttrTypeValue['text']:
             attr_value = AttributeValue.create(user, self)
             attr_value.value = str(value)
+
+        if self.schema.type == AttrTypeValue['group']:
+            attr_value = AttributeValue.create(user, self)
+            if isinstance(value, Group):
+                attr_value.value = str(value.id)
+            else:
+                attr_value.value = str(value)
 
         elif self.schema.type == AttrTypeValue['object']:
             attr_value = AttributeValue.create(user, self)
@@ -462,6 +509,84 @@ class Attribute(ACLBase):
             self.values.add(attr_value)
 
         return attr_value
+
+    def convert_value_to_register(self, value):
+        """
+        This absorbs difference values according to the type of Attributes
+        """
+
+        def get_entry(schema, name):
+            return Entry.objects.get(is_active=True, schema=schema, name=name)
+
+        def is_entry(schema, name):
+            return Entry.objects.filter(is_active=True, schema=schema, name=name)
+
+        def get_named_object(data):
+            (key, value) = list(data.items())[0]
+
+            ret_value = {'name': key, 'id': None}
+            if isinstance(value, ACLBase):
+                ret_value['id'] = value
+
+            elif isinstance(value, str):
+                entryset = [get_entry(r, value)
+                    for r in self.schema.referral.all() if is_entry(r, value)]
+
+                if any(entryset):
+                    ret_value['id'] = entryset[0]
+                else:
+                    ret_value['id'] = None
+
+            return ret_value
+
+        if (self.schema.type == AttrTypeValue['string'] or
+            self.schema.type == AttrTypeValue['text']):
+            return value
+
+        elif self.schema.type == AttrTypeValue['object']:
+            if isinstance(value, ACLBase):
+                return value
+            elif isinstance(value, str):
+                entryset = [get_entry(r, value)
+                    for r in self.schema.referral.all() if is_entry(r, value)]
+
+                if any(entryset):
+                    return entryset[0]
+
+        elif self.schema.type == AttrTypeValue['group']:
+            if isinstance(value, Group):
+                return value.id
+            elif isinstance(value, str) and Group.objects.filter(name=value):
+                return Group.objects.get(name=value).id
+
+        elif self.schema.type == AttrTypeValue['boolean']:
+            return value
+
+        elif self.schema.type == AttrTypeValue['named_object']:
+            if not isinstance(value, dict):
+                return None
+
+            return get_named_object(value)
+
+        elif self.schema.type & AttrTypeValue['array']:
+            if not isinstance(value, list):
+                return None
+
+            if self.schema.type == AttrTypeValue['array_string']:
+                return value
+
+            elif self.schema.type == AttrTypeValue['array_object']:
+                return sum([[get_entry(r, v)
+                    for r in self.schema.referral.all() if is_entry(r, v)]
+                    for v in value], [])
+
+            elif self.schema.type == AttrTypeValue['array_named_object']:
+                if not all([isinstance(x, dict) for x in value]):
+                    return None
+
+                return [get_named_object(x) for x in value]
+
+        return None
 
 class Entry(ACLBase):
     # This flag is set just after created or edited, then cleared at completion of the processing
@@ -711,3 +836,17 @@ class Entry(ACLBase):
             cloned_entry.attrs.add(attr.clone(user, parent_entry=cloned_entry))
 
         return cloned_entry
+
+    def export(self, user):
+        attrinfo = {}
+        for attr in self.attrs.filter(is_active=True):
+            if not user.has_permission(attr, ACLType.Readable):
+                continue
+
+            latest_value = attr.get_latest_value()
+            if latest_value:
+                attrinfo[attr.name] = latest_value.get_value()
+            else:
+                attrinfo[attr.name] = None
+
+        return {'name': self.name, 'attrs': attrinfo}

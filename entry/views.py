@@ -1,4 +1,5 @@
 import io
+import yaml
 
 import custom_view
 
@@ -8,6 +9,8 @@ from django.db.models import Q
 
 from airone.lib.http import http_get, http_post, check_permission, render
 from airone.lib.http import get_download_response
+from airone.lib.http import http_file_upload
+from airone.lib.http import HttpResponseSeeOther
 from airone.lib.types import AttrTypeValue
 from airone.lib.acl import get_permitted_objects
 from airone.lib.acl import ACLType
@@ -288,24 +291,71 @@ def export(request, entity_id):
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     entity = Entity.objects.get(id=entity_id)
+    if not user.has_permission(entity, ACLType.Readable):
+        return HttpResponse('Permission denied to export "%s"' % entity.name, status=400)
 
-    output.write("Entity: \n")
-    output.write(EntityResource().export(get_permitted_objects(user, Entity, 'readable')).yaml)
+    exported_data = []
+    for entry in Entry.objects.filter(schema=entity, is_active=True):
+        if user.has_permission(entry, ACLType.Readable):
+            exported_data.append(entry.export(user))
 
-    output.write("\n")
-    output.write("Entry: \n")
-    output.write(EntryResource().export(get_permitted_objects(user, Entry, 'readable')).yaml)
-
-    output.write("\n")
-    output.write("Attribute: \n")
-    output.write(AttrResource().export(get_permitted_objects(user, Attribute, 'readable')).yaml)
-
-    objs = [x for x in AttributeValue.objects.all() if user.has_permission(x.parent_attr, ACLType.Readable)]
-    output.write("\n")
-    output.write("AttributeValue: \n")
-    output.write(AttrValueResource().export(objs).yaml)
+    output.write(yaml.dump({entity.name: exported_data}, default_flow_style=False, allow_unicode=True))
 
     return get_download_response(output, 'entry_%s.yaml' % entity.name)
+
+@http_get
+def import_data(request, entity_id):
+    if not Entity.objects.filter(id=entity_id, is_active=True).count():
+        return HttpResponse('Failed to get entity of specified id', status=400)
+
+    return render(request, 'import_entry.html', {'entity': Entity.objects.get(id=entity_id)})
+
+@http_file_upload
+def do_import_data(request, entity_id, context):
+    user = User.objects.get(id=request.user.id)
+    if not Entity.objects.filter(id=entity_id).count():
+        return HttpResponse('Failed to get entity of specified id', status=400)
+
+    entity = Entity.objects.get(id=entity_id)
+    if not user.has_permission(entity, ACLType.Readable):
+        return HttpResponse('Permission denied to export "%s"' % entity.name, status=400)
+
+    try:
+        data = yaml.load(context)
+    except yaml.parser.ParserError:
+        return HttpResponse("Couldn't parse uploaded file", status=400)
+
+    # validate uploaded format and context
+    values = data.get(entity.name)
+    if not values:
+        return HttpResponse("Uploaded file has not import data for '%s'" % entity.name, status=400)
+
+    if not all(['name' in x or 'attrs' in x or isinstance(x['attrs'], dict) for x in values]):
+        return HttpResponse("Uploaded file is invalid format to import", status=400)
+
+    entity_attrs = [x.name for x in entity.attrs.filter(is_active=True)]
+    if not all([any([k in y.keys() for k in entity_attrs]) for y in [x['attrs'] for x in values]]):
+        return HttpResponse("Uploaded file has invalid parameter", status=400)
+
+    # create or update entry
+    for entry_data in values:
+        if Entry.objects.filter(name=entry_data['name'], schema=entity):
+            entry = Entry.objects.get(name=entry_data['name'], schema=entity)
+        else:
+            entry = Entry.objects.create(name=entry_data['name'], schema=entity, created_user=user)
+
+        entry.complement_attrs(user)
+        for attr_name, value in entry_data['attrs'].items():
+            # If user doesn't have readable permission for target Attribute, it won't be created.
+            if not entry.attrs.filter(name=attr_name):
+                continue
+
+            attr = entry.attrs.get(name=attr_name)
+            input_value = attr.convert_value_to_register(value)
+            if user.has_permission(attr.schema, ACLType.Writable) and attr.is_updated(input_value):
+                attr.add_value(user, input_value)
+
+    return HttpResponseSeeOther('/entry/%s/' % entity_id)
 
 @http_post([]) # check only that request is POST, id will be given by url
 @check_permission(Entry, ACLType.Full)

@@ -1,5 +1,6 @@
 import json
 import yaml
+import urllib.parse
 
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -824,7 +825,8 @@ class ViewTest(AironeViewTest):
     def test_get_export(self):
         user = self.admin_login()
 
-        entry = Entry(name='fuga', schema=self._entity, created_user=user)
+        entity = Entity.objects.create(name='ほげ', created_user=user)
+        entry = Entry(name='fuga', schema=entity, created_user=user)
         entry.save()
 
         for attr_name in ['foo', 'bar']:
@@ -840,14 +842,16 @@ class ViewTest(AironeViewTest):
 
             entry.attrs.add(attr)
 
-        resp = self.client.get(reverse('entry:export', args=[self._entity.id]))
+        resp = self.client.get(reverse('entry:export', args=[entity.id]))
         self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Disposition'], 'attachment; filename="entry_{name}.yaml"'.
+                format(name=urllib.parse.quote(entity.name)))
 
         obj = yaml.load(resp.content)
-        self.assertTrue(self._entity.name in obj)
+        self.assertTrue(entity.name in obj)
 
-        self.assertEqual(len(obj[self._entity.name]), 1)
-        entry_data = obj[self._entity.name][0]
+        self.assertEqual(len(obj[entity.name]), 1)
+        entry_data = obj[entity.name][0]
         self.assertTrue(all(['name' in entry_data and 'attrs' in entry_data]))
 
         self.assertEqual(entry_data['name'], entry.name)

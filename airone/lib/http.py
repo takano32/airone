@@ -1,5 +1,6 @@
 import json
 import importlib
+import urllib.parse
 
 from django.http import HttpResponseRedirect
 from django.http import HttpResponse
@@ -157,7 +158,7 @@ def render(request, template, context={}):
 def get_download_response(io_stream, fname):
     response = HttpResponse(io_stream.getvalue(),
                             content_type="application/force-download")
-    response["Content-Disposition"] = "attachment; filename=%s" % smart_str(fname)
+    response["Content-Disposition"] = 'attachment; filename="{fn}"'.format(fn=urllib.parse.quote(smart_str(fname)))
     return response
 
 def _is_valid(params, meta_info):

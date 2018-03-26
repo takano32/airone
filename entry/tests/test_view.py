@@ -859,6 +859,9 @@ class ViewTest(AironeViewTest):
         self.assertEqual(entry_data['attrs']['foo'], 'fuga')
         self.assertEqual(entry_data['attrs']['bar'], 'fuga')
 
+        resp = self.client.get(reverse('entry:export', args=[entity.id]), {'format': 'CSV'})
+        self.assertEqual(resp.status_code, 200)
+
     @patch('entry.views.delete_entry.delay', Mock(side_effect=tasks.delete_entry))
     def test_post_delete_entry(self):
         user = self.admin_login()

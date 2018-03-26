@@ -299,9 +299,27 @@ def export(request, entity_id):
         if user.has_permission(entry, ACLType.Readable):
             exported_data.append(entry.export(user))
 
-    output.write(yaml.dump({entity.name: exported_data}, default_flow_style=False, allow_unicode=True))
+    if 'format' in request.GET and request.GET.get('format') == 'CSV':
 
-    return get_download_response(output, 'entry_%s.yaml' % entity.name)
+        attrs = [x.name for x in entity.attrs.filter(is_active=True)]
+        output.write('%s\n' % (','.join(['Name', *attrs])))
+
+        def data2str(data):
+            if not data:
+                return ''
+            elif isinstance(data, str):
+                return data
+            else:
+                return '"""%s"""' % str(data)
+
+        for data in exported_data:
+            output.write('%s\n' % ','.join([data['name'], *[data2str(data['attrs'][x]) for x in attrs]]))
+
+        return get_download_response(output, 'entry_%s.csv' % entity.name)
+    else:
+        output.write(yaml.dump({entity.name: exported_data}, default_flow_style=False, allow_unicode=True))
+        return get_download_response(output, 'entry_%s.yaml' % entity.name)
+
 
 @http_get
 def import_data(request, entity_id):

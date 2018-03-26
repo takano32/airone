@@ -22,6 +22,7 @@
         <button name="button_new" type="button" class="btn btn-info" onclick="location.href='/acl/{{ entity.id }}'">エンティティの ACL</button>
         <button name="button_export" type="button" class="btn btn-secondary" onclick="location.href='/entry/export/{{ entity.id }}'">エクスポート</button>
         <button name="button_import" type="button" class="btn btn-secondary" onclick="location.href='/entry/import/{{ entity.id }}'">インポート</button>
+        <button name="button_export" type="button" class="btn btn-secondary" onclick="location.href='/entry/export/{{ entity.id }}?format=CSV'">CSV で出力</button>
       </div>
       <div class="float-right">
         <button name="button_save" type="button" class="btn btn-primary">保存</button>

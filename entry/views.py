@@ -309,11 +309,11 @@ def export(request, entity_id):
             if not data:
                 return ''
             elif isinstance(data, str):
-                return data
+                return '"%s"' % data.replace('"', '""')
             elif isinstance(data, list) or isinstance(data, hash):
                 return '"""%s"""' % str(data)
             else:
-                return str(data)
+                return '""' % str(data)
 
         for data in exported_data:
             output.write('%s\n' % ','.join([data['name'], *[data2str(data['attrs'][x]) for x in attrs]]))

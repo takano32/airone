@@ -1076,3 +1076,13 @@ class ModelTest(TestCase):
         self.assertEqual(exported_data['attrs']['str1'], 'hoge')
         self.assertEqual(exported_data['attrs']['str2'], 'bar')
         self.assertIsNone(exported_data['attrs']['obj'])
+
+        # change the name of EntityAttr then export entry
+        NEW_ATTR_NAME = 'str1 (changed)'
+        entity_attr = entry.schema.attrs.get(name='str1')
+        entity_attr.name = NEW_ATTR_NAME
+        entity_attr.save()
+
+        exported_data = entry.export(user)
+        self.assertTrue(NEW_ATTR_NAME in exported_data['attrs'])
+        self.assertEqual(exported_data['attrs'][NEW_ATTR_NAME], 'hoge')

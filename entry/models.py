@@ -845,8 +845,8 @@ class Entry(ACLBase):
 
             latest_value = attr.get_latest_value()
             if latest_value:
-                attrinfo[attr.name] = latest_value.get_value()
+                attrinfo[attr.schema.name] = latest_value.get_value()
             else:
-                attrinfo[attr.name] = None
+                attrinfo[attr.schema.name] = None
 
         return {'name': self.name, 'attrs': attrinfo}

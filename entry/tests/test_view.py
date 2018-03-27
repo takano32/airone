@@ -1989,3 +1989,48 @@ class ViewTest(AironeViewTest):
 
             self.assertIsNotNone(attrv)
             self.assertTrue(info['checker'](attrv))
+
+    def test_import_entry_with_chaning_entity_attr(self):
+        user = self.admin_login()
+
+        # prepare to Entity and Entries which importing data refers to
+        ref_entity = Entity.objects.create(name='RefEntity', created_user=user)
+        ref_entry = Entry.objects.create(name='ref', created_user=user, schema=ref_entity)
+        group = Group.objects.create(name='group')
+
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        attr_info = {
+            'str (before changing)': {'type': AttrTypeValue['string']},
+            'obj': {'type': AttrTypeValue['object']},
+            'grp': {'type': AttrTypeValue['group']},
+            'name': {'type': AttrTypeValue['named_object']},
+            'bool': {'type': AttrTypeValue['boolean']},
+            'arr1': {'type': AttrTypeValue['array_string']},
+            'arr2': {'type': AttrTypeValue['array_object']},
+            'arr3': {'type': AttrTypeValue['array_named_object']},
+        }
+        for attr_name, info in attr_info.items():
+            attr = EntityAttr.objects.create(name=attr_name,
+                                             type=info['type'],
+                                             created_user=user,
+                                             parent_entity=entity)
+
+            if info['type'] & AttrTypeValue['object']:
+                attr.referral.add(ref_entity)
+
+            entity.attrs.add(attr)
+
+        # Change a name of EntityAttr 'str (before chaning)' to 'str'
+        entity_attr = EntityAttr.objects.get(name='str (before changing)', parent_entity=entity)
+        entity_attr.name = 'str'
+        entity_attr.save()
+
+        # import data from test file
+        fp = self.open_fixture_file('import_data.yaml')
+        resp = self.client.post(reverse('entry:do_import', args=[entity.id]), {'file': fp})
+
+        # check the import is success
+        self.assertEqual(resp.status_code, 303)
+
+        entry = Entry.objects.get(name='Entry', schema=entity)
+        self.assertEqual(entry.attrs.get(schema=entity_attr).get_latest_value().value, 'foo')

@@ -369,10 +369,11 @@ def do_import_data(request, entity_id, context):
         entry.complement_attrs(user)
         for attr_name, value in entry_data['attrs'].items():
             # If user doesn't have readable permission for target Attribute, it won't be created.
-            if not entry.attrs.filter(name=attr_name):
+            if not entry.attrs.filter(schema__name=attr_name):
                 continue
 
-            attr = entry.attrs.get(name=attr_name)
+            entity_attr = EntityAttr.objects.get(name=attr_name, parent_entity=entry.schema)
+            attr = entry.attrs.get(schema=entity_attr)
             input_value = attr.convert_value_to_register(value)
             if user.has_permission(attr.schema, ACLType.Writable) and attr.is_updated(input_value):
                 attr.add_value(user, input_value)

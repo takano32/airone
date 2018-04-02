@@ -11,4 +11,6 @@ urlpatterns = [
     url(r'^do_import/$', views.do_import_data, name='do_import'),
     url(r'^search/$', views.search, name='search'),
     url(r'^advanced_search$', views.advanced_search, name='advanced_search'),
+    url(r'^advanced_search_result$', views.advanced_search_result, name='advanced_search_result'),
+    url(r'^advanced_search_export$', views.export_search_result, name='export_search_result'),
 ]

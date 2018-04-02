@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}List Entries{% endblock %}
+{% block title %}Advanced Search (Result){% endblock %}
 
 {% block nav_sub_header %}
 <div class="conatiner-fluid">
@@ -12,32 +12,31 @@
 {% endblock %}
 
 {% block content %}
-{% csrf_token %}
 {% load bitwise_tags %}
 <div class="container-fluid">
   <!-- title of target range of entitiy -->
   <div class="row">
     <div class="col">
-      <h3>検索範囲</h3>
+      <h3>検索条件入力</h3>
     </div>
   </div>
 
   <!-- context of target range of entitiy -->
   <div class="row">
     <div class="col-md-5">
-      <label class="col-label">全ての Entity の一覧</label>
+      <label class="col-label">全 Entity の一覧</label>
       <select multiple='on' id="all_entity" class="form-control" size='7'>
         {% for entity in entities %}
           <option value='{{ entity.id }}'>{{ entity.name }}</option>
         {% endfor %}
       </select>
-      <input type="text" class="form-control" id="narrow_down_entity" placeholder="絞り込み" />
+      <input type="text" class="form-control narrow_down_option" placeholder="絞り込み" />
     </div>
     <div class="col-md-1">
       <table style="height: 120%; margin:0 auto;">
         <tr>
-          <td class="align-middle"><button type="button" class="align-middle form-control btn btn-secondary btn-sm" id='delete_targets'>＜</button></td>
-          <td class="align-middle"><button type="button" class="align-middle form-control btn btn-primary btn-sm" id='append_targets'>＞</button></td>
+          <td class="align-middle"><button type="button" class="align-middle form-control btn btn-secondary btn-sm" id='delete_target_entity'>＜</button></td>
+          <td class="align-middle"><button type="button" class="align-middle form-control btn btn-primary btn-sm" id='append_target_entity'>＞</button></td>
         </tr>
       </table>
     </div>
@@ -50,92 +49,77 @@
 
   <hr/>
 
-  <div class="row">
-    <div class="col">
-      <h3>検索条件</h3>
-      <button name="add_cond" type="button" class="btn btn-sm btn-primary">設定属性の条件を追加</button>
-    </div>
-  </div>
-
-  <br/>
-
-  <div id='container-conditions'>
-  </div>
-  <br/>
-
-  <div class="row">
-    <div class="col">
-      <div class="float-right">
+  <div id='attr_condition' style='display:none;'>
+    <div class="row">
+      <div class="col-md-5">
+        <label class="col-label">属性一覧</label>
+        <select multiple='on' id='all_attr' class="form-control" size='7'>
+        </select>
+        <input type="text" class="form-control narrow_down_option" placeholder="絞り込み" />
+      </div>
+      <div class="col-md-1">
+        <table style="height: 120%; margin:0 auto;">
+          <tr>
+            <td class="align-middle"><button type="button" class="align-middle form-control btn btn-secondary btn-sm" id='delete_target_attr'>＜</button></td>
+            <td class="align-middle"><button type="button" class="align-middle form-control btn btn-primary btn-sm" id='append_target_attr'>＞</button></td>
+          </tr>
+        </table>
+      </div>
+      <div class="col-md-5">
+        <label class="col-label">検索対象の属性</label>
+        <select multiple="on" id="selected_attr" class="form-control" style='height:230px;'>
+        </select>
       </div>
     </div>
-  </div>
-  <br/>
-  <div class="row">
-    <div class="col">
-      <div class="float-right">
-        <button id="and_search" type="button" class="btn btn-primary">And 検索</button>
-        <button id="or_search" type="button" class="btn btn-primary">Or 検索</button>
+
+    <div class="row">
+      <div class="col">
+        <div class="float-right">
+          <button id="do_search" type="button" class="btn btn-primary">検索</button>
+        </div>
       </div>
     </div>
-  </div>
+  </div> <!-- end of 'attr_condition' -->
 
-  <hr/>
-  <h2>検索結果</h2>
-  <div>
-    <table class='table' style='display:none'>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Entry</th>
-        </tr>
-      </thead>
-      <tbody id='container-results'>
-        <tr>
-          <td>1</td>
-          <td>hoge</td>
-        </tr>
-        <tr>
-        <td>2</td>
-        <td>fuga</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-</div>
-
-<!-- template of condition -->
-<div id='template-condition' style="display:none">
-  <div class='row'>
-    <div class="col-1">
-      <select name='cond_type'>
-        <option value='text'>Text</option>
-        <option value='entry'>Entry</option>
-      </select>
-    </div>
-    <div class="col-5">
-      <input type='text' class='cond_text' style="width:100%;"></input>
-      <select class='cond_entity' style="display:none;width:100%;">
-        {% for entity in entities %}
-        <option value='{{ entity.id }}'>{{ entity.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col-5">
-      <select class='cond_entry' style="display:none;width:100%;"></select>
-    </div>
-    <div class="col-1">
-      <button name='del_cond' type='button' class='btn btn-danger btn-sm'>Del</button>
-    </div>
-  </div>
 </div>
 
 {% endblock %}
 
 {% block script %}
 <script>
+function initialize_attr_condition() {
+  // search all attrs which are selected and show form to set condition for attr
+  target_entities = $('#selected_entity').children().map(function() { return this.value; });
+
+  if(target_entities.length > 0) {
+    $.ajax({
+      type: 'GET',
+      url: `/api/v1/entity/attrs/${target_entities.get().join()}`,
+      dataType: 'json',
+      contentType:   'application/x-www-form-urlencoded;charset=utf-8',
+      scriptCharset: 'utf-8',
+    }).done(function(data){
+      var all_attr = $('#all_attr');
+      var selected_attr = $('#selected_attr');
+  
+      all_attr.children().remove();
+      selected_attr.children().remove();
+  
+      for(var attr_name of data['result']) {
+        all_attr.append($(`<option value='${ attr_name }'>${ attr_name }</option>`));
+      }
+  
+      $('#attr_condition').show();
+    }).fail(function(msg){
+      MessageBox.error(msg);
+    });
+  } else {
+    $('#attr_condition').hide();
+  }
+}
+
 /* handlers for specifying targets of entity */
-$('#append_targets').on('click', function() {
+$('#append_target_entity').on('click', function() {
   var elem_selected = $('#selected_entity');
 
   $("#all_entity").find(":selected").each(function(i, elem){
@@ -143,15 +127,34 @@ $('#append_targets').on('click', function() {
       elem_selected.append($(elem).clone());
     }
   });
+
+  initialize_attr_condition();
 });
-$('#delete_targets').on('click', function() {
+$('#delete_target_entity').on('click', function() {
   $("#selected_entity").find(":selected").each(function(i, elem){
     $(elem).remove();
   });
+
+  initialize_attr_condition();
 });
-$('#narrow_down_entity').keyup(function() {
+$('#append_target_attr').on('click', function() {
+  var elem_selected = $('#selected_attr');
+
+  $("#all_attr").find(":selected").each(function(i, elem){
+    if(elem_selected.find(`option[value="${ $(elem).val() }"]`).length == 0) {
+      elem_selected.append($(elem).clone());
+    }
+  });
+});
+$('#delete_target_attr').on('click', function() {
+  $("#selected_attr").find(":selected").each(function(i, elem){
+    $(elem).remove();
+  });
+});
+
+$('.narrow_down_option').keyup(function() {
   var input_str = $(this).val();
-  $("#all_entity option").each(function(i, elem){
+  $(this).parent().find("option").each(function(i, elem){
     if($(elem).text().toUpperCase().indexOf(input_str.toUpperCase()) >= 0) {
       $(elem).show();
     } else {
@@ -160,109 +163,18 @@ $('#narrow_down_entity').keyup(function() {
   });
 });
 
-/* handlers submitting search */
-function do_search(linking_cond) {
-  // get target entities
-  target_entities = $('#selected_entity').children().map(function() { return this.value; });
+$('#do_search').on('click', function() {
+  var target_entities = $('#selected_entity').children().map(function() { return this.value; });
 
-  // get search conditions
-  conditions = $('#container-conditions').children().map(function() {
-    var cond_type = $(this).find('select[name=cond_type]').val();
+  var attrs = $('#selected_attr').children().map(function() {
+    return 'attr[]=' + encodeURIComponent(this.value);
+  }).get().join('&');
 
-    if(cond_type == 'entry') {
-      return { 'type': 'entry', 'value': $(this).find('.cond_entry').val() };
-    } else {
-      return { 'type': 'text', 'value': $(this).find('.cond_text').val() };
-    }
-  });
+  var entities = $('#selected_entity').children().map(function() {
+    return 'entity[]=' + encodeURIComponent(this.value);
+  }).get().join('&');
 
-  // Change style of cursor to wait
-  $("body").css("cursor", "progress");
-
-  $.ajax({
-    type: 'POST',
-    url: `/entry/api/v1/search_entries/${ target_entities.get().join() }`,
-    data: JSON.stringify({
-      cond_link: linking_cond,
-      cond_params: conditions.get(),
-    }),
-    dataType:      'json',
-    contentType:   'application/x-www-form-urlencoded;charset=utf-8',
-    scriptCharset: 'utf-8',
-    headers: {
-      'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val(),
-    },
-  }).done(function(data){
-    var container = $('#container-results');
-    $("body").css("cursor", "default");
-    container.parent().show();
-
-    // clear old results
-    container.children().remove();
-    data.results.forEach(function(result, i) {
-      elem_tr = $('<tr/>')
-      elem_tr.append($(`<td>${ i + 1 }</td>`));
-      elem_tr.append($(`<td><a href="/entry/show/${ result.id }">${ result.name }</a></td>`));
-
-      container.append(elem_tr);
-    });
-  }).fail(function(msg){
-    MessageBox.error(msg);
-  });
-}
-$('#and_search').on('click', function(){ do_search('and'); });
-$('#or_search').on('click', function(){ do_search('or'); });
-
-function add_cond() {
-  var container = $('#container-conditions');
-  var template = $('#template-condition .row');
-
-  container.append(template.clone(true));
-}
-
-function del_cond() {
-  $(this).parent().parent().remove();
-}
-
-function select_cond_entity() {
-  var cond_entry = $(this).parent().parent().find('.cond_entry');
-
-  $.ajax({
-    type: 'GET',
-    url: `/entry/api/v1/get_entries/${this.value}/`,
-  }).done(function(data){
-    // remove old all elements
-    cond_entry.children().remove();
-
-    for(var entry of data['results']) {
-      cond_entry.append($(`<option value='${entry['id']}'>${entry['name']}</option>`));
-    }
-    cond_entry.show();
-  }).fail(function(msg){
-    MessageBox.error(msg);
-  });
-}
-
-function select_cond_type() {
-  var cond_text = $(this).parent().parent().find('.cond_text');
-  var cond_entity = $(this).parent().parent().find('.cond_entity');
-
-  if(this.value == 'text') {
-    cond_text.show();
-    cond_entity.hide();
-  } else {
-    cond_text.hide();
-    cond_entity.show();
-  }
-}
-
-$(document).ready(function() {
-  $('button[name=add_cond]').on('click', add_cond);
-  $('button[name=del_cond]').on('click', del_cond);
-  $('select[name=cond_type]').on('change', select_cond_type);
-  $('select[class=cond_entity]').on('change', select_cond_entity);
-
-  add_cond();
+  location.href = `/dashboard/advanced_search_result?${ attrs }&${ entities }`;
 });
 </script>
 {% endblock %}

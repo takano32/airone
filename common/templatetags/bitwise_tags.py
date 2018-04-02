@@ -10,3 +10,7 @@ def bitwise_and(value, arg):
 @register.filter
 def isin(obj, entries):
     return entries.filter(id=obj['id']).exists()
+
+@register.filter
+def get_item(dict_val, key):
+    return dict_val.get(key)

@@ -1472,7 +1472,7 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 200)
 
-        # checks referred_object cache is updated by chaning referring
+        # checks referred_object cache is updated by changing referring
         self.assertEqual(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
         self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 2))
         self.assertEqual(ref_entry3.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 1))
@@ -1990,7 +1990,7 @@ class ViewTest(AironeViewTest):
             self.assertIsNotNone(attrv)
             self.assertTrue(info['checker'](attrv))
 
-    def test_import_entry_with_chaning_entity_attr(self):
+    def test_import_entry_with_changing_entity_attr(self):
         user = self.admin_login()
 
         # prepare to Entity and Entries which importing data refers to
@@ -2020,7 +2020,7 @@ class ViewTest(AironeViewTest):
 
             entity.attrs.add(attr)
 
-        # Change a name of EntityAttr 'str (before chaning)' to 'str'
+        # Change a name of EntityAttr 'str (before changing)' to 'str'
         entity_attr = EntityAttr.objects.get(name='str (before changing)', parent_entity=entity)
         entity_attr.name = 'str'
         entity_attr.save()

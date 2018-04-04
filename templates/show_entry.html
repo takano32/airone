@@ -3,7 +3,9 @@
 {% block title %}Show Entry{% endblock %}
 
 {% block nav_sub_header %}
-{% include 'show_entry/navigation.html' %}
+{% with "show_entry" as path %}
+{% include 'navigation.html' %}
+{% endwith %}
 {% endblock %}
 
 {% block content %}

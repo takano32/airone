@@ -1,13 +1,18 @@
+import io
 import logging
 import re
 import yaml
 
+import urllib.parse
+
 from airone.lib.http import render
-from airone.lib.http import http_get
+from airone.lib.http import http_get, http_post
 from airone.lib.http import http_file_upload
 from airone.lib.http import HttpResponseSeeOther
+from airone.lib.http import get_download_response
 from airone.lib.profile import airone_profile
 from django.http import HttpResponse
+from django.http.response import JsonResponse
 from entity.admin import EntityResource, EntityAttrResource
 from entry.admin import EntryResource, AttrResource, AttrValueResource
 from entity.models import Entity, EntityAttr
@@ -99,14 +104,45 @@ def search(request):
 
 @http_get
 def advanced_search(request):
-    attrs = [{
-        'id': attr.id,
-        'type': attr.type,
-        'name': "%s / %s" % (attr.parent_entity.name, attr.name),
-        'referral': ','.join([str(x.id) for x in attr.referral.all()]),
-    } for attr in EntityAttr.objects.filter(is_active=True)]
-
     return render(request, 'advanced_search.html', {
-        'attrs': sorted(attrs, key=lambda x: x['name']),
         'entities': Entity.objects.filter(is_active=True),
     })
+
+@http_get
+@airone_profile
+def advanced_search_result(request):
+    user = User.objects.get(id=request.user.id)
+
+    recv_entity = request.GET.getlist('entity[]')
+    recv_attr = request.GET.getlist('attr[]')
+
+    if not recv_entity or not recv_attr:
+        return HttpResponse("The attr[] and entity[] parameters are required", status=400)
+
+    if not all([Entity.objects.filter(id=x, is_active=True) for x in recv_entity]):
+        return HttpResponse("Invalid entity ID is specified", status=400)
+
+    return render(request, 'advanced_search_result.html', {
+        'attrs': recv_attr,
+        'results': Entry.search_entries(user,
+                                        recv_entity,
+                                        [{'name': x} for x in recv_attr],
+                                        CONFIG.MAXIMUM_SEARCH_RESULTS),
+        'max_num': CONFIG.MAXIMUM_SEARCH_RESULTS,
+        'entities': ','.join([str(x) for x in recv_entity]),
+    })
+
+@http_post([
+    {'name': 'entities', 'type': list,
+     'checker': lambda x: all([Entity.objects.filter(id=y) for y in x['entities']])},
+    {'name': 'attrinfo', 'type': list},
+])
+def export_search_result(request, recv_data):
+    user = User.objects.get(id=request.user.id)
+
+    output = io.StringIO()
+
+    output.write('hoge')
+
+    #return get_download_response(output, 'hoge.csv')
+    return JsonResponse({'content': 'fuga', 'fname': 'hoge.txt'})

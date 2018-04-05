@@ -15,6 +15,8 @@ from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
 from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
 from airone.lib.types import AttrTypeValue
 
+from .settings import CONFIG
+
 
 class AttributeValue(models.Model):
     # This is a constant that indicates target object binds multiple AttributeValue objects.
@@ -86,46 +88,61 @@ class AttributeValue(models.Model):
             for referral in referrals:
                 referral.get_referred_objects(use_cache=False)
 
-    def get_value(self):
+    def get_value(self, with_metainfo=False):
         """
         This returns registered value according to the type of Attribute
         """
         def get_named_value(attrv):
             if attrv.referral:
-                return {attrv.value: attrv.referral.name}
+                if with_metainfo:
+                    return {attrv.value: {'id': attrv.referral.id, 'name': attrv.referral.name}}
+                else:
+                    return {attrv.value: attrv.referral.name}
             else:
                 return {attrv.value: None}
 
+        def get_object_value(attrv):
+            if attrv.referral:
+                if with_metainfo:
+                    return {'id': attrv.referral.id, 'name': attrv.referral.name}
+                else:
+                    return attrv.referral.name
+
+        value = None
         if (self.parent_attr.schema.type == AttrTypeValue['string'] or
             self.parent_attr.schema.type == AttrTypeValue['text']):
-            return self.value
+            value = self.value
 
         elif self.parent_attr.schema.type == AttrTypeValue['boolean']:
-            return self.boolean
+            value = self.boolean
 
         elif self.parent_attr.schema.type == AttrTypeValue['object']:
-            if self.referral:
-                return self.referral.name
+            value = get_object_value(self)
 
         elif self.parent_attr.schema.type == AttrTypeValue['named_object']:
-            return get_named_value(self)
+            value = get_named_value(self)
 
-        elif self.parent_attr.schema.type == AttrTypeValue['group']:
-            group = None
-            if Group.objects.filter(id=int(self.value)):
-                return Group.objects.get(id=int(self.value)).name
+        elif self.parent_attr.schema.type == AttrTypeValue['group'] and Group.objects.filter(id=int(self.value)):
+            group = Group.objects.get(id=int(self.value))
+            if with_metainfo:
+                value = {'id': group.id, 'name': group.name}
+            else:
+                value = group.name
 
         elif self.parent_attr.schema.type & AttrTypeValue['array']:
             if self.parent_attr.schema.type == AttrTypeValue['array_string']:
-                return [x.value for x in self.data_array.all()]
+                value = [x.value for x in self.data_array.all()]
 
             elif self.parent_attr.schema.type == AttrTypeValue['array_object']:
-                return [x.referral.name for x in self.data_array.all() if x.referral]
+                value = [get_object_value(x) for x in self.data_array.all() if x.referral]
 
             elif self.parent_attr.schema.type == AttrTypeValue['array_named_object']:
-                return [get_named_value(x) for x in self.data_array.all()]
+                value = [get_named_value(x) for x in self.data_array.all()]
 
-        return None
+        if with_metainfo:
+            value = {'type': self.parent_attr.schema.type, 'value': value}
+
+        return value
 
     @classmethod
     def search(kls, query):
@@ -757,12 +774,11 @@ class Entry(ACLBase):
 
                 elif last_value.data_type == AttrTypeValue['array_named_object']:
                     values = [x.value for x in last_value.data_array.all()]
-                    referrals = [x.referral for x in
-                            last_value.data_array.all() if x.referral and x.referral.is_active]
+                    referrals = [x.referral for x in last_value.data_array.all()]
 
                     attrinfo['last_value'] = sorted([{
                         'value': v,
-                        'referral': r
+                        'referral': r if r and r.is_active else None,
                     } for (v, r) in zip(values, referrals)], key=lambda x: x['value'])
 
                 elif last_value.data_type == AttrTypeValue['group']:
@@ -850,3 +866,96 @@ class Entry(ACLBase):
                 attrinfo[attr.schema.name] = None
 
         return {'name': self.name, 'attrs': attrinfo}
+
+    @classmethod
+    def search_entries(kls, user, hint_entity_ids, hint_attrs, limit=CONFIG.MAX_LIST_ENTRIES):
+
+        def check_by_keyword(attrinfo):
+
+            def _check_by_keyword(hint):
+                # When a keyword is not specified, pass checking
+                if 'keyword' not in hint or not hint['keyword']:
+                    return True
+
+                value = attrinfo[hint['name']]
+
+                # When a keyword is pecified and value is not set, then filter target entry
+                if not value:
+                    return False
+
+                if (value['type'] == AttrTypeValue['string'] or
+                    value['type'] == AttrTypeValue['text'] or
+                    value['type'] == AttrTypeValue['boolean']):
+                    return str(value['value']).find(hint['keyword']) >= 0
+                    
+                elif (value['type'] == AttrTypeValue['object'] or
+                      value['type'] == AttrTypeValue['group']):
+                    if value['value']:
+                        return value['value']['name'].find(hint['keyword']) >= 0
+
+                elif value['type'] == AttrTypeValue['named_object']:
+                    if list(value['value'].values())[0]:
+                        return list(value['value'].values())[0]['name'].find(hint['keyword']) >= 0
+
+                elif value['type'] == AttrTypeValue['array_string']:
+                    return any([x.find(hint['keyword']) >= 0 for x in value['value']])
+
+                elif value['type'] == AttrTypeValue['array_object']:
+                    return any([x['name'].find(hint['keyword']) >= 0 for x in value['value'] if x])
+
+                elif value['type'] == AttrTypeValue['array_named_object']:
+                    return any([list(x.values())[0]['name'].find(hint['keyword']) >= 0 for x in value['value']
+                        if list(x.values())[0]])
+
+            return all([_check_by_keyword(x) for x in hint_attrs])
+
+        results = {
+            'ret_count': 0,
+            'ret_values': []
+        }
+        for entity in [e for e in [Entity.objects.get(id=x, is_active=True) for x in hint_entity_ids]
+                if user.has_permission(e, ACLType.Readable)]:
+
+            if (results['ret_count'] >= limit or
+                not any(entity.attrs.filter(name=x['name'], is_active=True) for x in hint_attrs)):
+                continue
+
+            entries =  [e for e in Entry.objects.filter(schema=entity, is_active=True)
+                    if user.has_permission(e, ACLType.Readable)]
+
+            for entry in entries:
+                if results['ret_count'] >= limit:
+                    break
+
+                attrinfo = {}
+                for hint in hint_attrs:
+                    # set default value
+                    attrinfo[hint['name']] = ''
+
+                    if not entity.attrs.filter(name=hint['name'], is_active=True):
+                        continue
+
+                    entity_attr = entity.attrs.get(name=hint['name'], is_active=True)
+                    if not entry.attrs.filter(schema=entity_attr, is_active=True):
+                        continue 
+
+                    entry_attr = entry.attrs.get(schema=entity_attr)
+                    attrv = entry_attr.get_latest_value()
+
+                    value = ''
+                    if attrv and (user.has_permission(entry_attr, ACLType.Readable) or
+                        user.has_permission(entity_attr, ACLType.Readable)):
+
+                        value = attrv.get_value(with_metainfo=True)
+
+                    attrinfo[hint['name']] = value
+
+                if check_by_keyword(attrinfo):
+                    results['ret_values'].append({
+                        'entity': {'id': entity.id, 'name': entity.name},
+                        'entry': {'id': entry.id, 'name': entry.name},
+                        'attrs': attrinfo,
+                    })
+                    results['ret_count'] += 1
+
+        return results

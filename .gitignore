@@ -145,3 +145,10 @@ tags
 custom_view/*
 custom_view/__init__.py
 templates/custom_view
+
+# ignores db-files for sqlite
+db.sqlite*
+*.db
+
+# ignores screenlogs
+screenlog*

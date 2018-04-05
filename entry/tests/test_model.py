@@ -866,6 +866,7 @@ class ModelTest(TestCase):
             elif attr['name'] == 'arr_obj':
                 self.assertEqual([x.id for x in attr['last_value']], [ref_entry.id])
             elif attr['name'] == 'arr_name':
+                self.assertEqual([x['value'] for x in attr['last_value']], ['hoge'])
                 self.assertEqual([x['referral'].id for x in attr['last_value']], [ref_entry.id])
 
         # delete referral entry, then get available attrs
@@ -880,7 +881,8 @@ class ModelTest(TestCase):
             elif attr['name'] == 'arr_obj':
                 self.assertEqual(attr['last_value'], [])
             elif attr['name'] == 'arr_name':
-                self.assertEqual([x['referral'] for x in attr['last_value']], [])
+                self.assertEqual([x['value'] for x in attr['last_value']], ['hoge'])
+                self.assertEqual([x['referral'] for x in attr['last_value']], [None])
 
     def test_get_available_attrs_with_empty_referral(self):
         user = User.objects.create(username='hoge')
@@ -920,7 +922,8 @@ class ModelTest(TestCase):
             elif attr['name'] == 'arr_obj':
                 self.assertEqual(attr['last_value'], [])
             elif attr['name'] == 'arr_name':
-                self.assertEqual([x['referral'] for x in attr['last_value']], [])
+                self.assertEqual([x['value'] for x in attr['last_value']], ['hoge'])
+                self.assertEqual([x['referral'] for x in attr['last_value']], [None])
 
     def test_get_value_of_attrv(self):
         user = User.objects.create(username='hoge')
@@ -976,6 +979,47 @@ class ModelTest(TestCase):
         for attr_name, value in expected_values.items():
             attr = entry.attrs.get(name=attr_name)
             self.assertEqual(attr.get_latest_value().get_value(), value)
+
+        # test get_value method with 'with_metainfo' parameter
+        expected_values = {
+            'str': {'type': AttrTypeValue['string'], 'value': str(attr_info['str']['value'])},
+            'obj': {
+                'type': AttrTypeValue['object'],
+                'value': {
+                    'id': Entry.objects.get(id=attr_info['obj']['value']).id,
+                    'name': Entry.objects.get(id=attr_info['obj']['value']).name,
+                }
+            },
+            'name': {
+                'type': AttrTypeValue['named_object'],
+                'value': {
+                    attr_info['name']['value']['name']: {
+                        'id': Entry.objects.get(id=attr_info['name']['value']['id']).id,
+                        'name': Entry.objects.get(id=attr_info['name']['value']['id']).name,
+                    }
+                },
+            },
+            'bool': {'type': AttrTypeValue['boolean'], 'value': attr_info['bool']['value']},
+            'arr_str': {'type': AttrTypeValue['array_string'], 'value': attr_info['arr_str']['value']},
+            'arr_obj': {
+                'type': AttrTypeValue['array_object'],
+                'value': [{
+                    'id': Entry.objects.get(id=x).id,
+                    'name': Entry.objects.get(id=x).name
+                } for x in attr_info['arr_obj']['value']]
+            },
+            'arr_name': {
+                'type': AttrTypeValue['array_named_object'],
+                'value': [{x['name']: {
+                    'id': Entry.objects.get(id=x['id']).id,
+                    'name': Entry.objects.get(id=x['id']).name,
+                }} for x in attr_info['arr_name']['value']]
+            },
+        }
+
+        for attr_name, value in expected_values.items():
+            attr = entry.attrs.get(name=attr_name)
+            self.assertEqual(attr.get_latest_value().get_value(with_metainfo=True), value)
 
     def test_convert_value_to_register(self):
         user = User.objects.create(username='hoge')
@@ -1086,3 +1130,115 @@ class ModelTest(TestCase):
         exported_data = entry.export(user)
         self.assertTrue(NEW_ATTR_NAME in exported_data['attrs'])
         self.assertEqual(exported_data['attrs'][NEW_ATTR_NAME], 'hoge')
+
+    def test_search_entries(self):
+        user = User.objects.create(username='hoge')
+
+        # create referred Entity and Entries
+        ref_entity = Entity.objects.create(name='Referred Entity', created_user=user)
+        ref_entry = Entry.objects.create(name='referred_entry', schema=ref_entity, created_user=user)
+        ref_group = Group.objects.create(name='group')
+
+        attr_info = {
+            'str': {'type': AttrTypeValue['string'], 'value': 'foo-%d'},
+            'obj': {'type': AttrTypeValue['object'], 'value': str(ref_entry.id)},
+            'name': {'type': AttrTypeValue['named_object'], 'value': {'name': 'bar', 'id': str(ref_entry.id)}},
+            'bool': {'type': AttrTypeValue['boolean'], 'value': False},
+            'group': {'type': AttrTypeValue['group'], 'value': str(ref_group.id)},
+            'arr_str': {'type': AttrTypeValue['array_string'], 'value': ['foo', 'bar', 'baz']},
+            'arr_obj': {'type': AttrTypeValue['array_object'],
+                        'value': [str(x.id) for x in Entry.objects.filter(schema=ref_entity)]},
+            'arr_name': {'type': AttrTypeValue['array_named_object'],
+                         'value': [{'name': 'hoge', 'id': str(ref_entry.id)}]},
+        }
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        for attr_name, info in attr_info.items():
+            attr = EntityAttr.objects.create(name=attr_name,
+                                             type=info['type'],
+                                             created_user=user,
+                                             parent_entity=entity)
+
+            if info['type'] & AttrTypeValue['object']:
+                attr.referral.add(ref_entity)
+
+            entity.attrs.add(attr)
+
+        for index in range(0, 10):
+            entry = Entry.objects.create(name='e-%d' % index, schema=entity, created_user=user)
+            entry.complement_attrs(user)
+
+            for attr_name, info in attr_info.items():
+                attr = entry.attrs.get(name=attr_name)
+                if attr_name == 'str':
+                    attr.add_value(user, info['value'] % index)
+                else:
+                    attr.add_value(user, info['value'])
+
+        # search entries 
+        ret = Entry.search_entries(user, [entity.id], [{'name': 'str'}])
+        self.assertEqual(ret['ret_count'], 10)
+        self.assertEqual(len(ret['ret_values']), 10)
+        for index in range(0, 10):
+            self.assertEqual(ret['ret_values'][index]['entity'], {'id': entity.id, 'name': entity.name})
+            self.assertEqual(ret['ret_values'][index]['entry']['name'], 'e-%d' % index)
+            self.assertEqual(len(ret['ret_values'][index]['attrs']), 1)
+            self.assertEqual(ret['ret_values'][index]['attrs']['str']['type'], AttrTypeValue['string'])
+            self.assertEqual(ret['ret_values'][index]['attrs']['str']['value'], 'foo-%d' % index)
+
+        ret = Entry.search_entries(user, [entity.id], [
+            {'name': 'obj'},
+            {'name': 'name'},
+            {'name': 'bool'},
+            {'name': 'group'},
+            {'name': 'arr_str'},
+            {'name': 'arr_obj'},
+            {'name': 'arr_name'},
+        ])
+        self.assertEqual(ret['ret_count'], 10)
+        self.assertEqual(len(ret['ret_values'][0]['attrs']), 7)
+        self.assertEqual(ret['ret_values'][0]['attrs']['obj']['value'],
+                         {'id': ref_entry.id, 'name': ref_entry.name})
+        self.assertEqual(ret['ret_values'][0]['attrs']['name']['value'],
+                         {'bar': {'id': ref_entry.id, 'name': ref_entry.name}})
+        self.assertEqual(ret['ret_values'][0]['attrs']['bool']['value'], False)
+        self.assertEqual(ret['ret_values'][0]['attrs']['group']['value'],
+                         {'id': ref_group.id, 'name': ref_group.name})
+        self.assertEqual(ret['ret_values'][0]['attrs']['arr_str']['value'], ['foo', 'bar', 'baz'])
+        self.assertEqual(ret['ret_values'][0]['attrs']['arr_obj']['value'],
+                         [{'id': ref_entry.id, 'name': ref_entry.name}])
+        self.assertEqual(ret['ret_values'][0]['attrs']['arr_name']['value'],
+                         [{'hoge': {'id': ref_entry.id, 'name': ref_entry.name}}])
+
+        # search entries with maximum entries to get
+        ret = Entry.search_entries(user, [entity.id], [{'name': 'str'}], 5)
+        self.assertEqual(ret['ret_count'], 5)
+
+        # search entries with keyword
+        ret = Entry.search_entries(user, [entity.id], [{'name': 'str', 'keyword': '5'}])
+        self.assertEqual(ret['ret_count'], 1)
+        self.assertEqual(ret['ret_values'][0]['entry']['name'], 'e-5')
+
+        ret = Entry.search_entries(user, [entity.id], [
+            {'name': 'obj', 'keyword': 'referred'},
+            {'name': 'name', 'keyword': 'referred'},
+            {'name': 'bool', 'keyword': 'F'},
+            {'name': 'group', 'keyword': 'gr'},
+            {'name': 'arr_str', 'keyword': 'ba'},
+            {'name': 'arr_obj', 'keyword': 'referred'},
+            {'name': 'arr_name', 'keyword': 'referred'},
+        ])
+        self.assertEqual(ret['ret_count'], 10)
+        self.assertEqual(len(ret['ret_values']), 10)
+
+        ret = Entry.search_entries(user, [entity.id], [
+            {'name': 'obj', 'keyword': 'referred'},
+            {'name': 'name', 'keyword': 'referred'},
+            {'name': 'bool', 'keyword': 'F'},
+            {'name': 'group', 'keyword': 'gr'},
+            {'name': 'arr_str', 'keyword': 'ba'},
+            {'name': 'arr_obj', 'keyword': 'referred'},
+            {'name': 'arr_name', 'keyword': 'referred-X'}, # This includes unmatch keyword
+        ])
+        self.assertEqual(ret['ret_count'], 0)
+        self.assertEqual(ret['ret_values'], [])

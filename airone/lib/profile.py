@@ -1,6 +1,7 @@
 import atexit
 
 from django.conf import settings
+from django.http.request import HttpRequest
 from time import time
 
 
@@ -28,7 +29,18 @@ def airone_profile(func):
         ret = func(*args, **kwargs)
 
         # show the profiling results
-        prof.check("Total time of the request: %s" % args[0].path)
+        req = None
+        if isinstance(args[0], HttpRequest):
+            req = args[0]
+        elif isinstance(args[1], HttpRequest):
+            # The case of decorating API handler, the HttpRequest object will be stored at
+            # the second argument because an APIView object will be set at the first argument.
+            req = args[1]
+
+        if req:
+            prof.check("Total time of the request: %s" % req.path)
+        else:
+            prof.check("Total time of the request")
 
         return ret
 

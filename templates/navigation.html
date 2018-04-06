@@ -7,6 +7,12 @@
     {% if path == 'index_entry' %}
       <li class="breadcrumb-item">{{ entity.name }}</li>
 
+    {% elif path == 'import_entity' %}
+      <li class="breadcrumb-item">インポート</li>
+
+      {% elif path == 'history_entity' %}
+            <li class="breadcrumb-item">{{ entity.name }}の変更履歴</li>
+
     {% elif path == 'import_entry' %}
       <li class="breadcrumb-item"><a href="/entry/{{ entity.id }}">{{ entity.name }}</a></li>
       <li class="breadcrumb-item">インポート</li>

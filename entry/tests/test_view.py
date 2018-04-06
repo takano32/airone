@@ -20,6 +20,7 @@ from xml.etree import ElementTree
 
 from unittest.mock import patch
 from unittest.mock import Mock
+from unittest import skip
 from entry import tasks
 
 
@@ -2034,3 +2035,22 @@ class ViewTest(AironeViewTest):
 
         entry = Entry.objects.get(name='Entry', schema=entity)
         self.assertEqual(entry.attrs.get(schema=entity_attr).get_latest_value().value, 'foo')
+
+    @skip('When a file which is encodeed by non UTF-8, django-test-client fails encoding')
+    def test_import_entry_by_multi_encoded_files(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(name='str',
+                                                   type=AttrTypeValue['string'],
+                                                   created_user=user,
+                                                   parent_entity=entity))
+
+        for encoding in ['UTF-8', 'Shift-JIS', 'EUC-JP']:
+            fp = self.open_fixture_file('import_data_%s.yaml' % encoding)
+            resp = self.client.post(reverse('entry:do_import', args=[entity.id]), {'file': fp})
+
+            # check the import is success
+            self.assertEqual(resp.status_code, 303)
+
+        self.assertEqual(Entry.objects.filter(name__iregex=r'えんとり*').coiunt(), 3)

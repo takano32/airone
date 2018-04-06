@@ -7,6 +7,10 @@
     {% if path == 'index_entry' %}
       <li class="breadcrumb-item">{{ entity.name }}</li>
 
+    {% elif path == 'import_entry' %}
+      <li class="breadcrumb-item"><a href="/entry/{{ entity.id }}">{{ entity.name }}</a></li>
+      <li class="breadcrumb-item">インポート</li>
+
     {% elif path == 'edit_entry' %}
       <li class="breadcrumb-item"><a href='{{ nav_headers.1.href }}'>{{ nav_headers.1.text }}</a></li>
       {% if 'create' in form_url %}

@@ -66,13 +66,9 @@ def create(request, entity_id):
 
     entity = Entity.objects.get(id=entity_id)
     context = {
+        'entity': entity,
         'form_url': '/entry/do_create/%s/' % entity.id,
         'redirect_url': '/entry/%s' % entity.id,
-        'nav_headers': [
-            {'href': '/', 'text': 'TOP'},
-            {'href': '/entry/%s' % entity.id, 'text': '%s' % entity.name},
-            {'text': '新規エントリ作成 (%s)' % entity.name},
-        ],
         'groups': Group.objects.filter(is_active=True),
         'attributes': [{
             'id': x.id,
@@ -148,12 +144,6 @@ def edit(request, entry_id):
     context = {
         'entry': entry,
         'groups': Group.objects.filter(is_active=True),
-        'nav_headers': [
-            {'href': '/', 'text': 'TOP'},
-            {'href': '/entry/%s' % entry.schema.id, 'text': '%s' % entry.schema.name},
-            {'href': '/entry/show/%s' % entry.id, 'text': '%s' % entry.name},
-            {'text': '%s の編集' % entry.name},
-        ],
         'attributes': entry.get_available_attrs(user, ACLType.Writable, get_referral_entries=True),
         'form_url': '/entry/do_edit/%s' % entry.id,
         'redirect_url': '/entry/show/%s' % entry.id,

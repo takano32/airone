@@ -3,17 +3,9 @@
 {% block title %}Edit Entry{% endblock %}
 
 {% block nav_sub_header %}
-<div class="conatiner-fluid">
-  <ul class="breadcrumb airone-breadcrumb">
-    {% for header in nav_headers %}
-      {% if header.href %}
-      <li class="breadcrumb-item"><a href="{{ header.href }}">{{ header.text }}</a></li>
-      {% else %}
-      <li class="breadcrumb-item">{{ header.text }}</li>
-      {% endif %}
-    {% endfor %}
-  </ul>
-</div>
+{% with "edit_entry" as path %}
+{% include 'navigation.html' %}
+{% endwith %}
 {% endblock %}
 
 {% block content %}

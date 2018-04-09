@@ -3,21 +3,9 @@
 {% block title %}Copy Entry{% endblock %}
 
 {% block nav_sub_header %}
-{% load bitwise_tags %}
-<div class="conatiner-fluid">
-  <ul class="breadcrumb airone-breadcrumb">
-    <li class="breadcrumb-item"><a href="/">TOP</a></li>
-    <li class="breadcrumb-item"><a href='/entry/{{ entry.schema.id }}'>{{ entry.schema.name }}</a></li>
-    {% if entry.is_deleted %}
-    <li class="breadcrumb-item"><a href='/entry/show/{{ entry.id }}'>{{ entry.name }} [削除済]</a></li>
-    {% elif entry.status|bitwise_and:STATUS_ENTRY.EDITING %}
-    <li class="breadcrumb-item"><a href='/entry/show/{{ entry.id }}'>{{ entry.name }} [編集中]</a></li>
-    {% else %}
-    <li class="breadcrumb-item"><a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a></li>
-    {% endif %}
-    <li class="breadcrumb-item">コピー</li>
-  </ul>
-</div>
+{% with "copy_entry" as path %}
+{% include 'navigation.html' %}
+{% endwith %}
 {% endblock %}
 
 {% block content %}

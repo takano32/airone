@@ -3,28 +3,9 @@
 {% block title %}Create ACLs{% endblock %}
 
 {% block nav_sub_header %}
-<div class="conatiner-fluid">
-  <ul class="breadcrumb airone-breadcrumb">
-    <li class="breadcrumb-item"><a href="/">TOP</a></li>
-    {% if object.objtype == navigator.acl_objtype.entity %}
-      <li class="breadcrumb-item"><a href="/entity/">エンティティ一覧</a></li>
-      <li class="breadcrumb-item">ACL 設定</li>
-    {% elif object.objtype == navigator.acl_objtype.entry %}
-      <li class="breadcrumb-item"><a href="/entry/{{ object.schema.id }}">{{ object.schema.name }}</a></li>
-      <li class="breadcrumb-item"><a href="/entry/show/{{ object.id }}">{{ object.name }}</a></li>
-      <li class="breadcrumb-item">ACL 設定</li>
-    {% elif object.objtype == navigator.acl_objtype.attrbase %}
-      <li class="breadcrumb-item"><a href="/entity/">エンティティ一覧</a></li>
-      <li class="breadcrumb-item"><a href="/entity/edit/{{ parent.id }}">{{ parent.name }}</a></li>
-      <li class="breadcrumb-item">ACL 設定</li>
-    {% elif object.objtype == navigator.acl_objtype.attr %}
-      <li class="breadcrumb-item"><a href="/entry/{{ parent.schema.id }}">{{ parent.schema.name }}</a></li>
-      <li class="breadcrumb-item"><a href="/entry/show/{{ parent.id }}">{{ parent.name }}</a></li>
-      <li class="breadcrumb-item"><a href="/entry/edit/{{ parent.id }}">{{ parent.name }} の編集</a></li>
-      <li class="breadcrumb-item">ACL 設定</li>
-    {% endif %}
-  </ul>
-</div>
+{% with "acl" as path %}
+{% include 'navigation.html' %}
+{% endwith %}
 {% endblock %}
 
 {% block content %}
@@ -137,6 +118,6 @@ $('form').submit(function(event){
   });
 
   return false;
-});  
+});
 </script>
 {% endblock %}

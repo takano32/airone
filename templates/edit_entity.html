@@ -3,13 +3,9 @@
 {% block title %}Edit Entity{% endblock %}
 
 {% block nav_sub_header %}
-<div class="conatiner-fluid">
-  <ul class="breadcrumb airone-breadcrumb">
-    <li class="breadcrumb-item"><a href="/">TOP</a></li>
-    <li class="breadcrumb-item"><a href='/entity/'>エンティティ一覧</a></li>
-    <li class="breadcrumb-item">{{ entity.name }}</li>
-  </ul>
-</div>
+{% with "edit_entity" as path %}
+{% include 'navigation.html' %}
+{% endwith %}
 {% endblock %}
 
 {% block content %}

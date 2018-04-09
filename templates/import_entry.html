@@ -3,13 +3,9 @@
 {% block title %}Import Entry{% endblock %}
 
 {% block nav_sub_header %}
-<div class="conatiner-fluid">
-  <ul class="breadcrumb airone-breadcrumb">
-    <li class="breadcrumb-item"><a href="/">TOP</a></li>
-    <li class="breadcrumb-item"><a href="/entry/{{ entity.id }}">{{ entity.name }}</a></li>
-    <li class="breadcrumb-item">インポート</li>
-  </ul>
-</div>
+{% with "import_entry" as path %}
+{% include 'navigation.html' %}
+{% endwith %}
 {% endblock %}
 
 {% block content %}

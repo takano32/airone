@@ -3,12 +3,9 @@
 {% block title %}List Entities{% endblock %}
 
 {% block nav_sub_header %}
-<div class="conatiner-fluid">
-  <ul class="breadcrumb airone-breadcrumb">
-    <li class="breadcrumb-item"><a href="/">TOP</a></li>
-    <li class="breadcrumb-item">インポート</li>
-  </ul>
-</div>
+{% with "import_entity" as path %}
+{% include 'navigation.html' %}
+{% endwith %}
 {% endblock %}
 
 {% block content %}

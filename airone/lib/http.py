@@ -1,6 +1,7 @@
 import json
 import importlib
 import urllib.parse
+import codecs
 
 from django.http import HttpResponseRedirect
 from django.http import HttpResponse
@@ -90,19 +91,31 @@ def http_post(validator=[]):
     return _decorator
 
 def http_file_upload(func):
+    def get_uploaded_file_content(request):
+        """This returns uploaded file context whatever encoding type"""
+
+        fp = request.FILES.get('file')
+        for encoding in ['UTF-8', 'Shift-JIS', 'ISO-2022-JP', 'EUC-JP']:
+            try:
+                return codecs.getreader(encoding)(fp).read()
+
+            except UnicodeDecodeError:
+                fp.seek(0)
+
+            except Exception as e:
+                return None
+
     def wrapper(*args, **kwargs):
         request = args[0]
 
         if request.method != 'POST':
             return HttpResponse('Invalid HTTP method is specified', status=400)
 
-        try:
-            # get uploaded file data context and pass it to the arguemnt of HTTP handler
-            kwargs['context'] = ''.join([x.decode('utf-8') for x in request.FILES['file'].chunks()])
-
-            return func(*args, **kwargs)
-        except UnicodeDecodeError:
+        kwargs['context'] = get_uploaded_file_content(request)
+        if not kwargs['context']:
             return HttpResponse('Uploaded file is invalid', status=400)
+
+        return func(*args, **kwargs)
 
     return wrapper
 

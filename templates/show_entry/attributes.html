@@ -1,18 +1,14 @@
 <div class='row'>
   <div class='col'>
-    <table class="table table-bordered">
-      <tr>
-        <th>属性</th>
-        <th>属性値</th>
-      </tr>
+    <table class="table table-bordered airone-entry-table-show">
       {% for attr in attributes %}
       <tr>
-        <td>{{ attr.name }}</td>
+        <td class='attr'>{{ attr.name }}</td>
         <td>
         {% if attr.type == attr_type.string %}
-          <p class='url_conv'>{{ attr.last_value }}</p>
+          <span class='url_conv'>{{ attr.last_value }}</span>
         {% elif attr.type == attr_type.textarea %}
-          <pre class='url_conv'>{{ attr.last_value }}</pre>
+          <span class='url_conv textarea'>{{ attr.last_value }}</span>
         {% elif attr.type == attr_type.entry and attr.last_referral %}
           <a href='/entry/show/{{ attr.last_referral.id }}'>{{ attr.last_referral.name }}</a>{% if attr.last_referral.deleted %}(deleted){% endif %}
         {% elif attr.type == attr_type.array_string %}
@@ -41,7 +37,7 @@
         {% elif attr.type == attr_type.named_entry %}
           <div class='row'>
             <div class='col-3'>
-              <p class='url_conv'>{{ attr.last_value }}</p>
+              <span class='url_conv'>{{ attr.last_value }}</span>
             </div>
             <div class='col-9'>
               <a href='/entry/show/{{ attr.last_referral.id }}'>{{ attr.last_referral.name }}</a>{% if attr.last_referral.deleted %}(deleted){% endif %}
@@ -54,7 +50,7 @@
             <li class='list-group-item'>
               <div class='row'>
                 <div class='col-3'>
-                  <p class='url_conv'>{{ data.value }}</p>
+                  <span class='url_conv'>{{ data.value }}</span>
                 </div>
                 <div class='col-9'>
                   <a href='/entry/show/{{ data.referral.id }}'>{{ data.referral.name }}</a>{% if data.referral.deleted %}(deleted){% endif %}

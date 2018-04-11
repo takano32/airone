@@ -49,3 +49,33 @@ body {
   display: inline-block;
   float: none;
 }
+
+/* ------------------------------- *
+ * Configuration for showing Entry
+ * ------------------------------- */
+.airone-entry-table-history,
+.airone-entry-table-show {
+  table-layout:fixed;
+  width:100%;
+  border: none;
+  margin: 10px 0px;
+}
+
+.airone-entry-table-show .attr {
+  font-size: 13px;
+  text-align: right;
+  font-weight: bold;
+  width: 240px;
+}
+
+.airone-entry-table-history td,
+.airone-entry-table-history li,
+.airone-entry-table-show li,
+.airone-entry-table-show td {
+  font-size: 13px;
+  padding: 4px 10px;
+}
+.airone-entry-table-history .textarea,
+.airone-entry-table-show .textarea {
+  font-size: 13px;
+}

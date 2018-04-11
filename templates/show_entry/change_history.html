@@ -2,7 +2,7 @@
   <div class="col">
     <hr/>
     <h3>変更履歴</h3>
-    <table class="table table-bordered">
+    <table class="table table-bordered airone-entry-table-history">
       <tr>
         <th>属性値</th>
         <th>設定値</th>
@@ -13,9 +13,9 @@
       <tr>
         <td>{{ history.attr_name }}</td>
         {% if history.attr_type == attr_type.string %}
-          <td><p class='url_conv'>{{ history.attr_value }}</p></td>
+          <td><span class='url_conv'>{{ history.attr_value }}</span></td>
         {% elif history.attr_type == attr_type.textarea %}
-          <td><pre class='url_conv'>{{ history.attr_value }}</pre></td>
+          <td><span class='url_conv textarea'>{{ history.attr_value }}</span></td>
         {% elif history.attr_type == attr_type.entry and history.attr_value %}
           <td><a href='/entry/show/{{ history.attr_value.id}}'>{{ history.attr_value.name }}</a></td>
         {% elif history.attr_type == attr_type.array_string %}

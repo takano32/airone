@@ -214,7 +214,7 @@ class Attribute(ACLBase):
                 return True
             # the case of appending or deleting
             for value in recv_value:
-                if not last_value.data_array.filter(value=value).count():
+                if not last_value.data_array.filter(value=value).exists():
                     return True
 
         elif self.schema.type == AttrTypeArrObj:
@@ -228,7 +228,7 @@ class Attribute(ACLBase):
                 if isinstance(value, Entry):
                     value = value.id
 
-                if not last_value.data_array.filter(referral=value).count():
+                if not last_value.data_array.filter(referral__id=value).exists():
                     return True
 
         elif self.schema.type == AttrTypeValue['boolean']:

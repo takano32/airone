@@ -75,15 +75,13 @@ class AttrValueResource(AironeModelResource):
         # set latest status for each attributes
         for attr in Attribute.objects.all():
             # first of all, clear the latest flag for each values
-            [x.del_status(AttributeValue.STATUS_LATEST) for x in attr.values.all()]
+            attr.unset_latest_flag()
 
             # reset latest status flag
             latest_value = attr.get_latest_value()
-
             if latest_value:
-                latest_value.set_status(AttributeValue.STATUS_LATEST)
-                if latest_value.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT):
-                    [v.set_status(AttributeValue.STATUS_LATEST) for v in latest_value.data_array.all()]
+                latest_value.is_latest = True
+                latest_value.save(update_fields=['is_latest'])
 
 class AttrResource(AironeModelResource):
     _IMPORT_INFO = {

@@ -1200,7 +1200,8 @@ class ModelTest(TestCase):
         self.assertEqual(ret['ret_values'][0]['attrs']['bool']['value'], False)
         self.assertEqual(ret['ret_values'][0]['attrs']['group']['value'],
                          {'id': ref_group.id, 'name': ref_group.name})
-        self.assertEqual(ret['ret_values'][0]['attrs']['arr_str']['value'], ['foo', 'bar', 'baz'])
+        self.assertEqual(set(ret['ret_values'][0]['attrs']['arr_str']['value']),
+                         set(['foo', 'bar', 'baz']))
         self.assertEqual(ret['ret_values'][0]['attrs']['arr_obj']['value'],
                          [{'id': ref_entry.id, 'name': ref_entry.name}])
         self.assertEqual(ret['ret_values'][0]['attrs']['arr_name']['value'],

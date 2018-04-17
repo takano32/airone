@@ -968,7 +968,10 @@ class ModelTest(TestCase):
 
         for attr_name, value in expected_values.items():
             attr = entry.attrs.get(name=attr_name)
-            self.assertEqual(attr.get_latest_value().get_value(), value)
+            if attr_name == 'arr_str':
+                self.assertEqual(set(attr.get_latest_value().get_value()), set(value))
+            else:
+                self.assertEqual(attr.get_latest_value().get_value(), value)
 
         # test get_value method with 'with_metainfo' parameter
         expected_values = {
@@ -1009,7 +1012,10 @@ class ModelTest(TestCase):
 
         for attr_name, value in expected_values.items():
             attr = entry.attrs.get(name=attr_name)
-            self.assertEqual(attr.get_latest_value().get_value(with_metainfo=True), value)
+            if attr_name == 'arr_str':
+                self.assertEqual(set(attr.get_latest_value().get_value(with_metainfo=True)), set(value))
+            else:
+                self.assertEqual(attr.get_latest_value().get_value(with_metainfo=True), value)
 
     def test_convert_value_to_register(self):
         user = User.objects.create(username='hoge')

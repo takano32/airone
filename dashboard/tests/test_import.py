@@ -181,10 +181,10 @@ class ImportTest(AironeViewTest):
         # checks latest flags are correctly set for each AttributeValues
         # - 1 is the latest value of attr 'attr-str'
         # - 1 is the latest value of attr 'attr-obj'
-        # - 3 is the latest value of attr 'attr-arr-str'
-        # - 3 is the latest value of attr 'attr-arr-obj'
-        self.assertEqual(AttributeValue.objects.extra(where=['status & 2 = 2']).count(),
-                         1 + 1 + 3 + 3)
+        # - 1 is the latest value of attr 'attr-arr-str', but child attrs don't set latet flag
+        # - 1 is the latest value of attr 'attr-arr-obj', but child attrs don't set latet flag
+        self.assertEqual(AttributeValue.objects.extra(where=['is_latest > 0']).count(),
+                         1 + 1 + 1 + 1)
 
     def test_import_entry_without_mandatory_values(self):
         user = self.admin_login()

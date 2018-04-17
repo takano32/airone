@@ -269,7 +269,6 @@ class ComplexViewTest(AironeViewTest):
             'created_user': user,
             'parent_attr': entry.attrs.get(name='ref'),
             'referral': ref_entry,
-            'status': AttributeValue.STATUS_LATEST,
         }
         entry.attrs.get(name='ref').values.add(AttributeValue.objects.create(**attrv_params))
 
@@ -321,7 +320,6 @@ class ComplexViewTest(AironeViewTest):
             'created_user': user,
             'parent_attr': entry.attrs.get(name='ref'),
             'referral': ref_entry,
-            'status': AttributeValue.STATUS_LATEST,
         }
         entry.attrs.get(name='ref').values.add(AttributeValue.objects.create(**attrv_params))
 

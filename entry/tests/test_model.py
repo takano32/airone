@@ -304,8 +304,7 @@ class ModelTest(TestCase):
         attr.values.add(AttributeValue.objects.create(created_user=self._user,
                                                       parent_attr=attr,
                                                       value='hoge',
-                                                      referral=ref_entry1,
-                                                      status=AttributeValue.STATUS_LATEST))
+                                                      referral=ref_entry1))
 
         self.assertFalse(attr.is_updated({'id': ref_entry1.id, 'name': 'hoge'}))
         self.assertTrue(attr.is_updated({'id': ref_entry2.id, 'name': 'hoge'}))
@@ -341,7 +340,7 @@ class ModelTest(TestCase):
         attrv = AttributeValue.objects.create(**{
             'parent_attr': attr,
             'created_user': self._user,
-            'status': AttributeValue.STATUS_LATEST | AttributeValue.STATUS_DATA_ARRAY_PARENT,
+            'status': AttributeValue.STATUS_DATA_ARRAY_PARENT,
         })
 
         r_entries = []
@@ -352,7 +351,6 @@ class ModelTest(TestCase):
             attrv.data_array.add(AttributeValue.objects.create(**{
                 'parent_attr': attr,
                 'created_user': self._user,
-                'status': AttributeValue.STATUS_LATEST,
                 'value': 'key_%d' % i,
                 'referral': r_entry,
             }))
@@ -373,7 +371,6 @@ class ModelTest(TestCase):
         attr.values.add(AttributeValue.objects.create(**{
             'created_user': self._user,
             'parent_attr': attr,
-            'status': AttributeValue.STATUS_LATEST
         }))
 
         # Checks default value
@@ -394,12 +391,10 @@ class ModelTest(TestCase):
         # make multiple value that refer 'entry' object
         [attr.values.add(AttributeValue.objects.create(created_user=self._user,
                                                        parent_attr=attr,
-                                                       status=AttributeValue.STATUS_LATEST,
                                                        referral=entry)) for _ in range(0, 10)]
         # make a self reference value
         attr.values.add(AttributeValue.objects.create(created_user=self._user,
                                                       parent_attr=attr,
-                                                      status=AttributeValue.STATUS_LATEST,
                                                       referral=self._entry))
         self._entry.attrs.add(attr)
 
@@ -439,8 +434,7 @@ class ModelTest(TestCase):
                                                       parent_attr=attr))
         attr.values.add(AttributeValue.objects.create(value='baz',
                                                       created_user=self._user,
-                                                      parent_attr=attr,
-                                                      status=AttributeValue.STATUS_LATEST))
+                                                      parent_attr=attr))
 
         self.assertEqual(len(attr.get_value_history(self._user)), 3)
 
@@ -459,7 +453,6 @@ class ModelTest(TestCase):
         # make a self reference value
         attr.values.add(AttributeValue.objects.create(created_user=self._user,
                                                       parent_attr=attr,
-                                                      status=AttributeValue.STATUS_LATEST,
                                                       referral=entry))
 
         # set referral cache
@@ -484,8 +477,9 @@ class ModelTest(TestCase):
         self._entry.attrs.add(attr)
 
         # make AttributeValue and checks the cache is constructed
-        attrv = AttributeValue.objects.create(created_user=self._user, parent_attr=attr,
-                                              status=AttributeValue.STATUS_LATEST, referral=entry)
+        attrv = AttributeValue.objects.create(created_user=self._user,
+                                              parent_attr=attr,
+                                              referral=entry)
         attrv.reconstruct_referral_cache()
         self.assertEqual(entry.get_cache(Entry.CACHE_REFERRED_ENTRY), ([self._entry], 1))
 
@@ -515,7 +509,7 @@ class ModelTest(TestCase):
         attrv = AttributeValue.objects.create(**{
             'parent_attr': attr,
             'created_user': self._user,
-            'status': AttributeValue.STATUS_LATEST | AttributeValue.STATUS_DATA_ARRAY_PARENT,
+            'status': AttributeValue.STATUS_DATA_ARRAY_PARENT,
         })
 
         r_entries = []
@@ -526,7 +520,6 @@ class ModelTest(TestCase):
             attrv.data_array.add(AttributeValue.objects.create(**{
                 'parent_attr': attr,
                 'created_user': self._user,
-                'status': AttributeValue.STATUS_LATEST,
                 'value': 'key_%d' % i,
                 'referral': r_entry,
             }))
@@ -589,7 +582,6 @@ class ModelTest(TestCase):
         params = {
             'parent_attr': attr,
             'created_user': self._user,
-            'status': AttributeValue.STATUS_LATEST,
             'value': 'hoge',
         }
         attr.values.add(AttributeValue.objects.create(**params))
@@ -608,11 +600,10 @@ class ModelTest(TestCase):
         params = {
             'parent_attr': attr,
             'created_user': self._user,
-            'status': AttributeValue.STATUS_LATEST | AttributeValue.STATUS_DATA_ARRAY_PARENT,
+            'status': AttributeValue.STATUS_DATA_ARRAY_PARENT,
         }
         parent_attrv = AttributeValue.objects.create(**params)
         for i in range(0, 10):
-            params['status'] = AttributeValue.STATUS_LATEST
             params['value'] = str(i)
             parent_attrv.data_array.add(AttributeValue.objects.create(**params))
 
@@ -650,7 +641,6 @@ class ModelTest(TestCase):
             entry_attr.values.add(AttributeValue.objects.create(**{
                 'parent_attr': entry_attr,
                 'created_user': self._user,
-                'status': AttributeValue.STATUS_LATEST,
                 'value': str(i),
             }))
 

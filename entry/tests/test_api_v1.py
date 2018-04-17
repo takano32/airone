@@ -115,7 +115,6 @@ class ViewTest(AironeViewTest):
                 'referral': ref_entry,
                 'parent_attr': ref_attr,
                 'created_user': admin,
-                'status': AttributeValue.STATUS_LATEST,
             }))
 
         # send request without keyword
@@ -262,7 +261,6 @@ class ViewTest(AironeViewTest):
                 base_params = {
                     'created_user': admin,
                     'parent_attr': attr,
-                    'status': AttributeValue.STATUS_LATEST,
                 }
                 if attr.schema.type & AttrTypeValue['string']:
                     attr.values.add(AttributeValue.objects.create(**{

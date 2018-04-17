@@ -242,9 +242,6 @@ def show(request, entry_id):
             # Create a initial AttributeValue for editing processing
             attr_value = AttributeValue.objects.create(created_user=user, parent_attr=newattr)
 
-            # Set a flag that means this is the latest value
-            attr_value.set_status(AttributeValue.STATUS_LATEST)
-
             # Set status of parent data_array
             attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
 

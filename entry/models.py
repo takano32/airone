@@ -484,24 +484,18 @@ class Attribute(ACLBase):
             attr_value = AttributeValue.create(user, self)
             # set status of parent data_array
             attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
+            co_attrv_params = {
+                'created_user': user,
+                'parent_attr': self,
+                'data_type': self.schema.type,
+                'parent_attrv': attr_value,
+                'is_latest': False,
+            }
 
             # create and append updated values
+            attrv_bulk = []
             if self.schema.type == AttrTypeValue['array_string']:
-                params = {
-                    'created_user': user,
-                    'parent_attr': self,
-                    'data_type': self.schema.type,
-                    'parent_attrv': attr_value,
-                    'is_latest': False,
-                }
-
-                # Create each leaf AttributeValue in bulk. This processing send only one query to the DB
-                # for making all AttributeValue objects.
-                attrv_bulk = [AttributeValue(value=v, **params) for v in value]
-                AttributeValue.objects.bulk_create(attrv_bulk)
-
-                # set created leaf AttribueValues to the data_array parameter of parent AttributeValue
-                attr_value.data_array.add(*AttributeValue.objects.filter(parent_attrv=attr_value))
+                attrv_bulk = [AttributeValue(value=v, **co_attrv_params) for v in value]
 
             elif self.schema.type == AttrTypeValue['array_object']:
                 for v in value:
@@ -513,7 +507,7 @@ class Attribute(ACLBase):
                     elif isinstance(v, Entry):
                         ref = v
 
-                    attr_value.data_array.add(AttributeValue.create(user, self, referral=ref))
+                    attrv_bulk.append(AttributeValue(referral=ref, **co_attrv_params))
 
             elif self.schema.type == AttrTypeValue['array_named_object']:
                 for data in value:
@@ -528,12 +522,16 @@ class Attribute(ACLBase):
                     elif isinstance(data['id'], Entry):
                         referral = data['id']
 
-                    attr_value.data_array.add(AttributeValue.create(**{
-                        'user': user,
-                        'attr': self,
-                        'value': data['name'] if 'name' in data else '',
-                        'referral': referral,
-                    }))
+                    attrv_bulk.append(AttributeValue(referral=referral,
+                                                     value=data['name'] if 'name' in data else '',
+                                                     **co_attrv_params))
+
+            # Create each leaf AttributeValue in bulk. This processing send only one query to the DB
+            # for making all AttributeValue objects.
+            AttributeValue.objects.bulk_create(attrv_bulk)
+
+            # set created leaf AttribueValues to the data_array parameter of parent AttributeValue
+            attr_value.data_array.add(*AttributeValue.objects.filter(parent_attrv=attr_value))
 
         if attr_value:
             attr_value.save()
@@ -690,7 +688,8 @@ class Entry(ACLBase):
         if use_cache and cached_value:
             return cached_value
 
-        for attrvalue in AttributeValue.objects.filter(referral=self).extra(**cond):
+        for attrvalue in AttributeValue.objects.filter(
+                Q(is_latest=True, referral=self) | Q(parent_attrv__is_latest=True, referral=self)):
             if (not attrvalue.parent_attr.is_active or
                 not attrvalue.parent_attr.parent_entry.is_active):
                 continue

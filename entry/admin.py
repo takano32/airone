@@ -50,12 +50,30 @@ class AttrValueResource(AironeModelResource):
         if not dry_run:
             attr = instance.parent_attr
 
+            # register data_type parameter which is same with EntityAttr's type
+            instance.data_type = attr.schema.type
+
             if (not attr.values.filter(id=instance.id) and
                 (not attr.schema.type & AttrTypeValue['array'] or
                  (attr.schema.type & AttrTypeValue['array'] and
                   instance.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)))):
+
+                # clear is_latest flag of old attrs and set it to new one.
+                attr.unset_latest_flag()
+                instance.is_latest = True
+
                 attr.values.add(instance)
 
+            # the case of leaf AttributeValue
+            elif (attr.schema.type & AttrTypeValue['array'] and
+                  not instance.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)):
+
+                # For a leaf AttributeValue, 'is_latest' flag will not be set. Instaed, these objects have
+                # parent_attrv parameter to identify parent AttributeValue.
+                instance.is_latest = False
+                instance.parent_attrv = attr.get_latest_value()
+
+            instance.save(update_fields=['is_latest', 'data_type', 'parent_attrv'])
             self._saved_instance = instance
 
     @classmethod
@@ -71,17 +89,6 @@ class AttrValueResource(AironeModelResource):
 
                     # append related AttributeValue if it's not existed
                     attr_value.data_array.add(AttributeValue.objects.get(id=child_id))
-
-        # set latest status for each attributes
-        for attr in Attribute.objects.all():
-            # first of all, clear the latest flag for each values
-            attr.unset_latest_flag()
-
-            # reset latest status flag
-            latest_value = attr.get_latest_value()
-            if latest_value:
-                latest_value.is_latest = True
-                latest_value.save(update_fields=['is_latest'])
 
 class AttrResource(AironeModelResource):
     _IMPORT_INFO = {

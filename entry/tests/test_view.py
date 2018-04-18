@@ -2034,6 +2034,12 @@ class ViewTest(AironeViewTest):
         entry = Entry.objects.get(name='Entry', schema=entity)
         self.assertEqual(entry.attrs.get(schema=entity_attr).get_latest_value().value, 'foo')
 
+        # check array_string value is set correctly
+        attrv = entry.attrs.get(name='arr1').get_latest_value()
+        self.assertEqual(attrv.data_type, AttrTypeValue['array_string'])
+        self.assertEqual(attrv.data_array.count(), 3)
+        self.assertTrue(all([x.parent_attrv == attrv for x in attrv.data_array.all()]))
+
     @skip('When a file which is encodeed by non UTF-8, django-test-client fails encoding')
     def test_import_entry_by_multi_encoded_files(self):
         user = self.admin_login()

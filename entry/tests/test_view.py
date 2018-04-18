@@ -1374,7 +1374,6 @@ class ViewTest(AironeViewTest):
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
     @patch('entry.views.delete_entry.delay', Mock(side_effect=tasks.delete_entry))
-    @patch('entry.tasks._reconstruct_referral_cache.delay', Mock(side_effect=tasks._reconstruct_referral_cache))
     def test_referred_entry_cache(self):
         user = self.admin_login()
 
@@ -1426,9 +1425,11 @@ class ViewTest(AironeViewTest):
         # checks referred_object cache is set
         entry = Entry.objects.get(name='entry')
 
-        self.assertEqual(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 2))
-        self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 1))
-        self.assertIsNone(ref_entry3.get_cache(Entry.CACHE_REFERRED_ENTRY))
+        self.assertEqual(set(list(ref_entry1.get_referred_objects())), set([entry]))
+        self.assertEqual(set(list(ref_entry2.get_referred_objects())), set([entry]))
+        self.assertEqual(list(ref_entry3.get_referred_objects()), [])
+        self.assertEqual(ref_entry1.get_referred_objects().count(), 2)
+        self.assertEqual(ref_entry2.get_referred_objects().count(), 1)
 
         # checks referred_object cache will be updated by unrefering
         params = {
@@ -1443,9 +1444,9 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 200)
 
-        self.assertEqual(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
-        self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
-        self.assertIsNone(ref_entry3.get_cache(Entry.CACHE_REFERRED_ENTRY))
+        self.assertEqual(list(ref_entry1.get_referred_objects()), [])
+        self.assertEqual(list(ref_entry2.get_referred_objects()), [])
+        self.assertEqual(list(ref_entry3.get_referred_objects()), [])
 
         # checks referred_object cache will be updated by the edit processing
         params = {
@@ -1474,9 +1475,11 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
 
         # checks referred_object cache is updated by changing referring
-        self.assertEqual(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
-        self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 2))
-        self.assertEqual(ref_entry3.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 1))
+        self.assertEqual(list(ref_entry1.get_referred_objects()), [])
+        self.assertEqual(set(ref_entry2.get_referred_objects()), set([entry]))
+        self.assertEqual(set(ref_entry3.get_referred_objects()), set([entry]))
+        self.assertEqual(ref_entry2.get_referred_objects().count(), 2)
+        self.assertEqual(ref_entry3.get_referred_objects().count(), 1)
 
         # delete referring entry and make sure that
         # the cahce of referred_entry of ref_entry is reset
@@ -1484,9 +1487,9 @@ class ViewTest(AironeViewTest):
                                 json.dumps(params), 'application/json')
 
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(ref_entry1.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
-        self.assertEqual(ref_entry2.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
-        self.assertEqual(ref_entry3.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
+        self.assertEqual(list(ref_entry1.get_referred_objects()), [])
+        self.assertEqual(list(ref_entry2.get_referred_objects()), [])
+        self.assertEqual(list(ref_entry3.get_referred_objects()), [])
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_create_entry_with_named_ref(self):

@@ -180,7 +180,7 @@ def do_edit(request, entity_id, recv_data):
             # register History to register deleting EntityAttr
             history.del_attr(attr_obj)
 
-        elif 'id' in attr and EntityAttr.objects.filter(id=attr['id']).count():
+        elif 'id' in attr and EntityAttr.objects.filter(id=attr['id']).exists():
             # In case of updating attribute which has been already existed
             attr_obj = EntityAttr.objects.get(id=attr['id'])
 
@@ -203,21 +203,7 @@ def do_edit(request, entity_id, recv_data):
             }
             if attr_obj.is_updated(**params):
                 # Clear the latest flag for each latest values if the attribute type is changed
-                if attr_obj.type != int(attr['type']):
-                    def clear_latest_flag(attrv):
-                        attrv.del_status(AttributeValue.STATUS_LATEST)
-
-                        # If the target attrv has data_array,
-                        # this also clear latest flag for each leaf values
-                        if attrv.data_array and attrv.data_array.count():
-                            [x.del_status(AttributeValue.STATUS_LATEST) for x in attrv.data_array.all()]
-
-                        attrv.save()
-
-                    active_attrs = Attribute.objects.filter(schema=attr_obj, is_active=True)
-
-                    [clear_latest_flag(v) for v in
-                            sum([list(a.get_latest_values()) for a in active_attrs], [])]
+                attr_obj.unset_latest_flag()
 
                 attr_obj.name = attr['name']
                 attr_obj.type = attr['type']

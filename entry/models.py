@@ -21,7 +21,6 @@ from .settings import CONFIG
 class AttributeValue(models.Model):
     # This is a constant that indicates target object binds multiple AttributeValue objects.
     STATUS_DATA_ARRAY_PARENT = 1 << 0
-    STATUS_LATEST = 1 << 1
 
     MAXIMUM_VALUE_SIZE = (1 << 16)
 
@@ -34,6 +33,14 @@ class AttributeValue(models.Model):
     status = models.IntegerField(default=0)
     boolean = models.BooleanField(default=False)
 
+    # This parameter means that target AttributeValue is the latest one. This is usefull to
+    # find out enabled AttributeValues by Attribute or EntityAttr object. And separating this
+    # parameter from status is very meaningful to reduce query at clearing this flag (If this
+    # flag is a value of status paramete, you have to send at least two query to set it down,
+    # because you have to check current value by SELECT, after that you calculate new value
+    # then update it).
+    is_latest = models.BooleanField(default=True)
+
     # The reason why the 'data_type' parameter is also needed in addition to the Attribute is that
     # the value of 'type' in Attribute may be changed dynamically.
     #
@@ -41,6 +48,10 @@ class AttributeValue(models.Model):
     # So it's necessary to save the value of AttrTypeVelue for each AttributeValue instance.
     # And this value is constract, this parameter will never be changed after creating.
     data_type = models.IntegerField(default=0)
+
+    # This indicates the parent AttributeValue object, this parameter is usefull to identify
+    # leaf AttriuteValue objects.
+    parent_attrv = models.ForeignKey('AttributeValue', null=True, related_name='child')
 
     def set_status(self, val):
         self.status |= val
@@ -163,7 +174,6 @@ class AttributeValue(models.Model):
     def create(kls, user, attr, **params):
         return kls.objects.create(created_user=user,
                                   parent_attr=attr,
-                                  status=kls.STATUS_LATEST,
                                   data_type=attr.schema.type,
                                   **params)
 
@@ -289,7 +299,7 @@ class Attribute(ACLBase):
 
     def get_latest_values(self):
         params = {
-            'where_extra': ['status & %s > 0' % AttributeValue.STATUS_LATEST],
+            'where_extra': ['is_latest > 0'],
         }
         return self.get_values(**params)
 
@@ -323,6 +333,10 @@ class Attribute(ACLBase):
             cloned_attr.values.add(new_attrv)
 
         return cloned_attr
+
+    def unset_latest_flag(self):
+        AttributeValue.objects.filter(parent_attr=self,
+                                      is_latest=True).update(is_latest=False)
 
     def get_value_history(self, user):
         # At the first time, checks the ermission to read
@@ -417,19 +431,7 @@ class Attribute(ACLBase):
 
         # Clear the flag that means target AttrValues are latet from the Values
         # that are already created.
-        cond_latest = {
-            'where': ['status & %d > 0' % AttributeValue.STATUS_LATEST],
-        }
-        for old_value in self.values.extra(**cond_latest):
-            old_value.del_status(AttributeValue.STATUS_LATEST)
-
-            # Sync db to update status value of AttributeValue,
-            # because the referred cache reconstruct processing checks this status value.
-            old_value.save()
-
-            if self.schema.type & AttrTypeValue['array']:
-                # also clear the latest flags on the values in data_array
-                [x.del_status(AttributeValue.STATUS_LATEST) for x in old_value.data_array.all()]
+        self.unset_latest_flag()
 
         # Initialize AttrValue as None, because this may not created
         # according to the specified parameters.
@@ -482,10 +484,18 @@ class Attribute(ACLBase):
             attr_value = AttributeValue.create(user, self)
             # set status of parent data_array
             attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
+            co_attrv_params = {
+                'created_user': user,
+                'parent_attr': self,
+                'data_type': self.schema.type,
+                'parent_attrv': attr_value,
+                'is_latest': False,
+            }
 
             # create and append updated values
+            attrv_bulk = []
             if self.schema.type == AttrTypeValue['array_string']:
-                [attr_value.data_array.add(AttributeValue.create(user, self, value=v)) for v in value]
+                attrv_bulk = [AttributeValue(value=v, **co_attrv_params) for v in value]
 
             elif self.schema.type == AttrTypeValue['array_object']:
                 for v in value:
@@ -497,7 +507,7 @@ class Attribute(ACLBase):
                     elif isinstance(v, Entry):
                         ref = v
 
-                    attr_value.data_array.add(AttributeValue.create(user, self, referral=ref))
+                    attrv_bulk.append(AttributeValue(referral=ref, **co_attrv_params))
 
             elif self.schema.type == AttrTypeValue['array_named_object']:
                 for data in value:
@@ -512,12 +522,16 @@ class Attribute(ACLBase):
                     elif isinstance(data['id'], Entry):
                         referral = data['id']
 
-                    attr_value.data_array.add(AttributeValue.create(**{
-                        'user': user,
-                        'attr': self,
-                        'value': data['name'] if 'name' in data else '',
-                        'referral': referral,
-                    }))
+                    attrv_bulk.append(AttributeValue(referral=referral,
+                                                     value=data['name'] if 'name' in data else '',
+                                                     **co_attrv_params))
+
+            # Create each leaf AttributeValue in bulk. This processing send only one query to the DB
+            # for making all AttributeValue objects.
+            AttributeValue.objects.bulk_create(attrv_bulk)
+
+            # set created leaf AttribueValues to the data_array parameter of parent AttributeValue
+            attr_value.data_array.add(*AttributeValue.objects.filter(parent_attrv=attr_value))
 
         if attr_value:
             attr_value.save()
@@ -654,9 +668,6 @@ class Entry(ACLBase):
             for permission in group.get_acls(base)]
             for group in user.groups.all()]
 
-        # inherits acl parameters
-        attr.inherit_acl(base)
-
         self.attrs.add(attr)
         return attr
 
@@ -668,7 +679,7 @@ class Entry(ACLBase):
         total_count = 0
         cond = {
             'where': [
-                'status & %d > 0' % AttributeValue.STATUS_LATEST,
+                'is_latest > 0',
                 'status & %d = 0' % AttributeValue.STATUS_DATA_ARRAY_PARENT,
             ],
         }
@@ -677,7 +688,8 @@ class Entry(ACLBase):
         if use_cache and cached_value:
             return cached_value
 
-        for attrvalue in AttributeValue.objects.filter(referral=self).extra(**cond):
+        for attrvalue in AttributeValue.objects.filter(
+                Q(is_latest=True, referral=self) | Q(parent_attrv__is_latest=True, referral=self)):
             if (not attrvalue.parent_attr.is_active or
                 not attrvalue.parent_attr.parent_entry.is_active):
                 continue
@@ -703,7 +715,7 @@ class Entry(ACLBase):
         """
 
         for attr_id in (set(self.schema.attrs.values_list('id', flat=True)) -
-                        set([x.schema.id for x in self.attrs.all()])):
+                        set(self.attrs.values_list('schema', flat=True))):
 
             entity_attr = self.schema.attrs.get(id=attr_id)
             if (not entity_attr.is_active or
@@ -714,9 +726,6 @@ class Entry(ACLBase):
             if entity_attr.type & AttrTypeValue['array']:
                 # Create a initial AttributeValue for editing processing
                 attr_value = AttributeValue.objects.create(created_user=user, parent_attr=newattr)
-
-                # Set a flag that means this is the latest value
-                attr_value.set_status(AttributeValue.STATUS_LATEST)
 
                 # Set status of parent data_array
                 attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)

@@ -66,13 +66,6 @@ def _convert_data_value(attr, info):
             return recv_value
 
 @app.task(bind=True)
-def _reconstruct_referral_cache(self, attrv_id):
-    if not AttributeValue.objects.filter(id=attrv_id).count():
-        Logger.error('[entry.tasks._reconstruct_referral_cache] target AttributeValue(id:%d) is not existed' % attrv_id)
-    else:
-        AttributeValue.objects.get(id=attrv_id).reconstruct_referral_cache()
-
-@app.task(bind=True)
 def create_entry_attrs(self, user_id, entry_id, recv_data):
     user = User.objects.get(id=user_id)
     entry = Entry.objects.get(id=entry_id)
@@ -89,10 +82,8 @@ def create_entry_attrs(self, user_id, entry_id, recv_data):
         # make an initial AttributeValue object if the initial value is specified
         attr_data = [x for x in recv_data['attrs'] if int(x['id']) == attr.schema.id][0]
 
-        attrv = attr.add_value(user, _convert_data_value(attr, attr_data))
-        if attrv:
-            # reconstructs referral_cache for each entries that target attrv refer to
-            _reconstruct_referral_cache.delay(attrv.id)
+        # register new AttributeValue to the "attr"
+        attr.add_value(user, _convert_data_value(attr, attr_data))
 
     # clear flag to specify this entry has been completed to ndcreate
     entry.del_status(Entry.STATUS_CREATING)
@@ -116,14 +107,6 @@ def edit_entry_attrs(self, user_id, entry_id, recv_data):
 
         # Add new AttributeValue instance to Attribute instnace
         new_value = attr.add_value(user, converted_value)
-
-        # This processing should be exec after calling add_value method,
-        # because this changes status flag of old AttributeValue instance.
-        if old_value:
-            _reconstruct_referral_cache.delay(old_value.id)
-
-        if new_value:
-            _reconstruct_referral_cache.delay(new_value.id)
 
     # clear flag to specify this entry has been completed to create
     entry.del_status(Entry.STATUS_EDITING)

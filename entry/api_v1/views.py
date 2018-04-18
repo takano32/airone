@@ -21,7 +21,8 @@ def get_referrals(request, entry_id):
         return HttpResponse('Failed to get ', status=400)
 
     entry = Entry.objects.get(id=entry_id)
-    (entries, total_count) = entry.get_referred_objects()
+    entries = list(entry.get_referred_objects())
+    total_count = len(entries)
 
     # filters the result by keyword
     if 'keyword' in request.GET:
@@ -38,7 +39,7 @@ def get_referrals(request, entry_id):
     return JsonResponse({
         'entries': entries_data,
         'found_count': len(entries_data),
-        'total_count': total_count
+        'total_count': total_count,
     })
 
 @http_post([

@@ -74,7 +74,7 @@ class ComplexViewTest(AironeViewTest):
 
         # edit entity to append a new Array attributes
         params = {
-            'name': 'entry',
+            'name': 'entity',
             'note': '',
             'is_toplevel': False,
             'attrs': [{
@@ -273,8 +273,9 @@ class ComplexViewTest(AironeViewTest):
         entry.attrs.get(name='ref').values.add(AttributeValue.objects.create(**attrv_params))
 
         # make referred entry cache
-        ref_entry.get_referred_objects(use_cache=False)
-        self.assertEqual(ref_entry.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 1))
+        ref_entries = ref_entry.get_referred_objects()
+        self.assertEqual(list(ref_entries), [entry])
+        self.assertEqual(ref_entries.count(), 1)
 
         entity_attr = entity.attrs.last()
         params = {
@@ -299,7 +300,6 @@ class ComplexViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(entity.attrs.filter(is_active=True).count(), 0)
         self.assertEqual(entry.attrs.filter(is_active=True).count(), 0)
-        self.assertEqual(ref_entry.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
 
     def test_make_cache_referred_entry_after_updating_attr_type(self):
         user = self.admin_login()
@@ -324,8 +324,9 @@ class ComplexViewTest(AironeViewTest):
         entry.attrs.get(name='ref').values.add(AttributeValue.objects.create(**attrv_params))
 
         # make referred entry cache
-        ref_entry.get_referred_objects(use_cache=False)
-        self.assertEqual(ref_entry.get_cache(Entry.CACHE_REFERRED_ENTRY), ([entry], 1))
+        ref_entries = ref_entry.get_referred_objects()
+        self.assertEqual(list(ref_entries), [entry])
+        self.assertEqual(ref_entries.count(), 1)
 
         entity_attr = entity.attrs.last()
         params = {
@@ -347,5 +348,6 @@ class ComplexViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
 
         # checks that the cache will be updated after updating attr_type
-        ref_entry.get_referred_objects(use_cache=False)
-        self.assertEqual(ref_entry.get_cache(Entry.CACHE_REFERRED_ENTRY), ([], 0))
+        ref_entries = ref_entry.get_referred_objects()
+        self.assertEqual(list(ref_entries), [])
+        self.assertEqual(ref_entries.count(), 0)

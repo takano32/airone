@@ -226,7 +226,7 @@ class ViewTest(AironeViewTest):
 
         attrvalue = AttributeValue.objects.last()
         self.assertEqual(entry.attrs.last().values.last(), attrvalue)
-        self.assertTrue(attrvalue.get_status(AttributeValue.STATUS_LATEST))
+        self.assertTrue(attrvalue.is_latest)
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_post_create_entry_without_permission(self):
@@ -504,7 +504,7 @@ class ViewTest(AironeViewTest):
                                   parent_entry=entry)
 
             attr_value = AttributeValue(value='hoge', created_user=user, parent_attr=attr)
-            attr_value.set_status(AttributeValue.STATUS_LATEST)
+            attr_value.is_latest = True
             attr_value.save()
 
             attr.values.add(attr_value)
@@ -534,9 +534,9 @@ class ViewTest(AironeViewTest):
         bar_value_first = Attribute.objects.get(name='bar').values.first()
         bar_value_last = Attribute.objects.get(name='bar').values.last()
 
-        self.assertTrue(foo_value_first.get_status(AttributeValue.STATUS_LATEST))
-        self.assertFalse(bar_value_first.get_status(AttributeValue.STATUS_LATEST))
-        self.assertTrue(bar_value_last.get_status(AttributeValue.STATUS_LATEST))
+        self.assertTrue(foo_value_first.is_latest)
+        self.assertFalse(bar_value_first.is_latest)
+        self.assertTrue(bar_value_last.is_latest)
 
     @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
     def test_post_edit_with_optional_params(self):
@@ -1637,7 +1637,6 @@ class ViewTest(AironeViewTest):
             'parent_attr': attr,
             'value': 'hoge',
             'referral': ref_entry,
-            'status': AttributeValue.STATUS_LATEST
         }))
 
         # try to update with same data (expected not to be updated)
@@ -1710,7 +1709,6 @@ class ViewTest(AironeViewTest):
             attrv.data_array.add(AttributeValue.objects.create(**{
                 'parent_attr': attr,
                 'created_user': user,
-                'status': AttributeValue.STATUS_LATEST,
                 'value': 'key_%d' % i,
                 'referral': r_entry,
             }))

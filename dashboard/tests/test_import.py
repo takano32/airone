@@ -169,14 +169,16 @@ class ImportTest(AironeViewTest):
         self.assertEqual(Attribute.objects.get(name='attr-arr-obj').schema.referral.last().name, 'Entity2')
 
         # checks for the Array String attributes
-        attr_value = Attribute.objects.get(name='attr-arr-str').values.first()
+        attr_value = Attribute.objects.get(name='attr-arr-str').get_latest_value()
         self.assertTrue(attr_value.status & AttributeValue.STATUS_DATA_ARRAY_PARENT)
         self.assertEqual(attr_value.data_array.count(), 2)
+        #self.assertTrue(all([x.parent_attrv == attr_value for x in attr_value.data_array.all()]))
 
         # checks for the Array Object attributes
-        attr_value = Attribute.objects.get(name='attr-arr-obj').values.first()
+        attr_value = Attribute.objects.get(name='attr-arr-obj').get_latest_value()
         self.assertTrue(attr_value.status & AttributeValue.STATUS_DATA_ARRAY_PARENT)
         self.assertEqual(attr_value.data_array.count(), 2)
+        self.assertTrue(all([x.parent_attrv == attr_value for x in attr_value.data_array.all()]))
 
         # checks latest flags are correctly set for each AttributeValues
         # - 1 is the latest value of attr 'attr-str'

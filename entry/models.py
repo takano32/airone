@@ -304,7 +304,7 @@ class Attribute(ACLBase):
         return self.get_values(**params)
 
     def get_latest_value(self):
-        return self.get_values().last()
+        return self.values.filter(is_latest=True).last()
 
     def clone(self, user, **extra_params):
         if not user.has_permission(self, ACLType.Readable):

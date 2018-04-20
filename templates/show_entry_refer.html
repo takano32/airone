@@ -18,3 +18,7 @@
 </div>
 {% csrf_token %}
 {% endblock %}
+
+{% block script %}
+  {% include 'show_entry/js.html' %}
+{% endblock %}

@@ -251,15 +251,14 @@ def show(request, entry_id):
     value_history = sum([x.get_value_history(user) for x in entry.attrs.filter(is_active=True)], [])
 
     # get referred entries and count of them
-    (referred_objects, referred_total) = entry.get_referred_objects(CONFIG.MAX_LIST_REFERRALS,
-                                                                    use_cache=True)
+    referred_objects = entry.get_referred_objects()
 
     context = {
         'entry': entry,
         'attributes': entry.get_available_attrs(user),
         'value_history': sorted(value_history, key=lambda x: x['created_time']),
         'referred_objects': referred_objects[0:CONFIG.MAX_LIST_REFERRALS],
-        'referred_total': referred_total,
+        'referred_total': referred_objects.count(),
     }
 
     if custom_view.is_custom_show_entry(entry.schema.name):

@@ -83,22 +83,6 @@ class AttributeValue(models.Model):
 
         return cloned_value
 
-    def reconstruct_referral_cache(self):
-        """
-        This method reconstruct the referral cache for each entries that this object refers to.
-        The 'get_referred_objects' method of Entry caches the result, so this calls it in advance
-        to be fast the next view showing.
-        """
-        if int(self.parent_attr.schema.type) & AttrTypeValue['object']:
-            referrals = [Entry.objects.get(id=self.referral.id)] if self.referral else []
-            if int(self.parent_attr.schema.type) & AttrTypeValue['array']:
-                # Wrapping with 'set' is needed to avoid unnecessary processing
-                # when mulitple attrvs which refer to same entries are existed
-                referrals = set([Entry.objects.get(id=x.referral.id) for x in self.data_array.all() if x.referral])
-
-            for referral in referrals:
-                referral.get_referred_objects(use_cache=False)
-
     def get_value(self, with_metainfo=False):
         """
         This returns registered value according to the type of Attribute
@@ -624,9 +608,6 @@ class Entry(ACLBase):
     STATUS_CREATING = 1 << 0
     STATUS_EDITING = 1 << 1
 
-    # constract of cache key for referred entry
-    CACHE_REFERRED_ENTRY = 'cache_referred_entry'
-
     attrs = models.ManyToManyField(Attribute)
     schema = models.ForeignKey(Entity)
 
@@ -671,43 +652,15 @@ class Entry(ACLBase):
         self.attrs.add(attr)
         return attr
 
-    def get_referred_objects(self, max_count=None, use_cache=False):
+    def get_referred_objects(self):
         """
         This returns objects that refer current Entry in the AttributeValue
         """
-        referred_entries = []
-        total_count = 0
-        cond = {
-            'where': [
-                'is_latest > 0',
-                'status & %d = 0' % AttributeValue.STATUS_DATA_ARRAY_PARENT,
-            ],
-        }
-
-        cached_value = self.get_cache(self.CACHE_REFERRED_ENTRY)
-        if use_cache and cached_value:
-            return cached_value
-
-        for attrvalue in AttributeValue.objects.filter(
-                Q(is_latest=True, referral=self) | Q(parent_attrv__is_latest=True, referral=self)):
-            if (not attrvalue.parent_attr.is_active or
-                not attrvalue.parent_attr.parent_entry.is_active):
-                continue
-
-            # update total count of referred values
-            total_count += 1
-
-            referred_obj = attrvalue.parent_attr.parent_entry
-            if not (referred_obj not in referred_entries and referred_obj != self):
-                continue
-
-            if not max_count or len(referred_entries) < max_count:
-                referred_entries.append(referred_obj)
-
-        # set to cache
-        self.set_cache(self.CACHE_REFERRED_ENTRY, (referred_entries, total_count))
-
-        return (referred_entries, total_count)
+        return Entry.objects.filter(
+                Q(attrs__is_active=True, attrs__values__is_latest=True,
+                  attrs__values__referral=self) |
+                Q(attrs__is_active=True, attrs__values__is_latest=True,
+                  attrs__values__data_array__referral=self))
 
     def complement_attrs(self, user):
         """
@@ -823,24 +776,9 @@ class Entry(ACLBase):
 
         # also delete each attributes
         for attr in self.attrs.filter(is_active=True):
-            referred_ids = set()
-
-            # before deleting attirubte, pick up referred entries to reconstruct referred cache
-            if attr.schema.type & AttrTypeValue['object']:
-
-                attrs = Attribute.objects.filter(schema=attr.schema.id, is_active=True)
-                for attrv in sum([list(a.get_latest_values()) for a in attrs], []):
-                    if attr.schema.type & AttrTypeValue['array']:
-                        [referred_ids.add(x.referral.id) for x in attrv.data_array.all()]
-                    else:
-                        referred_ids.add(attrv.referral.id)
 
             # delete Attribute object
             attr.delete()
-
-            # reset referred_entries cache
-            for entry in [Entry.objects.get(id=x) for x in referred_ids]:
-                entry.get_referred_objects(use_cache=False)
 
     def clone(self, user, **extra_params):
         if (not user.has_permission(self, ACLType.Readable) or

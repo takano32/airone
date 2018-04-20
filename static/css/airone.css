@@ -83,3 +83,7 @@ body {
 .nav-item :not(.active) {
   cursor: pointer;
 }
+
+.tab-content {
+  padding: 10px 0px 0px;
+}

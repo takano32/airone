@@ -3,13 +3,14 @@
 {% block title %}Copy Entry{% endblock %}
 
 {% block nav_sub_header %}
-{% with "copy_entry" as path %}
-{% include 'navigation.html' %}
-{% endwith %}
+{% include 'navigation.html' with object=entry %}
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
+  {% include 'entry_tab.html' with tab='copy' %}
+
+  <div class="tab-content">
   <form url='{{ form_url }}' method='post'>
   <div class="row">
     <div class="col">
@@ -39,6 +40,7 @@ vm0006
   </div>
   {% csrf_token %}
   </form>
+  </div>
 </div>
 {% endblock %}
 

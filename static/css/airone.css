@@ -79,3 +79,7 @@ body {
 .airone-entry-table-show .textarea {
   font-size: 13px;
 }
+
+.nav-item :not(.active) {
+  cursor: pointer;
+}

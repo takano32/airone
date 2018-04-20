@@ -142,8 +142,10 @@
 
     {% endif %}
   </td>
+  {% if is_edit %}
   <td>
     <a href="/acl/{{ attr.id }}"><button type="button" class="btn btn-info btn-sm">ACL</button></a>
   </td>
+  {% endif %}
 </tr>
 {% endfor %}

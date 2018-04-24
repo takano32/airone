@@ -1,6 +1,7 @@
 from django.conf.urls import url, include
 
 from . import views
+from acl import views as acl_views
 
 urlpatterns = [
     url(r'^(\d+)/$', views.index, name='index'),
@@ -9,6 +10,9 @@ urlpatterns = [
     url(r'^edit/(\d+)/$', views.edit, name='edit'),
     url(r'^do_edit/(\d+)$', views.do_edit, name='do_edit'),
     url(r'^show/(\d+)/$', views.show, name='show'),
+    url(r'^refer/(\d+)/$', views.refer, name='refer'),
+    url(r'^acl/(\d+)/$', acl_views.index, name='acl'),
+    url(r'^history/(\d+)/$', views.history, name='history'),
     url(r'^export/(\d+)/$', views.export, name='export'),
     url(r'^import/(\d+)/$', views.import_data, name='import'),
     url(r'^do_import/(\d+)/$', views.do_import_data, name='do_import'),

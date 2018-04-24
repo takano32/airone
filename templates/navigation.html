@@ -4,7 +4,22 @@
     <li class="breadcrumb-item"><a href="/">TOP</a></li>
     <li class="breadcrumb-item"><a href="/entity/">エンティティ一覧</a></li>
 
-    {% if path == 'index_entry' %}
+    {% if object.objtype == navigator.acl_objtype.entry %}
+      <li class="breadcrumb-item"><a href="/entry/{{ object.schema.id }}">{{ object.schema.name }}</a></li>
+
+      {% if entry.is_deleted %}
+        <li class="breadcrumb-item">{{ object.name }} [削除済]</li>
+      {% elif entry.status|bitwise_and:STATUS_ENTRY.EDITING %}
+        <li class="breadcrumb-item">{{ object.name }} [編集中]</li>
+      {% else %}
+        <li class="breadcrumb-item">{{ object.name }}</li>
+      {% endif %}
+
+    {% elif path == 'create_entry' %}
+      <li class="breadcrumb-item"><a href='/entry/{{ entity.id }}'>{{ entity.name }}</a></li>
+      <li class="breadcrumb-item">新規エントリ作成</li>
+
+    {% elif path == 'index_entry' %}
       <li class="breadcrumb-item">{{ entity.name }}</li>
 
     {% elif path == 'import_entity' %}
@@ -24,45 +39,19 @@
       <li class="breadcrumb-item"><a href='/entry/{{ entity.id }}'>{{ entity.name }}</a></li>
       <li class="breadcrumb-item">エンティティの編集</li>
 
-    {% elif path == 'edit_entry' %}
-      {% if 'create' in form_url %}
-        <li class="breadcrumb-item"><a href='/entry/{{ entity.id }}'>{{ entity.name }}</a></li>
-        <li class="breadcrumb-item">新規エントリの作成</li>
-      {% elif 'edit' in form_url %}
-        <li class="breadcrumb-item"><a href='/entry/{{ entry.schema.id }}'>{{ entry.schema.name }}</a></li>
-        <li class="breadcrumb-item"><a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a></li>
-        <li class="breadcrumb-item">エントリの編集</li>
-      {% endif %}
-
     {% elif path == 'acl' %}
       {% if object.objtype == navigator.acl_objtype.entity %}
         <li class="breadcrumb-item"><a href="/entry/{{ object.id }}">{{ object.name }}</a></li>
-      {% elif object.objtype == navigator.acl_objtype.entry %}
-        <li class="breadcrumb-item"><a href="/entry/{{ object.schema.id }}">{{ object.schema.name }}</a></li>
-        <li class="breadcrumb-item"><a href="/entry/show/{{ object.id }}">{{ object.name }}</a></li>
+        <li class="breadcrumb-item">ACL 設定</li>
       {% elif object.objtype == navigator.acl_objtype.attrbase %}
         <li class="breadcrumb-item"><a href="/entity/edit/{{ parent.id }}">{{ parent.name }}の編集</a></li>
+        <li class="breadcrumb-item">{{ object.name }} の ACL 設定</li>
       {% elif object.objtype == navigator.acl_objtype.attr %}
         <li class="breadcrumb-item"><a href="/entry/{{ parent.schema.id }}">{{ parent.schema.name }}</a></li>
         <li class="breadcrumb-item"><a href="/entry/show/{{ parent.id }}">{{ parent.name }}</a></li>
-        <li class="breadcrumb-item"><a href="/entry/edit/{{ parent.id }}">{{ parent.name }} の編集</a></li>
+        <li class="breadcrumb-item">{{ object.name }} の ACL 設定</li>
       {% endif %}
-      <li class="breadcrumb-item">ACL 設定</li>
 
-    {% elif path == 'show_entry' or path == 'copy_entry' %}
-      <li class="breadcrumb-item"><a href='/entry/{{ entry.schema.id }}'>{{ entry.schema.name }}</a></li>
-      {% if entry.is_deleted %}
-        <li class="breadcrumb-item">{{ entry.name }} [削除済]</li>
-      {% elif entry.status|bitwise_and:STATUS_ENTRY.EDITING %}
-        <li class="breadcrumb-item">{{ entry.name }} [編集中]</li>
-      {% else %}
-        {% if path == 'copy_entry' %}
-          <li class="breadcrumb-item"><a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a></li>
-          <li class="breadcrumb-item">コピー</li>
-        {% else %}
-          <li class="breadcrumb-item">{{ entry.name }}</li>
-        {% endif %}
-      {% endif %}
     {% endif %}
   </ul>
 </div>

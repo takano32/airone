@@ -6,6 +6,7 @@ import custom_view
 from django.http import HttpResponse
 from django.http.response import JsonResponse
 from django.db.models import Q
+from django.core.exceptions import ObjectDoesNotExist
 
 from airone.lib.http import http_get, http_post, check_permission, render
 from airone.lib.http import get_download_response
@@ -78,7 +79,7 @@ def create(request, entity_id):
             'referrals': x.referral.count() and get_referrals(x) or [],
         } for x in entity.attrs.filter(is_active=True).order_by('index') if user.has_permission(x, ACLType.Writable)]
     }
-    return render(request, 'edit_entry.html', context)
+    return render(request, 'create_entry.html', context)
 
 @airone_profile
 @http_post([
@@ -218,13 +219,10 @@ def do_edit(request, entry_id, recv_data):
 def show(request, entry_id):
     user = User.objects.get(id=request.user.id)
 
-    if not Entry.objects.filter(id=entry_id).count():
+    try:
+        entry = Entry.objects.extra(where=['status & %d = 0' % Entry.STATUS_CREATING]).get(id=entry_id)
+    except ObjectDoesNotExist:
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
-
-    entry = Entry.objects.get(id=entry_id)
-
-    if entry.get_status(Entry.STATUS_CREATING):
-        return HttpResponse('Target entry is now under processing', status=400)
 
     # create new attributes which are appended after creation of Entity
     entry.complement_attrs(user)
@@ -247,18 +245,9 @@ def show(request, entry_id):
 
             newattr.values.add(attr_value)
 
-    # get all values that are set in the past
-    value_history = sum([x.get_value_history(user) for x in entry.attrs.filter(is_active=True)], [])
-
-    # get referred entries and count of them
-    referred_objects = entry.get_referred_objects()
-
     context = {
         'entry': entry,
         'attributes': entry.get_available_attrs(user),
-        'value_history': sorted(value_history, key=lambda x: x['created_time']),
-        'referred_objects': referred_objects[0:CONFIG.MAX_LIST_REFERRALS],
-        'referred_total': referred_objects.count(),
     }
 
     if custom_view.is_custom_show_entry(entry.schema.name):
@@ -267,6 +256,48 @@ def show(request, entry_id):
     else:
         # show ordinal view
         return render(request, 'show_entry.html', context)
+
+@airone_profile
+@http_get
+@check_permission(Entry, ACLType.Readable)
+def history(request, entry_id):
+    user = User.objects.get(id=request.user.id)
+
+    try:
+        entry = Entry.objects.extra(where=['status & %d = 0' % Entry.STATUS_CREATING]).get(id=entry_id)
+    except ObjectDoesNotExist:
+        return HttpResponse('Failed to get an Entry object of specified id', status=400)
+
+    # get all values that are set in the past
+    value_history = sum([x.get_value_history(user) for x in entry.attrs.filter(is_active=True)], [])
+
+    context = {
+        'entry': entry,
+        'value_history': sorted(value_history, key=lambda x: x['created_time']),
+    }
+
+    return render(request, 'show_entry_history.html', context)
+
+@airone_profile
+@http_get
+@check_permission(Entry, ACLType.Readable)
+def refer(request, entry_id):
+    user = User.objects.get(id=request.user.id)
+
+    try:
+        entry = Entry.objects.extra(where=['status & %d = 0' % Entry.STATUS_CREATING]).get(id=entry_id)
+    except ObjectDoesNotExist:
+        return HttpResponse('Failed to get an Entry object of specified id', status=400)
+
+    # get referred entries and count of them
+    referred_objects = entry.get_referred_objects()
+
+    context = {
+        'entry': entry,
+        'referred_objects': referred_objects[0:CONFIG.MAX_LIST_REFERRALS],
+        'referred_total': referred_objects.count(),
+    }
+    return render(request, 'show_entry_refer.html', context)
 
 @http_get
 def export(request, entity_id):

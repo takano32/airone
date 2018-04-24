@@ -1,0 +1,39 @@
+{% load bitwise_tags %}
+<form url='{{ form_url }}' method='post'>
+  <div class='row'>
+    <div class="col">
+      <div class="float-right">
+        <input type="submit" class="btn btn-primary" value='保存'/>
+      </div>
+      <table class="table table-bordered">
+        <tr>
+          <td>エントリ名</td>
+          <td>
+            <input type="text" name="entry_name" value="{{ entry.name }}"/>
+          {% if entry.is_deleted %}
+            [削除済]
+          {% elif entry.status|bitwise_and:STATUS_ENTRY.EDITING %}
+            [編集中]
+          {% endif %}
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <table class="table table-bordered">
+    <thead>
+      <th>属性</th>
+      <th>属性値</th>
+      {% if is_edit %}
+        <th></th>
+      {% endif %}
+    </thead>
+    <tbody>
+      {% include 'edit_entry/attrs.html' with is_edit=is_edit%}
+    </tbody>
+  </table>
+
+  <strong>(*)</strong> は必須項目
+  {% csrf_token %}
+</form>

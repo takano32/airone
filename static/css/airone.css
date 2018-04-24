@@ -79,3 +79,11 @@ body {
 .airone-entry-table-show .textarea {
   font-size: 13px;
 }
+
+.nav-item :not(.active) {
+  cursor: pointer;
+}
+
+.tab-content {
+  padding: 10px 0px 0px;
+}

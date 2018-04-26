@@ -116,6 +116,10 @@
 
       <textarea class="attr_value" attr_id="{{ attr.id }}" enabled="True" cols="80" rows="10" {%if attr.is_mandatory%}mandatory="true"{%endif%}>{{ attr.last_value }}</textarea>
 
+    {% elif attr.type == attr_type.date %}
+
+      <input type="date" class="attr_value" attr_id="{{ attr.id }}" enabled="True" value="{{ attr.last_value|date:"Y-m-d"}}" {%if attr.is_mandatory%}mandatory="true"{%endif%}/>
+
     {% elif attr.type == attr_type.boolean %}
 
       {% if attr.last_value %}

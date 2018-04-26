@@ -13,7 +13,7 @@ from group.models import Group
 from user.models import User
 
 from unittest import skip
-
+from datetime import date
 
 class APITest(AironeViewTest):
     def test_post_entry(self):
@@ -31,6 +31,7 @@ class APITest(AironeViewTest):
             {'name': 'ref', 'type': AttrTypeValue['object'], 'ref': ref_entity},
             {'name': 'name', 'type': AttrTypeValue['named_object'], 'ref': ref_entity},
             {'name': 'bool', 'type': AttrTypeValue['boolean']},
+            {'name': 'date', 'type': AttrTypeValue['date']},
             {'name': 'group', 'type': AttrTypeValue['group']},
             {'name': 'text', 'type': AttrTypeValue['text']},
             {'name': 'vals', 'type': AttrTypeValue['array_string']},
@@ -57,6 +58,7 @@ class APITest(AironeViewTest):
                 'ref': 'r-5',
                 'name': {'name': 'hoge', 'id': 'r-1'},
                 'bool': False,
+                'date': '2018-12-31',
                 'group': Group.objects.create(name='new_group').name,
                 'text': 'fuga',
                 'vals': ['foo', 'bar'],
@@ -70,7 +72,7 @@ class APITest(AironeViewTest):
         ret_data = resp.json()
         new_entry = Entry.objects.get(id=ret_data['result'])
         self.assertEqual(new_entry.name, 'entry1')
-        self.assertEqual(new_entry.attrs.count(), 9)
+        self.assertEqual(new_entry.attrs.count(), 10)
 
         # checking for attr_val
         checklist = [
@@ -79,6 +81,7 @@ class APITest(AironeViewTest):
             {'name': 'name', 'check': lambda v: self.assertEqual(v.value, 'hoge')},
             {'name': 'name', 'check': lambda v: self.assertEqual(v.referral.id, ref_e[1].id)},
             {'name': 'bool', 'check': lambda v: self.assertEqual(v.boolean, False)},
+            {'name': 'date', 'check': lambda v: self.assertEqual(v.date, date(2018,12,31))},
             {'name': 'group', 'check': lambda v: self.assertEqual(v.value,
                 str(Group.objects.get(name='new_group').id))},
             {'name': 'text', 'check': lambda v: self.assertEqual(v.value, 'fuga')},
@@ -370,6 +373,8 @@ class APITest(AironeViewTest):
              'setter': lambda attr, i: attr.add_value(admin, {'name': 'name-%d' % i, 'id': ref_e[i]})},
             {'name': 'bool', 'type': AttrTypeValue['boolean'],
              'setter': lambda attr, i: attr.add_value(admin, True if i % 2 == 0 else False)},
+            {'name': 'date', 'type': AttrTypeValue['date'],
+             'setter': lambda attr, i: attr.add_value(admin, date(2018,12,'%d' % i))},
             {'name': 'group', 'type': AttrTypeValue['group'],
              'setter': lambda attr, i: attr.add_value(admin, str(Group.objects.create(name='group-%d' % i).id))},
             {'name': 'text', 'type': AttrTypeValue['text'],
@@ -432,6 +437,9 @@ class APITest(AironeViewTest):
 
             if attrinfo['name'] == 'bool':
                 self.assertEqual(attrinfo['value'], True)
+
+            if attrinfo['name'] == 'date':
+                self.assertEqual(attrinfo['value'], date(2018,12,2))
 
             if attrinfo['name'] == 'group':
                 group = Group.objects.get(name='group-2')

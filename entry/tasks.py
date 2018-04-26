@@ -5,6 +5,7 @@ from airone.lib.types import AttrTypeValue
 from airone.celery import app
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
+from datetime import datetime
 
 Logger = logging.getLogger(__name__)
 
@@ -62,6 +63,8 @@ def _convert_data_value(attr, info):
                 'name': recv_ref_key,
                 'id': recv_value,
             }
+        elif attr.schema.type & AttrTypeValue['date']:
+            return datetime.strptime(recv_value,'%Y-%m-%d')
         else:
             return recv_value
 

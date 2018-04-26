@@ -1,4 +1,5 @@
 from group.models import Group
+from datetime import date
 from django.test import TestCase
 from django.core.cache import cache
 from entity.models import Entity, EntityAttr
@@ -381,6 +382,22 @@ class ModelTest(TestCase):
         self.assertFalse(attr.is_updated(False))
         self.assertTrue(attr.is_updated(True))
 
+    def test_for_date_attr_and_value(self):
+        attr = self.make_attr('attr_date', AttrTypeValue['date'])
+        attr.save()
+
+        attr.values.add(AttributeValue.objects.create(**{
+            'created_user': self._user,
+            'parent_attr': attr,
+        }))
+
+        # Checks default value
+        self.assertIsNotNone(attr.get_latest_value())
+
+        # Checks attitude of is_update
+        self.assertFalse(attr.is_updated(date.today()))
+        self.assertTrue(attr.is_updated(date(9999, 12, 31)))
+
     def test_get_referred_objects(self):
         entity = Entity.objects.create(name='Entity2', created_user=self._user)
         entry = Entry.objects.create(name='refered', created_user=self._user, schema=entity)
@@ -685,7 +702,8 @@ class ModelTest(TestCase):
             'arr_name': {'type': AttrTypeValue['array_named_object'],
                          'value': [{'name': 'hoge', 'id': str(last_ref.id)}]},
             'group': {'type': AttrTypeValue['group'], 'value':
-                      str(Group.objects.create(name='group').id)}
+                      str(Group.objects.create(name='group').id)},
+            'date': {'type': AttrTypeValue['date'], 'value': date(2018, 12, 31)}
         }
 
         entity = Entity.objects.create(name='entity', created_user=user)
@@ -911,7 +929,8 @@ class ModelTest(TestCase):
                         'value': [str(x.id) for x in Entry.objects.filter(schema=ref_entity)]},
             'arr_name': {'type': AttrTypeValue['array_named_object'],
                          'value': [{'name': 'hoge', 'id': str(last_ref.id)}]},
-            'group': {'type': AttrTypeValue['group'], 'value': str(Group.objects.create(name='group').id)}
+            'group': {'type': AttrTypeValue['group'], 'value': str(Group.objects.create(name='group').id)},
+            'date': {'type': AttrTypeValue['date'], 'value': date(2018, 12, 31)}
         }
 
         entity = Entity.objects.create(name='entity', created_user=user)
@@ -1008,7 +1027,8 @@ class ModelTest(TestCase):
             'arr1': {'type': AttrTypeValue['array_string']},
             'arr2': {'type': AttrTypeValue['array_object']},
             'arr3': {'type': AttrTypeValue['array_named_object']},
-            'group': {'type': AttrTypeValue['group']}
+            'group': {'type': AttrTypeValue['group']},
+            'date': {'type': AttrTypeValue['date']}
         }
 
         entity = Entity.objects.create(name='entity', created_user=user)
@@ -1044,6 +1064,7 @@ class ModelTest(TestCase):
              'checker': lambda x: (len(x) == 2 and x[0]['name'] == 'foo' and x[0]['id'].id == ref_entry.id and
                                   x[1]['name'] == 'bar' and x[1]['id'] == None)},
             {'attr': 'group', 'input': 'Group', 'checker': lambda x: x == group.id},
+            {'attr': 'date', 'input': date(2018, 12, 31), 'checker': lambda x: x == date(2018, 12, 31)}
         ]
         for info in checklist:
             attr = entry.attrs.get(name=info['attr'])
@@ -1119,6 +1140,7 @@ class ModelTest(TestCase):
             'name': {'type': AttrTypeValue['named_object'], 'value': {'name': 'bar', 'id': str(ref_entry.id)}},
             'bool': {'type': AttrTypeValue['boolean'], 'value': False},
             'group': {'type': AttrTypeValue['group'], 'value': str(ref_group.id)},
+            'date': {'type': AttrTypeValue['date'], 'value': date(2018, 12, 31)},
             'arr_str': {'type': AttrTypeValue['array_string'], 'value': ['foo', 'bar', 'baz']},
             'arr_obj': {'type': AttrTypeValue['array_object'],
                         'value': [str(x.id) for x in Entry.objects.filter(schema=ref_entity)]},
@@ -1149,7 +1171,7 @@ class ModelTest(TestCase):
                 else:
                     attr.add_value(user, info['value'])
 
-        # search entries 
+        # search entries
         ret = Entry.search_entries(user, [entity.id], [{'name': 'str'}])
         self.assertEqual(ret['ret_count'], 10)
         self.assertEqual(len(ret['ret_values']), 10)
@@ -1165,12 +1187,13 @@ class ModelTest(TestCase):
             {'name': 'name'},
             {'name': 'bool'},
             {'name': 'group'},
+            {'name': 'date'},
             {'name': 'arr_str'},
             {'name': 'arr_obj'},
             {'name': 'arr_name'},
         ])
         self.assertEqual(ret['ret_count'], 10)
-        self.assertEqual(len(ret['ret_values'][0]['attrs']), 7)
+        self.assertEqual(len(ret['ret_values'][0]['attrs']), 8)
         self.assertEqual(ret['ret_values'][0]['attrs']['obj']['value'],
                          {'id': ref_entry.id, 'name': ref_entry.name})
         self.assertEqual(ret['ret_values'][0]['attrs']['name']['value'],
@@ -1178,6 +1201,7 @@ class ModelTest(TestCase):
         self.assertEqual(ret['ret_values'][0]['attrs']['bool']['value'], False)
         self.assertEqual(ret['ret_values'][0]['attrs']['group']['value'],
                          {'id': ref_group.id, 'name': ref_group.name})
+        self.assertEqual(ret['ret_values'][0]['attrs']['date']['value'], date(2018, 12, 31))
         self.assertEqual(set(ret['ret_values'][0]['attrs']['arr_str']['value']),
                          set(['foo', 'bar', 'baz']))
         self.assertEqual(ret['ret_values'][0]['attrs']['arr_obj']['value'],
@@ -1198,6 +1222,7 @@ class ModelTest(TestCase):
             {'name': 'obj', 'keyword': 'referred'},
             {'name': 'name', 'keyword': 'referred'},
             {'name': 'bool', 'keyword': 'F'},
+            {'name': 'date', 'keyword': '2018'},
             {'name': 'group', 'keyword': 'gr'},
             {'name': 'arr_str', 'keyword': 'ba'},
             {'name': 'arr_obj', 'keyword': 'referred'},
@@ -1210,6 +1235,7 @@ class ModelTest(TestCase):
             {'name': 'obj', 'keyword': 'referred'},
             {'name': 'name', 'keyword': 'referred'},
             {'name': 'bool', 'keyword': 'F'},
+            {'name': 'date', 'keyword': '2018'},
             {'name': 'group', 'keyword': 'gr'},
             {'name': 'arr_str', 'keyword': 'ba'},
             {'name': 'arr_obj', 'keyword': 'referred'},

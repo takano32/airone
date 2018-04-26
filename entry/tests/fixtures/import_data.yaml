@@ -5,6 +5,7 @@ Entity:
       obj: ref
       grp: group
       bool: False
+      date: 2018-12-31 
       name:
         foo: ref
       arr1:

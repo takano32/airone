@@ -374,7 +374,7 @@ class APITest(AironeViewTest):
             {'name': 'bool', 'type': AttrTypeValue['boolean'],
              'setter': lambda attr, i: attr.add_value(admin, True if i % 2 == 0 else False)},
             {'name': 'date', 'type': AttrTypeValue['date'],
-             'setter': lambda attr, i: attr.add_value(admin, date(2018,12,'%d' % i))},
+             'setter': lambda attr, i: attr.add_value(admin, date(2018,12,int(i)))},
             {'name': 'group', 'type': AttrTypeValue['group'],
              'setter': lambda attr, i: attr.add_value(admin, str(Group.objects.create(name='group-%d' % i).id))},
             {'name': 'text', 'type': AttrTypeValue['text'],

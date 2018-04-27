@@ -47,7 +47,7 @@
           </td>
       {% elif history.attr_type == attr_type.date %}
         <td>
-          <span class='col-3'>{{ history.attr_value|date:"Y-m-d" }}</span>
+          <span>{{ history.attr_value|date:"Y-m-d" }}</span>
           </td>
 
         {% elif history.attr_type == attr_type.named_entry %}

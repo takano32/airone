@@ -10,7 +10,7 @@
         {% elif attr.type == attr_type.textarea %}
           <span class='url_conv textarea'>{{ attr.last_value }}</span>
         {% elif attr.type == attr_type.date %}
-          <span class='url_conv'>{{ attr.last_value|date:"Y-m-d" }}</span>
+          <span>{{ attr.last_value|date:"Y-m-d" }}</span>
         {% elif attr.type == attr_type.entry and attr.last_referral %}
           <a href='/entry/show/{{ attr.last_referral.id }}'>{{ attr.last_referral.name }}</a>{% if attr.last_referral.deleted %}(deleted){% endif %}
         {% elif attr.type == attr_type.array_string %}

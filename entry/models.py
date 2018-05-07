@@ -406,7 +406,7 @@ class Attribute(ACLBase):
             return isinstance(value, bool)
 
         if(self.schema.type & AttrTypeValue['date']):
-            return isinstance(value, date)
+            return isinstance(value, date) or value is None
 
         if(self.schema.type & AttrTypeValue['group']):
             if isinstance(value, Group):

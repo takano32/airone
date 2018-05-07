@@ -64,7 +64,8 @@ def _convert_data_value(attr, info):
                 'id': recv_value,
             }
         elif attr.schema.type & AttrTypeValue['date']:
-            return datetime.strptime(recv_value,'%Y-%m-%d')
+            if recv_value:
+                return datetime.strptime(recv_value,'%Y-%m-%d')
         else:
             return recv_value
 

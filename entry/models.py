@@ -877,7 +877,8 @@ class Entry(ACLBase):
                         if list(x.values())[0]])
 
                 elif value['type'] == AttrTypeValue['date']:
-                    return value['value'].strftime('%Y-%m-%d').find(hint['keyword']) >= 0
+                    if value['value']:
+                        return value['value'].strftime('%Y-%m-%d').find(hint['keyword']) >= 0
 
             return all([_check_by_keyword(x) for x in hint_attrs])
 

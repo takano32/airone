@@ -7,3 +7,4 @@ celery==4.1.0
 python-memcached==1.59
 djangorestframework==3.7.7
 django-filter==1.1.0
+elasticsearch==6.2.0

@@ -1,13 +1,27 @@
 import inspect
 import os
 
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.conf import settings
 from user.models import User
+from .elasticsearch import ESS
 
 
-class AironeViewTest(TestCase):
+@override_settings(ES_CONFIG={
+    'NODES': ['localhost:9200'],
+    'INDEX': 'test-airone',
+    'MAXIMUM_RESULTS_NUM': 10000,
+})
+class AironeTestCase(TestCase):
     def setUp(self):
+        # Before starting test, clear all documents in the Elasticsearch of test index
+        self._es = ESS()
+        self._es.recreate_index()
+
+class AironeViewTest(AironeTestCase):
+    def setUp(self):
+        super(AironeViewTest, self).setUp()
+
         self.client = Client()
 
         if hasattr(settings, 'AIRONE') and 'ENABLE_PROFILE' in settings.AIRONE:

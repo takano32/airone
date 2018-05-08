@@ -1,9 +1,13 @@
+import json
+import re
+
 from copy import deepcopy
 from datetime import datetime
 
 from django.db import models
 from django.db.models import Q
 from django.core.cache import cache
+from django.conf import settings
 
 from entity.models import EntityAttr, Entity
 from user.models import User
@@ -14,6 +18,7 @@ from airone.lib.acl import ACLObjType, ACLType
 from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
 from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
 from airone.lib.types import AttrTypeValue
+from airone.lib.elasticsearch import ESS
 
 from .settings import CONFIG
 
@@ -780,6 +785,11 @@ class Entry(ACLBase):
             # delete Attribute object
             attr.delete()
 
+        if settings.ES_CONFIG:
+            es = ESS()
+            res = es.delete(doc_type='entry', id=self.id, ignore=[404])
+            es.refresh(ignore=[404])
+
     def clone(self, user, **extra_params):
         if (not user.has_permission(self, ACLType.Readable) or
             not user.has_permission(self.schema, ACLType.Readable)):
@@ -814,95 +824,222 @@ class Entry(ACLBase):
 
         return {'name': self.name, 'attrs': attrinfo}
 
+    def register_es(self, es=None, skip_refresh=False):
+        """This processing registers entry information to Elasticsearch"""
+
+        if not es:
+            es = ESS()
+
+        document = {
+            'entity': {'id': self.schema.id, 'name': self.schema.name},
+            'name': self.name,
+            'attr': [],
+        }
+
+        for attr in self.attrs.filter(is_active=True):
+            attrinfo = {
+                'name': attr.schema.name,
+                'type': attr.schema.type,
+                'value': None,
+                'values': [],
+            }
+
+            latest_value = attr.get_latest_value()
+            if latest_value:
+
+                _value = latest_value.get_value(with_metainfo=True)
+                try:
+                    if _value['type'] & AttrTypeValue['array']:
+
+                        if _value['type'] & AttrTypeValue['string']:
+                            attrinfo['values'] = [{'value': v} for v in _value['value']]
+
+                        elif _value['type'] & AttrTypeValue['named']:
+                            _arrinfo = []
+                            for v in _value['value']:
+                                [k] = v.keys()
+
+                                _vinfo = {'key': k}
+                                if k in v and v[k]:
+                                    _vinfo['value'] = v[k]['name']
+                                    _vinfo['referral_id'] = v[k]['id']
+
+                                _arrinfo.append(_vinfo)
+
+                            attrinfo['values'] = _arrinfo
+
+                        elif _value['type'] & AttrTypeValue['object']:
+                            attrinfo['values'] = [{'value': v['name'], 'referral_id': v['id']} for v in _value['value']]
+
+                    else:
+                        if (_value['type'] & AttrTypeValue['string'] or
+                            _value['type'] & AttrTypeValue['text'] or
+                            _value['type'] & AttrTypeValue['boolean']):
+                            attrinfo['value'] = str(_value['value'])
+
+                        elif _value['type'] & AttrTypeValue['named']:
+                            [k] = _value['value'].keys()
+                            if k in _value['value'] and _value['value'][k]:
+                                attrinfo['key'] = k
+                                attrinfo['value'] = _value['value'][k]['name']
+                                attrinfo['referral_id'] = _value['value'][k]['id']
+
+                        elif (_value['type'] & AttrTypeValue['object'] or
+                              _value['type'] & AttrTypeValue['group']):
+                            attrinfo['value'] = _value['value']['name']
+                            attrinfo['referral_id'] = _value['value']['id']
+
+                except TypeError:
+                    # The attribute that has no value returns None at get_value method
+                    pass
+
+
+            document['attr'].append(attrinfo)
+
+        resp = es.index(doc_type='entry', id=self.id, body=document)
+        if not skip_refresh:
+            es.refresh()
+
     @classmethod
-    def search_entries(kls, user, hint_entity_ids, hint_attrs, limit=CONFIG.MAX_LIST_ENTRIES):
-
-        def check_by_keyword(attrinfo):
-
-            def _check_by_keyword(hint):
-                # When a keyword is not specified, pass checking
-                if 'keyword' not in hint or not hint['keyword']:
-                    return True
-
-                value = attrinfo[hint['name']]
-
-                # When a keyword is pecified and value is not set, then filter target entry
-                if not value:
-                    return False
-
-                if (value['type'] == AttrTypeValue['string'] or
-                    value['type'] == AttrTypeValue['text'] or
-                    value['type'] == AttrTypeValue['boolean']):
-                    return str(value['value']).find(hint['keyword']) >= 0
-                    
-                elif (value['type'] == AttrTypeValue['object'] or
-                      value['type'] == AttrTypeValue['group']):
-                    if value['value']:
-                        return value['value']['name'].find(hint['keyword']) >= 0
-
-                elif value['type'] == AttrTypeValue['named_object']:
-                    if list(value['value'].values())[0]:
-                        return list(value['value'].values())[0]['name'].find(hint['keyword']) >= 0
-
-                elif value['type'] == AttrTypeValue['array_string']:
-                    return any([x.find(hint['keyword']) >= 0 for x in value['value']])
-
-                elif value['type'] == AttrTypeValue['array_object']:
-                    return any([x['name'].find(hint['keyword']) >= 0 for x in value['value'] if x])
-
-                elif value['type'] == AttrTypeValue['array_named_object']:
-                    return any([list(x.values())[0]['name'].find(hint['keyword']) >= 0 for x in value['value']
-                        if list(x.values())[0]])
-
-            return all([_check_by_keyword(x) for x in hint_attrs])
-
+    def search_entries(kls, user, hint_entity_ids, hint_attrs=[], limit=CONFIG.MAX_LIST_ENTRIES):
         results = {
             'ret_count': 0,
             'ret_values': []
         }
-        for entity in [e for e in [Entity.objects.get(id=x, is_active=True) for x in hint_entity_ids]
-                if user.has_permission(e, ACLType.Readable)]:
 
-            if (results['ret_count'] >= limit or
-                not any(entity.attrs.filter(name=x['name'], is_active=True) for x in hint_attrs)):
-                continue
+        # Making a query to send ElasticSearch by the specified parameters
+        query = {
+            "query": {
+                "bool": {
+                    'filter': [],
+                    'should': []
+                }
+            }
+        }
+        for entity_id in hint_entity_ids:
+            query['query']['bool']['should'].append({
+                'term': {'entity.id': int(entity_id)}
+            })
 
-            entries =  [e for e in Entry.objects.filter(schema=entity, is_active=True)
-                    if user.has_permission(e, ACLType.Readable)]
+        for hint in hint_attrs:
+            if 'name' in hint:
+                query['query']['bool']['filter'].append({
+                    'match': {'attr.name': hint['name']}
+                })
 
-            for entry in entries:
-                if results['ret_count'] >= limit:
-                    break
+            if 'keyword' in hint and hint['keyword']:
+                query['query']['bool']['filter'].append({
+                    'bool' : {
+                        'should': [
+                            {'regexp': {'attr.values.value': '.*%s.*' % hint['keyword']}},
+                            {'match': {'attr.values.value': hint['keyword']}},
+                            {'regexp': {'attr.value': '.*%s.*' % hint['keyword']}},
+                            {'match': {'attr.value': hint['keyword']}},
+                        ]
+                    }
+                })
 
-                attrinfo = {}
-                for hint in hint_attrs:
-                    # set default value
-                    attrinfo[hint['name']] = ''
+        res = ESS().search(body=query, ignore=[404])
 
-                    if not entity.attrs.filter(name=hint['name'], is_active=True):
+        if 'status' in res and res['status'] == 404:
+            return results
+
+        # set numbers of found entries
+        results['ret_count'] = res['hits']['total']
+
+        for hit in res['hits']['hits']:
+            if len(results['ret_values']) >= limit:
+                break
+
+            # If 'keyword' parameter is specified and hited entry doesn't have value at the targt
+            # attribute, that entry should be removed from result. This processing may be worth to
+            # do before refering entry from DB for saving time of server-side processing.
+            for hint in hint_attrs:
+                if ('keyword' in hint and hint['keyword'] and
+                    # This checks hitted entry has specified attribute
+                    not [x for x in hit['_source']['attr'] if x['name'] == hint['name']]):
                         continue
 
-                    entity_attr = entity.attrs.get(name=hint['name'], is_active=True)
-                    if not entry.attrs.filter(schema=entity_attr, is_active=True):
-                        continue 
+            will_append_entry = True
+            entry = Entry.objects.get(id=hit['_id'])
 
-                    entry_attr = entry.attrs.get(schema=entity_attr)
-                    attrv = entry_attr.get_latest_value()
+            ret_info = {
+                'entity': {'id': entry.schema.id, 'name': entry.schema.name},
+                'entry': {'id': entry.id, 'name': entry.name},
+                'attrs': {},
+            }
 
-                    value = ''
-                    if attrv and (user.has_permission(entry_attr, ACLType.Readable) or
-                        user.has_permission(entity_attr, ACLType.Readable)):
+            # Gathering attribute informations
+            for hint in hint_attrs:
+                ret_info['attrs'][hint['name']] = ret_attrinfo = {}
 
-                        value = attrv.get_value(with_metainfo=True)
+                try:
+                    attrinfo = [x for x in hit['_source']['attr'] if x['name'] == hint['name']][0]
+                except IndexError:
+                    if 'keyword' in hint and hint['keyword']:
+                        will_append_entry = False
+                        break
+                    else:
+                        continue
 
-                    attrinfo[hint['name']] = value
+                if attrinfo:
+                    ret_attrinfo['type'] = attrinfo['type']
 
-                if check_by_keyword(attrinfo):
-                    results['ret_values'].append({
-                        'entity': {'id': entity.id, 'name': entity.name},
-                        'entry': {'id': entry.id, 'name': entry.name},
-                        'attrs': attrinfo,
-                    })
-                    results['ret_count'] += 1
+                    # Checks that target values contain 'keyward' pattern if it's specified
+                    try:
+                        if (('keyword' in hint and hint['keyword']) and
+                            # the case target array attribute has no value that matches keyward parameter
+                            ((attrinfo['type'] & AttrTypeValue['array'] and
+                              not any([re.match(hint['keyword'], x['value']) for x in attrinfo['values']])) or
+                            # the case target attribute doesn't have have that matches keyword parameter
+                             (not (attrinfo['type'] & AttrTypeValue['array']) and
+                              not re.match(hint['keyword'], attrinfo['value'])))):
+
+                            will_append_entry = False
+                            break
+
+                    except (KeyError, TypeError):
+                        will_append_entry = False
+                        break
+
+                    # Set AttributeValue parameter to be returned
+                    try:
+                        if (attrinfo['type'] == AttrTypeValue['string'] or
+                            attrinfo['type'] == AttrTypeValue['text'] or
+                            attrinfo['type'] == AttrTypeValue['boolean']):
+                            ret_attrinfo['value'] = attrinfo['value']
+
+                        elif (attrinfo['type'] == AttrTypeValue['object'] or
+                              attrinfo['type'] == AttrTypeValue['group']):
+                            ret_attrinfo['value'] = {'id': attrinfo['referral_id'], 'name': attrinfo['value']}
+
+                        elif attrinfo['type'] == AttrTypeValue['named_object']:
+                            ret_attrinfo['value'] = {
+                                    attrinfo['key']: {'id': attrinfo['referral_id'], 'name': attrinfo['value']}
+                            }
+
+                        elif attrinfo['type'] == AttrTypeValue['array_string']:
+                            ret_attrinfo['value'] = [x['value'] for x in attrinfo['values']]
+
+                        elif attrinfo['type'] == AttrTypeValue['array_object']:
+                            ret_attrinfo['value'] = [{'id': x['referral_id'], 'name': x['value']} for x in attrinfo['values']]
+
+                        elif attrinfo['type'] == AttrTypeValue['array_named_object']:
+                            ret_attrinfo['value'] = [
+                                    {x['key']: {'id': x['referral_id'], 'name': x['value']}} for x in attrinfo['values']
+                            ]
+
+                    except KeyError as e:
+                        # When an entry doesn't have any value, elasticsearch doesn't have any value of
+                        # 'value', 'values', 'key' and 'referral_id'. And if 'keyward' parameter is
+                        # specified, ignore the candidate that doesn't have any values.
+                        if 'keyword' in hint and hint['keyword']:
+                            will_append_entry = False
+                            break
+
+            if will_append_entry:
+                results['ret_values'].append(ret_info)
+            else:
+                results['ret_count'] -= 1
 
         return results

@@ -1,16 +1,19 @@
 from group.models import Group
-from django.test import TestCase
 from django.core.cache import cache
+from django.conf import settings
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
 from airone.lib.acl import ACLObjType, ACLType
 from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeArrStr, AttrTypeArrObj
 from airone.lib.types import AttrTypeValue
+from airone.lib.test import AironeTestCase
 
 
-class ModelTest(TestCase):
+class ModelTest(AironeTestCase):
     def setUp(self):
+        super(ModelTest, self).setUp()
+
         self._user = User(username='test')
         self._user.save()
 
@@ -1149,18 +1152,11 @@ class ModelTest(TestCase):
                 else:
                     attr.add_value(user, info['value'])
 
-        # search entries 
-        ret = Entry.search_entries(user, [entity.id], [{'name': 'str'}])
-        self.assertEqual(ret['ret_count'], 10)
-        self.assertEqual(len(ret['ret_values']), 10)
-        for index in range(0, 10):
-            self.assertEqual(ret['ret_values'][index]['entity'], {'id': entity.id, 'name': entity.name})
-            self.assertEqual(ret['ret_values'][index]['entry']['name'], 'e-%d' % index)
-            self.assertEqual(len(ret['ret_values'][index]['attrs']), 1)
-            self.assertEqual(ret['ret_values'][index]['attrs']['str']['type'], AttrTypeValue['string'])
-            self.assertEqual(ret['ret_values'][index]['attrs']['str']['value'], 'foo-%d' % index)
+            entry.register_es()
 
+        # search entries
         ret = Entry.search_entries(user, [entity.id], [
+            {'name': 'str'},
             {'name': 'obj'},
             {'name': 'name'},
             {'name': 'bool'},
@@ -1170,50 +1166,262 @@ class ModelTest(TestCase):
             {'name': 'arr_name'},
         ])
         self.assertEqual(ret['ret_count'], 10)
-        self.assertEqual(len(ret['ret_values'][0]['attrs']), 7)
-        self.assertEqual(ret['ret_values'][0]['attrs']['obj']['value'],
-                         {'id': ref_entry.id, 'name': ref_entry.name})
-        self.assertEqual(ret['ret_values'][0]['attrs']['name']['value'],
-                         {'bar': {'id': ref_entry.id, 'name': ref_entry.name}})
-        self.assertEqual(ret['ret_values'][0]['attrs']['bool']['value'], False)
-        self.assertEqual(ret['ret_values'][0]['attrs']['group']['value'],
-                         {'id': ref_group.id, 'name': ref_group.name})
-        self.assertEqual(set(ret['ret_values'][0]['attrs']['arr_str']['value']),
-                         set(['foo', 'bar', 'baz']))
-        self.assertEqual(ret['ret_values'][0]['attrs']['arr_obj']['value'],
-                         [{'id': ref_entry.id, 'name': ref_entry.name}])
-        self.assertEqual(ret['ret_values'][0]['attrs']['arr_name']['value'],
-                         [{'hoge': {'id': ref_entry.id, 'name': ref_entry.name}}])
+        self.assertEqual(len(ret['ret_values']), 10)
+
+        # check returned contents is corrected
+        for v in ret['ret_values']:
+            self.assertEqual(v['entity']['id'], entity.id)
+            self.assertEqual(len(v['attrs']), 8)
+
+            entry = Entry.objects.get(id=v['entry']['id'])
+
+            for (attrname, attrinfo) in v['attrs'].items():
+                attr = entry.attrs.get(schema__name=attrname)
+                attrv = attr.get_latest_value()
+
+                self.assertEqual(attrinfo['type'], attrv.data_type)
+                if attrname == 'str':
+                    self.assertEqual(attrinfo['value'], attrv.value)
+
+                elif attrname == 'obj':
+                    self.assertEqual(attrinfo['value']['id'], attrv.referral.id)
+                    self.assertEqual(attrinfo['value']['name'], attrv.referral.name)
+
+                elif attrname == 'name':
+                    key = attrv.value
+                    self.assertEqual(attrinfo['value'][key]['id'], attrv.referral.id)
+                    self.assertEqual(attrinfo['value'][key]['name'], attrv.referral.name)
+
+                if attrname == 'bool':
+                    self.assertEqual(attrinfo['value'], str(attrv.boolean))
+
+                elif attrname == 'group':
+                    group = Group.objects.get(id=int(attrv.value))
+                    self.assertEqual(attrinfo['value']['id'], group.id)
+                    self.assertEqual(attrinfo['value']['name'], group.name)
+
+                elif attrname == 'arr_str':
+                    self.assertEqual(attrinfo['value'], [x.value for x in attrv.data_array.all()])
+
+                elif attrname == 'arr_obj':
+                    self.assertEqual([x['id'] for x in  attrinfo['value']],
+                                     [x.referral.id for x in attrv.data_array.all()])
+                    self.assertEqual([x['name'] for x in  attrinfo['value']],
+                                     [x.referral.name for x in attrv.data_array.all()])
+
+                elif attrname == 'arr_name':
+                    for co_attrv in attrv.data_array.all():
+                        _co_v = [x[co_attrv.value] for x in attrinfo['value'] if co_attrv.value in x]
+                        self.assertTrue(_co_v)
+                        self.assertEqual(_co_v[0]['id'], co_attrv.referral.id)
+                        self.assertEqual(_co_v[0]['name'], co_attrv.referral.name)
 
         # search entries with maximum entries to get
         ret = Entry.search_entries(user, [entity.id], [{'name': 'str'}], 5)
-        self.assertEqual(ret['ret_count'], 5)
+        self.assertEqual(ret['ret_count'], 10)
+        self.assertEqual(len(ret['ret_values']), 5)
 
         # search entries with keyword
-        ret = Entry.search_entries(user, [entity.id], [{'name': 'str', 'keyword': '5'}])
+        ret = Entry.search_entries(user, [entity.id], [{'name': 'str', 'keyword': 'foo-5'}])
         self.assertEqual(ret['ret_count'], 1)
         self.assertEqual(ret['ret_values'][0]['entry']['name'], 'e-5')
 
-        ret = Entry.search_entries(user, [entity.id], [
-            {'name': 'obj', 'keyword': 'referred'},
-            {'name': 'name', 'keyword': 'referred'},
-            {'name': 'bool', 'keyword': 'F'},
-            {'name': 'group', 'keyword': 'gr'},
-            {'name': 'arr_str', 'keyword': 'ba'},
-            {'name': 'arr_obj', 'keyword': 'referred'},
-            {'name': 'arr_name', 'keyword': 'referred'},
-        ])
-        self.assertEqual(ret['ret_count'], 10)
-        self.assertEqual(len(ret['ret_values']), 10)
+    def test_register_entry_to_elasticsearch(self):
+        ENTRY_COUNTS = 10
+        user = User.objects.create(username='hoge')
 
-        ret = Entry.search_entries(user, [entity.id], [
-            {'name': 'obj', 'keyword': 'referred'},
-            {'name': 'name', 'keyword': 'referred'},
-            {'name': 'bool', 'keyword': 'F'},
-            {'name': 'group', 'keyword': 'gr'},
-            {'name': 'arr_str', 'keyword': 'ba'},
-            {'name': 'arr_obj', 'keyword': 'referred'},
-            {'name': 'arr_name', 'keyword': 'referred-X'}, # This includes unmatch keyword
-        ])
-        self.assertEqual(ret['ret_count'], 0)
-        self.assertEqual(ret['ret_values'], [])
+        # create referred Entity and Entries
+        ref_entity = Entity.objects.create(name='Referred Entity', created_user=user)
+
+        ref_entry1 = Entry.objects.create(name='referred_entry1', schema=ref_entity, created_user=user)
+        ref_entry2 = Entry.objects.create(name='referred_entry2', schema=ref_entity, created_user=user)
+
+        ref_group = Group.objects.create(name='group')
+
+        attr_info = {
+            'str': {
+                'type': AttrTypeValue['string'],
+                'value': 'foo',
+                'checker': lambda v: self.assertEqual(v['value'], 'foo')},
+            'obj': {
+                'type': AttrTypeValue['object'],
+                'value': str(ref_entry1.id),
+                'checker': lambda v: self.assertEqual(v['value'], ref_entry1.name),
+            },
+            'name': {
+                'type': AttrTypeValue['named_object'],
+                'value': {'name': 'bar', 'id': str(ref_entry1.id)},
+                'checker': lambda v: self.assertEqual(v['value'], ref_entry1.name),
+            },
+            'bool': {
+                'type': AttrTypeValue['boolean'],
+                'value': False,
+                'checker': lambda v: self.assertEqual(v['value'], 'False'),
+            },
+            'group': {
+                'type': AttrTypeValue['group'],
+                'value': str(ref_group.id),
+                'checker': lambda v: self.assertEqual(v['value'], ref_group.name),
+            },
+            'arr_str': {
+                'type': AttrTypeValue['array_string'],
+                'value': ['foo', 'bar', 'baz'],
+                'checker': lambda v: self.assertTrue([x in v['values'] for x in ['foo', 'bar', 'baz']]),
+            },
+            'arr_obj': {
+                'type': AttrTypeValue['array_object'],
+                'value': [str(x.id) for x in Entry.objects.filter(schema=ref_entity)],
+                'checker': lambda v: self.assertTrue(all([any([y for y in v['values'] if y['value'] == x.name])
+                    for x in Entry.objects.filter(schema=ref_entity)])),
+            },
+            'arr_name': {
+                'type': AttrTypeValue['array_named_object'],
+                'value': [{'name': 'hoge', 'id' : str(x.id)} for x in Entry.objects.filter(schema=ref_entity)],
+                'checker': lambda v: self.assertTrue(all([any([y for y in v['values'] if y['value'] == x.name])
+                    for x in Entry.objects.filter(schema=ref_entity)])),
+            }
+        }
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        for attr_name, info in attr_info.items():
+            attr = EntityAttr.objects.create(name=attr_name,
+                                             type=info['type'],
+                                             created_user=user,
+                                             parent_entity=entity)
+
+            if info['type'] & AttrTypeValue['object']:
+                attr.referral.add(ref_entity)
+
+            entity.attrs.add(attr)
+
+        for index in range(0, ENTRY_COUNTS):
+            entry = Entry.objects.create(name='e-%d' % index, schema=entity, created_user=user)
+            entry.complement_attrs(user)
+
+            for attr_name, info in attr_info.items():
+                attr = entry.attrs.get(name=attr_name)
+                attr.add_value(user, info['value'])
+
+            entry.register_es()
+
+        # checks that all entries are registered to the ElasticSearch.
+        res = self._es.indices.stats(index=settings.ES_CONFIG['INDEX'])
+        self.assertEqual(res['_all']['primaries']['docs']['count'], ENTRY_COUNTS)
+
+        # checks that all registered entries can be got from Elasticsearch
+        for entry in Entry.objects.filter(schema=entity):
+            res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=entry.id)
+            self.assertTrue(res['found'])
+
+            for (k, v) in attr_info.items():
+                value = [x for x in res['_source']['attr'] if x['name'] == k][0]
+
+                self.assertEqual(value['name'], k)
+                self.assertEqual(value['type'], v['type'])
+
+                v['checker'](value)
+
+        # checks delete entry and checks deleted entry will also be removed from Elasticsearch
+        entry = Entry.objects.filter(schema=entity).last()
+        entry.delete()
+
+        res = self._es.indices.stats(index=settings.ES_CONFIG['INDEX'])
+        self.assertEqual(res['_all']['primaries']['docs']['count'], ENTRY_COUNTS - 1)
+
+        res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=entry.id, ignore=[404])
+        self.assertFalse(res['found'])
+
+    def test_update_elasticsearch_field(self):
+        user = User.objects.create(username='hoge')
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entity_attr = EntityAttr.objects.create(name='attr',
+                                                type=AttrTypeValue['string'],
+                                                created_user=user,
+                                                parent_entity=entity)
+        entity.attrs.add(entity_attr)
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+
+        attr = entry.attrs.get(schema=entity_attr)
+        attr.add_value(user, 'hoge')
+
+        # register entry to the Elasticsearch
+        entry.register_es()
+
+        # checks registered value is corrected
+        res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=entry.id)
+        self.assertEqual(res['_source']['attr'][0]['name'], entity_attr.name)
+        self.assertEqual(res['_source']['attr'][0]['type'], entity_attr.type)
+        self.assertEqual(res['_source']['attr'][0]['value'], 'hoge')
+
+
+        # update latest value of Attribute 'attr'
+        attr.add_value(user, 'fuga')
+        entry.register_es()
+
+        # checks registered value was also updated
+        res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=entry.id)
+        self.assertEqual(res['_source']['attr'][0]['value'], 'fuga')
+
+    def test_search_entries_from_elasticsearch(self):
+        user = User.objects.create(username='hoge')
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        for index in range(0, 2):
+            entity.attrs.add(EntityAttr.objects.create(name='attr-%s' % index,
+                                                       type=AttrTypeValue['string'],
+                                                       created_user=user,
+                                                       parent_entity=entity))
+
+        entity.attrs.add(EntityAttr.objects.create(name='attr-arr',
+                                                   type=AttrTypeValue['array_string'],
+                                                   created_user=user,
+                                                   parent_entity=entity))
+
+
+        entry_info = {
+            'entry1': {
+                'attr-0': 'foo',
+                'attr-1': 'bar',
+                'attr-arr': ['hoge', 'fuga']
+            },
+            'entry2': {
+                'attr-0': 'hoge',
+                'attr-1': 'bar',
+                'attr-arr': []
+            },
+            'entry3': {
+                'attr-0': '',
+                'attr-1': 'hoge',
+                'attr-arr': []
+            }
+        }
+        for (name, attrinfo) in entry_info.items():
+            entry = Entry.objects.create(name=name, schema=entity, created_user=user)
+            entry.complement_attrs(user)
+
+            for attr in entry.attrs.all():
+                attr.add_value(user, attrinfo[attr.schema.name])
+
+            entry.register_es()
+
+        # search entries from Elasticsearch
+        resp = Entry.search_entries(user, [entity.id], [{'name': 'attr-0'}])
+        self.assertEqual(resp['ret_count'], 3)
+
+        # search entries with keyword parameter from Elasticsearch
+        resp = Entry.search_entries(user, [entity.id], [{'name': 'attr-0', 'keyword': 'foo'}])
+        self.assertEqual(resp['ret_count'], 1)
+        self.assertEqual(resp['ret_values'][0]['entry']['name'], 'entry1')
+
+        # search entries with keyword parameter that other entry has same value in untarget attr
+        resp = Entry.search_entries(user, [entity.id], [{'name': 'attr-0', 'keyword': 'hoge'}])
+        self.assertEqual(resp['ret_count'], 1)
+        self.assertEqual(resp['ret_values'][0]['entry']['name'], 'entry2')
+
+        # search entries with keyword parameter which is array type
+        resp = Entry.search_entries(user, [entity.id], [{'name': 'attr-arr', 'keyword': 'hoge'}])
+        self.assertEqual(resp['ret_count'], 1)
+        self.assertEqual(resp['ret_values'][0]['entry']['name'], 'entry1')

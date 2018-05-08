@@ -5,6 +5,7 @@ _ATTR_STRING_TYPE = 1 << 1
 _ATTR_TEXT_TYPE = 1 << 2
 _ATTR_BOOL_TYPE = 1 << 3
 _ATTR_GROUP_TYPE = 1 << 4
+_ATTR_DATE_TYPE = 1 << 5
 _ATTR_ARRAY_TYPE = 1 << 10
 _ATTR_NAMED_TYPE = 1 << 11
 
@@ -64,6 +65,10 @@ class AttrTypeGroup(with_metaclass(MetaAttrType)):
     NAME = 'group'
     TYPE = _ATTR_GROUP_TYPE
 
+class AttrTypeDate(with_metaclass(MetaAttrType)):
+    NAME = 'date'
+    TYPE = _ATTR_DATE_TYPE
+
 AttrTypes = [
     AttrTypeStr,
     AttrTypeObj,
@@ -74,6 +79,7 @@ AttrTypes = [
     AttrTypeText,
     AttrTypeBoolean,
     AttrTypeGroup,
+    AttrTypeDate,
 ]
 AttrTypeValue = {
     'object': AttrTypeObj.TYPE,
@@ -87,4 +93,5 @@ AttrTypeValue = {
     'text': AttrTypeText.TYPE,
     'boolean': AttrTypeBoolean.TYPE,
     'group': AttrTypeGroup.TYPE,
+    'date': AttrTypeDate.TYPE,
 }

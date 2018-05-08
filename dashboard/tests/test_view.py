@@ -1,19 +1,22 @@
 import mock
 import re
 import sys
+import json
 
 from airone.lib.test import AironeViewTest
+from airone.lib.types import AttrTypeValue
 from django.urls import reverse
 from django.contrib.auth.models import User as DjangoUser
 from io import StringIO
 
+from entity.models import Entity, EntityAttr
 from entry.models import Entry, AttributeValue
 
 from xml.etree import ElementTree
 
 class ViewTest(AironeViewTest):
     def setUp(self):
-        self.admin_login()
+        self.admin = self.admin_login()
 
         # preparing test Entity/Entry objects
         fp = self.open_fixture_file('entry.yaml')
@@ -84,3 +87,48 @@ class ViewTest(AironeViewTest):
 
         # reset stdout setting
         sys.stdout = sys.__stdout__
+
+    def test_show_advanced_search(self):
+        resp = self.client.get(reverse('dashboard:advanced_search'))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_show_advanced_search_results(self):
+        for entity_index in range(0, 2):
+            entity = Entity.objects.create(name='entity-%d' % entity_index, created_user=self.admin)
+            entity.attrs.add(EntityAttr.objects.create(**{
+                'name': 'attr',
+                'type': AttrTypeValue['string'],
+                'created_user': self.admin,
+                'parent_entity': entity,
+            }))
+
+            for entry_index in range(0, 10):
+                entry = Entry.objects.create(name='entry-%d' % (entry_index),
+                                             schema=entity, created_user=self.admin)
+                entry.complement_attrs(self.admin)
+
+                # add an AttributeValue
+                entry.attrs.first().add_value(self.admin, 'data-%d' % entry_index)
+
+                # register entry to the Elasticsearch
+                entry.register_es()
+
+        # test to show advanced_search_result page
+        resp = self.client.get(reverse('dashboard:advanced_search_result'), {
+            'entity[]': [x.id for x in Entity.objects.filter(name__regex='^entity-')],
+            'attr[]': ['attr'],
+        })
+        self.assertEqual(resp.status_code, 200)
+
+        # test to export results of advanced_search
+        resp = self.client.post(reverse('dashboard:export_search_result'), {
+            'entities': json.dumps([x.id for x in Entity.objects.filter(name__regex='^entity-')]),
+            'attrinfo': json.dumps([{'name': 'attr', 'keyword': 'data-5'}])
+        })
+        self.assertEqual(resp.status_code, 200)
+
+        csv_contents = [x for x in resp.content.decode('utf-8').split('\n') if x]
+        self.assertEqual(len(csv_contents), 3)
+        self.assertEqual(csv_contents[0], 'Name,attr')
+        self.assertEqual(csv_contents[1], 'entry-5,data-5')
+        self.assertEqual(csv_contents[2], 'entry-5,data-5')

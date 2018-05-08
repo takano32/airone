@@ -85,6 +85,9 @@ def create_entry_attrs(self, user_id, entry_id, recv_data):
         # register new AttributeValue to the "attr"
         attr.add_value(user, _convert_data_value(attr, attr_data))
 
+    # register entry information to Elasticsearch
+    entry.register_es()
+
     # clear flag to specify this entry has been completed to ndcreate
     entry.del_status(Entry.STATUS_CREATING)
 
@@ -107,6 +110,9 @@ def edit_entry_attrs(self, user_id, entry_id, recv_data):
 
         # Add new AttributeValue instance to Attribute instnace
         new_value = attr.add_value(user, converted_value)
+
+    # update entry information to Elasticsearch
+    entry.register_es()
 
     # clear flag to specify this entry has been completed to create
     entry.del_status(Entry.STATUS_EDITING)

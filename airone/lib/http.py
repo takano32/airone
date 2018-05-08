@@ -90,6 +90,30 @@ def http_post(validator=[]):
         return http_post_handler
     return _decorator
 
+def http_post_form(validator=[]):
+    def _decorator(func):
+        def http_post_handler(*args, **kwargs):
+            request = args[0]
+
+            if request.method != 'POST':
+                return HttpResponse('Invalid HTTP method is specified', status=400)
+
+            if not request.user.is_authenticated():
+                return HttpResponse('You have to login to execute this operation', status=401)
+
+            recv_data = {}
+            for x in validator:
+                recv_data[x['name']] = json.loads(request.POST.get(x['name']))
+
+            if _is_valid(recv_data, validator):
+                kwargs['recv_data'] = recv_data
+            else:
+                return HttpResponse('Invalid parameters are specified', status=400)
+
+            return func(*args, **kwargs)
+        return http_post_handler
+    return _decorator
+
 def http_file_upload(func):
     def get_uploaded_file_content(request):
         """This returns uploaded file context whatever encoding type"""

@@ -7,6 +7,7 @@ machine:
   services:
     - rabbitmq-server
     - memcached
+    - elasticsearch
 
 ## dependencies
 dependencies:

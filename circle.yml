@@ -7,7 +7,6 @@ machine:
   services:
     - rabbitmq-server
     - memcached
-    - elasticsearch
 
 ## dependencies
 dependencies:
@@ -21,6 +20,10 @@ dependencies:
     - cd ~ && pyenv local 2.7.10 3.4.3 3.5.0 3.6.1 system
   cache_directories:
     - /opt/circleci/python/3.6.1
+    - elasticsearch-6.2.3
+  post:
+    - if [[ ! -e elasticsearch-6.2.3 ]]; then wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.2.3.tar.gz && tar -xvf elasticsearch-6.2.3.tar.gz; fi
+    - elasticsearch-6.2.3/bin/elasticsearch: {background: true}
 
 ## test definition
 test:

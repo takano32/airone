@@ -2114,3 +2114,57 @@ class ViewTest(AironeViewTest):
         # checks AttributeValue which is specified to update
         self.assertEqual(entry.attrs.last().values.count(), 2)
         self.assertEqual(entry.attrs.last().get_latest_value().date, date(2019,1,1))
+
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    def test_create_invalid_date_param(self):
+        admin = self.admin_login()
+
+        entity = Entity.objects.create(name='entity', created_user=admin)
+        entity_attr = EntityAttr.objects.create(name='attr_date',
+                                                type=AttrTypeValue['date'],
+                                                parent_entity=entity,
+                                                created_user=admin)
+        entity.attrs.add(entity_attr)
+
+        # creates entry that has a invalid format parameter which is typed date
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entity_attr.id), 'value': [{'data': '2018-13-30', 'index': 0}], 'referral_key': []},
+            ],
+        }
+        # check that invalied parameter raises error
+        with self.assertRaises(ValueError) as ar:
+            self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        exception = str(ar.exception)
+        self.assertEquals(exception, 'Incorrect data format')
+
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    def test_create_out_of_range_date_param(self):
+        admin = self.admin_login()
+
+        entity = Entity.objects.create(name='entity', created_user=admin)
+        entity_attr = EntityAttr.objects.create(name='attr_date',
+                                                type=AttrTypeValue['date'],
+                                                parent_entity=entity,
+                                                created_user=admin)
+        entity.attrs.add(entity_attr)
+
+        # creates entry that has a out of range parameter which is typed date
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entity_attr.id), 'value': [{'data': '2019-2-29', 'index': 0}], 'referral_key': []},
+            ],
+        }
+        # check that invalied parameter raises error
+        with self.assertRaises(ValueError) as ar:
+            self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        exception = str(ar.exception)
+        self.assertEquals(exception, 'Incorrect data format')

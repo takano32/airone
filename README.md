@@ -53,10 +53,32 @@ $ celery -A airone worker -l info
 ```
 
 ### ElasticSearch
-You have to setup Elasticsearch by following.
+You have to setup Java8 for executing elasticsearch. Here is the procedure to setup `Oracle JDK 8`.
+```
+$ sudo add-apt-repository ppa:webupd8team/java
+$ sudo apt-get update
+$ sudo apt-get install oracle-java8-installer
+```
+
+The way to install elasticsearch is quite easy like that.
 ```
 $ wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.2.3.tar.gz
 $ tar -xvf elasticsearch-6.2.3.tar.gz
+```
+
+After installing it, you have to change configuration to accept connecting from AirOne nodes.
+```diff
+--- elasticsearch-6.2.3/config/elasticsearch.yml.old        2018-03-13 19:02:56.000000000 +0900
++++ elasticsearch-6.2.3/config/elasticsearch.yml            2018-05-10 16:35:25.872529462 +0900
+@@ -52,7 +52,7 @@
+ #
+ # Set the bind address to a specific IP (IPv4 or IPv6):
+ #
+-#network.host: 192.168.0.1
++network.host: 0.0.0.0
+ #
+ # Set a custom port for HTTP:
+ #
 ```
 
 Then, you can execute ElasticSearch search like that.

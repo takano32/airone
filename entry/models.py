@@ -900,7 +900,7 @@ class Entry(ACLBase):
                             attrinfo['value'] = str(_value['value'])
 
                         elif _value['type'] & AttrTypeValue['date']:
-                            attrinfo['date_value'] = str(_value['value'])
+                            attrinfo['date_value'] = _value['value']
 
                         elif _value['type'] & AttrTypeValue['named']:
                             [k] = _value['value'].keys()

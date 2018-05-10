@@ -4,6 +4,7 @@ from entry.models import Entry
 from group.models import Group
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
+from datetime import datetime, date
 
 class GetEntrySerializer(serializers.ModelSerializer):
     attrs = serializers.SerializerMethodField()
@@ -54,7 +55,10 @@ class GetEntrySerializer(serializers.ModelSerializer):
     
             elif attr.schema.type & AttrTypeValue['boolean']:
                 return attrv.boolean
-    
+
+            elif attr.schema.type & AttrTypeValue['date']:
+                return attrv.date
+
             elif attr.schema.type & AttrTypeValue['group']:
                 group = Group.objects.get(id=attrv.value)
                 return {
@@ -145,6 +149,16 @@ class PostEntrySerializer(serializers.Serializer):
             if not isinstance(value, bool):
                 return None
             return value
+
+        elif attr.type & AttrTypeValue['date']:
+            if isinstance(value, str):
+                try:
+                    datetime.strptime(value,'%Y-%m-%d')
+                except ValueError:
+                    raise ValueError("Incorrect data format, should be YYYY-MM-DD")
+                return datetime.strptime(value,'%Y-%m-%d')
+            else:
+                return None
 
         elif attr.type & AttrTypeValue['group']:
             if not isinstance(value, str):

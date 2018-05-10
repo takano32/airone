@@ -188,4 +188,4 @@ def export_search_result(request, recv_data):
 
         output.write('%s\n' % ','.join(line_data))
 
-    return get_download_response(output, 'hoge.csv')
+    return get_download_response(output, 'search_results.csv')

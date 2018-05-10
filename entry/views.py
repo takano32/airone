@@ -327,7 +327,7 @@ def export(request, entity_id):
                 return ''
             elif isinstance(data, str):
                 return '"%s"' % data.replace('"', '""')
-            elif isinstance(data, list) or isinstance(data, hash):
+            elif isinstance(data, list) or isinstance(data, dict):
                 return '"""%s"""' % str(data)
             else:
                 return '"%s"' % str(data)

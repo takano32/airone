@@ -2,7 +2,7 @@ import json
 import re
 
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, date
 
 from django.db import models
 from django.db.models import Q
@@ -37,6 +37,7 @@ class AttributeValue(models.Model):
     parent_attr = models.ForeignKey('Attribute')
     status = models.IntegerField(default=0)
     boolean = models.BooleanField(default=False)
+    date = models.DateField(default=date.today)
 
     # This parameter means that target AttributeValue is the latest one. This is usefull to
     # find out enabled AttributeValues by Attribute or EntityAttr object. And separating this
@@ -115,6 +116,9 @@ class AttributeValue(models.Model):
 
         elif self.parent_attr.schema.type == AttrTypeValue['boolean']:
             value = self.boolean
+
+        elif self.parent_attr.schema.type == AttrTypeValue['date']:
+            value = self.date
 
         elif self.parent_attr.schema.type == AttrTypeValue['object']:
             value = get_object_value(self)
@@ -236,6 +240,9 @@ class Attribute(ACLBase):
         elif self.schema.type == AttrTypeValue['group']:
             return last_value.value != recv_value
 
+        elif self.schema.type == AttrTypeValue['date']:
+            return last_value.date != recv_value
+
         elif self.schema.type == AttrTypeValue['named_object']:
             if last_value.value != recv_value['name']:
                 return True
@@ -347,6 +354,8 @@ class Attribute(ACLBase):
                 return attrv.referral
             elif attrv.data_type == AttrTypeValue['boolean']:
                 return attrv.boolean
+            elif attrv.data_type == AttrTypeValue['date']:
+                return attrv.date
             elif attrv.data_type == AttrTypeValue['named_object']:
                 return {
                     'value': attrv.value,
@@ -401,6 +410,9 @@ class Attribute(ACLBase):
         if(self.schema.type & AttrTypeValue['boolean']):
             return isinstance(value, bool)
 
+        if(self.schema.type & AttrTypeValue['date']):
+            return isinstance(value, date) or value is None
+
         if(self.schema.type & AttrTypeValue['group']):
             if isinstance(value, Group):
                 return True
@@ -452,6 +464,10 @@ class Attribute(ACLBase):
         elif self.schema.type == AttrTypeValue['boolean']:
             attr_value = AttributeValue.create(user, self)
             attr_value.boolean = value
+
+        elif self.schema.type == AttrTypeValue['date']:
+            attr_value = AttributeValue.create(user, self)
+            attr_value.date = value
 
         elif (self.schema.type == AttrTypeValue['named_object'] and
               ('id' in value and value['id'] or 'name' in value and value['name'])):
@@ -580,6 +596,9 @@ class Attribute(ACLBase):
                 return Group.objects.get(name=value).id
 
         elif self.schema.type == AttrTypeValue['boolean']:
+            return value
+
+        elif self.schema.type == AttrTypeValue['date']:
             return value
 
         elif self.schema.type == AttrTypeValue['named_object']:
@@ -731,6 +750,9 @@ class Entry(ACLBase):
                 elif last_value.data_type == AttrTypeValue['boolean']:
                     attrinfo['last_value'] = last_value.boolean
 
+                elif last_value.data_type == AttrTypeValue['date']:
+                    attrinfo['last_value'] = last_value.date
+
                 elif last_value.data_type == AttrTypeValue['named_object']:
                     attrinfo['last_value'] = last_value.value
 
@@ -877,6 +899,9 @@ class Entry(ACLBase):
                             _value['type'] & AttrTypeValue['boolean']):
                             attrinfo['value'] = str(_value['value'])
 
+                        elif _value['type'] & AttrTypeValue['date']:
+                            attrinfo['date_value'] = str(_value['value'])
+
                         elif _value['type'] & AttrTypeValue['named']:
                             [k] = _value['value'].keys()
                             if k in _value['value'] and _value['value'][k]:
@@ -892,7 +917,6 @@ class Entry(ACLBase):
                 except TypeError:
                     # The attribute that has no value returns None at get_value method
                     pass
-
 
             document['attr'].append(attrinfo)
 
@@ -1008,6 +1032,9 @@ class Entry(ACLBase):
                             attrinfo['type'] == AttrTypeValue['text'] or
                             attrinfo['type'] == AttrTypeValue['boolean']):
                             ret_attrinfo['value'] = attrinfo['value']
+
+                        elif attrinfo['type'] == AttrTypeValue['date']:
+                            ret_attrinfo['value'] = attrinfo['date_value']
 
                         elif (attrinfo['type'] == AttrTypeValue['object'] or
                               attrinfo['type'] == AttrTypeValue['group']):

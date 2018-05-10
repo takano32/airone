@@ -66,6 +66,11 @@ class ESS(Elasticsearch):
                                     'type': 'text',
                                     'index': 'true',
                                 },
+                                'date_value': {
+                                    'type': 'date',
+                                    'index': 'true',
+                                    'format': 'yyyy-MM-dd'
+                                },
                                 'value': {
                                     'type': 'text',
                                     'index': 'true',

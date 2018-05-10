@@ -1,4 +1,6 @@
 from group.models import Group
+from datetime import date
+from django.test import TestCase
 from django.core.cache import cache
 from django.conf import settings
 from entity.models import Entity, EntityAttr
@@ -384,6 +386,22 @@ class ModelTest(AironeTestCase):
         self.assertFalse(attr.is_updated(False))
         self.assertTrue(attr.is_updated(True))
 
+    def test_for_date_attr_and_value(self):
+        attr = self.make_attr('attr_date', AttrTypeValue['date'])
+        attr.save()
+
+        attr.values.add(AttributeValue.objects.create(**{
+            'created_user': self._user,
+            'parent_attr': attr,
+        }))
+
+        # Checks default value
+        self.assertIsNotNone(attr.get_latest_value())
+
+        # Checks attitude of is_update
+        self.assertFalse(attr.is_updated(date.today()))
+        self.assertTrue(attr.is_updated(date(9999, 12, 31)))
+
     def test_get_referred_objects(self):
         entity = Entity.objects.create(name='Entity2', created_user=self._user)
         entry = Entry.objects.create(name='refered', created_user=self._user, schema=entity)
@@ -688,7 +706,8 @@ class ModelTest(AironeTestCase):
             'arr_name': {'type': AttrTypeValue['array_named_object'],
                          'value': [{'name': 'hoge', 'id': str(last_ref.id)}]},
             'group': {'type': AttrTypeValue['group'], 'value':
-                      str(Group.objects.create(name='group').id)}
+                      str(Group.objects.create(name='group').id)},
+            'date': {'type': AttrTypeValue['date'], 'value': date(2018, 12, 31)}
         }
 
         entity = Entity.objects.create(name='entity', created_user=user)
@@ -914,7 +933,8 @@ class ModelTest(AironeTestCase):
                         'value': [str(x.id) for x in Entry.objects.filter(schema=ref_entity)]},
             'arr_name': {'type': AttrTypeValue['array_named_object'],
                          'value': [{'name': 'hoge', 'id': str(last_ref.id)}]},
-            'group': {'type': AttrTypeValue['group'], 'value': str(Group.objects.create(name='group').id)}
+            'group': {'type': AttrTypeValue['group'], 'value': str(Group.objects.create(name='group').id)},
+            'date': {'type': AttrTypeValue['date'], 'value': date(2018, 12, 31)}
         }
 
         entity = Entity.objects.create(name='entity', created_user=user)
@@ -1011,7 +1031,8 @@ class ModelTest(AironeTestCase):
             'arr1': {'type': AttrTypeValue['array_string']},
             'arr2': {'type': AttrTypeValue['array_object']},
             'arr3': {'type': AttrTypeValue['array_named_object']},
-            'group': {'type': AttrTypeValue['group']}
+            'group': {'type': AttrTypeValue['group']},
+            'date': {'type': AttrTypeValue['date']}
         }
 
         entity = Entity.objects.create(name='entity', created_user=user)
@@ -1047,6 +1068,7 @@ class ModelTest(AironeTestCase):
              'checker': lambda x: (len(x) == 2 and x[0]['name'] == 'foo' and x[0]['id'].id == ref_entry.id and
                                   x[1]['name'] == 'bar' and x[1]['id'] == None)},
             {'attr': 'group', 'input': 'Group', 'checker': lambda x: x == group.id},
+            {'attr': 'date', 'input': date(2018, 12, 31), 'checker': lambda x: x == date(2018, 12, 31)}
         ]
         for info in checklist:
             attr = entry.attrs.get(name=info['attr'])
@@ -1122,6 +1144,7 @@ class ModelTest(AironeTestCase):
             'name': {'type': AttrTypeValue['named_object'], 'value': {'name': 'bar', 'id': str(ref_entry.id)}},
             'bool': {'type': AttrTypeValue['boolean'], 'value': False},
             'group': {'type': AttrTypeValue['group'], 'value': str(ref_group.id)},
+            'date': {'type': AttrTypeValue['date'], 'value': date(2018, 12, 31)},
             'arr_str': {'type': AttrTypeValue['array_string'], 'value': ['foo', 'bar', 'baz']},
             'arr_obj': {'type': AttrTypeValue['array_object'],
                         'value': [str(x.id) for x in Entry.objects.filter(schema=ref_entity)]},
@@ -1161,6 +1184,7 @@ class ModelTest(AironeTestCase):
             {'name': 'name'},
             {'name': 'bool'},
             {'name': 'group'},
+            {'name': 'date'},
             {'name': 'arr_str'},
             {'name': 'arr_obj'},
             {'name': 'arr_name'},
@@ -1171,7 +1195,7 @@ class ModelTest(AironeTestCase):
         # check returned contents is corrected
         for v in ret['ret_values']:
             self.assertEqual(v['entity']['id'], entity.id)
-            self.assertEqual(len(v['attrs']), 8)
+            self.assertEqual(len(v['attrs']), 9)
 
             entry = Entry.objects.get(id=v['entry']['id'])
 
@@ -1194,6 +1218,9 @@ class ModelTest(AironeTestCase):
 
                 if attrname == 'bool':
                     self.assertEqual(attrinfo['value'], str(attrv.boolean))
+
+                if attrname == 'date':
+                    self.assertEqual(attrinfo['value'], str(attrv.date))
 
                 elif attrname == 'group':
                     group = Group.objects.get(id=int(attrv.value))

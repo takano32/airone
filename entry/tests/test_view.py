@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.core.cache import cache
 from django.conf import settings
 from group.models import Group
+from datetime import date
 
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
@@ -1970,6 +1971,7 @@ class ViewTest(AironeViewTest):
             'grp': {'type': AttrTypeValue['group']},
             'name': {'type': AttrTypeValue['named_object']},
             'bool': {'type': AttrTypeValue['boolean']},
+            'date': {'type': AttrTypeValue['date']},
             'arr1': {'type': AttrTypeValue['array_string']},
             'arr2': {'type': AttrTypeValue['array_object']},
             'arr3': {'type': AttrTypeValue['array_named_object']},
@@ -2000,6 +2002,7 @@ class ViewTest(AironeViewTest):
             {'attr': 'grp', 'checker': lambda x: x.value == str(group.id)},
             {'attr': 'name', 'checker': lambda x: x.value == 'foo' and x.referral.id == ref_entry.id},
             {'attr': 'bool', 'checker': lambda x: x.boolean == False},
+            {'attr': 'date', 'checker': lambda x: x.date == date(2018,12,31)},
             {'attr': 'arr1', 'checker': lambda x: x.data_array.count() == 3},
             {'attr': 'arr2',
              'checker': lambda x: x.data_array.count() == 1 and x.data_array.first().referral.id == ref_entry.id},
@@ -2028,6 +2031,7 @@ class ViewTest(AironeViewTest):
             'grp': {'type': AttrTypeValue['group']},
             'name': {'type': AttrTypeValue['named_object']},
             'bool': {'type': AttrTypeValue['boolean']},
+            'date': {'type': AttrTypeValue['date']},
             'arr1': {'type': AttrTypeValue['array_string']},
             'arr2': {'type': AttrTypeValue['array_object']},
             'arr3': {'type': AttrTypeValue['array_named_object']},
@@ -2082,3 +2086,106 @@ class ViewTest(AironeViewTest):
             self.assertEqual(resp.status_code, 303)
 
         self.assertEqual(Entry.objects.filter(name__iregex=r'えんとり*').coiunt(), 3)
+
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
+    def test_create_and_edit_entry_that_has_date_attr(self):
+        admin = self.admin_login()
+
+        entity = Entity.objects.create(name='entity', created_user=admin)
+        entity_attr = EntityAttr.objects.create(name='attr_date',
+                                                type=AttrTypeValue['date'],
+                                                parent_entity=entity,
+                                                created_user=admin)
+        entity.attrs.add(entity_attr)
+
+        # creates entry that has a parameter which is typed date
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entity_attr.id), 'value': [{'data': '2018-12-31', 'index': 0}], 'referral_key': []},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+
+        # get entry which is created in here
+        entry = Entry.objects.get(name='entry', schema=entity)
+
+        self.assertEqual(entry.attrs.count(), 1)
+        self.assertIsNotNone(entry.attrs.last().get_latest_value())
+        self.assertEqual(entry.attrs.last().get_latest_value().date, date(2018,12,31))
+
+        # edit entry to update the value of attribute 'attr_date'
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entry.attrs.get(name='attr_date').id), 'value': [{'data': '2019-1-1', 'index': 0}], 'referral_key': []},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+
+        # checks AttributeValue which is specified to update
+        self.assertEqual(entry.attrs.last().values.count(), 2)
+        self.assertEqual(entry.attrs.last().get_latest_value().date, date(2019,1,1))
+
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    def test_create_invalid_date_param(self):
+        admin = self.admin_login()
+
+        entity = Entity.objects.create(name='entity', created_user=admin)
+        entity_attr = EntityAttr.objects.create(name='attr_date',
+                                                type=AttrTypeValue['date'],
+                                                parent_entity=entity,
+                                                created_user=admin)
+        entity.attrs.add(entity_attr)
+
+        # creates entry that has a invalid format parameter which is typed date
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entity_attr.id), 'value': [{'data': '2018-13-30', 'index': 0}], 'referral_key': []},
+            ],
+        }
+        # check that invalied parameter raises error
+        with self.assertRaises(ValueError) as ar:
+            self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        exception = str(ar.exception)
+        self.assertEquals(exception, 'Incorrect data format')
+
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    def test_create_out_of_range_date_param(self):
+        admin = self.admin_login()
+
+        entity = Entity.objects.create(name='entity', created_user=admin)
+        entity_attr = EntityAttr.objects.create(name='attr_date',
+                                                type=AttrTypeValue['date'],
+                                                parent_entity=entity,
+                                                created_user=admin)
+        entity.attrs.add(entity_attr)
+
+        # creates entry that has a out of range parameter which is typed date
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entity_attr.id), 'value': [{'data': '2019-2-29', 'index': 0}], 'referral_key': []},
+            ],
+        }
+        # check that invalied parameter raises error
+        with self.assertRaises(ValueError) as ar:
+            self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        exception = str(ar.exception)
+        self.assertEquals(exception, 'Incorrect data format')

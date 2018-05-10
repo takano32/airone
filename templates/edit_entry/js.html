@@ -88,6 +88,14 @@ var form_validator = function() {
     }
   });
 
+  // check mandatory attrs of date
+  $('input[type="date"][class="attr_value"][mandatory]').each(function() {
+    if(! $(this).val()) {
+      $(this).parent().addClass('table-danger');
+      result = false;
+    }
+  });
+
   // check mandatory attrs of array
   $('.array_element[mandatory]').each(function() {
     if(! $(this).children().length) {

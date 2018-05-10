@@ -45,9 +45,23 @@ Finally, you can start AirOne and can browse from `http://hostname:8080/`.
 $ python3 manage.py runserver 0:8080
 ```
 
+### Celery
+
 In addition, you have to run Celery worker to execute background task as following.
 ```
 $ celery -A airone worker -l info
+```
+
+### ElasticSearch
+You have to setup Elasticsearch by following.
+```
+$ wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.2.3.tar.gz
+$ tar -xvf elasticsearch-6.2.3.tar.gz
+```
+
+Then, you can execute ElasticSearch search like that.
+```
+$ elasticsearch-6.2.3/bin/elasticsearch
 ```
 
 ## Tools

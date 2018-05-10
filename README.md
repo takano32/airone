@@ -67,19 +67,12 @@ $ elasticsearch-6.2.3/bin/elasticsearch
 ## Tools
 There are some heler scripts about AirOne in the `tools` directory.
 
-### import_rackspace.py
-A helper script to import the `Rackspace` information that describes the allocation of each appliances.
+### register_es_documnt.py
+This regists all entries which has been created in the database to the Elasticsearch.
 
 #### Usage
-```
-Usage: import_rackspace.py [options]
+You can do it just by following command. The configurations about the database to read and Elasticsearch to register are referred from airone/settings.py.
 
-Options:
-  -h, --help            show this help message and exit
-  -u USERID, --userid=USERID
-                        Username to access the Database on the MySQL
-  -p PASSWD, --passwd=PASSWD
-                        Password associated with the Username to authenticate
-  -d DATABASE, --database=DATABASE
-                        Database name that contains Racktables data
+```
+$ tools/register_es_document.py
 ```

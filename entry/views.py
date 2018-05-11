@@ -7,6 +7,7 @@ from django.http import HttpResponse
 from django.http.response import JsonResponse
 from django.db.models import Q
 from django.core.exceptions import ObjectDoesNotExist
+from datetime import datetime
 
 from airone.lib.http import http_get, http_post, check_permission, render
 from airone.lib.http import get_download_response
@@ -99,6 +100,7 @@ def do_create(request, entity_id, recv_data):
     # get objects to be referred in the following processing
     user = User.objects.get(id=request.user.id)
     entity = Entity.objects.get(id=entity_id)
+    date_attrs = entity.attrs.filter(is_active=True,type=AttrTypeValue['date'])
 
     # checks that a same name entry corresponding to the entity is existed, or not.
     if Entry.objects.filter(schema=entity_id, name=recv_data['entry_name']).count():
@@ -109,6 +111,14 @@ def do_create(request, entity_id, recv_data):
         # Checks specified value exceeds the limit of AttributeValue
         if any([len(str(y['data']).encode('utf-8')) > AttributeValue.MAXIMUM_VALUE_SIZE for y in attr_data['value']]):
             return HttpResponse('Passed value is exceeded the limit', status=400)
+
+        # Check date value format
+        for attr in date_attrs:
+            if int(attr_data['id']) == attr.id and attr_data['value']:
+                try:
+                    [datetime.strptime(str(i['data']),'%Y-%m-%d') for i in attr_data['value']]
+                except:
+                    return HttpResponse('Incorrect data format in date', status=400)
 
     # Create a new Entry object
     entry = Entry(name=recv_data['entry_name'],
@@ -186,6 +196,14 @@ def do_edit(request, entry_id, recv_data):
         # Checks specified value exceeds the limit of AttributeValue
         if any([len(str(y['data']).encode('utf-8')) > AttributeValue.MAXIMUM_VALUE_SIZE for y in attr_data['value']]):
             return HttpResponse('Passed value is exceeded the limit', status=400)
+
+        # Check date value format
+        attr = Attribute.objects.get(id=attr_data['id'])
+        if (attr.schema.type & AttrTypeValue['date']) and attr_data['value']:
+            try:
+                [datetime.strptime(str(i['data']),'%Y-%m-%d') for i in attr_data['value']]
+            except:
+                return HttpResponse('Incorrect data format in date', status=400)
 
     if entry.get_status(Entry.STATUS_CREATING):
         return HttpResponse('Target entry is now under processing', status=400)

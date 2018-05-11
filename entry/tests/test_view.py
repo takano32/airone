@@ -2130,17 +2130,14 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entity_attr.id), 'value': [{'data': '2018-13-30', 'index': 0}], 'referral_key': []},
+                {'id': str(entity_attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
             ],
         }
-        # check that invalied parameter raises error
-        with self.assertRaises(ValueError) as ar:
-            self.client.post(reverse('entry:do_create', args=[entity.id]),
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
                                 json.dumps(params),
                                 'application/json')
 
-        exception = str(ar.exception)
-        self.assertEquals(exception, 'Incorrect data format')
+        self.assertEqual(resp.status_code, 400)
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_create_out_of_range_date_param(self):
@@ -2160,11 +2157,8 @@ class ViewTest(AironeViewTest):
                 {'id': str(entity_attr.id), 'value': [{'data': '2019-2-29', 'index': 0}], 'referral_key': []},
             ],
         }
-        # check that invalied parameter raises error
-        with self.assertRaises(ValueError) as ar:
-            self.client.post(reverse('entry:do_create', args=[entity.id]),
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
                                 json.dumps(params),
                                 'application/json')
 
-        exception = str(ar.exception)
-        self.assertEquals(exception, 'Incorrect data format')
+        self.assertEqual(resp.status_code, 400)

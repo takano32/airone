@@ -191,6 +191,9 @@ def do_edit(request, entry_id, recv_data):
     if Entry.objects.filter(query).count():
         return HttpResponse('Duplicate name entry is existed', status=400)
 
+    # get entry attribute at once
+    attrs = Attribute.objects.in_bulk([ int(x['id']) for x in recv_data['attrs']])
+
     # Checks specified value exceeds the limit of AttributeValue
     for attr_data in recv_data['attrs']:
         # Checks specified value exceeds the limit of AttributeValue
@@ -198,8 +201,7 @@ def do_edit(request, entry_id, recv_data):
             return HttpResponse('Passed value is exceeded the limit', status=400)
 
         # Check date value format
-        attr = Attribute.objects.get(id=attr_data['id'])
-        if (attr.schema.type & AttrTypeValue['date']) and attr_data['value']:
+        if (attrs[int(attr_data['id'])].schema.type & AttrTypeValue['date']) and attr_data['value']:
             try:
                 [datetime.strptime(str(i['data']),'%Y-%m-%d') for i in attr_data['value']]
             except:

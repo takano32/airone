@@ -369,6 +369,13 @@ class ModelTest(TestCase):
         attr = self.make_attr('attr_bool', AttrTypeValue['boolean'])
         attr.save()
 
+        # Checks get_latest_value returns empty AttributeValue
+        # even if target attribute doesn't have any value
+        attrv = attr.get_latest_value()
+        self.assertIsNotNone(attrv)
+        self.assertIsNone(attrv.referral)
+        self.assertIsNone(attrv.date)
+
         attr.values.add(AttributeValue.objects.create(**{
             'created_user': self._user,
             'parent_attr': attr,
@@ -393,9 +400,9 @@ class ModelTest(TestCase):
 
         # Checks default value
         self.assertIsNotNone(attr.get_latest_value())
+        self.assertIsNone(attr.get_latest_value().date)
 
         # Checks attitude of is_update
-        self.assertFalse(attr.is_updated(date.today()))
         self.assertTrue(attr.is_updated(date(9999, 12, 31)))
 
     def test_get_referred_objects(self):

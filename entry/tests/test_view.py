@@ -2162,3 +2162,49 @@ class ViewTest(AironeViewTest):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 400)
+
+
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
+    def test_edit_out_of_range_date_param(self):
+        admin = self.admin_login()
+
+        entity = Entity.objects.create(name='entity', created_user=admin)
+        entity_attr = EntityAttr.objects.create(name='attr_date',
+                                                type=AttrTypeValue['date'],
+                                                parent_entity=entity,
+                                                created_user=admin)
+        entity.attrs.add(entity_attr)
+
+        # creates entry that has a parameter which is typed date
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entity_attr.id), 'value': [{'data': '2018-12-31', 'index': 0}], 'referral_key': []},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+
+        # get entry which is created in here
+        entry = Entry.objects.get(name='entry', schema=entity)
+
+        self.assertEqual(entry.attrs.count(), 1)
+        self.assertIsNotNone(entry.attrs.last().get_latest_value())
+        self.assertEqual(entry.attrs.last().get_latest_value().date, date(2018,12,31))
+
+        # edit entry to update the value of attribute 'attr_date'
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entry.attrs.get(name='attr_date').id), 'value': [{'data': '2019-2-30', 'index': 0}], 'referral_key': []},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)

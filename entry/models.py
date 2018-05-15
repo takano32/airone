@@ -32,7 +32,7 @@ class AttributeValue(models.Model):
     parent_attr = models.ForeignKey('Attribute')
     status = models.IntegerField(default=0)
     boolean = models.BooleanField(default=False)
-    date = models.DateField(default=date.today)
+    date = models.DateField(null=True)
 
     # This parameter means that target AttributeValue is the latest one. This is usefull to
     # find out enabled AttributeValues by Attribute or EntityAttr object. And separating this
@@ -295,7 +295,20 @@ class Attribute(ACLBase):
         return self.get_values(**params)
 
     def get_latest_value(self):
-        return self.values.filter(is_latest=True).last()
+        attrv = self.values.filter(is_latest=True)
+        if attrv:
+            return attrv.last()
+        else:
+            attrv = AttributeValue.objects.create(**{
+                'value': '',
+                'created_user': self.created_user,
+                'parent_attr': self,
+                'status': 1 if self.schema.type & AttrTypeValue['group'] else 0,
+                'data_type': self.schema.type,
+            })
+            self.values.add(attrv)
+
+            return attrv
 
     def clone(self, user, **extra_params):
         if not user.has_permission(self, ACLType.Readable):

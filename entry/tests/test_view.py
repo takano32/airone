@@ -566,9 +566,8 @@ class ViewTest(AironeViewTest):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(AttributeValue.objects.count(), 1)
-        self.assertEqual(Attribute.objects.get(name='foo').values.count(), 0)
-        self.assertEqual(Attribute.objects.get(name='bar').values.count(), 1)
+        self.assertEqual(Attribute.objects.get(name='foo').values.filter(is_latest=True).count(), 0)
+        self.assertEqual(Attribute.objects.get(name='bar').values.filter(is_latest=True).count(), 1)
         self.assertEqual(Attribute.objects.get(name='bar').values.last().value, 'fuga')
         self.assertEqual(Entry.objects.get(id=entry.id).name, entry.name)
 
@@ -1101,7 +1100,7 @@ class ViewTest(AironeViewTest):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(attr.values.count(), 1)
+        self.assertEqual(AttributeValue.objects.filter(parent_attr=attr, is_latest=True).count(), 1)
         self.assertEqual(len(attr.values.last().value), AttributeValue.MAXIMUM_VALUE_SIZE)
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
@@ -2133,17 +2132,28 @@ class ViewTest(AironeViewTest):
                 {'id': str(entity_attr.id), 'value': [{'data': '2018-13-30', 'index': 0}], 'referral_key': []},
             ],
         }
-        # check that invalied parameter raises error
-        with self.assertRaises(ValueError) as ar:
-            self.client.post(reverse('entry:do_create', args=[entity.id]),
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
                                 json.dumps(params),
                                 'application/json')
 
-        exception = str(ar.exception)
-        self.assertEquals(exception, 'Incorrect data format')
+        # Note: The status code for this request should be 400 and target entry should not be
+        # created. To accomplish that the view of entry have to implement validation check that
+        # recieved values are valid, or not.
+        self.assertEqual(resp.status_code, 200)
+
+        entry = Entry.objects.get(name='entry', schema=entity)
+        self.assertEqual(entry.attrs.count(), 1)
+
+        attrv = entry.attrs.first().get_latest_value()
+        self.assertIsNotNone(attrv)
+        self.assertIsNone(attrv.referral)
+        self.assertIsNone(attrv.date)
+        self.assertEqual(attrv.data_type, entity_attr.type)
+        self.assertEqual(attrv.value, '')
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
-    def test_create_out_of_range_date_param(self):
+    def test_edit_invalid_date_param(self):
+        INITIAL_DATE = date.today()
         admin = self.admin_login()
 
         entity = Entity.objects.create(name='entity', created_user=admin)
@@ -2153,18 +2163,30 @@ class ViewTest(AironeViewTest):
                                                 created_user=admin)
         entity.attrs.add(entity_attr)
 
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=admin)
+        entry.complement_attrs(admin)
+
+        attr = entry.attrs.last()
+        attr.add_value(admin, INITIAL_DATE)
+
         # creates entry that has a out of range parameter which is typed date
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entity_attr.id), 'value': [{'data': '2019-2-29', 'index': 0}], 'referral_key': []},
+                {'id': str(attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
             ],
         }
-        # check that invalied parameter raises error
-        with self.assertRaises(ValueError) as ar:
-            self.client.post(reverse('entry:do_create', args=[entity.id]),
+
+        # check that invalied parameter raises error with self.assertRaises(ValueError) as ar:
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
                                 json.dumps(params),
                                 'application/json')
 
-        exception = str(ar.exception)
-        self.assertEquals(exception, 'Incorrect data format')
+        # Note: The status code for this request should be 400 and target entry should not be
+        # created. To accomplish that the view of entry have to implement validation check that
+        # recieved values are valid, or not.
+        self.assertEqual(resp.status_code, 200)
+
+        # XXX: Here is a temporal test to check that backend processing will not update with invalid value
+        value = attr.get_latest_value().date
+        self.assertEqual(attr.get_latest_value().date, INITIAL_DATE)

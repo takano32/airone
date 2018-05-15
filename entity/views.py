@@ -187,8 +187,10 @@ def do_edit(request, entity_id, recv_data):
                 'is_mandatory': attr['is_mandatory'],
             }
             if attr_obj.is_updated(**params):
-                # Clear the latest flag for each latest values if the attribute type is changed
-                attr_obj.unset_latest_flag()
+                # Especially if the type of Attribute is changed, clear the latest flag
+                # for each latest values if the attribute type is changed.
+                if attr_obj.type != int(attr['type']):
+                    attr_obj.unset_latest_flag()
 
                 attr_obj.name = attr['name']
                 attr_obj.type = attr['type']

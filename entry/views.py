@@ -87,6 +87,7 @@ def create(request, entity_id):
     {'name': 'entry_name', 'type': str, 'checker': lambda x: x['entry_name']},
     {'name': 'attrs', 'type': list, 'meta': [
         {'name': 'id', 'type': str},
+        {'name': 'type', 'type': str},
         {'name': 'value', 'type': list,
            'checker': lambda x: (
                EntityAttr.objects.filter(id=x['id']).count() > 0 and
@@ -100,7 +101,6 @@ def do_create(request, entity_id, recv_data):
     # get objects to be referred in the following processing
     user = User.objects.get(id=request.user.id)
     entity = Entity.objects.get(id=entity_id)
-    date_attrs = entity.attrs.filter(is_active=True,type=AttrTypeValue['date'])
 
     # checks that a same name entry corresponding to the entity is existed, or not.
     if Entry.objects.filter(schema=entity_id, name=recv_data['entry_name']).count():
@@ -113,12 +113,11 @@ def do_create(request, entity_id, recv_data):
             return HttpResponse('Passed value is exceeded the limit', status=400)
 
         # Check date value format
-        for attr in date_attrs:
-            if int(attr_data['id']) == attr.id and attr_data['value']:
-                try:
-                    [datetime.strptime(str(i['data']),'%Y-%m-%d') for i in attr_data['value']]
-                except:
-                    return HttpResponse('Incorrect data format in date', status=400)
+        if (int(attr_data['type']) & AttrTypeValue['date']) and attr_data['value']:
+            try:
+                [datetime.strptime(str(i['data']),'%Y-%m-%d') for i in attr_data['value']]
+            except:
+                return HttpResponse('Incorrect data format in date', status=400)
 
     # Create a new Entry object
     entry = Entry(name=recv_data['entry_name'],
@@ -173,6 +172,7 @@ def edit(request, entry_id):
     )},
     {'name': 'attrs', 'type': list, 'meta': [
         {'name': 'id', 'type': str},
+        {'name': 'type', 'type': str},
         {'name': 'value', 'type': list,
            'checker': lambda x: (
                Attribute.objects.filter(id=x['id']).count() > 0 and
@@ -191,9 +191,6 @@ def do_edit(request, entry_id, recv_data):
     if Entry.objects.filter(query).count():
         return HttpResponse('Duplicate name entry is existed', status=400)
 
-    # get entry attribute at once
-    attrs = Attribute.objects.in_bulk([ int(x['id']) for x in recv_data['attrs']])
-
     # Checks specified value exceeds the limit of AttributeValue
     for attr_data in recv_data['attrs']:
         # Checks specified value exceeds the limit of AttributeValue
@@ -201,7 +198,7 @@ def do_edit(request, entry_id, recv_data):
             return HttpResponse('Passed value is exceeded the limit', status=400)
 
         # Check date value format
-        if (attrs[int(attr_data['id'])].schema.type & AttrTypeValue['date']) and attr_data['value']:
+        if (int(attr_data['type']) & AttrTypeValue['date']) and attr_data['value']:
             try:
                 [datetime.strptime(str(i['data']),'%Y-%m-%d') for i in attr_data['value']]
             except:

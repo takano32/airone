@@ -5,6 +5,7 @@ import urllib.parse
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.core.cache import cache
+from django.conf import settings
 from group.models import Group
 from datetime import date
 
@@ -202,7 +203,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(AttributeValue.objects.count(), 0)
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
-    def test_post_with_login(self):
+    def test_post_create_entry(self):
         self.admin_login()
 
         params = {
@@ -228,6 +229,16 @@ class ViewTest(AironeViewTest):
         attrvalue = AttributeValue.objects.last()
         self.assertEqual(entry.attrs.last().values.last(), attrvalue)
         self.assertTrue(attrvalue.is_latest)
+
+        # checks that created entry is also registered in the Elasticsearch
+        res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=entry.id)
+        self.assertTrue(res['found'])
+        self.assertEqual(res['_source']['entity']['id'], self._entity.id)
+        self.assertEqual(res['_source']['name'], entry.name)
+        self.assertEqual(len(res['_source']['attr']), entry.attrs.count())
+        for attrinfo in res['_source']['attr']:
+            attrv = AttributeValue.objects.get(parent_attr__name=attrinfo['name'], is_latest=True)
+            self.assertEqual(attrinfo['value'], attrv.value)
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_post_create_entry_without_permission(self):
@@ -538,6 +549,12 @@ class ViewTest(AironeViewTest):
         self.assertTrue(foo_value_first.is_latest)
         self.assertFalse(bar_value_first.is_latest)
         self.assertTrue(bar_value_last.is_latest)
+
+        # checks that we can search updated entry using updated value
+        resp = Entry.search_entries(user, [self._entity.id], [{'name': 'bar', 'keyword': 'fuga'}])
+        self.assertEqual(resp['ret_count'], 1)
+        self.assertEqual(resp['ret_values'][0]['entity']['id'], self._entity.id)
+        self.assertEqual(resp['ret_values'][0]['entry']['id'], entry.id)
 
     @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
     def test_post_edit_with_optional_params(self):
@@ -888,6 +905,10 @@ class ViewTest(AironeViewTest):
         entry = Entry.objects.last()
         self.assertFalse(entry.is_active)
         self.assertFalse(Attribute.objects.get(name__icontains='attr-test_deleted_').is_active)
+
+        # Checks Elasticsearch also removes document of removed entry
+        res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=entry.id, ignore=[404])
+        self.assertEqual(res['status'], 404)
 
     def test_post_delete_entry_without_permission(self):
         user1 = self.guest_login()

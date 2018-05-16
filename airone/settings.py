@@ -158,3 +158,9 @@ CACHES = {
         'TIMEOUT': None,
     }
 }
+
+ES_CONFIG = {
+    'NODES': ['es_node:9200'],
+    'INDEX': 'airone',
+    'MAXIMUM_RESULTS_NUM': 10000,
+}

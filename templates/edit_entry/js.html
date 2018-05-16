@@ -15,6 +15,7 @@ $('form').submit(function(event){
   {% for attr in attributes %}
   attrs.push({
     'id': '{{ attr.id }}',
+    'type': '{{ attr.type }}',
     'value': $(this).find(".attr_value[attr_id='{{ attr.id }}'][enabled='True']").map(function(i, e) {
       if(! ($(e).val() == '0' || $(e).val() == '')) {
         if($(e).attr('type') == 'checkbox') {
@@ -337,4 +338,3 @@ $(document).ready(function() {
   });
 });
 </script>
-

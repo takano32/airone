@@ -6,13 +6,15 @@ import yaml
 import urllib.parse
 
 from airone.lib.http import render
-from airone.lib.http import http_get, http_post
+from airone.lib.http import http_get, http_post_form
 from airone.lib.http import http_file_upload
 from airone.lib.http import HttpResponseSeeOther
 from airone.lib.http import get_download_response
 from airone.lib.profile import airone_profile
+from airone.lib.types import AttrTypeValue
 from django.http import HttpResponse
 from django.http.response import JsonResponse
+from django.conf import settings
 from entity.admin import EntityResource, EntityAttrResource
 from entry.admin import EntryResource, AttrResource, AttrValueResource
 from entity.models import Entity, EntityAttr
@@ -132,17 +134,58 @@ def advanced_search_result(request):
         'entities': ','.join([str(x) for x in recv_entity]),
     })
 
-@http_post([
+@airone_profile
+@http_post_form([
     {'name': 'entities', 'type': list,
      'checker': lambda x: all([Entity.objects.filter(id=y) for y in x['entities']])},
     {'name': 'attrinfo', 'type': list},
 ])
 def export_search_result(request, recv_data):
     user = User.objects.get(id=request.user.id)
-
     output = io.StringIO()
 
-    output.write('hoge')
+    resp = Entry.search_entries(user,
+                                recv_data['entities'],
+                                recv_data['attrinfo'],
+                                settings.ES_CONFIG['MAXIMUM_RESULTS_NUM'])
 
-    #return get_download_response(output, 'hoge.csv')
-    return JsonResponse({'content': 'fuga', 'fname': 'hoge.txt'})
+    # write first line of CSV
+    output.write('%s\n' % ','.join(['Name'] + [x['name'] for x in recv_data['attrinfo']]))
+    for entry_info in resp['ret_values']:
+        line_data = [entry_info['entry']['name']]
+
+        for attrinfo in recv_data['attrinfo']:
+
+            value = entry_info['attrs'][attrinfo['name']]
+            if not value or 'value' not in value or not value['value']:
+                line_data.append('')
+
+            elif (value['type'] == AttrTypeValue['string'] or
+                value['type'] == AttrTypeValue['text'] or
+                value['type'] == AttrTypeValue['boolean']):
+
+                line_data.append(str(value['value']))
+
+            elif (value['type'] == AttrTypeValue['object'] or
+                  value['type'] == AttrTypeValue['group'] or
+                  value['type'] == AttrTypeValue['named_object']):
+
+                line_data.append(str(value['value']['name']))
+
+            elif (value['type'] == AttrTypeValue['array_string']):
+
+                line_data.append('"[%s]"' % str(value['value']))
+
+            elif (value['type'] == AttrTypeValue['array_object'] or
+                  value['type'] == AttrTypeValue['array_named_object']):
+
+                items = []
+                for vset in value['value']:
+                    [(k, v)] = vset.items()
+                    items.append(str({k: v['name']}))
+
+                line_data.append('"[%s]"' % ','.join(items))
+
+        output.write('%s\n' % ','.join(line_data))
+
+    return get_download_response(output, 'search_results.csv')

@@ -13,7 +13,6 @@
 {% endblock %}
 
 {% block content %}
-{% csrf_token %}
 {% load bitwise_tags %}
 <div class="container">
   <div class="row">
@@ -27,10 +26,12 @@
     </div>
     <div class="col">
       <div class="float-right">
-        <!--
-        <button id="export_csv" type="button" class="btn btn-primary">全件検索＆CSV 出力</button>
-        -->
-        <input type='checkbox' id='check_search_all'>全件表示する</a>
+        <form id='form_export_csv' action='/dashboard/advanced_search_export' method='post'>
+          {% csrf_token %}
+          <button id="export_csv" type="button" class="btn btn-primary btn-sm">全件検索＆CSV 出力</button>
+          <input type='hidden' name='entities' value='[{{ entities }}]' />
+          <input type='hidden' name='attrinfo' value='[]' />
+        </form>
       </div>
     </div>
   </div>
@@ -128,7 +129,7 @@
             </td>
 
           {% else %}
-          <td>{{ attr }}</td>
+            <td></td>
 
           {% endif %}
         {% endwith %}
@@ -161,7 +162,7 @@ function make_attr_elem(attr) {
             </div>`;
   }
 
-  if (attr) {
+  if (attr && attr.value) {
     switch (attr.type) {
       case {{ attr_type.string }}:
       case {{ attr_type.textarea }}:
@@ -284,6 +285,12 @@ $(document).ready(function() {
         MessageBox.error('failed to load data from server (Please reload this page or call Administrator)');
       });
     }
+  });
+
+  $('#export_csv').on('click', function(e) {
+    $('#form_export_csv input[name=attrinfo]').val(JSON.stringify(get_attrinfo()));
+
+    $('#form_export_csv').submit();
   });
 });
 </script>

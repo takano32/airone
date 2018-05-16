@@ -45,27 +45,56 @@ Finally, you can start AirOne and can browse from `http://hostname:8080/`.
 $ python3 manage.py runserver 0:8080
 ```
 
+### Celery
+
 In addition, you have to run Celery worker to execute background task as following.
 ```
 $ celery -A airone worker -l info
 ```
 
+### ElasticSearch
+You have to setup Java8 for executing elasticsearch. Here is the procedure to setup `Oracle JDK 8`.
+```
+$ sudo add-apt-repository ppa:webupd8team/java
+$ sudo apt-get update
+$ sudo apt-get install oracle-java8-installer
+```
+
+The way to install elasticsearch is quite easy like that.
+```
+$ wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.2.3.tar.gz
+$ tar -xvf elasticsearch-6.2.3.tar.gz
+```
+
+After installing it, you have to change configuration to accept connecting from AirOne nodes.
+```diff
+--- elasticsearch-6.2.3/config/elasticsearch.yml.old        2018-03-13 19:02:56.000000000 +0900
++++ elasticsearch-6.2.3/config/elasticsearch.yml            2018-05-10 16:35:25.872529462 +0900
+@@ -52,7 +52,7 @@
+ #
+ # Set the bind address to a specific IP (IPv4 or IPv6):
+ #
+-#network.host: 192.168.0.1
++network.host: 0.0.0.0
+ #
+ # Set a custom port for HTTP:
+ #
+```
+
+Then, you can execute ElasticSearch search like that.
+```
+$ elasticsearch-6.2.3/bin/elasticsearch
+```
+
 ## Tools
 There are some heler scripts about AirOne in the `tools` directory.
 
-### import_rackspace.py
-A helper script to import the `Rackspace` information that describes the allocation of each appliances.
+### register_es_documnt.py
+This regists all entries which has been created in the database to the Elasticsearch.
 
 #### Usage
-```
-Usage: import_rackspace.py [options]
+You can do it just by following command. The configurations about the database to read and Elasticsearch to register are referred from airone/settings.py.
 
-Options:
-  -h, --help            show this help message and exit
-  -u USERID, --userid=USERID
-                        Username to access the Database on the MySQL
-  -p PASSWD, --passwd=PASSWD
-                        Password associated with the Username to authenticate
-  -d DATABASE, --database=DATABASE
-                        Database name that contains Racktables data
+```
+$ tools/register_es_document.py
 ```

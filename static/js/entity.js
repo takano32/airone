@@ -57,6 +57,8 @@ $('form').submit(function(){
 
     // redirect to the entity list page
     location.href = `/entry/${ data.entity_id }`;
+  }).fail(function(data) {
+    MessageBox.error(data.responseText);
   });
 
   return false;

@@ -583,7 +583,8 @@ class ViewTest(AironeViewTest):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(Attribute.objects.get(name='foo').values.filter(is_latest=True).count(), 0)
+        self.assertEqual(Attribute.objects.get(name='foo').values.filter(is_latest=True).count(), 1)
+        self.assertEqual(Attribute.objects.get(name='foo').values.last().value, '')
         self.assertEqual(Attribute.objects.get(name='bar').values.filter(is_latest=True).count(), 1)
         self.assertEqual(Attribute.objects.get(name='bar').values.last().value, 'fuga')
         self.assertEqual(Entry.objects.get(id=entry.id).name, entry.name)
@@ -1544,7 +1545,11 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
 
         entry = Entry.objects.get(name='new_entry1')
-        self.assertEqual(entry.attrs.get(name='named_ref').values.count(), 0)
+
+        # An AttributeValue will be created at the creating processing even though the value is empty,
+        # but except for invalid one.
+        self.assertEqual(entry.attrs.get(name='named_ref').values.count(), 1)
+        self.assertIsNone(entry.attrs.get(name='named_ref').values.first().referral)
 
         # try to create only with value which is a reference for other entry
         params = {

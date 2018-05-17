@@ -1,4 +1,5 @@
 import logging
+import custom_view
 
 from airone.lib.acl import ACLType
 from airone.lib.types import AttrTypeValue
@@ -91,6 +92,9 @@ def create_entry_attrs(self, user_id, entry_id, recv_data):
             attr.add_value(user, _convert_data_value(attr, attr_data))
         except ValueError as e:
             Logger.warning('(%s) attr_data: %s' % (e, str(attr_data)))
+
+    if custom_view.is_custom_after_create_entry(entry.schema.name):
+        custom_view.call_custom_after_create_entry(entry.schema.name, recv_data, user, entry)
 
     # register entry information to Elasticsearch
     entry.register_es()

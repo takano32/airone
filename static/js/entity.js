@@ -30,7 +30,54 @@ var del_attr = function() {
   update_row_index();
 }
 
-$('form').submit(function(){
+var validate_form = function() {
+  var ok = true;
+
+  // check if entity name is not empty
+  var name_elem = $('input[name="name"]')
+  ok = ok & check_not_empty(name_elem);
+
+  // check attrs
+  var attr_elems = $('tbody[name="attributes"]').find('tr.attr')
+  attr_elems.map(function(index, dom) {
+    var elem = $(dom);
+    
+    // check if attr name is not empty
+    var attr_name_elem = elem.find('.attr_name');
+    ok = ok & check_not_empty(attr_name_elem);
+
+    // check if entry ref attr is specified for entry type
+    var attr_type_elem = elem.find('.attr_type');
+    if(ATTR_TYPE.object & attr_type_elem.val()) {
+      var attr_referral_elem = elem.find('.attr_referral');
+      var td_elem = attr_type_elem.parent().parent().parent();
+      if(attr_referral_elem.val().length == 0) {
+        td_elem.addClass('table-danger');
+        ok = false;
+      } else {
+        td_elem.removeClass('table-danger');
+      }
+    }
+  });
+  return ok;
+}
+
+var check_not_empty = function(elem) {
+  if(elem.val() == "") {
+    elem.parent().addClass("table-danger");
+    return false;
+  }
+
+  elem.parent().removeClass("table-danger");
+  return true;
+}
+
+$('form').submit(function(event){
+  if(!validate_form()) {
+    MessageBox.error("Some parameters are required to input");
+    return false;
+  }
+  
   var post_data = {
     'attrs': $('.attr').map(function(index, elem){
       var ret = {

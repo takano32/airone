@@ -11,6 +11,25 @@ var complete_processing = function(data) {
   $('#referral_entry_count').text(`エントリ数：${ data['found_count'] } / ${ data['total_count'] }`);
 }
 
+$('input[name=delete_entry]').on('click', function() {
+  if(confirm(`本当に削除しますか？`)) {
+    $.ajax({
+      type: 'POST',
+      url: "/entry/do_delete/{{ entry.id }}/",
+      data: JSON.stringify({}),
+      headers: {
+        'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val()
+      }
+    }).done(function(data) {
+      MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, "Success to delete Entry ({{ entry.name }})");
+
+      location.href = '/entry/{{ entry.schema.id }}';
+    }).fail(function(data) {
+      MessageBox.error(data.responseText);
+    });
+  }
+});
+
 $(document).ready(function() {
   var sending_request = false;
   $("#narrow_down_referral").on('keyup', function(e) {

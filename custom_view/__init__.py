@@ -82,6 +82,15 @@ def call_custom_after_create_entry(entity_name, *args, **kwargs):
     else:
         return HttpResponse("Custom view of after_create_entry doesn't exist", status=500)
 
+def is_custom_after_edit_entry(entity_name):
+    return _is_view(entity_name, 'after_edit_entry')
+
+def call_custom_after_edit_entry(entity_name, *args, **kwargs):
+    if(_isin_cache(entity_name, 'after_edit_entry') or _is_view(entity_name, 'after_edit_entry')):
+        return CUSTOM_VIEW[entity_name]['after_edit_entry'](*args, **kwargs)
+    else:
+        return HttpResponse("Custom view of after_edit_entry doesn't exist", status=500)
+
 def is_custom_do_edit_entry(entity_name):
     return _is_view(entity_name, 'do_edit_entry')
 

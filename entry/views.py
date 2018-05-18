@@ -79,7 +79,12 @@ def create(request, entity_id):
             'referrals': x.referral.count() and get_referrals(x) or [],
         } for x in entity.attrs.filter(is_active=True).order_by('index') if user.has_permission(x, ACLType.Writable)]
     }
-    return render(request, 'create_entry.html', context)
+
+    if custom_view.is_custom_create_entry(entity.name):
+        # show custom view
+        return custom_view.call_custom_create_entry(entity.name, request, user, entity, context)
+    else:
+        return render(request, 'create_entry.html', context)
 
 @airone_profile
 @http_post([

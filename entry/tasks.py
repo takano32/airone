@@ -126,10 +126,13 @@ def edit_entry_attrs(self, user_id, entry_id, recv_data):
         # Add new AttributeValue instance to Attribute instnace
         new_value = attr.add_value(user, converted_value)
 
+    if custom_view.is_custom_after_edit_entry(entry.schema.name):
+        custom_view.call_custom_after_edit_entry(entry.schema.name, recv_data, user, entry)
+
     # update entry information to Elasticsearch
     entry.register_es()
 
-    # clear flag to specify this entry has been completed to create
+    # clear flag to specify this entry has been completed to edit
     entry.del_status(Entry.STATUS_EDITING)
 
 @app.task(bind=True)

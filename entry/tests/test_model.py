@@ -1417,7 +1417,7 @@ class ModelTest(AironeTestCase):
 
         entry_info = {
             'entry1': {
-                'attr-0': 'foo',
+                'attr-0': '2018/01/01',
                 'attr-1': 'bar',
                 'attr-arr': ['hoge', 'fuga']
             },
@@ -1446,7 +1446,7 @@ class ModelTest(AironeTestCase):
         self.assertEqual(resp['ret_count'], 3)
 
         # search entries with keyword parameter from Elasticsearch
-        resp = Entry.search_entries(user, [entity.id], [{'name': 'attr-0', 'keyword': 'foo'}])
+        resp = Entry.search_entries(user, [entity.id], [{'name': 'attr-0', 'keyword': '2018/01/01'}])
         self.assertEqual(resp['ret_count'], 1)
         self.assertEqual(resp['ret_values'][0]['entry']['name'], 'entry1')
 

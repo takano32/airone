@@ -29,6 +29,7 @@ class ESS(Elasticsearch):
         self.indices.create(index=self._index, ignore=400, body=json.dumps({
             'mappings': {
                 'entry': {
+                    'date_detection': 'false',
                     'properties': {
                         'name': {
                             'type': 'text',

@@ -1,4 +1,5 @@
 import logging
+import custom_view
 
 from airone.lib.acl import ACLType
 from airone.lib.types import AttrTypeValue
@@ -64,12 +65,8 @@ def _convert_data_value(attr, info):
                 'id': recv_value,
             }
         elif attr.schema.type & AttrTypeValue['date']:
-            if recv_value:
-                try:
-                    datetime.strptime(recv_value,'%Y-%m-%d')
-                    return datetime.strptime(recv_value,'%Y-%m-%d')
-                except ValueError:
-                    raise ValueError('Incorrect data format')
+            return datetime.strptime(recv_value, '%Y-%m-%d')
+
         else:
             return recv_value
 
@@ -91,7 +88,16 @@ def create_entry_attrs(self, user_id, entry_id, recv_data):
         attr_data = [x for x in recv_data['attrs'] if int(x['id']) == attr.schema.id][0]
 
         # register new AttributeValue to the "attr"
-        attr.add_value(user, _convert_data_value(attr, attr_data))
+        try:
+            attr.add_value(user, _convert_data_value(attr, attr_data))
+        except ValueError as e:
+            Logger.warning('(%s) attr_data: %s' % (e, str(attr_data)))
+
+    if custom_view.is_custom_after_create_entry(entry.schema.name):
+        custom_view.call_custom_after_create_entry(entry.schema.name, recv_data, user, entry)
+
+    # register entry information to Elasticsearch
+    entry.register_es()
 
     # clear flag to specify this entry has been completed to ndcreate
     entry.del_status(Entry.STATUS_CREATING)
@@ -104,7 +110,11 @@ def edit_entry_attrs(self, user_id, entry_id, recv_data):
     for info in recv_data['attrs']:
         attr = Attribute.objects.get(id=info['id'])
 
-        converted_value = _convert_data_value(attr, info)
+        try:
+            converted_value = _convert_data_value(attr, info)
+        except ValueError as e:
+            Logger.warning('(%s) attr_data: %s' % (e, str(info)))
+            continue
 
         # Check a new update value is specified, or not
         if not attr.is_updated(converted_value):
@@ -116,7 +126,13 @@ def edit_entry_attrs(self, user_id, entry_id, recv_data):
         # Add new AttributeValue instance to Attribute instnace
         new_value = attr.add_value(user, converted_value)
 
-    # clear flag to specify this entry has been completed to create
+    if custom_view.is_custom_after_edit_entry(entry.schema.name):
+        custom_view.call_custom_after_edit_entry(entry.schema.name, recv_data, user, entry)
+
+    # update entry information to Elasticsearch
+    entry.register_es()
+
+    # clear flag to specify this entry has been completed to edit
     entry.del_status(Entry.STATUS_EDITING)
 
 @app.task(bind=True)

@@ -1,5 +1,32 @@
 {% load bitwise_tags %}
 <script>
+var get_register_attrs = function(base) {
+  var attrs = []
+
+  {% for attr in attributes %}
+  attrs.push({
+    'id': '{{ attr.id }}',
+    'type': '{{ attr.type }}',
+    'value': $(base).find(".attr_value[attr_id='{{ attr.id }}'][enabled='True']").map(function(i, e) {
+      if(! ($(e).val() == '0' || $(e).val() == '')) {
+        if($(e).attr('type') == 'checkbox') {
+          return {'data': $(e).prop('checked'), 'index': $(base).attr('index')};
+        } else {
+          return {'data': $(e).val(), 'index': $(base).attr('index')};
+        }
+      }
+    }).get(),
+    'referral_key': $(base).find(".referral_key[attr_id='{{ attr.id }}'][enabled='True']").map(function(i, e){
+      if(! $(e).val() == '') {
+        return {'data': $(e).val(), 'index': $(base).attr('index')};
+      }
+    }).get(),
+  });
+  {% endfor %}
+
+  return attrs;
+}
+
 $('form').submit(function(event){
   event.preventDefault();
 
@@ -11,29 +38,7 @@ $('form').submit(function(event){
     return false;
   }
 
-  var attrs = []
-  {% for attr in attributes %}
-  attrs.push({
-    'id': '{{ attr.id }}',
-    'type': '{{ attr.type }}',
-    'value': $(this).find(".attr_value[attr_id='{{ attr.id }}'][enabled='True']").map(function(i, e) {
-      if(! ($(e).val() == '0' || $(e).val() == '')) {
-        if($(e).attr('type') == 'checkbox') {
-          return {'data': $(e).prop('checked'), 'index': $(this).attr('index')};
-        } else {
-          return {'data': $(e).val(), 'index': $(this).attr('index')};
-        }
-      }
-    }).get(),
-    'referral_key': $(this).find(".referral_key[attr_id='{{ attr.id }}'][enabled='True']").map(function(i, e){
-      if(! $(e).val() == '') {
-        return {'data': $(e).val(), 'index': $(this).attr('index')};
-      }
-    }).get(),
-  });
-  {% endfor %}
-
-  HttpPost($(this), {'attrs': attrs}).done(function(data) {
+  HttpPost($(this), {'attrs': get_register_attrs(this)}).done(function(data) {
     {% if entry %}
       // success to edit entry
       MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, "Success to update Entry");

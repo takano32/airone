@@ -29,7 +29,6 @@ class ESS(Elasticsearch):
         self.indices.create(index=self._index, ignore=400, body=json.dumps({
             'mappings': {
                 'entry': {
-                    'date_detection': 'false',
                     'properties': {
                         'name': {
                             'type': 'text',
@@ -70,7 +69,6 @@ class ESS(Elasticsearch):
                                 'date_value': {
                                     'type': 'date',
                                     'index': 'true',
-                                    'format': 'yyyy-MM-dd'
                                 },
                                 'value': {
                                     'type': 'text',
@@ -90,6 +88,10 @@ class ESS(Elasticsearch):
                                         'referral_id': {
                                             'type': 'integer',
                                             'index': 'false',
+                                        },
+                                        'date_value': {
+                                            'type': 'date',
+                                            'index': 'true',
                                         },
                                         'value': {
                                             'type': 'text',

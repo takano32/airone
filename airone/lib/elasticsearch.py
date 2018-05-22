@@ -69,7 +69,6 @@ class ESS(Elasticsearch):
                                 'date_value': {
                                     'type': 'date',
                                     'index': 'true',
-                                    'format': 'yyyy-MM-dd'
                                 },
                                 'value': {
                                     'type': 'text',
@@ -89,6 +88,10 @@ class ESS(Elasticsearch):
                                         'referral_id': {
                                             'type': 'integer',
                                             'index': 'false',
+                                        },
+                                        'date_value': {
+                                            'type': 'date',
+                                            'index': 'true',
                                         },
                                         'value': {
                                             'type': 'text',

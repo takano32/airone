@@ -689,3 +689,51 @@ class ViewTest(AironeViewTest):
         self.assertEqual(entity.attrs.last().referral.count(), 2)
         self.assertEqual(entity.attrs.last().referral.filter(id=r_entity1.id).count(), 1)
         self.assertEqual(entity.attrs.last().referral.filter(id=r_entity2.id).count(), 1)
+
+    def test_change_attribute_type(self):
+        user = self.admin_login()
+
+        ref_entity = Entity.objects.create(name='ref_entity', created_user=user)
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        for name in ['foo', 'bar']:
+            attr = EntityAttr.objects.create(name=name,
+                                             type=AttrTypeStr,
+                                             created_user=user,
+                                             parent_entity=entity)
+            entity.attrs.add(attr)
+
+        (attr1, attr2) = entity.attrs.all()
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+
+        entry.attrs.get(schema=attr1).add_value(user, 'hoge')
+        entry.attrs.get(schema=attr2).add_value(user, 'fuga')
+
+        params = {
+            'name': 'new-entity',
+            'note': 'hoge',
+            'is_toplevel': False,
+            'attrs': [
+                # change attribute name and mandatory parameter
+                {'name': 'new', 'type': str(attr1.type), 'id': attr1.id,
+                 'is_mandatory': not attr1.is_mandatory, 'row_index': '1'},
+                # change only attribute type
+                {'name': attr2.name, 'type': str(AttrTypeValue['object']), 'id': attr2.id,
+                 'is_mandatory': attr2.is_mandatory, 'row_index': '2', 'ref_ids': [ref_entity.id]}
+            ]
+        }
+        resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # When name and mandatory parameters are changed, the attribute value will not be changed.
+        attrv = entry.attrs.get(schema=attr1).get_latest_value()
+        self.assertIsNotNone(attrv)
+        self.assertEqual(attrv.value, 'hoge')
+
+        # When a type of attribute value is clear, a new Attribute value will be created
+        attrv = entry.attrs.get(schema=attr2).get_latest_value()
+        self.assertEqual(attrv.value, '')

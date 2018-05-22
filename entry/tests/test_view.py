@@ -5,6 +5,7 @@ import urllib.parse
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.core.cache import cache
+from django.conf import settings
 from group.models import Group
 from datetime import date
 

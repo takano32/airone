@@ -4,3 +4,6 @@ class Settings(object):
 
     def __getattr__(self, key):
         return self.conf[key]
+
+    def __contains__(self, key):
+        return key in self.conf

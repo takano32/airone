@@ -2,7 +2,7 @@ import json
 import re
 
 from copy import deepcopy
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 from django.db import models
 from django.db.models import Q
@@ -933,6 +933,75 @@ class Entry(ACLBase):
 
             document['attr'].append(attrinfo)
 
+            latest_value = attr.get_latest_value()
+            if latest_value:
+
+                _value = latest_value.get_value(with_metainfo=True)
+                try:
+                    if _value['type'] & AttrTypeValue['array']:
+
+                        if _value['type'] & AttrTypeValue['string']:
+                            attrinfo['values'] = []
+                            for v in _value['value']:
+                                timeobj = self._is_date(v)
+                                if timeobj:
+                                    attrinfo['values'].append({'date_value': timeobj})
+                                else:
+                                    attrinfo['values'].append({'value': v})
+
+                        elif _value['type'] & AttrTypeValue['named']:
+                            _arrinfo = []
+                            for v in _value['value']:
+                                [k] = v.keys()
+
+                                _vinfo = {'key': k}
+                                if k in v and v[k]:
+                                    _vinfo['value'] = v[k]['name']
+                                    _vinfo['referral_id'] = v[k]['id']
+
+                                _arrinfo.append(_vinfo)
+
+                            attrinfo['values'] = _arrinfo
+
+                        elif _value['type'] & AttrTypeValue['object']:
+                            attrinfo['values'] = [{'value': v['name'], 'referral_id': v['id']} for v in _value['value']]
+
+                    else:
+                        if (_value['type'] & AttrTypeValue['string'] or
+                            _value['type'] & AttrTypeValue['text']):
+                            # When the value was date format, Elasticsearch detect it date type
+                            # automatically. This processing explicitly set value to the date typed
+                            # parameter.
+                            timeobj = self._is_date(_value['value'])
+                            if timeobj:
+                                attrinfo['date_value'] = timeobj
+                            else:
+                                attrinfo['value'] = str(_value['value'])
+
+                        elif _value['type'] & AttrTypeValue['boolean']:
+                            attrinfo['value'] = str(_value['value'])
+
+                        elif _value['type'] & AttrTypeValue['date']:
+                            attrinfo['date_value'] = _value['value']
+
+                        elif _value['type'] & AttrTypeValue['named']:
+                            [k] = _value['value'].keys()
+                            if k in _value['value'] and _value['value'][k]:
+                                attrinfo['key'] = k
+                                attrinfo['value'] = _value['value'][k]['name']
+                                attrinfo['referral_id'] = _value['value'][k]['id']
+
+                        elif (_value['type'] & AttrTypeValue['object'] or
+                              _value['type'] & AttrTypeValue['group']):
+                            attrinfo['value'] = _value['value']['name']
+                            attrinfo['referral_id'] = _value['value']['id']
+
+                except TypeError:
+                    # The attribute that has no value returns None at get_value method
+                    pass
+
+            document['attr'].append(attrinfo)
+
         resp = es.index(doc_type='entry', id=self.id, body=document)
         if not skip_refresh:
             es.refresh()
@@ -965,18 +1034,46 @@ class Entry(ACLBase):
                 })
 
             if 'keyword' in hint and hint['keyword']:
-                query['query']['bool']['filter'].append({
-                    'bool' : {
-                        'should': [
-                            {'regexp': {'attr.values.value': '.*%s.*' % hint['keyword']}},
-                            {'match': {'attr.values.value': hint['keyword']}},
-                            {'regexp': {'attr.value': '.*%s.*' % hint['keyword']}},
-                            {'match': {'attr.value': hint['keyword']}},
-                        ]
-                    }
-                })
 
-        res = ESS().search(body=query, ignore=[404])
+                timeobj = kls._is_date(hint['keyword'])
+                if timeobj:
+                    timestr = timeobj.strftime('%Y/%m/%d')
+                    query['query']['bool']['filter'].append({
+                        'bool' : {
+                            'should': [
+                                {'range': {
+                                    'attr.date_value': {
+                                        'gte': timestr,
+                                        'lte': timestr,
+                                        'format': 'yyyy/MM/dd'
+                                    }
+                                }},
+                                {'range': {
+                                    'attr.values.date_value': {
+                                        'gte': timestr,
+                                        'lte': timestr,
+                                        'format': 'yyyy/MM/dd'
+                                    }
+                                }},
+                            ]
+                        }
+                    })
+                else:
+                    query['query']['bool']['filter'].append({
+                        'bool' : {
+                            'should': [
+                                {'regexp': {'attr.values.value': '.*%s.*' % hint['keyword']}},
+                                {'match': {'attr.values.value': hint['keyword']}},
+                                {'regexp': {'attr.value': '.*%s.*' % hint['keyword']}},
+                                {'match': {'attr.value': hint['keyword']}},
+                            ]
+                        }
+                    })
+
+        try:
+            res = ESS().search(body=query, ignore=[404])
+        except Exception as e:
+            raise(e)
 
         if 'status' in res and res['status'] == 404:
             return results
@@ -1023,27 +1120,60 @@ class Entry(ACLBase):
                     ret_attrinfo['type'] = attrinfo['type']
 
                     # Checks that target values contain 'keyward' pattern if it's specified
-                    try:
-                        if (('keyword' in hint and hint['keyword']) and
-                            # the case target array attribute has no value that matches keyward parameter
-                            ((attrinfo['type'] & AttrTypeValue['array'] and
-                              not any([re.match(hint['keyword'], x['value']) for x in attrinfo['values']])) or
+                    if 'keyword' in hint and hint['keyword']:
+                        timeobj = kls._is_date(hint['keyword'])
+
+                        # the case target array attribute has no value that matches keyward parameter
+                        if ((attrinfo['type'] & AttrTypeValue['array'] and
+                             not any(['date_value' in x for x in attrinfo['values']]) and
+                             not any([re.match(hint['keyword'], x['value']) for x in attrinfo['values']])) or
+
+                            # the case target attry attribute has no matched date_value associated with keyword
+                            (attrinfo['type'] & AttrTypeValue['array'] and
+                             (any(['date_value' in x for x in attrinfo['values']]) or timeobj) and
+                             not any([x['date_value'].split('T')[0] == timeobj.strftime('%Y-%m-%d')
+                                 for x in attrinfo['values'] if 'date_value' in x and timeobj])) or
+
+                            # the case target has no value in array value
+                            (attrinfo['type'] & AttrTypeValue['array'] and
+                             not any(['date_value' in x or x['value'] for x in attrinfo['values']])) or
+
+                            # the case target has no value
+                            (not (attrinfo['type'] & AttrTypeValue['array']) and
+                             ('date_value' not in attrinfo or not attrinfo['date_value']) and
+                             not attrinfo['value']) or
+
+                            # the case target attribute has no value
+                            (not (attrinfo['type'] & AttrTypeValue['array']) and
+                             not timeobj and 'date_value' not in attrinfo and not attrinfo['value']) or
+
                             # the case target attribute doesn't have have that matches keyword parameter
-                             (not (attrinfo['type'] & AttrTypeValue['array']) and
-                              not re.match(hint['keyword'], attrinfo['value'])))):
+                            (not (attrinfo['type'] & AttrTypeValue['array']) and
+                             attrinfo['value'] and not re.match(hint['keyword'], attrinfo['value'])) or
+
+                            # the case target hint parameter is date, but keyword is not date parameter
+                            (not (attrinfo['type'] & AttrTypeValue['array']) and
+                             'date_value' in attrinfo and attrinfo['date_value'] and not timeobj) or
+
+                            # the case target date parameter doesn't match with specified keyword date
+                            (not (attrinfo['type'] & AttrTypeValue['array']) and
+                             'date_value' in attrinfo and attrinfo['date_value'] and timeobj and
+                             str(attrinfo['date_value']).split('T')[0] != timeobj.strftime('%Y-%m-%d'))):
 
                             will_append_entry = False
                             break
 
-                    except (KeyError, TypeError):
-                        will_append_entry = False
-                        break
-
                     # Set AttributeValue parameter to be returned
                     try:
                         if (attrinfo['type'] == AttrTypeValue['string'] or
-                            attrinfo['type'] == AttrTypeValue['text'] or
-                            attrinfo['type'] == AttrTypeValue['boolean']):
+                            attrinfo['type'] == AttrTypeValue['text']):
+
+                            if attrinfo['value']:
+                                ret_attrinfo['value'] = attrinfo['value']
+                            elif attrinfo['date_value']:
+                                ret_attrinfo['value'] = attrinfo['date_value'].split('T')[0]
+
+                        elif attrinfo['type'] == AttrTypeValue['boolean']:
                             ret_attrinfo['value'] = attrinfo['value']
 
                         elif attrinfo['type'] == AttrTypeValue['date']:
@@ -1059,7 +1189,12 @@ class Entry(ACLBase):
                             }
 
                         elif attrinfo['type'] == AttrTypeValue['array_string']:
-                            ret_attrinfo['value'] = [x['value'] for x in attrinfo['values']]
+                            ret_attrinfo['value'] = []
+                            for v in attrinfo['values']:
+                                if 'date_value' in v:
+                                    ret_attrinfo['value'].append(v['date_value'].split('T')[0])
+                                else:
+                                    ret_attrinfo['value'].append(v['value'])
 
                         elif attrinfo['type'] == AttrTypeValue['array_object']:
                             ret_attrinfo['value'] = [{'id': x['referral_id'], 'name': x['value']} for x in attrinfo['values']]
@@ -1083,3 +1218,15 @@ class Entry(ACLBase):
                 results['ret_count'] -= 1
 
         return results
+
+    @classmethod
+    def _is_date(kls, value):
+        ret = None
+        if re.match(r'^[0-9]{4}/[0-9]+/[0-9]+', value):
+            # ignore unconvert characters if exists by splitting
+            ret = datetime.strptime(value.split(' ')[0], '%Y/%m/%d')
+
+        elif re.match(r'^[0-9]{4}-[0-9]+-[0-9]+', value):
+            ret = datetime.strptime(value.split(' ')[0], '%Y-%m-%d')
+
+        return ret

@@ -1414,21 +1414,29 @@ class ModelTest(AironeTestCase):
                                                    created_user=user,
                                                    parent_entity=entity))
 
+        entity.attrs.add(EntityAttr.objects.create(name='attr-date',
+                                                   type=AttrTypeValue['date'],
+                                                   created_user=user,
+                                                   parent_entity=entity))
+
 
         entry_info = {
             'entry1': {
-                'attr-0': 'foo',
+                'attr-0': '2018/01/01',
                 'attr-1': 'bar',
+                'attr-date': date(2018, 1, 2),
                 'attr-arr': ['hoge', 'fuga']
             },
             'entry2': {
                 'attr-0': 'hoge',
                 'attr-1': 'bar',
-                'attr-arr': []
+                'attr-date': None,
+                'attr-arr': ['2018/01/01']
             },
             'entry3': {
                 'attr-0': '',
                 'attr-1': 'hoge',
+                'attr-date': None,
                 'attr-arr': []
             }
         }
@@ -1445,10 +1453,24 @@ class ModelTest(AironeTestCase):
         resp = Entry.search_entries(user, [entity.id], [{'name': 'attr-0'}])
         self.assertEqual(resp['ret_count'], 3)
 
-        # search entries with keyword parameter from Elasticsearch
-        resp = Entry.search_entries(user, [entity.id], [{'name': 'attr-0', 'keyword': 'foo'}])
+        # search entries with date keyword parameter in string type from Elasticsearch
+        resp = Entry.search_entries(user, [entity.id], [{'name': 'attr-0', 'keyword': '2018/01/01'}])
         self.assertEqual(resp['ret_count'], 1)
         self.assertEqual(resp['ret_values'][0]['entry']['name'], 'entry1')
+        self.assertEqual(resp['ret_values'][0]['attrs']['attr-0']['value'], '2018-01-01')
+
+        # search entries with date keyword parameter in date type from Elasticsearch
+        for x in ['2018/01/02', '2018-01-02', '2018-1-2', '2018-01-2', '2018-1-02']:
+            resp = Entry.search_entries(user, [entity.id], [{'name': 'attr-date', 'keyword': x}])
+            self.assertEqual(resp['ret_count'], 1)
+            self.assertEqual(resp['ret_values'][0]['entry']['name'], 'entry1')
+            self.assertEqual(resp['ret_values'][0]['attrs']['attr-date']['value'], '2018-01-02')
+
+        # search entries with date keyword parameter in string array type from Elasticsearch
+        resp = Entry.search_entries(user, [entity.id], [{'name': 'attr-arr', 'keyword': '2018-01-01'}])
+        self.assertEqual(resp['ret_count'], 1)
+        self.assertEqual(resp['ret_values'][0]['entry']['name'], 'entry2')
+        self.assertEqual(resp['ret_values'][0]['attrs']['attr-arr']['value'], ['2018-01-01'])
 
         # search entries with keyword parameter that other entry has same value in untarget attr
         resp = Entry.search_entries(user, [entity.id], [{'name': 'attr-0', 'keyword': 'hoge'}])
@@ -1459,3 +1481,8 @@ class ModelTest(AironeTestCase):
         resp = Entry.search_entries(user, [entity.id], [{'name': 'attr-arr', 'keyword': 'hoge'}])
         self.assertEqual(resp['ret_count'], 1)
         self.assertEqual(resp['ret_values'][0]['entry']['name'], 'entry1')
+
+        # search entries with an invalid or unmatch date keyword parameter in date type from Elasticsearch
+        for x in ['2018/02/01', 'hoge']:
+            resp = Entry.search_entries(user, [entity.id], [{'name': 'attr-date', 'keyword': x}])
+            self.assertEqual(resp['ret_count'], 0)

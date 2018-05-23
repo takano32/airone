@@ -887,60 +887,6 @@ class Entry(ACLBase):
                     if _value['type'] & AttrTypeValue['array']:
 
                         if _value['type'] & AttrTypeValue['string']:
-                            attrinfo['values'] = [{'value': v} for v in _value['value']]
-
-                        elif _value['type'] & AttrTypeValue['named']:
-                            _arrinfo = []
-                            for v in _value['value']:
-                                [k] = v.keys()
-
-                                _vinfo = {'key': k}
-                                if k in v and v[k]:
-                                    _vinfo['value'] = v[k]['name']
-                                    _vinfo['referral_id'] = v[k]['id']
-
-                                _arrinfo.append(_vinfo)
-
-                            attrinfo['values'] = _arrinfo
-
-                        elif _value['type'] & AttrTypeValue['object']:
-                            attrinfo['values'] = [{'value': v['name'], 'referral_id': v['id']} for v in _value['value']]
-
-                    else:
-                        if (_value['type'] & AttrTypeValue['string'] or
-                            _value['type'] & AttrTypeValue['text'] or
-                            _value['type'] & AttrTypeValue['boolean']):
-                            attrinfo['value'] = str(_value['value'])
-
-                        elif _value['type'] & AttrTypeValue['date']:
-                            attrinfo['date_value'] = _value['value']
-
-                        elif _value['type'] & AttrTypeValue['named']:
-                            [k] = _value['value'].keys()
-                            if k in _value['value'] and _value['value'][k]:
-                                attrinfo['key'] = k
-                                attrinfo['value'] = _value['value'][k]['name']
-                                attrinfo['referral_id'] = _value['value'][k]['id']
-
-                        elif (_value['type'] & AttrTypeValue['object'] or
-                              _value['type'] & AttrTypeValue['group']):
-                            attrinfo['value'] = _value['value']['name']
-                            attrinfo['referral_id'] = _value['value']['id']
-
-                except TypeError:
-                    # The attribute that has no value returns None at get_value method
-                    pass
-
-            document['attr'].append(attrinfo)
-
-            latest_value = attr.get_latest_value()
-            if latest_value:
-
-                _value = latest_value.get_value(with_metainfo=True)
-                try:
-                    if _value['type'] & AttrTypeValue['array']:
-
-                        if _value['type'] & AttrTypeValue['string']:
                             attrinfo['values'] = []
                             for v in _value['value']:
                                 timeobj = self._is_date(v)

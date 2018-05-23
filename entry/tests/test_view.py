@@ -209,7 +209,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': [{'data': 'hoge', 'index': '0'}], 'referral_key': []},
+                {'id': str(self._entity_attr.id), 'type': str(AttrTypeArrStr), 'value': [{'data': 'hoge', 'index': '0'}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -284,8 +284,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
-                {'id': str(self._entity_attr_optional.id), 'value': [], 'referral_key': []},
+                {'id': str(self._entity_attr.id), 'type': str(AttrTypeStr), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(self._entity_attr_optional.id), 'type': str(AttrTypeStr), 'value': [], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -341,8 +341,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'new_entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
-                {'id': str(attr_base.id), 'value': [{'data': str(entry.id), 'index': 0}], 'referral_key': []},
+                {'id': str(self._entity_attr.id), 'type': str(AttrTypeObj), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(attr_base.id), 'type': str(AttrTypeObj), 'value': [{'data': str(entry.id), 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -392,8 +392,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'new_entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
-                {'id': str(attr_base.id), 'value': [{'data': '0', 'index': 0}], 'referral_key': []},
+                {'id': str(self._entity_attr.id), 'type': str(AttrTypeObj), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(attr_base.id), 'type': str(AttrTypeObj), 'value': [{'data': '0', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -525,8 +525,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(Attribute.objects.get(name='foo').id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
-                {'id': str(Attribute.objects.get(name='bar').id), 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
+                {'id': str(Attribute.objects.get(name='foo').id), 'type': str(AttrTypeArrStr), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(Attribute.objects.get(name='bar').id), 'type': str(AttrTypeArrStr), 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -574,8 +574,8 @@ class ViewTest(AironeViewTest):
             'entry_name': entry.name,
             'attrs': [
                 # include blank value
-                {'id': str(Attribute.objects.get(name='foo').id), 'value': [{'data': '', 'index': 0}], 'referral_key': []},
-                {'id': str(Attribute.objects.get(name='bar').id), 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
+                {'id': str(Attribute.objects.get(name='foo').id), 'type': str(AttrTypeArrStr), 'value': [{'data': '', 'index': 0}], 'referral_key': []},
+                {'id': str(Attribute.objects.get(name='bar').id), 'type': str(AttrTypeArrStr), 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -618,6 +618,7 @@ class ViewTest(AironeViewTest):
             'entry_name': entry.name,
             'attrs': [{
                 'id': str(attr.id),
+                'type': str(AttrTypeArrStr),
                 'value': [
                     {'data': 'hoge', 'index': 0},
                     {'data': 'puyo', 'index': 1},
@@ -679,6 +680,7 @@ class ViewTest(AironeViewTest):
             'entry_name': entry.name,
             'attrs': [{
                 'id': str(attr.id),
+                'type': str(AttrTypeArrObj),
                 'value': [
                     {'data': e2.id, 'index': 0},
                     {'data': e3.id, 'index': 1},
@@ -762,7 +764,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'old_entry',
             'attrs': [
-                {'id': str(attr.id), 'value': [{'data': str(new_entry.id), 'index': 0}], 'referral_key': []},
+                {'id': str(attr.id), 'type': str(AttrTypeObj), 'value': [{'data': str(new_entry.id), 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -798,7 +800,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(attr.id), 'value': [{'data': '0', 'index': 0}], 'referral_key': []},
+                {'id': str(attr.id), 'type': str(AttrTypeObj), 'value': [{'data': '0', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -829,7 +831,7 @@ class ViewTest(AironeViewTest):
             'entry_name': entry.name,
             'attrs': [
                 # include blank value
-                {'id': str(attr.id), 'value': [], 'referral_key': []},
+                {'id': str(attr.id), 'type': str(AttrTypeObj), 'value': [], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -953,6 +955,7 @@ class ViewTest(AironeViewTest):
             'entry_name': 'entry-test',
             'attrs': [{
                 'id': str(attr_base.id),
+                'type': str(AttrTypeArrStr),
                 'value': [
                     {'data': 'hoge', 'index': 0},
                     {'data': 'fuga', 'index': 1},
@@ -1007,6 +1010,7 @@ class ViewTest(AironeViewTest):
             'entry_name': 'entry-test',
             'attrs': [{
                 'id': str(attr_base.id),
+                'type': str(AttrTypeArrObj),
                 'value': [
                     {'data': str(referral.id), 'index': 0},
                     {'data': str(referral.id), 'index': 1},
@@ -1052,11 +1056,13 @@ class ViewTest(AironeViewTest):
             'attrs': [
                 {
                     'id': str(self._entity_attr.id),
+                    'type': str(AttrTypeText),
                     'value': [{'data': 'hoge', 'index': 0}],
                     'referral_key': [],
                 },
                 {
                     'id': str(textattr.id),
+                    'type': str(AttrTypeText),
                     'value': [{'data': 'fuga', 'index': 0}],
                     'referral_key': [],
                 },
@@ -1086,6 +1092,7 @@ class ViewTest(AironeViewTest):
             'entry_name': 'entry',
             'attrs': [{
                 'id': str(self._entity_attr.id),
+                'type': str(AttrTypeValue['string']),
                 'value': [{'data': 'A' * AttributeValue.MAXIMUM_VALUE_SIZE, 'index': 0}],
                 'referral_key': [],
             }],
@@ -1113,6 +1120,7 @@ class ViewTest(AironeViewTest):
             'entry_name': 'entry',
             'attrs': [{
                 'id': str(attr.id),
+                'type': str(AttrTypeValue['string']),
                 'value': [{'data': 'A' * AttributeValue.MAXIMUM_VALUE_SIZE, 'index': 0}],
                 'referral_key': [],
             }],
@@ -1133,6 +1141,7 @@ class ViewTest(AironeViewTest):
             'entry_name': 'entry',
             'attrs': [{
                 'id': str(self._entity_attr.id),
+                'type': str(AttrTypeValue['string']),
                 'value': {
                     'data': ['A' * AttributeValue.MAXIMUM_VALUE_SIZE + 'A'],
                     'index': 0,
@@ -1158,6 +1167,7 @@ class ViewTest(AironeViewTest):
             'entry_name': 'entry',
             'attrs': [{
                 'id': str(attr.id),
+                'type': str(AttrTypeValue['string']),
                 'value': [{'data': 'A' * AttributeValue.MAXIMUM_VALUE_SIZE + 'A', 'index': 0}],
                 'referral_key': [],
             }],
@@ -1181,6 +1191,7 @@ class ViewTest(AironeViewTest):
             'attrs': [
                 {
                     'id': str(self._entity_attr.id),
+                    'type': str(AttrTypeStr),
                     'value': [{'data': 'hoge', 'index': 0}],
                     'referral_key': [],
                 },
@@ -1234,8 +1245,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
-                {'id': str(attr.id), 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
+                {'id': str(self._entity_attr.id), 'type': str(AttrTypeStr), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(attr.id), 'type': str(AttrTypeStr),'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -1271,8 +1282,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry1',
             'attrs': [
-                {'id': str(attrs[0].id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
-                {'id': str(attrs[1].id), 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
+                {'id': str(attrs[0].id), 'type': str(AttrTypeStr), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(attrs[1].id), 'type': str(AttrTypeStr), 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
             ],
         }
 
@@ -1307,7 +1318,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entity_attr.id), 'value': [{'data': True, 'index': 0}], 'referral_key': []},
+                {'id': str(entity_attr.id), 'type': str(AttrTypeValue['boolean']), 'value': [{'data': True, 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -1327,7 +1338,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entry.attrs.get(name='attr_bool').id), 'value': [{'data': False, 'index': 0}], 'referral_key': []},
+                {'id': str(entry.attrs.get(name='attr_bool').id), 'type': str(AttrTypeValue['boolean']), 'value': [{'data': False, 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -1354,7 +1365,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(attr_base.id), 'value': [], 'referral_key': []},
+                {'id': str(attr_base.id), 'type': str(AttrTypeStr), 'value': [], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -1383,7 +1394,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'Updated Entry',
             'attrs': [
-                {'id': str(entry.attrs.get(name='attr').id), 'value': [], 'referral_key': []},
+                {'id': str(entry.attrs.get(name='attr').id), 'type': str(AttrTypeStr), 'value': [], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -1423,6 +1434,7 @@ class ViewTest(AironeViewTest):
             'attrs': [
                 {
                     'id': str(entity.attrs.get(name='ref').id),
+                    'type': str(AttrTypeValue['object']),
                     'value': [
                         {'data': str(ref_entry1.id), 'index': 0},
                     ],
@@ -1430,6 +1442,7 @@ class ViewTest(AironeViewTest):
                 },
                 {
                     'id': str(entity.attrs.get(name='arr_ref').id),
+                    'type': str(AttrTypeValue['array_object']),
                     'value': [
                         {'data': str(ref_entry1.id), 'index': 0},
                         {'data': str(ref_entry2.id), 'index': 1},
@@ -1457,8 +1470,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entry.attrs.get(name='ref').id), 'value': [], 'referral_key': []},
-                {'id': str(entry.attrs.get(name='arr_ref').id), 'value': [], 'referral_key': []},
+                {'id': str(entry.attrs.get(name='ref').id), 'type': str(AttrTypeValue['object']), 'value': [], 'referral_key': []},
+                {'id': str(entry.attrs.get(name='arr_ref').id), 'type': str(AttrTypeValue['array_object']), 'value': [], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -1476,6 +1489,7 @@ class ViewTest(AironeViewTest):
             'attrs': [
                 {
                     'id': str(entry.attrs.get(name='ref').id),
+                    'type': str(AttrTypeValue['object']),
                     'value': [
                         {'data': str(ref_entry2.id), 'index': 0},
                     ],
@@ -1483,6 +1497,7 @@ class ViewTest(AironeViewTest):
                 },
                 {
                     'id': str(entry.attrs.get(name='arr_ref').id),
+                    'type': str(AttrTypeValue['array_object']),
                     'value': [
                         {'data': str(ref_entry2.id), 'index': 0},
                         {'data': str(ref_entry3.id), 'index': 1},
@@ -1537,6 +1552,7 @@ class ViewTest(AironeViewTest):
             'entry_name': 'new_entry1',
             'attrs': [{
                 'id': str(attr_base.id),
+                'type': str(AttrTypeValue['named_object']),
                 'referral_key': [],
                 'value': [],
             }],
@@ -1556,6 +1572,7 @@ class ViewTest(AironeViewTest):
             'entry_name': 'new_entry2',
             'attrs': [{
                 'id': str(attr_base.id),
+                'type': str(AttrTypeValue['named_object']),
                 'value': [{'data': str(ref_entry.id), 'index': 0}],
                 'referral_key': [],
             }],
@@ -1573,6 +1590,7 @@ class ViewTest(AironeViewTest):
             'entry_name': 'new_entry3',
             'attrs': [{
                 'id': str(attr_base.id),
+                'type': str(AttrTypeValue['named_object']),
                 'value': [],
                 'referral_key': [{'data': 'hoge', 'index': 0}],
             }],
@@ -1608,6 +1626,7 @@ class ViewTest(AironeViewTest):
             'entry_name': 'new_entry',
             'attrs': [{
                 'id': str(attr_base.id),
+                'type': str(AttrTypeValue['array_named_object']),
                 'value': [
                     {'data': str(ref_entry.id), 'index': 0},
                     {'data': str(ref_entry.id), 'index': 1},
@@ -1673,6 +1692,7 @@ class ViewTest(AironeViewTest):
             'entry_name': 'updated_entry',
             'attrs': [{
                 'id': str(entry.attrs.get(name='named_ref').id),
+                'type': str(AttrTypeValue['named_object']),
                 'value': [{'data': str(ref_entry.id), 'index': 0}],
                 'referral_key': [{'data': 'hoge', 'index': 0}],
             }],
@@ -1690,6 +1710,7 @@ class ViewTest(AironeViewTest):
             'entry_name': 'updated_entry',
             'attrs': [{
                 'id': str(entry.attrs.get(name='named_ref').id),
+                'type': str(AttrTypeValue['named_object']),
                 'value': [{'data': str(ref_entry2.id), 'index': 0}],
                 'referral_key': [{'data': 'fuga', 'index': 0}],
             }],
@@ -1749,6 +1770,7 @@ class ViewTest(AironeViewTest):
             'entry_name': 'updated_entry',
             'attrs': [{
                 'id': str(entry.attrs.get(name='arr_named_ref').id),
+                'type': str(AttrTypeValue['array_named_object']),
                 'value': [{'data': str(r), 'index': i} for i, r in enumerate(r_entries)],
                 'referral_key': [{'data': 'key_%d' % i, 'index': i} for i in range(0, 3)],
             }],
@@ -1765,6 +1787,7 @@ class ViewTest(AironeViewTest):
             'entry_name': 'updated_entry',
             'attrs': [{
                 'id': str(entry.attrs.get(name='arr_named_ref').id),
+                'type': str(AttrTypeValue['array_named_object']),
                 'value': [
                     {'data': r_entries[1], 'index': 1},
                     {'data': r_entries[2], 'index': 2},
@@ -1795,6 +1818,7 @@ class ViewTest(AironeViewTest):
             'entry_name': 'updated_entry',
             'attrs': [{
                 'id': str(entry.attrs.get(name='arr_named_ref').id),
+                'type': str(AttrTypeValue['array_named_object']),
                 'value': [
                     {'data': r_entries[2], 'index': 2},
                     {'data': r_entries[1], 'index': 1},
@@ -1890,6 +1914,7 @@ class ViewTest(AironeViewTest):
             'entry_name': 'entry',
             'attrs': [{
                 'id': str(entity.attrs.first().id),
+                'type': str(AttrTypeValue['group']),
                 'value': [{'index': 0, 'data': str(group.id)}],
             }],
         }
@@ -1933,6 +1958,7 @@ class ViewTest(AironeViewTest):
             'entry_name': 'entry',
             'attrs': [{
                 'id': str(attr.id),
+                'type': str(AttrTypeValue['group']),
                 'value': [{'index': 0, 'data': str(Group.objects.get(name='group-0').id)}],
             }],
         }
@@ -1947,6 +1973,7 @@ class ViewTest(AironeViewTest):
             'entry_name': 'entry',
             'attrs': [{
                 'id': str(attr.id),
+                'type': str(AttrTypeValue['group']),
                 'value': [{'index': 0, 'data': str(Group.objects.get(name='group-1').id)}],
             }],
         }
@@ -2107,7 +2134,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entity_attr.id), 'value': [{'data': '2018-12-31', 'index': 0}], 'referral_key': []},
+                {'id': str(entity_attr.id), 'type': str(AttrTypeValue['date']), 'value': [{'data': '2018-12-31', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -2127,7 +2154,7 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entry.attrs.get(name='attr_date').id), 'value': [{'data': '2019-1-1', 'index': 0}], 'referral_key': []},
+                {'id': str(entry.attrs.get(name='attr_date').id), 'type': str(AttrTypeValue['date']), 'value': [{'data': '2019-1-1', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -2155,29 +2182,16 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entity_attr.id), 'value': [{'data': '2018-13-30', 'index': 0}], 'referral_key': []},
+                {'id': str(entity_attr.id), 'type': str(AttrTypeValue['date']), 'value': [{'data': '2018-13-30', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
                                 json.dumps(params),
                                 'application/json')
 
-        # Note: The status code for this request should be 400 and target entry should not be
-        # created. To accomplish that the view of entry have to implement validation check that
-        # recieved values are valid, or not.
-        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.status_code, 400)
 
-        entry = Entry.objects.get(name='entry', schema=entity)
-        self.assertEqual(entry.attrs.count(), 1)
-
-        attrv = entry.attrs.first().get_latest_value()
-        self.assertIsNotNone(attrv)
-        self.assertIsNone(attrv.referral)
-        self.assertIsNone(attrv.date)
-        self.assertEqual(attrv.data_type, entity_attr.type)
-        self.assertEqual(attrv.value, '')
-
-    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
     def test_edit_invalid_date_param(self):
         INITIAL_DATE = date.today()
         admin = self.admin_login()
@@ -2195,11 +2209,11 @@ class ViewTest(AironeViewTest):
         attr = entry.attrs.last()
         attr.add_value(admin, INITIAL_DATE)
 
-        # creates entry that has a out of range parameter which is typed date
+        # updates entry that has a invalid parameter which is typed date
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(attr.id), 'type': str(AttrTypeValue['date']), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
             ],
         }
 
@@ -2208,11 +2222,8 @@ class ViewTest(AironeViewTest):
                                 json.dumps(params),
                                 'application/json')
 
-        # Note: The status code for this request should be 400 and target entry should not be
-        # created. To accomplish that the view of entry have to implement validation check that
-        # recieved values are valid, or not.
-        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.status_code, 400)
 
-        # XXX: Here is a temporal test to check that backend processing will not update with invalid value
-        value = attr.get_latest_value().date
+        # check that backend processing will not update with invalid value
+        self.assertEqual(entry.attrs.last().values.count(), 1)
         self.assertEqual(attr.get_latest_value().date, INITIAL_DATE)

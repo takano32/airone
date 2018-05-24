@@ -118,9 +118,9 @@ def do_create(request, entity_id, recv_data):
             return HttpResponse('Passed value is exceeded the limit', status=400)
 
         # Check date value format
-        if (int(attr_data['type']) & AttrTypeValue['date']) and attr_data['value']:
+        if (int(attr_data['type']) & AttrTypeValue['date']):
             try:
-                [datetime.strptime(str(i['data']),'%Y-%m-%d') for i in attr_data['value']]
+                [datetime.strptime(str(i['data']),'%Y-%m-%d') for i in attr_data['value'] if i['data']]
             except:
                 return HttpResponse('Incorrect data format in date', status=400)
 
@@ -203,9 +203,9 @@ def do_edit(request, entry_id, recv_data):
             return HttpResponse('Passed value is exceeded the limit', status=400)
 
         # Check date value format
-        if (int(attr_data['type']) & AttrTypeValue['date']) and attr_data['value']:
+        if (int(attr_data['type']) & AttrTypeValue['date']):
             try:
-                [datetime.strptime(str(i['data']),'%Y-%m-%d') for i in attr_data['value']]
+                [datetime.strptime(str(i['data']),'%Y-%m-%d') for i in attr_data['value'] if i['data']]
             except:
                 return HttpResponse('Incorrect data format in date', status=400)
 

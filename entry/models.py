@@ -424,7 +424,10 @@ class Attribute(ACLBase):
             return isinstance(value, bool)
 
         if(self.schema.type & AttrTypeValue['date']):
-            return isinstance(value, date) or value is None
+            if not value:
+                return True
+            else:
+                return isinstance(value, date)
 
         if(self.schema.type & AttrTypeValue['group']):
             if isinstance(value, Group):

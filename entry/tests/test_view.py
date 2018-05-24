@@ -2227,3 +2227,73 @@ class ViewTest(AironeViewTest):
         # check that backend processing will not update with invalid value
         self.assertEqual(entry.attrs.last().values.count(), 1)
         self.assertEqual(attr.get_latest_value().date, INITIAL_DATE)
+
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    def test_create_empty_date_param(self):
+        admin = self.admin_login()
+
+        entity = Entity.objects.create(name='entity', created_user=admin)
+        entity_attr = EntityAttr.objects.create(name='attr_date',
+                                                type=AttrTypeValue['date'],
+                                                parent_entity=entity,
+                                                created_user=admin)
+        entity.attrs.add(entity_attr)
+
+        # creates entry that has a empty parameter which is typed date
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entity_attr.id), 'type': str(AttrTypeValue['date']), 'value': [{'data': '', 'index': 0}], 'referral_key': []},
+            ],
+        }
+
+        # check that created a new entry with an empty date parameter
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+
+        # get entry which is created in here
+        entry = Entry.objects.get(name='entry', schema=entity)
+
+        self.assertEqual(entry.attrs.count(), 1)
+        self.assertIsNone(entry.attrs.last().get_latest_value().date)
+
+
+    @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
+    def test_edit_empty_date_param(self):
+        INITIAL_DATE = date.today()
+        admin = self.admin_login()
+
+        entity = Entity.objects.create(name='entity', created_user=admin)
+        entity_attr = EntityAttr.objects.create(name='attr_date',
+                                                type=AttrTypeValue['date'],
+                                                parent_entity=entity,
+                                                created_user=admin)
+        entity.attrs.add(entity_attr)
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=admin)
+        entry.complement_attrs(admin)
+
+        attr = entry.attrs.last()
+        attr.add_value(admin, INITIAL_DATE)
+
+        # updates entry that has a empty parameter which is typed date
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(attr.id), 'type': str(AttrTypeValue['date']), 'value': [{'data': '', 'index': 0}], 'referral_key': []},
+            ],
+        }
+
+        # check that the date parameter was updated with empty
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+
+        # check that backend processing will update with empty value
+        self.assertEqual(attr.values.count(), 2)
+        self.assertIsNone(attr.get_latest_value().date)

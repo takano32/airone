@@ -11,63 +11,54 @@
 {% block content %}
 {% load bitwise_tags %}
 <div class="container-fluid">
-  <div class="row">
-    <div class="col">
-      <div class="float-left">
-        <button name="button_new" type="button" class="btn btn-primary" onclick="location.href='/entry/create/{{ entity.id }}'">エントリ作成</button>
-        <button name="button_new" type="button" class="btn btn-info" onclick="location.href='/entity/edit/{{ entity.id }}'">エンティティ編集</button>
-        <button name="button_new" type="button" class="btn btn-info" onclick="location.href='/acl/{{ entity.id }}'">エンティティの ACL</button>
-        <button name="button_export" type="button" class="btn btn-secondary" onclick="location.href='/entry/export/{{ entity.id }}'">エクスポート</button>
-        <button name="button_import" type="button" class="btn btn-secondary" onclick="location.href='/entry/import/{{ entity.id }}'">インポート</button>
-        <button name="button_export" type="button" class="btn btn-secondary" onclick="location.href='/entry/export/{{ entity.id }}?format=CSV'">CSV で出力</button>
-      </div>
-      <div class="float-right">
-        <button name="button_save" type="button" class="btn btn-primary">保存</button>
-      </div>
-    </div>
-  </div>
+  {% include 'entity_navigation.html' with tab='list' %}
 
   <hr/>
-  <div class="row">
-    <div class="col">
-      {% if total_count != list_count %}
-        <h5 id='entry_count'> {{ list_count }} / {{ total_count }} エントリ</h5>
-      {% else %}
-        <h5 id='entry_count'>{{ total_count }} エントリ</h5>
-      {% endif %}
-      <input id='narrow_down_entries' text='text' placeholder='絞り込む' />
-      <p></p>
+
+  {% include 'entity_tab.html' with tab='list' %}
+
+  <div class='tab-content'>
+    <div class="row">
+      <div class="col">
+        {% if total_count != list_count %}
+          <h5 id='entry_count'> {{ list_count }} / {{ total_count }} エントリ</h5>
+        {% else %}
+          <h5 id='entry_count'>{{ total_count }} エントリ</h5>
+        {% endif %}
+        <input id='narrow_down_entries' text='text' placeholder='絞り込む' />
+        <p></p>
+      </div>
     </div>
-  </div>
 
-  <div class="row">
-    <div class="col">
-      {% csrf_token %}
-      <table class="table table-bordered">
-        <thead>
-          <tr>
-            <th>エントリ名</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id='entry_container'>
-          {% for entry in entries %}
+    <div class="row">
+      <div class="col">
+        {% csrf_token %}
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <th>エントリ名</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id='entry_container'>
+            {% for entry in entries %}
 
-          <tr>
-            {% if entry.status|bitwise_and:STATUS_ENTRY.CREATING %}
-              <td>{{ entry.name }} [作成中]</td>
-            {% elif entry.status|bitwise_and:STATUS_ENTRY.EDITING %}
-              <td><a href='/entry/show/{{ entry.id }}'>{{ entry.name }} [編集中]</a></td>
-            {% else %}
-              <td><a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a></td>
-            {% endif %}
+            <tr>
+              {% if entry.status|bitwise_and:STATUS_ENTRY.CREATING %}
+                <td>{{ entry.name }} [作成中]</td>
+              {% elif entry.status|bitwise_and:STATUS_ENTRY.EDITING %}
+                <td><a href='/entry/show/{{ entry.id }}'>{{ entry.name }} [編集中]</a></td>
+              {% else %}
+                <td><a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a></td>
+              {% endif %}
 
-            <td><button name="button_delete" type="button" class="btn btn-danger btn-sm del-item" url="/entry/do_delete/{{ entry.id }}/">del</button></td>
-          </tr>
+              <td><button name="button_delete" type="button" class="btn btn-danger btn-sm del-item" url="/entry/do_delete/{{ entry.id }}/">del</button></td>
+            </tr>
 
-          {% endfor %}
-        </tbody>
-      </table>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>

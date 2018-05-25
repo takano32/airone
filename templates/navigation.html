@@ -15,6 +15,9 @@
         <li class="breadcrumb-item">{{ object.name }}</li>
       {% endif %}
 
+    {% elif object.objtype == navigator.acl_objtype.entity %}
+      <li class="breadcrumb-item">{{ entity.name }}</li>
+
     {% elif path == 'create_entry' %}
       <li class="breadcrumb-item"><a href='/entry/{{ entity.id }}'>{{ entity.name }}</a></li>
       <li class="breadcrumb-item">新規エントリ作成</li>

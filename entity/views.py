@@ -6,6 +6,7 @@ from django.http import HttpResponse
 from django.http.response import JsonResponse
 from django.db.models import Q
 from django.core.exceptions import PermissionDenied
+from django.shortcuts import redirect
 
 from .models import Entity
 from .models import EntityAttr
@@ -24,6 +25,8 @@ from airone.lib.http import check_superuser
 from airone.lib.acl import get_permitted_objects
 from airone.lib.acl import ACLType
 from airone.lib.profile import airone_profile
+
+from .settings import CONFIG
 
 Logger = logging.getLogger(__name__)
 
@@ -362,3 +365,138 @@ def history(request, entity_id):
     }
 
     return render(request, 'history_entity.html', context)
+
+@http_get
+def _dashboard(request, entity_id):
+    user = User.objects.get(id=request.user.id)
+
+    if not Entity.objects.filter(id=entity_id).count():
+        return HttpResponse('Failed to get entity of specified id', status=400)
+
+    # entity to be editted is given by url
+    entity = Entity.objects.get(id=entity_id)
+
+    summarized_data = {}
+    for attr in EntityAttr.objects.filter(parent_entity=entity, is_active=True, is_summarized=True):
+        summarized_data[attr] = {
+            'referral_count': {},
+        }
+
+        for referral in Entry.objects.filter(schema=attr.referral.first(), is_active=True):
+            summarized_data[attr]['referral_count'][referral] = AttributeValue.objects.filter(**{
+                'parent_attr__schema': attr,
+                'is_latest': True,
+                'referral': referral,
+            }).count()
+
+        summarized_data[attr]['no_referral_count'] = \
+                Entry.objects.filter(schema=entity, is_active=True).count() - \
+                sum([v for (r, v) in summarized_data[attr]['referral_count'].items()])
+
+    context = {
+        'entity': entity,
+        'total_entry_count': Entry.objects.filter(schema=entity, is_active=True).count(),
+        'summarized_data': summarized_data,
+    }
+    return render(request, 'dashboard_entity.html', context)
+
+@http_get
+def dashboard(request, entity_id):
+    user = User.objects.get(id=request.user.id)
+
+    if not Entity.objects.filter(id=entity_id).count():
+        return HttpResponse('Failed to get entity of specified id', status=400)
+
+    # entity to be editted is given by url
+    entity = Entity.objects.get(id=entity_id)
+    total_entry_count = Entry.objects.filter(schema=entity, is_active=True).count()
+
+    summarized_data = {}
+    for attr in EntityAttr.objects.filter(parent_entity=entity, is_active=True, is_summarized=True):
+        summarized_data[attr] = {
+            'referral_count': [{
+                'referral': r.name,
+                'count': AttributeValue.objects.filter(**{
+                    'parent_attr__schema': attr,
+                    'is_latest': True,
+                    'referral': r,
+                }).count(),
+            } for r in Entry.objects.filter(schema=attr.referral.first(), is_active=True)],
+        }
+
+        # filter elements which count is 0
+        summarized_data[attr]['referral_count'] = \
+                [x for x in summarized_data[attr]['referral_count'] if x['count'] > 0]
+
+        # set count of entries which doesn't have referral
+        summarized_data[attr]['no_referral_count'] = \
+                Entry.objects.filter(schema=entity, is_active=True).count() - \
+                sum([x['count'] for x in summarized_data[attr]['referral_count']])
+
+        summarized_data[attr]['no_referral_ratio'] = '%2.1f' % \
+                ((100 * summarized_data[attr]['no_referral_count']) / total_entry_count)
+
+        # sort by referral counts
+        summarized_data[attr]['referral_count'] = sorted(summarized_data[attr]['referral_count'],
+                                                         key=lambda x: x['count'],
+                                                         reverse=True)
+
+        # summarize results to prevent overflowing results by a lot of tiny elements
+        if len(summarized_data[attr]['referral_count']) > CONFIG.DASHBOARD_NUM_ITEMS:
+            rest_counts = sum([x['count'] for x
+                in summarized_data[attr]['referral_count'][CONFIG.DASHBOARD_NUM_ITEMS:]])
+
+            summarized_data[attr]['referral_count'] = summarized_data[attr]['referral_count'][:CONFIG.DASHBOARD_NUM_ITEMS]
+            summarized_data[attr]['referral_count'].append({
+                'referral': '(Others)',
+                'count': rest_counts,
+                'ratio': '%2.1f' % ((rest_counts * 100) / total_entry_count),
+            })
+
+        # set ratio for each elements
+        for info in summarized_data[attr]['referral_count']:
+            info['ratio'] = '%2.1f' % ((info['count'] * 100) / total_entry_count)
+
+    context = {
+        'entity': entity,
+        'total_entry_count': total_entry_count,
+        'summarized_data': summarized_data,
+    }
+    return render(request, 'dashboard_entity.html', context)
+
+@http_get
+def conf_dashboard(request, entity_id):
+    user = User.objects.get(id=request.user.id)
+
+    if not Entity.objects.filter(id=entity_id).count():
+        return HttpResponse('Failed to get entity of specified id', status=400)
+
+    # entity to be editted is given by url
+    entity = Entity.objects.get(id=entity_id)
+
+    context = {
+        'entity': entity,
+        'ref_attrs': EntityAttr.objects.filter(parent_entity=entity, type=AttrTypeValue['object'], is_active=True),
+        'redirect_url': '/entity/dashboard/config/register/%s' % entity_id,
+    }
+    return render(request, 'conf_dashboard_entity.html', context)
+
+@http_post([
+    {'name': 'attrs', 'type': list,
+     'checker': lambda x: all([EntityAttr.objects.filter(id=v).count() for v in x['attrs']])}
+])
+def do_conf_dashboard(request, entity_id, recv_data):
+    user = User.objects.get(id=request.user.id)
+
+    if not Entity.objects.filter(id=entity_id).count():
+        return HttpResponse('Failed to get entity of specified id', status=400)
+
+    # clear is_summarized flag for each EntityAttrs corresponding to the entity
+    EntityAttr.objects.filter(parent_entity=entity_id).update(is_summarized=False)
+
+    # set is_summarized flag for each specified EntityAttrs
+    for attr in [EntityAttr.objects.get(id=x) for x in recv_data['attrs']]:
+        attr.is_summarized = True
+        attr.save(update_fields=['is_summarized'])
+
+    return JsonResponse({'msg': 'Success to update dashboard'})

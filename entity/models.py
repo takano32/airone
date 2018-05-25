@@ -13,6 +13,10 @@ class EntityAttr(ACLBase):
     referral = models.ManyToManyField(ACLBase, default=[], related_name='referred_attr_base')
     index = models.IntegerField(default=0)
 
+    # When this parameters set, all entries which are related to the parent_entity will be analyzed
+    # at the dashboard of entity
+    is_summarized = models.BooleanField(default=False)
+
     def __init__(self, *args, **kwargs):
         super(ACLBase, self).__init__(*args, **kwargs)
         self.objtype = ACLObjType.EntityAttr

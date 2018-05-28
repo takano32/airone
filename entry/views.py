@@ -480,6 +480,7 @@ def do_copy(request, entry_id, recv_data):
 
     ret = []
     entry = Entry.objects.get(id=entry_id)
+    dest_entry_names = []
     for new_name in [x for x in recv_data['entries'].split('\n') if x]:
         if Entry.objects.filter(schema=entry.schema, name=new_name).count() > 0:
             ret.append({
@@ -488,10 +489,12 @@ def do_copy(request, entry_id, recv_data):
             })
             continue
 
-        copy_entry.delay(user_id, entry_id, new_name)
+        dest_entry_names.append(new_name)
         ret.append({
             'status': 'success',
             'msg': "Success to create new entry '%s'" % new_name,
         })
+
+    copy_entry.delay(user_id, entry_id, dest_entry_names)
 
     return JsonResponse({'results': ret})

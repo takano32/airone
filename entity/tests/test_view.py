@@ -789,7 +789,7 @@ class ViewTest(AironeViewTest):
         entity = Entity.objects.create(name='entity', created_user=user)
 
         # send request with invalid entity id
-        resp = self.client.get(reverse('entity:dashboard', args=[999]))
+        resp = self.client.get(reverse('entity:conf_dashboard', args=[999]))
         self.assertEqual(resp.status_code, 400)
 
         resp = self.client.get(reverse('entity:conf_dashboard', args=[entity.id]))

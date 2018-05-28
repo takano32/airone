@@ -49,6 +49,9 @@ vm0006
 $('form').submit(function(event){
   event.preventDefault();
 
+  // disable submit button
+  $('input[type="submit"]').prop('disabled', true);
+
   // clear old warning
   MessageBox.clear();
 
@@ -63,6 +66,10 @@ $('form').submit(function(event){
   }).fail(function(data) {
     MessageBox.error(data.responseText);
   });
+
+  // re-enable submit button
+  $('input[type="submit"]').prop('disabled', false);
+
 });
 
 </script>

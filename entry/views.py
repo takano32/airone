@@ -25,7 +25,7 @@ from entry.admin import EntryResource, AttrResource, AttrValueResource
 from user.models import User
 from group.models import Group
 from .settings import CONFIG
-from .tasks import create_entry_attrs, edit_entry_attrs, delete_entry
+from .tasks import create_entry_attrs, edit_entry_attrs, delete_entry, copy_entry
 
 
 @airone_profile
@@ -469,7 +469,7 @@ def copy(request, entry_id):
 @http_post([])
 @check_permission(Entry, ACLType.Writable)
 def do_copy(request, entry_id, recv_data):
-    user = User.objects.get(id=request.user.id)
+    user_id = request.user.id
 
     # validation check
     if 'entries' not in recv_data:
@@ -488,7 +488,7 @@ def do_copy(request, entry_id, recv_data):
             })
             continue
 
-        new_entry = entry.clone(user, name=new_name)
+        copy_entry.delay(user_id, entry_id, new_name)
         ret.append({
             'status': 'success',
             'msg': "Success to create new entry '%s'" % new_name,

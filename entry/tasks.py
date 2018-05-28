@@ -140,3 +140,12 @@ def delete_entry(self, entry_id):
     entry = Entry.objects.get(id=entry_id)
 
     entry.delete()
+
+@app.task(bind=True)
+def copy_entry(self, user_id, src_entry_id, dest_entry_name):
+    user = User.objects.get(id=user_id)
+    src_entry = Entry.objects.get(id=src_entry_id)
+
+    dest_entry = src_entry.clone(user, name=dest_entry_name)
+
+    dest_entry.register_es()

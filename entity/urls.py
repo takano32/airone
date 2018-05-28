@@ -9,6 +9,9 @@ urlpatterns = [
     url(r'^edit/(\d+)$', views.edit, name='edit'),
     url(r'^do_edit/(\d+)$', views.do_edit, name='do_edit'),
     url(r'^export/$', views.export, name='export'),
+    url(r'^dashboard/(\d+)$', views.dashboard, name='dashboard'),
+    url(r'^dashboard/config/(\d+)$', views.conf_dashboard, name='conf_dashboard'),
+    url(r'^dashboard/config/register/(\d+)$', views.do_conf_dashboard, name='do_conf_dashboard'),
     url(r'^do_delete/(\d+)$', views.do_delete, name='do_delete'),
     url(r'^history/(\d+)$', views.history, name='history'),
 ]

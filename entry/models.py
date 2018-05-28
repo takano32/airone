@@ -839,10 +839,12 @@ class Entry(ACLBase):
             **extra_params,
         }
         cloned_entry = Entry.objects.create(**params)
+        cloned_entry.set_status(Entry.STATUS_CREATING)
 
         for attr in self.attrs.filter(is_active=True):
             cloned_entry.attrs.add(attr.clone(user, parent_entry=cloned_entry))
 
+        cloned_entry.del_status(Entry.STATUS_CREATING)
         return cloned_entry
 
     def export(self, user):

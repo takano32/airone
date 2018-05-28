@@ -6,6 +6,7 @@ import re
 from django.test import TestCase, Client
 from django.urls import reverse
 from entity.models import Entity, EntityAttr
+from entity.settings import CONFIG
 from entry.models import Entry, Attribute
 from user.models import User, History
 from xml.etree import ElementTree
@@ -737,3 +738,89 @@ class ViewTest(AironeViewTest):
         # When a type of attribute value is clear, a new Attribute value will be created
         attrv = entry.attrs.get(schema=attr2).get_latest_value()
         self.assertEqual(attrv.value, '')
+
+    def test_show_dashboard(self):
+        user = self.admin_login()
+        entity = Entity.objects.create(name='entity', created_user=user)
+
+        # send request with invalid entity id
+        resp = self.client.get(reverse('entity:dashboard', args=[999]))
+        self.assertEqual(resp.status_code, 400)
+
+        resp = self.client.get(reverse('entity:dashboard', args=[entity.id]))
+        self.assertEqual(resp.status_code, 200)
+
+        # To test dashboard view with correct settings, make entities/entries associated with "entity"
+        ref_entity = Entity.objects.create(name='ref_entity', created_user=user)
+        ref_entries = [Entry.objects.create(name='ref_entry-%d' % i, schema=ref_entity, created_user=user)
+                for i in range(0, CONFIG.DASHBOARD_NUM_ITEMS + 3)]
+
+        attr = EntityAttr.objects.create(name='attr', created_user=user, is_summarized=True,
+                                         parent_entity=entity, type=AttrTypeValue['object'])
+        attr.referral.add(ref_entity)
+        entity.attrs.add(attr)
+
+        # create entries
+        for i in range(0, CONFIG.DASHBOARD_NUM_ITEMS + 2):
+            entry = Entry.objects.create(name='entry-%d' % i, schema=entity, created_user=user)
+            entry.complement_attrs(user)
+
+            if i < CONFIG.DASHBOARD_NUM_ITEMS + 1:
+                entry.attrs.get(name='attr').add_value(user, ref_entries[i])
+
+        resp = self.client.get(reverse('entity:dashboard', args=[entity.id]))
+        self.assertEqual(resp.status_code, 200)
+
+        self.assertEqual(resp.context['entity'].id, entity.id)
+        self.assertEqual(resp.context['total_entry_count'],
+                         Entry.objects.filter(schema=entity, is_active=True).count())
+
+        # checks that referral information is set correctly
+        for (ret_attr, ret_info) in resp.context['summarized_data'].items():
+            self.assertEqual(ret_attr.id, attr.id)
+            self.assertEqual(len(ret_info['referral_count']), CONFIG.DASHBOARD_NUM_ITEMS + 1)
+            self.assertEqual(ret_info['no_referral_count'], 1)
+            self.assertEqual(ret_info['no_referral_ratio'], '%2.1f' % (100 / resp.context['total_entry_count']))
+            self.assertTrue(any([x['referral'] == '(Others)' and x['count'] == 1
+                for x in ret_info['referral_count']]))
+
+    def test_show_dashboard_config(self):
+        user = self.admin_login()
+        entity = Entity.objects.create(name='entity', created_user=user)
+
+        # send request with invalid entity id
+        resp = self.client.get(reverse('entity:conf_dashboard', args=[999]))
+        self.assertEqual(resp.status_code, 400)
+
+        resp = self.client.get(reverse('entity:conf_dashboard', args=[entity.id]))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_post_dashboard_config(self):
+        user = self.admin_login()
+
+        # send request with invalid entity id
+        resp = self.client.post(reverse('entity:do_conf_dashboard', args=[999]))
+        self.assertEqual(resp.status_code, 400)
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        attr = EntityAttr.objects.create(name='attr', created_user=user, parent_entity=entity)
+        entity.attrs.add(attr)
+
+        # send post request with parameters which contain an invalid EntityAttr-ID
+        resp = self.client.post(reverse('entity:do_conf_dashboard', args=[entity.id]),
+                                json.dumps({'attrs': [str(attr.id), '9999']}), 'application/json')
+        self.assertEqual(resp.status_code, 400)
+
+        # send post request with valid parameter
+        resp = self.client.post(reverse('entity:do_conf_dashboard', args=[entity.id]),
+                                json.dumps({'attrs': [str(attr.id)]}), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        summarized_attr = EntityAttr.objects.get(parent_entity=entity, is_summarized=True)
+        self.assertEqual(summarized_attr.id, attr.id)
+
+        # send post request to clear summarized flag
+        resp = self.client.post(reverse('entity:do_conf_dashboard', args=[entity.id]),
+                                json.dumps({'attrs': []}), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(EntityAttr.objects.filter(parent_entity=entity, is_summarized=True).count(), 0)

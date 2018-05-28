@@ -7,6 +7,7 @@ from django.http import HttpResponse
 from django.http.response import JsonResponse
 from django.db.models import Q
 from django.core.exceptions import ObjectDoesNotExist
+from datetime import datetime
 
 from airone.lib.http import http_get, http_post, check_permission, render
 from airone.lib.http import get_download_response
@@ -91,6 +92,7 @@ def create(request, entity_id):
     {'name': 'entry_name', 'type': str, 'checker': lambda x: x['entry_name']},
     {'name': 'attrs', 'type': list, 'meta': [
         {'name': 'id', 'type': str},
+        {'name': 'type', 'type': str},
         {'name': 'value', 'type': list,
            'checker': lambda x: (
                EntityAttr.objects.filter(id=x['id']).count() > 0 and
@@ -114,6 +116,13 @@ def do_create(request, entity_id, recv_data):
         # Checks specified value exceeds the limit of AttributeValue
         if any([len(str(y['data']).encode('utf-8')) > AttributeValue.MAXIMUM_VALUE_SIZE for y in attr_data['value']]):
             return HttpResponse('Passed value is exceeded the limit', status=400)
+
+        # Check date value format
+        if (int(attr_data['type']) & AttrTypeValue['date']) and attr_data['value']:
+            try:
+                [datetime.strptime(str(i['data']),'%Y-%m-%d') for i in attr_data['value']]
+            except:
+                return HttpResponse('Incorrect data format in date', status=400)
 
     # Create a new Entry object
     entry = Entry(name=recv_data['entry_name'],
@@ -168,6 +177,7 @@ def edit(request, entry_id):
     )},
     {'name': 'attrs', 'type': list, 'meta': [
         {'name': 'id', 'type': str},
+        {'name': 'type', 'type': str},
         {'name': 'value', 'type': list,
            'checker': lambda x: (
                Attribute.objects.filter(id=x['id']).count() > 0 and
@@ -191,6 +201,13 @@ def do_edit(request, entry_id, recv_data):
         # Checks specified value exceeds the limit of AttributeValue
         if any([len(str(y['data']).encode('utf-8')) > AttributeValue.MAXIMUM_VALUE_SIZE for y in attr_data['value']]):
             return HttpResponse('Passed value is exceeded the limit', status=400)
+
+        # Check date value format
+        if (int(attr_data['type']) & AttrTypeValue['date']) and attr_data['value']:
+            try:
+                [datetime.strptime(str(i['data']),'%Y-%m-%d') for i in attr_data['value']]
+            except:
+                return HttpResponse('Incorrect data format in date', status=400)
 
     if entry.get_status(Entry.STATUS_CREATING):
         return HttpResponse('Target entry is now under processing', status=400)

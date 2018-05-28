@@ -5,6 +5,7 @@ from airone.lib.test import AironeViewTest
 from airone.lib import types as atype
 from datetime import datetime
 from django.urls import reverse
+from django.conf import settings
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
@@ -187,6 +188,10 @@ class ImportTest(AironeViewTest):
         # - 1 is the latest value of attr 'attr-arr-obj', but child attrs don't set latet flag
         self.assertEqual(AttributeValue.objects.extra(where=['is_latest > 0']).count(),
                          1 + 1 + 1 + 1)
+
+        # checks that imported Entries were registered to the Elasticsearch
+        res = self._es.indices.stats(index=settings.ES_CONFIG['INDEX'])
+        self.assertEqual(res['_all']['primaries']['docs']['count'], Entry.objects.count())
 
     def test_import_entry_without_mandatory_values(self):
         user = self.admin_login()

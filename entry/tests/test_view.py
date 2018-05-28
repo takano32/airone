@@ -1868,6 +1868,7 @@ class ViewTest(AironeViewTest):
                                 json.dumps(params), 'application/json')
         self.assertEqual(resp.status_code, 400)
 
+    @patch('entry.views.copy_entry.delay', Mock(side_effect=tasks.copy_entry))
     def test_post_copy_with_valid_entry(self):
         user = self.admin_login()
 

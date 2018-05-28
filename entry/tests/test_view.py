@@ -2227,3 +2227,195 @@ class ViewTest(AironeViewTest):
         # check that backend processing will not update with invalid value
         self.assertEqual(entry.attrs.last().values.count(), 1)
         self.assertEqual(attr.get_latest_value().date, INITIAL_DATE)
+
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    def test_create_empty_date_param(self):
+        admin = self.admin_login()
+
+        entity = Entity.objects.create(name='entity', created_user=admin)
+        entity_attr = EntityAttr.objects.create(name='attr_date',
+                                                type=AttrTypeValue['date'],
+                                                parent_entity=entity,
+                                                created_user=admin)
+        entity.attrs.add(entity_attr)
+
+        # creates entry that has a empty parameter which is typed date
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entity_attr.id), 'type': str(AttrTypeValue['date']), 'value': [{'data': '', 'index': 0}], 'referral_key': []},
+            ],
+        }
+
+        # check that created a new entry with an empty date parameter
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+
+        # get entry which is created in here
+        entry = Entry.objects.get(name='entry', schema=entity)
+
+        self.assertEqual(entry.attrs.count(), 1)
+        self.assertIsNone(entry.attrs.last().get_latest_value().date)
+
+    @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
+    def test_edit_entry_for_each_typed_attributes_repeatedly(self):
+        user = self.admin_login()
+
+        # prepare to Entity and Entries which importing data refers to
+        ref_entity = Entity.objects.create(name='RefEntity', created_user=user)
+        ref_entry = Entry.objects.create(name='ref', created_user=user, schema=ref_entity)
+        group = Group.objects.create(name='group')
+
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        attr_info = {
+            'str': {
+                'type': AttrTypeValue['string'],
+                'value': [{'data': 'data', 'index': 0}],
+                'expect_value': 'data',
+                'expect_blank_value': '',
+                'referral_key': []
+            },
+            'obj': {
+                'type': AttrTypeValue['object'],
+                'value': [{'data': str(ref_entry.id), 'index': 0}],
+                'expect_value': 'ref',
+                'expect_blank_value': None,
+                'referral_key': []
+            },
+            'grp': {
+                'type': AttrTypeValue['group'],
+                'value': [{'data': str(group.id), 'index': 0}],
+                'expect_value': 'group',
+                'expect_blank_value': None,
+                'referral_key': []
+            },
+            'name': {
+                'type': AttrTypeValue['named_object'],
+                'value': [{'data': str(ref_entry.id), 'index': 0}],
+                'expect_value': {'key': 'ref'},
+                'expect_blank_value': {'': None},
+                'referral_key': [{'data': 'key', 'index': 0}]
+            },
+            'bool': {
+                'type': AttrTypeValue['boolean'],
+                'value': [{'data': True, 'index': 0}],
+                'expect_value': True,
+                'expect_blank_value': False,
+                'referral_key': []
+            },
+            'date': {
+                'type': AttrTypeValue['date'],
+                'value': [{'data': '2018-01-01', 'index': 0}],
+                'expect_value': date(2018, 1, 1),
+                'expect_blank_value': None,
+                'referral_key': []
+            },
+            'arr1': {
+                'type': AttrTypeValue['array_string'],
+                'value': [{'data': 'foo', 'index': 0}, {'data': 'bar', 'index': 1}],
+                'expect_value': ['bar', 'foo'],
+                'expect_blank_value': [],
+                'referral_key': []
+            },
+            'arr2': {
+                'type': AttrTypeValue['array_object'],
+                'value': [{'data': str(ref_entry.id), 'index': 0}],
+                'expect_value': ['ref'],
+                'expect_blank_value': [],
+                'referral_key': []
+            },
+            'arr3': {
+                'type': AttrTypeValue['array_named_object'],
+                'value': [{'data': str(ref_entry.id), 'index': 0}],
+                'expect_value': [{'foo': 'ref'}, {'bar': None}],
+                'expect_blank_value': [],
+                'referral_key': [{'data': 'foo', 'index': 0}, {'data': 'bar', 'index': 1}]
+            }
+        }
+        for attr_name, info in attr_info.items():
+            attr = EntityAttr.objects.create(name=attr_name,
+                                             type=info['type'],
+                                             created_user=user,
+                                             parent_entity=entity)
+
+            info['schema'] = attr
+            if info['type'] & AttrTypeValue['object']:
+                attr.referral.add(ref_entity)
+
+            entity.attrs.add(attr)
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+
+        ###
+        # set valid values for each attrs
+        params = {
+            'entry_name': 'entry',
+            'attrs': [{
+                'id': str(entry.attrs.get(schema=x['schema']).id),
+                'type': str(x['type']),
+                'value': x['value'],
+                'referral_key': x['referral_key']
+            } for x in attr_info.values()],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        # checks that expected values are set for each Attributes
+        self.assertEqual(resp.status_code, 200)
+        for info in attr_info.values():
+            value = entry.attrs.get(schema=info['schema']).get_latest_value().get_value()
+
+            if isinstance(value, list):
+                self.assertTrue(any(x in info['expect_value'] for x in value))
+            else:
+                self.assertEqual(value, info['expect_value'])
+
+        ###
+        # checks that value histories for each Attributes will be same when same values are set
+        before_vh = {}
+        for (name, info) in attr_info.items():
+            before_vh[name] = entry.attrs.get(schema=info['schema']).get_value_history(user)
+
+        params = {
+            'entry_name': 'entry',
+            'attrs': [{
+                'id': str(entry.attrs.get(schema=x['schema']).id),
+                'type': str(x['type']),
+                'value': x['value'],
+                'referral_key': x['referral_key']
+            } for x in attr_info.values()],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        for (name, info) in attr_info.items():
+            self.assertEqual(entry.attrs.get(schema=info['schema']).get_value_history(user),
+                             before_vh[name])
+
+        ###
+        # checks that expected values are set for each Attributes
+        self.assertEqual(resp.status_code, 200)
+
+        # set all parameters to be empty
+        params = {
+            'entry_name': 'entry',
+            'attrs': [{
+                'id': str(entry.attrs.get(schema=x['schema']).id),
+                'type': str(x['type']),
+                'value': [],
+                'referral_key': []
+            } for x in attr_info.values()],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params),
+                                'application/json')
+        self.assertEqual(resp.status_code, 200)
+        for (name, info) in attr_info.items():
+            self.assertEqual(entry.attrs.get(schema=info['schema']).get_latest_value().get_value(),
+                             info['expect_blank_value'])

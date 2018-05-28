@@ -65,7 +65,16 @@ def _convert_data_value(attr, info):
                 'id': recv_value,
             }
         elif attr.schema.type & AttrTypeValue['date']:
-            return datetime.strptime(recv_value, '%Y-%m-%d')
+            if recv_value is None or recv_value == '':
+                return None
+            else:
+                return datetime.strptime(recv_value, '%Y-%m-%d').date()
+
+        elif attr.schema.type & AttrTypeValue['boolean']:
+            if recv_value is None or recv_value == '':
+                return False
+            else:
+                return recv_value
 
         else:
             return recv_value

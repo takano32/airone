@@ -2099,6 +2099,13 @@ class ViewTest(AironeViewTest):
         self.assertEqual(attrv.data_array.count(), 3)
         self.assertTrue(all([x.parent_attrv == attrv for x in attrv.data_array.all()]))
 
+        # check imported data was registered to the ElasticSearch
+        res = self._es.indices.stats(index=settings.ES_CONFIG['INDEX'])
+        self.assertEqual(res['_all']['primaries']['docs']['count'], 1)
+
+        res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=entry.id)
+        self.assertTrue(res['found'])
+
     @skip('When a file which is encodeed by non UTF-8, django-test-client fails encoding')
     def test_import_entry_by_multi_encoded_files(self):
         user = self.admin_login()

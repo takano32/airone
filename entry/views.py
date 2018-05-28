@@ -417,6 +417,9 @@ def do_import_data(request, entity_id, context):
             if user.has_permission(attr.schema, ACLType.Writable) and attr.is_updated(input_value):
                 attr.add_value(user, input_value)
 
+        # register entry to the Elasticsearch
+        entry.register_es()
+
     return HttpResponseSeeOther('/entry/%s/' % entity_id)
 
 @http_post([]) # check only that request is POST, id will be given by url

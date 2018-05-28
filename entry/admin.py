@@ -157,6 +157,11 @@ class EntryResource(AironeModelResource):
 
         super(EntryResource, self).import_obj(instance, data, dry_run)
 
+    def after_save_instance(self, instance, using_transactions, dry_run):
+        if not dry_run:
+            # register imported entry to the Elasticsearch
+            instance.register_es()
+
 class EntryAdmin(ImportExportModelAdmin):
     resource_class = EntryResource
     skip_admin_log = True

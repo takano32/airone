@@ -25,7 +25,7 @@ from entry.admin import EntryResource, AttrResource, AttrValueResource
 from user.models import User
 from group.models import Group
 from .settings import CONFIG
-from .tasks import create_entry_attrs, edit_entry_attrs, delete_entry
+from .tasks import create_entry_attrs, edit_entry_attrs, delete_entry, copy_entry
 
 
 @airone_profile
@@ -472,7 +472,7 @@ def copy(request, entry_id):
 @http_post([])
 @check_permission(Entry, ACLType.Writable)
 def do_copy(request, entry_id, recv_data):
-    user = User.objects.get(id=request.user.id)
+    user_id = request.user.id
 
     # validation check
     if 'entries' not in recv_data:
@@ -483,18 +483,26 @@ def do_copy(request, entry_id, recv_data):
 
     ret = []
     entry = Entry.objects.get(id=entry_id)
+    dest_entry_names = []
     for new_name in [x for x in recv_data['entries'].split('\n') if x]:
         if Entry.objects.filter(schema=entry.schema, name=new_name).count() > 0:
             ret.append({
                 'status': 'fail',
-                'msg': 'A same named entry (%s) is already existed' % new_name,
+                'msg': 'A same named entry (%s) already exists' % new_name,
             })
             continue
-
-        new_entry = entry.clone(user, name=new_name)
+        if new_name in dest_entry_names:
+            ret.append({
+                'status': 'fail',
+                'msg': 'Same name(%s) exists more than once in the request' % new_name,
+            })
+            continue
+        dest_entry_names.append(new_name)
         ret.append({
             'status': 'success',
             'msg': "Success to create new entry '%s'" % new_name,
         })
+
+    copy_entry.delay(user_id, entry_id, dest_entry_names)
 
     return JsonResponse({'results': ret})

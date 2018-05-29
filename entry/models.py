@@ -833,12 +833,18 @@ class Entry(ACLBase):
             not user.has_permission(self.schema, ACLType.Readable)):
             return None
 
+        # set STATUS_CREATING flag until all related parameters are set
+        status = Entry.STATUS_CREATING
+        if 'status' in extra_params:
+            status |= extra_params.pop('status')
+
         # We can't clone an instance by the way (.pk=None and save) like AttributeValue,
         # since the subclass instance refers to the parent_link's primary key during save.
         params = {
             'name': self.name,
             'created_user': user,
             'schema': self.schema,
+            'status': status,
             **extra_params,
         }
         cloned_entry = Entry.objects.create(**params)
@@ -846,6 +852,7 @@ class Entry(ACLBase):
         for attr in self.attrs.filter(is_active=True):
             cloned_entry.attrs.add(attr.clone(user, parent_entry=cloned_entry))
 
+        cloned_entry.del_status(Entry.STATUS_CREATING)
         return cloned_entry
 
     def export(self, user):

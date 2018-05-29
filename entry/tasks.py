@@ -147,5 +147,6 @@ def copy_entry(self, user_id, src_entry_id, dest_entry_names):
     src_entry = Entry.objects.get(id=src_entry_id)
 
     for name in dest_entry_names:
-        dest_entry = src_entry.clone(user, name=name)
-        dest_entry.register_es()
+        if Entry.objects.filter(schema=src_entry.schema, name=name).count() == 0:
+            dest_entry = src_entry.clone(user, name=name)
+            dest_entry.register_es()

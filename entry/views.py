@@ -485,10 +485,15 @@ def do_copy(request, entry_id, recv_data):
         if Entry.objects.filter(schema=entry.schema, name=new_name).count() > 0:
             ret.append({
                 'status': 'fail',
-                'msg': 'A same named entry (%s) is already existed' % new_name,
+                'msg': 'A same named entry (%s) already exists' % new_name,
             })
             continue
-
+        if new_name in dest_entry_names:
+            ret.append({
+                'status': 'fail',
+                'msg': 'Same name(%s) exists more than once in the request' % new_name,
+            })
+            continue
         dest_entry_names.append(new_name)
         ret.append({
             'status': 'success',

@@ -1878,8 +1878,8 @@ class ViewTest(AironeViewTest):
         entry_count = Entry.objects.filter(schema=self._entity).count()
 
         params = {
-            # 'foo' is duplicated
-            'entries': 'foo\nbar\nbaz\nfoo',
+            # 'foo' is duplicated and 'entry' is already created
+            'entries': 'foo\nbar\nbaz\nfoo\nentry',
         }
         resp = self.client.post(reverse('entry:do_copy', args=[entry.id]),
                                 json.dumps(params), 'application/json')
@@ -1892,9 +1892,13 @@ class ViewTest(AironeViewTest):
             self.assertEqual(Entry.objects.filter(name=name, schema=self._entity).count(), 1)
 
         results = resp.json()['results']
-        self.assertEqual(len(results), 4)
-        self.assertEqual(len([x for x in results if x['status'] == 'fail']), 1)
+        self.assertEqual(len(results), 5)
+        self.assertEqual(len([x for x in results if x['status'] == 'fail']), 2)
         self.assertEqual(len([x for x in results if x['status'] == 'success']), 3)
+
+        # checks copied entries were registered to the Elasticsearch
+        res = self._es.indices.stats(index=settings.ES_CONFIG['INDEX'])
+        self.assertEqual(res['_all']['primaries']['docs']['count'], 3)
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_create_entry_with_group_attr(self):

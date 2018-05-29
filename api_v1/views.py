@@ -10,6 +10,7 @@ from rest_framework.authentication import SessionAuthentication
 
 from airone.lib.acl import ACLType
 from user.models import User
+from entity.models import Entity
 from entry.models import Entry
 
 
@@ -60,13 +61,41 @@ class EntryAPI(APIView):
 
         return Response({'result': entry.id})
 
-####
-# Disable this REST API endpoint to get whole entries because of the following reaons for a while.
-#
-# 1. There is no requirement to get whole entries from API.
-# 2. This processing requires large amount of CPU time.
-#
-#    def get(self, request, format=None):
-#        entries = Entry.objects.filter(is_active=True)
-#        sel = GetEntrySerializer(entries, many=True)
-#        return Response(sel.data)
+    def get(self, request, *args, **kwargs):
+        if not request.user.id:
+            return Response({'result': 'You have to login AirOne to perform this request'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        param_entity = request.query_params.get('entity')
+        param_entry = request.query_params.get('entry')
+        if not param_entity or not param_entry:
+            return Response({'result': 'Parameter "entity" and "entry" are mandatory'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        entity = Entity.objects.filter(name=param_entity)
+        if not entity:
+            return Response({'result': 'Failed to find specified Entity (%s)' % param_entity},
+                            status=status.HTTP_404_NOT_FOUND)
+        else:
+            entity = entity.first()
+
+        entry = Entry.objects.filter(name=param_entry, schema=entity)
+        if not entry:
+            return Response({'result': 'Failed to find specified Entry (%s)' % param_entry},
+                            status=status.HTTP_404_NOT_FOUND)
+        else:
+            entry = entry.first()
+
+        # permission check
+        user = User.objects.get(id=request.user.id)
+        if not all([user.has_permission(x, ACLType.Readable) for x in [entity, entry]]):
+            return Response({'result': 'Permission denied to access target information'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            'id': entry.id,
+            'attrs': [{
+                'name': x.schema.name,
+                'value': x.get_latest_value().get_value()
+            } for x in entry.attrs.filter(is_active=True) if user.has_permission(x, ACLType.Readable)]
+        })

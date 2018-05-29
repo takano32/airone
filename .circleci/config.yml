@@ -5,7 +5,7 @@ jobs:
       - image: circleci/python:3.6
       - image: rabbitmq:3.7
       - image: memcached:1.5
-      - image: docker.elastic.co/elasticsearch/elasticsearch:6.2.4
+      - image: docker.elastic.co/elasticsearch/elasticsearch:6.2.3
         environment:
           discovery.type: single-node
           ES_JAVA_OPTS: -Xms512m -Xmx512m
@@ -40,7 +40,7 @@ jobs:
       - image: circleci/python:3.5
       - image: rabbitmq:3.7
       - image: memcached:1.5
-      - image: docker.elastic.co/elasticsearch/elasticsearch:6.2.4
+      - image: docker.elastic.co/elasticsearch/elasticsearch:6.2.3
         environment:
           discovery.type: single-node
           ES_JAVA_OPTS: -Xms512m -Xmx512m

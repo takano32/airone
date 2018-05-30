@@ -353,121 +353,72 @@ class APITest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(AttributeValue.objects.count(), attr_value_count)
 
-    @skip('The API endpoint to get was disabled')
-    def test_get_entry(self):
-        admin = self.admin_login()
-
-        # create referred Entity and Entries
-        ref_entity = Entity.objects.create(name='Referred Entity', created_user=admin)
-        ref_e = []
-        for index in range(0, 10):
-            ref_e.append(Entry.objects.create(name='r-%d' % index, schema=ref_entity, created_user=admin))
-
-        entity = Entity.objects.create(name='Entity', created_user=admin)
-        attr_params = [
-            {'name': 'val', 'type': AttrTypeValue['string'],
-             'setter': lambda attr, i: attr.add_value(admin, str(i))},
-            {'name': 'ref', 'type': AttrTypeValue['object'], 'ref': ref_entity,
-             'setter': lambda attr, i: attr.add_value(admin, ref_e[i])},
-            {'name': 'name', 'type': AttrTypeValue['named_object'], 'ref': ref_entity,
-             'setter': lambda attr, i: attr.add_value(admin, {'name': 'name-%d' % i, 'id': ref_e[i]})},
-            {'name': 'bool', 'type': AttrTypeValue['boolean'],
-             'setter': lambda attr, i: attr.add_value(admin, True if i % 2 == 0 else False)},
-            {'name': 'date', 'type': AttrTypeValue['date'],
-             'setter': lambda attr, i: attr.add_value(admin, date(2018,12,int(i)))},
-            {'name': 'group', 'type': AttrTypeValue['group'],
-             'setter': lambda attr, i: attr.add_value(admin, str(Group.objects.create(name='group-%d' % i).id))},
-            {'name': 'text', 'type': AttrTypeValue['text'],
-             'setter': lambda attr, i: attr.add_value(admin, 'text-%d' % i)},
-            {'name': 'vals', 'type': AttrTypeValue['array_string'],
-             'setter': lambda attr, i: attr.add_value(admin, [str(x) for x in range(0, i)])},
-            {'name': 'refs', 'type': AttrTypeValue['array_object'], 'ref': ref_entity,
-             'setter': lambda attr, i: attr.add_value(admin, [ref_e[x] for x  in range(0, i)])},
-            {'name': 'names', 'type': AttrTypeValue['array_named_object'], 'ref': ref_entity,
-             'setter': lambda attr, i: attr.add_value(admin, [{'name': 'name-%d' % x, 'id': ref_e[x]}
-                 for x in range(0, i)])},
-        ]
-        for attr_info in attr_params:
-            entity_attr = EntityAttr.objects.create(**{
-                'name': attr_info['name'],
-                'type': attr_info['type'],
-                'created_user': admin,
-                'parent_entity': entity,
-            })
-            if 'ref' in attr_info:
-                entity_attr.referral.add(attr_info['ref'])
-
-            entity.attrs.add(entity_attr)
-
-        for i in range(0, 3):
-            entry = Entry.objects.create(name='e-%d' % i, schema=entity, created_user=admin)
-            entry.complement_attrs(admin)
-
-            for attrinfo in attr_params:
-                attr = entry.attrs.get(name=attrinfo['name'])
-                attrinfo['setter'](attr, i)
-
-        resp = self.client.get('/api/v1/entry')
-        self.assertEqual(resp.status_code, 200)
-
-        results = resp.json()
-        self.assertEqual(len(results), 13)
-        self.assertEqual(len([x for x in results if re.match(r'^r-*', x['name'])]), 10)
-        self.assertEqual(len([x for x in results if re.match(r'^e-*', x['name'])]), 3)
-
-        entry2 = Entry.objects.get(name='e-2')
-        e2 = [x for x in results if x['name'] == entry2.name][0]
-        self.assertEqual(e2['id'], entry2.id)
-        self.assertEqual(len(e2['attrs']), 9)
-        self.assertTrue(all([entry2.attrs.filter(name=x['name']).count() for x in e2['attrs']]))
-
-        # check all returned attr values
-        for attrinfo in e2['attrs']:
-            if attrinfo['name'] == 'val':
-                self.assertEqual(attrinfo['value'], '2')
-
-            if attrinfo['name'] == 'ref':
-                self.assertEqual(attrinfo['value']['id'], ref_e[2].id)
-                self.assertEqual(attrinfo['value']['name'], ref_e[2].name)
-
-            if attrinfo['name'] == 'name':
-                self.assertEqual(attrinfo['value']['name'], 'name-2')
-                self.assertEqual(attrinfo['value']['ref_id'], ref_e[2].id)
-                self.assertEqual(attrinfo['value']['ref_name'], ref_e[2].name)
-
-            if attrinfo['name'] == 'bool':
-                self.assertEqual(attrinfo['value'], True)
-
-            if attrinfo['name'] == 'date':
-                self.assertEqual(attrinfo['value'], date(2018,12,2))
-
-            if attrinfo['name'] == 'group':
-                group = Group.objects.get(name='group-2')
-                self.assertEqual(attrinfo['value']['id'], group.id)
-                self.assertEqual(attrinfo['value']['name'], group.name)
-
-            if attrinfo['name'] == 'text':
-                self.assertEqual(attrinfo['value'], 'text-2')
-
-            if attrinfo['name'] == 'vals':
-                self.assertEqual(len(attrinfo['value']), 2)
-                self.assertEqual(attrinfo['value'][0], '0')
-                self.assertEqual(attrinfo['value'][1], '1')
-
-            if attrinfo['name'] == 'refs':
-                self.assertEqual(len(attrinfo['value']), 2)
-                self.assertEqual(attrinfo['value'][0]['id'], ref_e[0].id)
-                self.assertEqual(attrinfo['value'][0]['name'], ref_e[0].name)
-                self.assertEqual(attrinfo['value'][1]['id'], ref_e[1].id)
-                self.assertEqual(attrinfo['value'][1]['name'], ref_e[1].name)
-
-            if attrinfo['name'] == 'names':
-                self.assertEqual(len(attrinfo['value']), 2)
-                self.assertEqual(attrinfo['value'][0]['name'], 'name-0')
-                self.assertEqual(attrinfo['value'][0]['ref_id'], ref_e[0].id)
-                self.assertEqual(attrinfo['value'][0]['ref_name'], ref_e[0].name)
-
     def test_refresh_token(self):
         admin = self.admin_login()
 
         resp = self.client.post('/api/v1/user/refresh_token', json.dumps({}), 'application/json')
+
+    def test_failed_to_get_entry(self):
+        # send request without login
+        resp = self.client.get('/api/v1/entry')
+        self.assertEqual(resp.status_code, 400)
+
+        user = self.guest_login()
+
+        # send request without mandatory parameters
+        resp = self.client.get('/api/v1/entry')
+        self.assertEqual(resp.status_code, 400)
+
+        # send request with invalid name of Entity
+        resp = self.client.get('/api/v1/entry', {'entity': 'foo', 'entry': 'bar'})
+        self.assertEqual(resp.status_code, 404)
+
+        # send request with invalid name of Entry
+        entity = Entity.objects.create(name='foo', created_user=user)
+        resp = self.client.get('/api/v1/entry', {'entity': 'foo', 'entry': 'bar'})
+        self.assertEqual(resp.status_code, 404)
+
+        # send request without permission
+        admin = User.objects.create(username='admin', is_superuser=True)
+        Entry.objects.create(name='bar', schema=entity, created_user=admin, is_public=False)
+        resp = self.client.get('/api/v1/entry', {'entity': 'foo', 'entry': 'bar'})
+        self.assertEqual(resp.status_code, 400)
+
+    def test_get_entry(self):
+        user = self.admin_login()
+
+        ref_entity = Entity.objects.create(name='RefEntity', created_user=user)
+        ref_entry = Entry.objects.create(name='RefEntry', created_user=user, schema=ref_entity)
+
+        entity = Entity.objects.create(name='hoge', created_user=user)
+        attr_info = {
+            'str': {'type': AttrTypeValue['string'], 'value': 'foo'},
+            'ref': {'type': AttrTypeValue['object'], 'value': ref_entry, 'referral': ref_entity},
+            'no_str': {'type': AttrTypeValue['string']},
+        }
+        for (name, info) in attr_info.items():
+            attr = EntityAttr.objects.create(name=name,
+                                             type=info['type'],
+                                             parent_entity=entity,
+                                             created_user=user)
+            if 'referral' in info:
+                attr.referral.add(info['referral'])
+
+            entity.attrs.add(attr)
+
+        for i in range(0, 10):
+            entry = Entry.objects.create(name='entry-%d' % i, schema=entity, created_user=user)
+            entry.complement_attrs(user)
+
+            for (name, info) in attr_info.items():
+                if 'value' in info:
+                    attr = entry.attrs.get(schema__name=name)
+                    attr.add_value(user, info['value'])
+
+        resp = self.client.get('/api/v1/entry', {'entity': 'hoge', 'entry': 'entry-0'})
+        self.assertEqual(resp.status_code, 200)
+
+        result = resp.json()
+        entry = Entry.objects.get(name='entry-0')
+        self.assertEqual(result['id'], entry.id)
+        self.assertEqual(len(result['attrs']), entry.attrs.count())

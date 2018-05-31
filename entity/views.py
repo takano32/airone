@@ -44,8 +44,11 @@ def index(request):
 
 @http_get
 def create(request):
+    user = User.objects.get(id=request.user.id)
+
     context = {
-        'entities': Entity.objects.filter(is_active=True),
+        'entities': [x for x in Entity.objects.filter(is_active=True)
+            if user.has_permission(x, ACLType.Readable)],
         'attr_types': AttrTypes
     }
     return render(request, 'create_entity.html', context)
@@ -55,7 +58,7 @@ def create(request):
 def edit(request, entity_id):
     user = User.objects.get(id=request.user.id)
 
-    if not Entity.objects.filter(id=entity_id).count():
+    if not Entity.objects.filter(id=entity_id):
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     # entity to be editted is given by url
@@ -66,31 +69,13 @@ def edit(request, entity_id):
     # candidate entites for referral are:
     # - active(not deleted) entity
     # - current value of any attributes even if the entity has been deleted
-
-    attrs = [] # EntityAttrs of entity to be editted
-    for attr_base in entity.attrs.filter(is_active=True).order_by('index'):
-        # skip not-writable EntityAttr
-        if user.has_permission(attr_base, ACLType.Writable):
-            attrs.append(attr_base)
-
-    entities = []
-    [entities.append({
-        'id': e.id,
-        'name': e.name,
-        'attrs': [{
-            'id': attr.id,
-            'name': attr.name,
-            'type': attr.type,
-            'is_mandatory': attr.is_mandatory,
-            'referral': attr.referral.all(),
-        } for attr in e.attrs.all()],
-    }) for e in Entity.objects.filter(is_active=True) if user.has_permission(e, ACLType.Readable)]
-
     context = {
         'entity': entity,
-        'entities': entities,
         'attr_types': AttrTypes,
-        'attributes': attrs,
+        'entities': [{'id': x.id, 'name': x.name} for x in Entity.objects.filter(is_active=True)
+            if user.has_permission(x, ACLType.Readable)],
+        'attributes': [x for x in entity.attrs.filter(is_active=True).order_by('index')
+            if user.has_permission(x, ACLType.Writable)],
     }
     return render(request, 'edit_entity.html', context)
 

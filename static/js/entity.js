@@ -41,7 +41,7 @@ var validate_form = function() {
   var attr_elems = $('tbody[name="attributes"]').find('tr.attr')
   attr_elems.map(function(index, dom) {
     var elem = $(dom);
-    
+
     // check if attr name is not empty
     var attr_name_elem = elem.find('.attr_name');
     ok = ok & check_not_empty(attr_name_elem);
@@ -72,13 +72,33 @@ var check_not_empty = function(elem) {
   return true;
 }
 
+function enable_input() {
+  console.info('enable_input');
+
+  ['input', 'select', 'button', 'tr'].forEach(function(tag) {
+    $(tag).prop('disabled', false);
+  });
+  $('body').css('cursor', 'auto');
+  $('#sortdata').sortable('enable');
+}
+
+function disable_input() {
+  console.info('disable_input');
+
+  ['input', 'select', 'button', 'tr'].forEach(function(tag) {
+    $(tag).prop('disabled', true);
+  });
+  $('body').css('cursor', 'wait');
+  $('#sortdata').sortable('disable');
+}
+
 $('form').submit(function(event){
   if(!validate_form()) {
     MessageBox.error("Some parameters are required to input");
     return false;
   }
-  
-  var post_data = {
+
+  var sending_data = Object.assign(parseJson($(this).serializeArray()), {
     'attrs': $('.attr').map(function(index, elem){
       var ret = {
         'name': $(this).find('.attr_name').val(),
@@ -96,9 +116,27 @@ $('form').submit(function(event){
       return ret;
     }).get(),
     'is_toplevel': $('input[name=is_toplevel]').is(':checked')
-  };
+  });
 
-  HttpPost($(this), post_data).done(function(data) {
+  // disable all input parameter to specify sending request
+  disable_input();
+
+  /*
+   * We want to disable all input element after getting values from them. So we call ajax method
+   * directly instead of using wrapper because some values couldn't be get from selector once they
+   * are disabled in some environment (e.g. Google Chrome).
+   */
+  $.ajax({
+    url:           $(this).attr('url'),
+    type:          'post',
+    dataType:      'json',
+    contentType:   'application/x-www-form-urlencoded;charset=utf-8',
+    scriptCharset: 'utf-8',
+    headers: {
+      'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val(),
+    },
+    data:          JSON.stringify(sending_data)
+  }).done(function(data) {
     // set successful message to the updated page
     MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, data.msg);
 
@@ -106,6 +144,9 @@ $('form').submit(function(event){
     location.href = `/entry/${ data.entity_id }`;
   }).fail(function(data) {
     MessageBox.error(data.responseText);
+
+    // reset all input parameter to be able to input
+    enable_input();
   });
 
   return false;

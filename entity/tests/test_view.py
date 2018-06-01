@@ -50,13 +50,22 @@ class ViewTest(AironeViewTest):
         self.assertEqual(len(root.findall('.//tbody/tr')), 1)
 
     def test_create_get(self):
-        self.admin_login()
+        user = User.objects.create(username='admin', is_superuser=True)
+
+        entity_public = Entity.objects.create(name='public', created_user=user)
+        entity_private = Entity.objects.create(name='private', created_user=user, is_public=False)
+
+        self.guest_login()
 
         resp = self.client.get(reverse('entity:create'))
         self.assertEqual(resp.status_code, 200)
 
         root = ElementTree.fromstring(resp.content.decode('utf-8'))
         self.assertIsNotNone(root.find('.//form'))
+
+        # checks that prohibited entity for logined-user to show isn't be returned
+        self.assertEqual(len(resp.context['entities']), 1)
+        self.assertEqual(resp.context['entities'][0].id, entity_public.id)
 
     def test_create_post_without_login(self):
         resp = self.client.post(reverse('entity:do_create'), json.dumps({}), 'application/json')

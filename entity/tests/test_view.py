@@ -793,6 +793,23 @@ class ViewTest(AironeViewTest):
             self.assertTrue(any([x['referral'] == '(Others)' and x['count'] == 1
                 for x in ret_info['referral_count']]))
 
+        # checks statistics information would show correcting value, even if an entry was deleted.
+        for i in range(0, 2):
+            Entry.objects.get(name='entry-%d' % i, schema=entity).delete()
+
+        # delete no referral entry
+        Entry.objects.get(name='entry-%d' % (CONFIG.DASHBOARD_NUM_ITEMS + 1), schema=entity).delete()
+
+        resp = self.client.get(reverse('entity:dashboard', args=[entity.id]))
+        self.assertEqual(resp.status_code, 200)
+
+        for (ret_attr, ret_info) in resp.context['summarized_data'].items():
+            self.assertEqual(len(ret_info['referral_count']), CONFIG.DASHBOARD_NUM_ITEMS - 1)
+            self.assertEqual(ret_info['no_referral_count'], 0)
+
+            for no_referral in ['ref_entry-%d' % i for i in range(0, 2)]:
+                self.assertFalse(any([x['referral'] == no_referral for x in ret_info['referral_count']]))
+
     def test_show_dashboard_config(self):
         user = self.admin_login()
         entity = Entity.objects.create(name='entity', created_user=user)

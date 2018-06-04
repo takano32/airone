@@ -352,40 +352,6 @@ def history(request, entity_id):
     return render(request, 'history_entity.html', context)
 
 @http_get
-def _dashboard(request, entity_id):
-    user = User.objects.get(id=request.user.id)
-
-    if not Entity.objects.filter(id=entity_id).count():
-        return HttpResponse('Failed to get entity of specified id', status=400)
-
-    # entity to be editted is given by url
-    entity = Entity.objects.get(id=entity_id)
-
-    summarized_data = {}
-    for attr in EntityAttr.objects.filter(parent_entity=entity, is_active=True, is_summarized=True):
-        summarized_data[attr] = {
-            'referral_count': {},
-        }
-
-        for referral in Entry.objects.filter(schema=attr.referral.first(), is_active=True):
-            summarized_data[attr]['referral_count'][referral] = AttributeValue.objects.filter(**{
-                'parent_attr__schema': attr,
-                'is_latest': True,
-                'referral': referral,
-            }).count()
-
-        summarized_data[attr]['no_referral_count'] = \
-                Entry.objects.filter(schema=entity, is_active=True).count() - \
-                sum([v for (r, v) in summarized_data[attr]['referral_count'].items()])
-
-    context = {
-        'entity': entity,
-        'total_entry_count': Entry.objects.filter(schema=entity, is_active=True).count(),
-        'summarized_data': summarized_data,
-    }
-    return render(request, 'dashboard_entity.html', context)
-
-@http_get
 def dashboard(request, entity_id):
     user = User.objects.get(id=request.user.id)
 

@@ -978,10 +978,11 @@ class Entry(ACLBase):
                 }
             }
         }
-        for entity_id in hint_entity_ids:
-            query['query']['bool']['should'].append({
-                'term': {'entity.id': int(entity_id)}
-            })
+
+        # set condition to get results that only have specified entity
+        query['query']['bool']['filter'].append({
+            'bool': {'should': [{'term': {'entity.id': int(x)}} for x in hint_entity_ids]}
+        })
 
         for hint in hint_attrs:
             if 'name' in hint:

@@ -5,6 +5,8 @@ from elasticsearch import Elasticsearch
 
 
 class ESS(Elasticsearch):
+    MAX_TERM_SIZE = 32766
+
     def __init__(self, index=None, *args, **kwargs):
         if not index:
             self._index = settings.ES_CONFIG['INDEX']
@@ -33,26 +35,29 @@ class ESS(Elasticsearch):
                         'name': {
                             'type': 'text',
                             'index': 'true',
+                            'analyzer': 'keyword'
                         },
                         'entity': {
+                            'type': 'nested',
                             'properties': {
                                 'id': {
                                     'type': 'integer',
-                                    'index': 'false',
+                                    'index': 'true',
                                 },
                                 'name': {
                                     'type': 'text',
-                                    'index': 'false',
+                                    'index': 'true',
+                                    'analyzer': 'keyword'
                                 }
                             }
                         },
                         'attr': {
                             'type': 'nested',
-                            'index': 'true',
                             'properties': {
                                 'name': {
                                     'type': 'text',
-                                    'index': 'false',
+                                    'index': 'true',
+                                    'analyzer': 'keyword'
                                 },
                                 'type': {
                                     'type': 'integer',
@@ -73,31 +78,11 @@ class ESS(Elasticsearch):
                                 'value': {
                                     'type': 'text',
                                     'index': 'true',
+                                    'analyzer': 'keyword'
                                 },
                                 'referral_id': {
                                     'type': 'integer',
                                     'index': 'false',
-                                },
-                                'values': {
-                                    'type': 'nested',
-                                    'properties': {
-                                        'key': {
-                                            'type': 'text',
-                                            'index': 'true',
-                                        },
-                                        'referral_id': {
-                                            'type': 'integer',
-                                            'index': 'false',
-                                        },
-                                        'date_value': {
-                                            'type': 'date',
-                                            'index': 'true',
-                                        },
-                                        'value': {
-                                            'type': 'text',
-                                            'index': 'true',
-                                        }
-                                    }
                                 }
                             }
                         }

@@ -78,31 +78,6 @@ class ModelTest(AironeTestCase):
         self.assertEqual(Entry.objects.last().is_active, True,
                          "Entry should not be deleted after created")
 
-    def test_delete_entry(self):
-        entry = Entry(name='test',
-                      schema=self._entity,
-                      created_user=self._user)
-        entry.save()
-
-        attr = self.make_attr('attr', entry=entry)
-        attr.save()
-
-        entry.attrs.add(attr)
-
-        entry_count = Entry.objects.count()
-
-        entry.is_active = False
-        entry.save()
-
-        self.assertEqual(Entry.objects.count(), entry_count,
-                         "number of entry should equal after delete")
-        self.assertEqual(Entry.objects.last().created_user, self._user)
-        self.assertEqual(Entry.objects.last().attrs.count(), 1)
-        self.assertEqual(Entry.objects.last().attrs.last(), attr)
-        self.assertEqual(Entry.objects.last().name, 'test')
-        self.assertEqual(Entry.objects.last().is_active, False,
-                         "Entry should be deleted")
-
     def test_inherite_attribute_permission_of_user(self):
         user = User.objects.create(username='hoge')
 
@@ -481,6 +456,12 @@ class ModelTest(AironeTestCase):
         # set referral cache
         self.assertEqual(list(entry.get_referred_objects()), [self._entry])
 
+        # register entry to the Elasticsearch to check that will be deleted
+        deleting_entry_id = self._entry.id
+        self._entry.register_es()
+        res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=deleting_entry_id)
+        self.assertTrue(res['found'])
+
         # delete an entry that have an attribute which refers to the entry of ReferredEntity
         self._entry.delete()
         self.assertFalse(self._entry.is_active)
@@ -488,6 +469,10 @@ class ModelTest(AironeTestCase):
 
         # make sure that referral cache is updated by deleting referring entry
         self.assertEqual(list(entry.get_referred_objects()), [])
+
+        # checks that the document in the Elasticsearch associated with the entry was also deleted
+        res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=deleting_entry_id, ignore=[404])
+        self.assertFalse(res['found'])
 
     def test_order_of_array_named_ref_entries(self):
         ref_entity = Entity.objects.create(name='referred_entity', created_user=self._user)
@@ -1210,7 +1195,10 @@ class ModelTest(AironeTestCase):
                 attr = entry.attrs.get(schema__name=attrname)
                 attrv = attr.get_latest_value()
 
+                # checks accurate type parameters are stored
                 self.assertEqual(attrinfo['type'], attrv.data_type)
+
+                # checks accurate values are stored
                 if attrname == 'str':
                     self.assertEqual(attrinfo['value'], attrv.value)
 
@@ -1235,17 +1223,18 @@ class ModelTest(AironeTestCase):
                     self.assertEqual(attrinfo['value']['name'], group.name)
 
                 elif attrname == 'arr_str':
-                    self.assertEqual(attrinfo['value'], [x.value for x in attrv.data_array.all()])
+                    self.assertEqual(sorted([x for x in attrinfo['value']]),
+                                     sorted([x.value for x in attrv.data_array.all()]))
 
                 elif attrname == 'arr_obj':
-                    self.assertEqual([x['id'] for x in  attrinfo['value']],
+                    self.assertEqual([x['id'] for x in attrinfo['value']],
                                      [x.referral.id for x in attrv.data_array.all()])
                     self.assertEqual([x['name'] for x in  attrinfo['value']],
                                      [x.referral.name for x in attrv.data_array.all()])
 
                 elif attrname == 'arr_name':
                     for co_attrv in attrv.data_array.all():
-                        _co_v = [x[co_attrv.value] for x in attrinfo['value'] if co_attrv.value in x]
+                        _co_v = [x[co_attrv.value] for x in attrinfo['value']]
                         self.assertTrue(_co_v)
                         self.assertEqual(_co_v[0]['id'], co_attrv.referral.id)
                         self.assertEqual(_co_v[0]['name'], co_attrv.referral.name)
@@ -1276,43 +1265,38 @@ class ModelTest(AironeTestCase):
             'str': {
                 'type': AttrTypeValue['string'],
                 'value': 'foo',
-                'checker': lambda v: self.assertEqual(v['value'], 'foo')},
+            },
             'obj': {
                 'type': AttrTypeValue['object'],
                 'value': str(ref_entry1.id),
-                'checker': lambda v: self.assertEqual(v['value'], ref_entry1.name),
             },
             'name': {
                 'type': AttrTypeValue['named_object'],
                 'value': {'name': 'bar', 'id': str(ref_entry1.id)},
-                'checker': lambda v: self.assertEqual(v['value'], ref_entry1.name),
             },
             'bool': {
                 'type': AttrTypeValue['boolean'],
                 'value': False,
-                'checker': lambda v: self.assertEqual(v['value'], 'False'),
+            },
+            'date': {
+                'type': AttrTypeValue['date'],
+                'value': date(2018, 1, 1),
             },
             'group': {
                 'type': AttrTypeValue['group'],
                 'value': str(ref_group.id),
-                'checker': lambda v: self.assertEqual(v['value'], ref_group.name),
             },
             'arr_str': {
                 'type': AttrTypeValue['array_string'],
                 'value': ['foo', 'bar', 'baz'],
-                'checker': lambda v: self.assertTrue([x in v['values'] for x in ['foo', 'bar', 'baz']]),
             },
             'arr_obj': {
                 'type': AttrTypeValue['array_object'],
                 'value': [str(x.id) for x in Entry.objects.filter(schema=ref_entity)],
-                'checker': lambda v: self.assertTrue(all([any([y for y in v['values'] if y['value'] == x.name])
-                    for x in Entry.objects.filter(schema=ref_entity)])),
             },
             'arr_name': {
                 'type': AttrTypeValue['array_named_object'],
                 'value': [{'name': 'hoge', 'id' : str(x.id)} for x in Entry.objects.filter(schema=ref_entity)],
-                'checker': lambda v: self.assertTrue(all([any([y for y in v['values'] if y['value'] == x.name])
-                    for x in Entry.objects.filter(schema=ref_entity)])),
             }
         }
 
@@ -1340,27 +1324,75 @@ class ModelTest(AironeTestCase):
 
         # checks that all entries are registered to the ElasticSearch.
         res = self._es.indices.stats(index=settings.ES_CONFIG['INDEX'])
-        self.assertEqual(res['_all']['primaries']['docs']['count'], ENTRY_COUNTS)
+        self.assertEqual(res['_all']['total']['segments']['count'], ENTRY_COUNTS)
 
         # checks that all registered entries can be got from Elasticsearch
         for entry in Entry.objects.filter(schema=entity):
             res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=entry.id)
             self.assertTrue(res['found'])
 
+            # This checks whether returned results have all values of attributes
+            self.assertEqual(set([x['name'] for x in res['_source']['attr']]),
+                             set(k for k in attr_info.keys()))
+
             for (k, v) in attr_info.items():
-                value = [x for x in res['_source']['attr'] if x['name'] == k][0]
+                value = [x for x in res['_source']['attr'] if x['name'] == k]
 
-                self.assertEqual(value['name'], k)
-                self.assertEqual(value['type'], v['type'])
+                self.assertTrue(all([x['type'] == v['type'] for x in value]))
+                if k == 'str':
+                    self.assertEqual(len(value), 1)
+                    self.assertEqual(value[0]['value'], 'foo')
 
-                v['checker'](value)
+                elif k == 'obj':
+                    self.assertEqual(len(value), 1)
+                    self.assertEqual(value[0]['value'], ref_entry1.name)
+                    self.assertEqual(value[0]['referral_id'], ref_entry1.id)
+
+                elif k == 'name':
+                    self.assertEqual(len(value), 1)
+                    self.assertEqual(value[0]['key'], 'bar')
+                    self.assertEqual(value[0]['value'], ref_entry1.name)
+                    self.assertEqual(value[0]['referral_id'], ref_entry1.id)
+
+                elif k == 'bool':
+                    self.assertEqual(len(value), 1)
+                    self.assertEqual(value[0]['value'], 'False')
+
+                elif k == 'date':
+                    self.assertEqual(len(value), 1)
+                    self.assertEqual(value[0]['date_value'], '2018-01-01')
+
+                elif k == 'group':
+                    self.assertEqual(len(value), 1)
+                    self.assertEqual(value[0]['value'], ref_group.name)
+                    self.assertEqual(value[0]['referral_id'], ref_group.id)
+
+                elif k == 'arr_str':
+                    self.assertEqual(len(value), 3)
+                    self.assertEqual(sorted([x['value'] for x in value]),
+                                     sorted(['foo', 'bar', 'baz']))
+
+                elif k == 'arr_obj':
+                    self.assertEqual(len(value), Entry.objects.filter(schema=ref_entity).count())
+                    self.assertEqual(sorted([x['value'] for x in value]),
+                                     sorted([x.name for x in Entry.objects.filter(schema=ref_entity)]))
+                    self.assertEqual(sorted([x['referral_id'] for x in value]),
+                                     sorted([x.id for x in Entry.objects.filter(schema=ref_entity)]))
+
+                elif k == 'arr_name':
+                    self.assertEqual(len(value), Entry.objects.filter(schema=ref_entity).count())
+                    self.assertEqual(sorted([x['value'] for x in value]),
+                                     sorted([x.name for x in Entry.objects.filter(schema=ref_entity)]))
+                    self.assertEqual(sorted([x['referral_id'] for x in value]),
+                                     sorted([x.id for x in Entry.objects.filter(schema=ref_entity)]))
+                    self.assertTrue(all([x['key'] == 'hoge' for x in value]))
 
         # checks delete entry and checks deleted entry will also be removed from Elasticsearch
         entry = Entry.objects.filter(schema=entity).last()
         entry.delete()
 
         res = self._es.indices.stats(index=settings.ES_CONFIG['INDEX'])
-        self.assertEqual(res['_all']['primaries']['docs']['count'], ENTRY_COUNTS - 1)
+        self.assertEqual(res['_all']['total']['segments']['count'], ENTRY_COUNTS - 1)
 
         res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=entry.id, ignore=[404])
         self.assertFalse(res['found'])
@@ -1432,21 +1464,21 @@ class ModelTest(AironeTestCase):
             'entry1': {
                 'attr-0': '2018/01/01',
                 'attr-1': 'bar',
-                'ほげ': 'bar',
+                'ほげ': 'ふが',
                 'attr-date': date(2018, 1, 2),
                 'attr-arr': ['hoge', 'fuga']
             },
             'entry2': {
                 'attr-0': 'hoge',
                 'attr-1': 'bar',
-                'ほげ': 'bar',
+                'ほげ': 'ふが',
                 'attr-date': None,
                 'attr-arr': ['2018/01/01']
             },
             'entry3': {
-                'attr-0': '',
+                'attr-0': '0123-45-6789', # This is date format but not date value
                 'attr-1': 'hoge',
-                'ほげ': 'bar',
+                'ほげ': 'fuga',
                 'attr-date': None,
                 'attr-arr': []
             }
@@ -1464,15 +1496,26 @@ class ModelTest(AironeTestCase):
 
         # search entries of entity1 from Elasticsearch and checks that the entreis of non entity1
         # are not returned.
-        resp = Entry.search_entries(user, [entities[0].id], [{'name': 'attr-0', 'name': 'ほげ'}])
+        resp = Entry.search_entries(user, [entities[0].id], [{'name': 'attr-0'}])
         self.assertEqual(resp['ret_count'], 3)
         self.assertTrue(all([x['entity']['id'] == entities[0].id for x in resp['ret_values']]))
+
+        # checks the value which is non date but date format was registered correctly
+        self.assertEqual([entry_info['entry3']['attr-0']],
+                         [x['attrs']['attr-0']['value'] for x in resp['ret_values']
+                             if x['entry']['name'] == 'entry3'])
 
         # checks ret_count counts number of entries whatever attribute contidion was changed
         resp = Entry.search_entries(user, [entities[0].id], [{'name': 'attr-0'}, {'name': 'attr-1'}])
         self.assertEqual(resp['ret_count'], 3)
         resp = Entry.search_entries(user, [entities[0].id, entities[1].id], [{'name': 'attr-0'}])
         self.assertEqual(resp['ret_count'], 6)
+
+        # checks results that contain multi-byte values could be got
+        resp = Entry.search_entries(user, [entities[0].id], [{'name': 'ほげ', 'keyword': 'ふが'}])
+        self.assertEqual(resp['ret_count'], 2)
+        self.assertEqual(sorted([x['entry']['name'] for x in resp['ret_values']]),
+                         sorted(['entry1', 'entry2']))
 
         # search entries with date keyword parameter in string type from Elasticsearch
         resp = Entry.search_entries(user, [entities[0].id], [{'name': 'attr-0', 'keyword': '2018/01/01'}])
@@ -1481,7 +1524,7 @@ class ModelTest(AironeTestCase):
         self.assertEqual(resp['ret_values'][0]['attrs']['attr-0']['value'], '2018-01-01')
 
         # search entries with date keyword parameter in date type from Elasticsearch
-        for x in ['2018/01/02', '2018-01-02', '2018-1-2', '2018-01-2', '2018-1-02']:
+        for x in ['2018-01-02', '2018/01/02', '2018-1-2', '2018-01-2', '2018-1-02']:
             resp = Entry.search_entries(user, [entities[0].id], [{'name': 'attr-date', 'keyword': x}])
             self.assertEqual(resp['ret_count'], 1)
             self.assertEqual(resp['ret_values'][0]['entry']['name'], 'entry1')
@@ -1502,8 +1545,75 @@ class ModelTest(AironeTestCase):
         resp = Entry.search_entries(user, [entities[0].id], [{'name': 'attr-arr', 'keyword': 'hoge'}])
         self.assertEqual(resp['ret_count'], 1)
         self.assertEqual(resp['ret_values'][0]['entry']['name'], 'entry1')
+        self.assertEqual(sorted(resp['ret_values'][0]['attrs']['attr-arr']['value']),
+                         sorted(['hoge', 'fuga']))
 
         # search entries with an invalid or unmatch date keyword parameter in date type from Elasticsearch
         for x in ['2018/02/01', 'hoge']:
             resp = Entry.search_entries(user, [entities[0].id], [{'name': 'attr-date', 'keyword': x}])
             self.assertEqual(resp['ret_count'], 0)
+
+    def test_search_result_count(self):
+        """
+        This tests that ret_count of search_entries will be equal with actual count of entries.
+        """
+        user = User.objects.create(username='hoge')
+
+        ref_entity = Entity.objects.create(name='ref_entity', created_user=user)
+        ref_entry = Entry.objects.create(name='ref', schema=ref_entity, created_user=user)
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        for name in ['foo', 'bar']:
+            attr = EntityAttr.objects.create(name=name,
+                                             type=AttrTypeValue['object'],
+                                             created_user=user,
+                                             parent_entity=entity)
+            attr.referral.add(ref_entity)
+            entity.attrs.add(attr)
+
+        for i in range(0, 20):
+            entry = Entry.objects.create(name='e%3d' % i, schema=entity, created_user=user)
+            entry.complement_attrs(user)
+
+            if i < 10:
+                entry.attrs.get(schema__name='foo').add_value(user, ref_entry)
+            else:
+                entry.attrs.get(schema__name='bar').add_value(user, ref_entry)
+
+            entry.register_es()
+
+        resp = Entry.search_entries(user, [entity.id], [{'name': 'foo', 'keyword': 'ref'}], limit=5)
+        self.assertEqual(resp['ret_count'], 10)
+
+    def test_search_entities_have_individual_attrs(self):
+        user = User.objects.create(username='hoge')
+
+        entity_info = {
+            'entity1': ['foo', 'bar'],
+            'entity2': ['bar', 'hoge']
+        }
+
+        entities = []
+        for (entity_name, attrnames) in entity_info.items():
+            entity = Entity.objects.create(name=entity_name, created_user=user)
+            entities.append(entity.id)
+
+            for attrname in attrnames:
+                entity.attrs.add(EntityAttr.objects.create(name=attrname,
+                                                           type=AttrTypeValue['string'],
+                                                           created_user=user,
+                                                           parent_entity=entity))
+
+            # create entries for this entity
+            for i in range(0, 5):
+                e = Entry.objects.create(name='entry-%d' % i, created_user=user, schema=entity)
+                e.register_es()
+
+        # This request expects 'no match' because attribute 'foo' and 'hoge' are not had by both two entities
+        resp = Entry.search_entries(user, entities, [{'name': x} for x in ['foo', 'hoge']])
+        self.assertEqual(resp['ret_count'], 0)
+
+        resp = Entry.search_entries(user, entities, [{'name': x} for x in ['bar']])
+        self.assertEqual(resp['ret_count'], 10)
+        for name in entity_info.keys():
+            self.assertEqual(len([x for x in resp['ret_values'] if x['entity']['name'] == name]), 5)

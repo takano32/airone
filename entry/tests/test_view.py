@@ -506,21 +506,19 @@ class ViewTest(AironeViewTest):
     def test_post_edit_with_valid_param(self):
         user = self.admin_login()
 
-        # making test Entry set
-        entry = Entry(name='fuga', schema=self._entity, created_user=user)
-        entry.save()
-
+        entity = Entity.objects.create(name='entity', created_user=user)
         for attr_name in ['foo', 'bar']:
-            attr = self.make_attr(name=attr_name,
-                                  created_user=user,
-                                  parent_entry=entry)
+            entity.attrs.add(EntityAttr.objects.create(name=attr_name,
+                                                       type=AttrTypeValue['string'],
+                                                       created_user=user,
+                                                       parent_entity=entity))
 
-            attr_value = AttributeValue(value='hoge', created_user=user, parent_attr=attr)
-            attr_value.is_latest = True
-            attr_value.save()
+        # making test Entry set
+        entry = Entry.objects.create(name='fuga', schema=entity, created_user=user)
+        entry.complement_attrs(user)
 
-            attr.values.add(attr_value)
-            entry.attrs.add(attr)
+        for attr in entry.attrs.all():
+            attr.add_value(user, 'hoge')
 
         params = {
             'entry_name': 'hoge',
@@ -551,9 +549,9 @@ class ViewTest(AironeViewTest):
         self.assertTrue(bar_value_last.is_latest)
 
         # checks that we can search updated entry using updated value
-        resp = Entry.search_entries(user, [self._entity.id], [{'name': 'bar', 'keyword': 'fuga'}])
+        resp = Entry.search_entries(user, [entity.id], [{'name': 'bar', 'keyword': 'fuga'}])
         self.assertEqual(resp['ret_count'], 1)
-        self.assertEqual(resp['ret_values'][0]['entity']['id'], self._entity.id)
+        self.assertEqual(resp['ret_values'][0]['entity']['id'], entity.id)
         self.assertEqual(resp['ret_values'][0]['entry']['id'], entry.id)
 
     @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
@@ -583,8 +581,7 @@ class ViewTest(AironeViewTest):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(Attribute.objects.get(name='foo').values.filter(is_latest=True).count(), 1)
-        self.assertEqual(Attribute.objects.get(name='foo').values.last().value, '')
+        self.assertEqual(Attribute.objects.get(name='foo').values.filter(is_latest=True).count(), 0)
         self.assertEqual(Attribute.objects.get(name='bar').values.filter(is_latest=True).count(), 1)
         self.assertEqual(Attribute.objects.get(name='bar').values.last().value, 'fuga')
         self.assertEqual(Entry.objects.get(id=entry.id).name, entry.name)
@@ -911,7 +908,7 @@ class ViewTest(AironeViewTest):
 
         # Checks Elasticsearch also removes document of removed entry
         res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=entry.id, ignore=[404])
-        self.assertEqual(res['status'], 404)
+        self.assertFalse(res['found'])
 
     def test_post_delete_entry_without_permission(self):
         user1 = self.guest_login()
@@ -1898,7 +1895,7 @@ class ViewTest(AironeViewTest):
 
         # checks copied entries were registered to the Elasticsearch
         res = self._es.indices.stats(index=settings.ES_CONFIG['INDEX'])
-        self.assertEqual(res['_all']['primaries']['docs']['count'], 3)
+        self.assertEqual(res['_all']['total']['segments']['count'], 3)
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_create_entry_with_group_attr(self):
@@ -2052,6 +2049,10 @@ class ViewTest(AironeViewTest):
             self.assertIsNotNone(attrv)
             self.assertTrue(info['checker'](attrv))
 
+        # checks that created entry was registered to the Elasticsearch
+        res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=entry.id)
+        self.assertTrue(res['found'])
+
     def test_import_entry_with_changing_entity_attr(self):
         user = self.admin_login()
 
@@ -2106,7 +2107,7 @@ class ViewTest(AironeViewTest):
 
         # check imported data was registered to the ElasticSearch
         res = self._es.indices.stats(index=settings.ES_CONFIG['INDEX'])
-        self.assertEqual(res['_all']['primaries']['docs']['count'], 1)
+        self.assertEqual(res['_all']['total']['segments']['count'], 1)
 
         res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=entry.id)
         self.assertTrue(res['found'])

@@ -3,6 +3,7 @@ import json
 import yaml
 
 from django.test import Client
+from django.conf import settings
 
 from airone.lib.test import AironeViewTest
 from airone.lib.types import AttrTypeValue
@@ -73,6 +74,10 @@ class APITest(AironeViewTest):
         new_entry = Entry.objects.get(id=ret_data['result'])
         self.assertEqual(new_entry.name, 'entry1')
         self.assertEqual(new_entry.attrs.count(), 10)
+
+        # checking new_entry is registered to the Elasticsearch
+        res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=new_entry.id)
+        self.assertTrue(res['found'])
 
         # checking for attr_val
         checklist = [

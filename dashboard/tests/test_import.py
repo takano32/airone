@@ -191,7 +191,7 @@ class ImportTest(AironeViewTest):
 
         # checks that imported Entries were registered to the Elasticsearch
         res = self._es.indices.stats(index=settings.ES_CONFIG['INDEX'])
-        self.assertEqual(res['_all']['primaries']['docs']['count'], Entry.objects.count())
+        self.assertEqual(res['_all']['total']['segments']['count'], Entry.objects.count())
 
     def test_import_entry_without_mandatory_values(self):
         user = self.admin_login()

@@ -1124,11 +1124,16 @@ class Entry(ACLBase):
     @classmethod
     def _is_date(kls, value):
         ret = None
-        if re.match(r'^[0-9]{4}/[0-9]+/[0-9]+', value):
-            # ignore unconvert characters if exists by splitting
-            ret = datetime.strptime(value.split(' ')[0], '%Y/%m/%d')
+        try:
+            if re.match(r'^[0-9]{4}/[0-9]+/[0-9]+', value):
+                # ignore unconvert characters if exists by splitting
+                ret = datetime.strptime(value.split(' ')[0], '%Y/%m/%d')
 
-        elif re.match(r'^[0-9]{4}-[0-9]+-[0-9]+', value):
-            ret = datetime.strptime(value.split(' ')[0], '%Y-%m-%d')
+            elif re.match(r'^[0-9]{4}-[0-9]+-[0-9]+', value):
+                ret = datetime.strptime(value.split(' ')[0], '%Y-%m-%d')
+        except ValueError:
+            # When datetime.strptie raised ValueError, it means value parameter maches date format
+            # but they are not date value. In this case, we should deal it with a string value.
+            return None
 
         return ret

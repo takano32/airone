@@ -1476,7 +1476,7 @@ class ModelTest(AironeTestCase):
                 'attr-arr': ['2018/01/01']
             },
             'entry3': {
-                'attr-0': '',
+                'attr-0': '0123-45-6789', # This is date format but not date value
                 'attr-1': 'hoge',
                 'ほげ': 'fuga',
                 'attr-date': None,
@@ -1499,6 +1499,11 @@ class ModelTest(AironeTestCase):
         resp = Entry.search_entries(user, [entities[0].id], [{'name': 'attr-0'}])
         self.assertEqual(resp['ret_count'], 3)
         self.assertTrue(all([x['entity']['id'] == entities[0].id for x in resp['ret_values']]))
+
+        # checks the value which is non date but date format was registered correctly
+        self.assertEqual([entry_info['entry3']['attr-0']],
+                         [x['attrs']['attr-0']['value'] for x in resp['ret_values']
+                             if x['entry']['name'] == 'entry3'])
 
         # checks ret_count counts number of entries whatever attribute contidion was changed
         resp = Entry.search_entries(user, [entities[0].id], [{'name': 'attr-0'}, {'name': 'attr-1'}])

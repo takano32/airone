@@ -59,6 +59,9 @@ class EntryAPI(APIView):
             if user.has_permission(attr.schema, ACLType.Writable) and attr.is_updated(value):
                 attr.add_value(user, value)
 
+        # register target Entry to the Elasticsearch
+        entry.register_es()
+
         return Response({'result': entry.id})
 
     def get(self, request, *args, **kwargs):

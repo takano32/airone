@@ -551,11 +551,7 @@ class Attribute(ACLBase):
             attr_value.data_array.add(*AttributeValue.objects.filter(parent_attrv=attr_value))
 
         if attr_value:
-            try:
-                attr_value.save()
-            except Exception as e:
-                print('[onix/entry.add_value(warning)] (%s) %s' % (self.schema.name, value))
-                raise(e)
+            attr_value.save()
 
             # append new AttributeValue
             self.values.add(attr_value)
@@ -871,6 +867,64 @@ class Entry(ACLBase):
 
     def register_es(self, es=None, skip_refresh=False):
         """This processing registers entry information to Elasticsearch"""
+        # This innner method truncates value in taking multi-byte in account
+        def truncate(value):
+            while len(value.encode('utf-8')) > ESS.MAX_TERM_SIZE:
+                value = value[:-1]
+            return value
+
+        def _set_attrinfo(attr, attrv, container, is_recursive=False):
+            attrinfo = {
+                'name': attr.name,
+                'type': attr.type,
+                'key': None,
+                'value': None,
+                'referral_id': None,
+            }
+
+            # Basically register attribute information whatever value doesn't exist
+            if not (attr.type & AttrTypeValue['array'] and not is_recursive):
+                container.append(attrinfo)
+            elif attr.type & AttrTypeValue['array'] and not is_recursive and attrv != None:
+                return [_set_attrinfo(attr, x, container, True) for x in attrv.data_array.all()]
+
+            # This is the processing to be safe even if the empty AttributeValue was passed.
+            if attrv == None:
+                return
+
+            # Convert data format for mapping of Elasticsearch  according to the data type
+            if (attr.type & AttrTypeValue['string'] or attr.type & AttrTypeValue['text']):
+                # When the value was date format, Elasticsearch detect it date type
+                # automatically. This processing explicitly set value to the date typed
+                # parameter.
+                timeobj = self._is_date(attrv.value)
+                if timeobj:
+                    attrinfo['date_value'] = timeobj
+                else:
+                    attrinfo['value'] = truncate(attrv.value)
+
+            elif attr.type & AttrTypeValue['boolean']:
+                attrinfo['value'] = str(attrv.boolean)
+
+            elif attr.type & AttrTypeValue['date']:
+                attrinfo['date_value'] = attrv.date
+
+            elif attr.type & AttrTypeValue['named']:
+                attrinfo['key'] = attrv.value
+                attrinfo['value'] = truncate(attrv.referral.name) if attrv.referral else ''
+                attrinfo['referral_id'] = attrv.referral.id if attrv.referral else ''
+
+            elif attr.type & AttrTypeValue['object']:
+                attrinfo['value'] = truncate(attrv.referral.name) if attrv.referral else ''
+                attrinfo['referral_id'] = attrv.referral.id if attrv.referral else ''
+
+            elif attr.type & AttrTypeValue['group']:
+                if attrv.value and Group.objects.filter(id=attrv.value):
+                    group = Group.objects.get(id=attrv.value)
+                    attrinfo['value'] = truncate(group.name)
+                    attrinfo['referral_id'] = group.id
+                else:
+                    attrinfo['value'] = attrinfo['referral_id'] = ''
 
         if not es:
             es = ESS()
@@ -881,82 +935,18 @@ class Entry(ACLBase):
             'attr': [],
         }
 
-        for attr in self.attrs.filter(is_active=True):
-            attrinfo = {
-                'name': attr.schema.name,
-                'type': attr.schema.type,
-                'value': None,
-                'values': [],
-            }
+        # The reason why this is a beat around the bush processing is for the case that Attibutes
+        # objects are not existed in attr parameter because of delay processing. If this entry
+        # doesn't have an Attribute object associated with an EntityAttr, this registers blank
+        # value to the Elasticsearch.
+        for entity_attr in self.schema.attrs.filter(is_active=True):
+            attrv = None
 
-            latest_value = attr.get_latest_value()
-            if latest_value:
+            attr = self.attrs.filter(schema=entity_attr)
+            if attr:
+                attrv = attr.first().get_latest_value()
 
-                _value = latest_value.get_value(with_metainfo=True)
-                try:
-                    if _value['type'] & AttrTypeValue['array']:
-
-                        if _value['type'] & AttrTypeValue['string']:
-                            attrinfo['values'] = []
-                            for v in _value['value']:
-                                timeobj = self._is_date(v)
-                                if timeobj:
-                                    attrinfo['values'].append({'date_value': timeobj})
-                                else:
-                                    attrinfo['values'].append({'value': v})
-
-                        elif _value['type'] & AttrTypeValue['named']:
-                            _arrinfo = []
-                            for v in _value['value']:
-                                [k] = v.keys()
-
-                                _vinfo = {'key': k}
-                                if k in v and v[k]:
-                                    _vinfo['value'] = v[k]['name']
-                                    _vinfo['referral_id'] = v[k]['id']
-
-                                _arrinfo.append(_vinfo)
-
-                            attrinfo['values'] = _arrinfo
-
-                        elif _value['type'] & AttrTypeValue['object']:
-                            attrinfo['values'] = [{'value': v['name'], 'referral_id': v['id']} for v in _value['value']]
-
-                    else:
-                        if (_value['type'] & AttrTypeValue['string'] or
-                            _value['type'] & AttrTypeValue['text']):
-                            # When the value was date format, Elasticsearch detect it date type
-                            # automatically. This processing explicitly set value to the date typed
-                            # parameter.
-                            timeobj = self._is_date(_value['value'])
-                            if timeobj:
-                                attrinfo['date_value'] = timeobj
-                            else:
-                                attrinfo['value'] = str(_value['value'])
-
-                        elif _value['type'] & AttrTypeValue['boolean']:
-                            attrinfo['value'] = str(_value['value'])
-
-                        elif _value['type'] & AttrTypeValue['date']:
-                            attrinfo['date_value'] = _value['value']
-
-                        elif _value['type'] & AttrTypeValue['named']:
-                            [k] = _value['value'].keys()
-                            if k in _value['value'] and _value['value'][k]:
-                                attrinfo['key'] = k
-                                attrinfo['value'] = _value['value'][k]['name']
-                                attrinfo['referral_id'] = _value['value'][k]['id']
-
-                        elif (_value['type'] & AttrTypeValue['object'] or
-                              _value['type'] & AttrTypeValue['group']):
-                            attrinfo['value'] = _value['value']['name']
-                            attrinfo['referral_id'] = _value['value']['id']
-
-                except TypeError:
-                    # The attribute that has no value returns None at get_value method
-                    pass
-
-            document['attr'].append(attrinfo)
+            _set_attrinfo(entity_attr, attrv, document['attr'])
 
         resp = es.index(doc_type='entry', id=self.id, body=document)
         if not skip_refresh:
@@ -974,20 +964,26 @@ class Entry(ACLBase):
             "query": {
                 "bool": {
                     'filter': [],
-                    'should': []
                 }
             }
         }
 
         # set condition to get results that only have specified entity
         query['query']['bool']['filter'].append({
-            'bool': {'should': [{'term': {'entity.id': int(x)}} for x in hint_entity_ids]}
+            'nested': {
+                'path': 'entity',
+                'query': {
+                    'bool': {'should': [{'term': {'entity.id': int(x)}} for x in hint_entity_ids]}
+                }
+            }
         })
 
         for hint in hint_attrs:
+            conditions = []
+
             if 'name' in hint:
-                query['query']['bool']['filter'].append({
-                    'match': {'attr.name': hint['name']}
+                conditions.append({
+                    'term': {'attr.name': hint['name']}
                 })
 
             if 'keyword' in hint and hint['keyword']:
@@ -995,37 +991,36 @@ class Entry(ACLBase):
                 timeobj = kls._is_date(hint['keyword'])
                 if timeobj:
                     timestr = timeobj.strftime('%Y/%m/%d')
-                    query['query']['bool']['filter'].append({
-                        'bool' : {
-                            'should': [
-                                {'range': {
-                                    'attr.date_value': {
-                                        'gte': timestr,
-                                        'lte': timestr,
-                                        'format': 'yyyy/MM/dd'
-                                    }
-                                }},
-                                {'range': {
-                                    'attr.values.date_value': {
-                                        'gte': timestr,
-                                        'lte': timestr,
-                                        'format': 'yyyy/MM/dd'
-                                    }
-                                }},
-                            ]
-                        }
+                    conditions.append({
+                        'range': {
+                            'attr.date_value': {
+                                'gte': timestr,
+                                'lte': timestr,
+                                'format': 'yyyy/MM/dd'
+                            }
+                        },
                     })
                 else:
-                    query['query']['bool']['filter'].append({
+                    conditions.append({
                         'bool' : {
                             'should': [
-                                {'regexp': {'attr.values.value': '.*%s.*' % hint['keyword']}},
-                                {'match': {'attr.values.value': hint['keyword']}},
                                 {'regexp': {'attr.value': '.*%s.*' % hint['keyword']}},
                                 {'match': {'attr.value': hint['keyword']}},
                             ]
                         }
                     })
+
+            query['query']['bool']['filter'].append({
+                'nested': {
+                    'path': 'attr',
+                    'inner_hits': {},
+                    'query': {
+                        'bool': {
+                            'must': conditions,
+                        }
+                    }
+                }
+            })
 
         try:
             res = ESS().search(body=query, ignore=[404])
@@ -1051,7 +1046,6 @@ class Entry(ACLBase):
                     not [x for x in hit['_source']['attr'] if x['name'] == hint['name']]):
                         continue
 
-            will_append_entry = True
             entry = Entry.objects.get(id=hit['_id'])
 
             ret_info = {
@@ -1060,121 +1054,72 @@ class Entry(ACLBase):
                 'attrs': {},
             }
 
-            # Gathering attribute informations
-            for hint in hint_attrs:
-                ret_info['attrs'][hint['name']] = ret_attrinfo = {}
+            # formalize attribute values according to the type
+            for attrinfo in hit['_source']['attr']:
+                if attrinfo['name'] in ret_info['attrs']:
+                    ret_attrinfo = ret_info['attrs'][attrinfo['name']]
+                else:
+                    ret_attrinfo = ret_info['attrs'][attrinfo['name']] = {}
 
-                try:
-                    attrinfo = [x for x in hit['_source']['attr'] if x['name'] == hint['name']][0]
-                except IndexError:
-                    if 'keyword' in hint and hint['keyword']:
-                        will_append_entry = False
-                        break
+                # if target attribute is array type, then values would be stored in array
+                if attrinfo['name'] not in ret_info['attrs']:
+                    if attrinfo['type'] & AttrTypeValue['array']:
+                        ret_info['attrs'][attrinfo['name']] = []
                     else:
-                        continue
+                        ret_info['attrs'][attrinfo['name']] = ret_attrinfo
 
-                if attrinfo:
-                    ret_attrinfo['type'] = attrinfo['type']
+                ret_attrinfo['type'] = attrinfo['type']
+                if (attrinfo['type'] == AttrTypeValue['string'] or
+                    attrinfo['type'] == AttrTypeValue['text']):
 
-                    # Checks that target values contain 'keyward' pattern if it's specified
-                    if 'keyword' in hint and hint['keyword']:
-                        timeobj = kls._is_date(hint['keyword'])
+                    if attrinfo['value']:
+                        ret_attrinfo['value'] = attrinfo['value']
+                    elif 'date_value' in attrinfo and attrinfo['date_value']:
+                        ret_attrinfo['value'] = attrinfo['date_value'].split('T')[0]
 
-                        # the case target array attribute has no value that matches keyward parameter
-                        if ((attrinfo['type'] & AttrTypeValue['array'] and
-                             not any(['date_value' in x for x in attrinfo['values']]) and
-                             not any([re.match(hint['keyword'], x['value']) for x in attrinfo['values']])) or
+                elif attrinfo['type'] == AttrTypeValue['boolean']:
+                    ret_attrinfo['value'] = attrinfo['value']
 
-                            # the case target attry attribute has no matched date_value associated with keyword
-                            (attrinfo['type'] & AttrTypeValue['array'] and
-                             (any(['date_value' in x for x in attrinfo['values']]) or timeobj) and
-                             not any([x['date_value'].split('T')[0] == timeobj.strftime('%Y-%m-%d')
-                                 for x in attrinfo['values'] if 'date_value' in x and timeobj])) or
+                elif attrinfo['type'] == AttrTypeValue['date']:
+                    ret_attrinfo['value'] = attrinfo['date_value']
 
-                            # the case target has no value in array value
-                            (attrinfo['type'] & AttrTypeValue['array'] and
-                             not any(['date_value' in x or x['value'] for x in attrinfo['values']])) or
+                elif (attrinfo['type'] == AttrTypeValue['object'] or
+                      attrinfo['type'] == AttrTypeValue['group']):
+                    ret_attrinfo['value'] = {'id': attrinfo['referral_id'], 'name': attrinfo['value']}
 
-                            # the case target has no value
-                            (not (attrinfo['type'] & AttrTypeValue['array']) and
-                             ('date_value' not in attrinfo or not attrinfo['date_value']) and
-                             not attrinfo['value']) or
+                elif (attrinfo['type'] == AttrTypeValue['named_object']):
+                    ret_attrinfo['value'] = {
+                            attrinfo['key']: {'id': attrinfo['referral_id'], 'name': attrinfo['value']}
+                    }
 
-                            # the case target attribute has no value
-                            (not (attrinfo['type'] & AttrTypeValue['array']) and
-                             not timeobj and 'date_value' not in attrinfo and not attrinfo['value']) or
+                elif attrinfo['type'] & AttrTypeValue['array']:
+                    if 'value' not in ret_attrinfo:
+                        ret_attrinfo['value'] = []
 
-                            # the case target attribute doesn't have have that matches keyword parameter
-                            (not (attrinfo['type'] & AttrTypeValue['array']) and
-                             attrinfo['value'] and not re.match(hint['keyword'], attrinfo['value'])) or
+                    if attrinfo['type'] == AttrTypeValue['array_string']:
+                        if 'date_value' in attrinfo:
+                            ret_attrinfo['value'].append(attrinfo['date_value'].split('T')[0])
+                        else:
+                            ret_attrinfo['value'].append(attrinfo['value'])
 
-                            # the case target hint parameter is date, but keyword is not date parameter
-                            (not (attrinfo['type'] & AttrTypeValue['array']) and
-                             'date_value' in attrinfo and attrinfo['date_value'] and not timeobj) or
+                    elif attrinfo['type'] == AttrTypeValue['array_object']:
+                        ret_attrinfo['value'].append({
+                            'id': attrinfo['referral_id'],
+                            'name': attrinfo['value']
+                        })
 
-                            # the case target date parameter doesn't match with specified keyword date
-                            (not (attrinfo['type'] & AttrTypeValue['array']) and
-                             'date_value' in attrinfo and attrinfo['date_value'] and timeobj and
-                             str(attrinfo['date_value']).split('T')[0] != timeobj.strftime('%Y-%m-%d'))):
+                    elif attrinfo['type'] == AttrTypeValue['array_named_object']:
+                        ret_attrinfo['value'].append({
+                            attrinfo['key']: {'id': attrinfo['referral_id'], 'name': attrinfo['value']}
+                        })
 
-                            will_append_entry = False
-                            break
-
-                    # Set AttributeValue parameter to be returned
-                    try:
-                        if (attrinfo['type'] == AttrTypeValue['string'] or
-                            attrinfo['type'] == AttrTypeValue['text']):
-
-                            if attrinfo['value']:
-                                ret_attrinfo['value'] = attrinfo['value']
-                            elif attrinfo['date_value']:
-                                ret_attrinfo['value'] = attrinfo['date_value'].split('T')[0]
-
-                        elif attrinfo['type'] == AttrTypeValue['boolean']:
-                            ret_attrinfo['value'] = attrinfo['value']
-
-                        elif attrinfo['type'] == AttrTypeValue['date']:
-                            ret_attrinfo['value'] = attrinfo['date_value']
-
-                        elif (attrinfo['type'] == AttrTypeValue['object'] or
-                              attrinfo['type'] == AttrTypeValue['group']):
-                            ret_attrinfo['value'] = {'id': attrinfo['referral_id'], 'name': attrinfo['value']}
-
-                        elif attrinfo['type'] == AttrTypeValue['named_object']:
-                            ret_attrinfo['value'] = {
-                                    attrinfo['key']: {'id': attrinfo['referral_id'], 'name': attrinfo['value']}
-                            }
-
-                        elif attrinfo['type'] == AttrTypeValue['array_string']:
-                            ret_attrinfo['value'] = []
-                            for v in attrinfo['values']:
-                                if 'date_value' in v:
-                                    ret_attrinfo['value'].append(v['date_value'].split('T')[0])
-                                else:
-                                    ret_attrinfo['value'].append(v['value'])
-
-                        elif attrinfo['type'] == AttrTypeValue['array_object']:
-                            ret_attrinfo['value'] = [{'id': x['referral_id'], 'name': x['value']} for x in attrinfo['values']]
-
-                        elif attrinfo['type'] == AttrTypeValue['array_named_object']:
-                            ret_attrinfo['value'] = [
-                                    {x['key']: {'id': x['referral_id'], 'name': x['value']}} for x in attrinfo['values']
-                            ]
-
-                    except KeyError as e:
-                        # When an entry doesn't have any value, elasticsearch doesn't have any value of
-                        # 'value', 'values', 'key' and 'referral_id'. And if 'keyward' parameter is
-                        # specified, ignore the candidate that doesn't have any values.
-                        if 'keyword' in hint and hint['keyword']:
-                            will_append_entry = False
-                            break
-
-            if will_append_entry:
-                results['ret_values'].append(ret_info)
-            else:
-                results['ret_count'] -= 1
+            results['ret_values'].append(ret_info)
 
         return results
+
+    @classmethod
+    def get_all_es_docs(kls):
+        return ESS().search(body={'query': {'match_all': {}}}, ignore=[404])
 
     @classmethod
     def _is_date(kls, value):

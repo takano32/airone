@@ -1,5 +1,7 @@
 import json
 
+from functools import reduce
+
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -18,17 +20,14 @@ class EntityAttrsAPI(APIView):
     def get(self, request, entity_ids, format=None):
         user = User.objects.get(id=request.user.id)
 
-        if not all([Entity.objects.filter(id=x) for x in entity_ids.split(',')]):
+        entities = [Entity.objects.filter(id=x, is_active=True) for x in entity_ids.split(',')]
+        if not all(entities):
             return Response("Target Entity doesn't exist", status=status.HTTP_400_BAD_REQUEST)
+        else:
+            entities = [x.first() for x in entities]
 
-        attrs = []
-        for entity_id in entity_ids.split(','):
-            entity = Entity.objects.get(id=entity_id)
+        attrs = reduce(lambda x,y: set(x) & set(y),
+                       [[a.name for a in e.attrs.filter(is_active=True)
+                           if user.has_permission(a, ACLType.Readable)] for e in entities])
 
-            if not entity.is_active or not user.has_permission(entity, ACLType.Readable):
-                continue
-
-            attrs.append([x.name for x in entity.attrs.filter(is_active=True)
-                if user.has_permission(x, ACLType.Readable)])
-
-        return Response({'result': set(sum(attrs, []))}, content_type='application/json; charset=UTF-8')
+        return Response({'result': attrs}, content_type='application/json; charset=UTF-8')

@@ -1617,3 +1617,37 @@ class ModelTest(AironeTestCase):
         self.assertEqual(resp['ret_count'], 10)
         for name in entity_info.keys():
             self.assertEqual(len([x for x in resp['ret_values'] if x['entity']['name'] == name]), 5)
+
+    def test_get_last_value(self):
+        user = User.objects.create(username='hoge')
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        for name in ['foo', 'bar']:
+            entity.attrs.add(EntityAttr.objects.create(name=name,
+                                                       type=AttrTypeValue['string'],
+                                                       created_user=user,
+                                                       parent_entity=entity))
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+
+        # the case of creating default empty AttributeValue
+        attr = entry.attrs.get(schema__name='foo')
+        self.assertEqual(attr.values.count(), 0)
+
+        attrv = attr.get_last_value()
+        self.assertIsNotNone(attrv)
+        self.assertEqual(attrv.value, '')
+        self.assertEqual(attrv, attr.get_latest_value())
+        self.assertEqual(attr.values.count(), 1)
+
+        # the case of creating specified AttributeValue
+        attr = entry.attrs.get(schema__name='bar')
+        self.assertEqual(attr.values.count(), 0)
+
+        attr.add_value(user, 'hoge')
+        attrv = attr.get_last_value()
+        self.assertIsNotNone(attrv)
+        self.assertEqual(attrv.value, 'hoge')
+        self.assertEqual(attrv, attr.get_latest_value())
+        self.assertEqual(attr.values.count(), 1)

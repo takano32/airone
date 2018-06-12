@@ -321,6 +321,20 @@ class Attribute(ACLBase):
 
             return attrv
 
+    def get_last_value(self):
+        attrv = self.values.last()
+        if not attrv:
+            attrv = AttributeValue.objects.create(**{
+                'value': '',
+                'created_user': self.created_user,
+                'parent_attr': self,
+                'status': 1 if self.schema.type & AttrTypeValue['group'] else 0,
+                'data_type': self.schema.type,
+            })
+            self.values.add(attrv)
+
+        return attrv
+
     def clone(self, user, **extra_params):
         if not user.has_permission(self, ACLType.Readable):
             return None
@@ -740,7 +754,7 @@ class Entry(ACLBase):
             attrinfo['last_value'] = ''
             attrinfo['last_referral'] = None
             if attr.values.count() > 0:
-                last_value = attr.get_latest_value()
+                last_value = attr.get_last_value()
                 if not last_value.data_type:
                     last_value.data_type = attr.schema.type
                     last_value.save()

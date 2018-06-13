@@ -28,6 +28,19 @@ from .settings import CONFIG
 from .tasks import create_entry_attrs, edit_entry_attrs, delete_entry, copy_entry
 
 
+def _validate_input(recv_data):
+    for attr_data in recv_data['attrs']:
+        # Checks specified value exceeds the limit of AttributeValue
+        if any([len(str(y['data']).encode('utf-8')) > AttributeValue.MAXIMUM_VALUE_SIZE for y in attr_data['value']]):
+            return HttpResponse('Passed value is exceeded the limit', status=400)
+
+        # Check date value format
+        if (int(attr_data['type']) & AttrTypeValue['date']):
+            try:
+                [datetime.strptime(str(i['data']),'%Y-%m-%d') for i in attr_data['value'] if i['data']]
+            except:
+                return HttpResponse('Incorrect data format in date', status=400)
+
 @airone_profile
 @http_get
 @check_permission(Entity, ACLType.Readable)
@@ -112,17 +125,14 @@ def do_create(request, entity_id, recv_data):
         return HttpResponse('Duplicate name entry is existed', status=400)
 
     # validate contexts of each attributes
-    for attr_data in recv_data['attrs']:
-        # Checks specified value exceeds the limit of AttributeValue
-        if any([len(str(y['data']).encode('utf-8')) > AttributeValue.MAXIMUM_VALUE_SIZE for y in attr_data['value']]):
-            return HttpResponse('Passed value is exceeded the limit', status=400)
+    err = _validate_input(recv_data)
+    if err:
+        return err
 
-        # Check date value format
-        if (int(attr_data['type']) & AttrTypeValue['date']):
-            try:
-                [datetime.strptime(str(i['data']),'%Y-%m-%d') for i in attr_data['value'] if i['data']]
-            except:
-                return HttpResponse('Incorrect data format in date', status=400)
+    if custom_view.is_custom_do_create_entry(entity.name):
+        (is_continue, code, msg) = custom_view.call_custom_do_create_entry(entity.name, request, recv_data, user, entity)
+        if not is_continue:
+            return HttpResponse(msg, status=code)
 
     # Create a new Entry object
     entry = Entry(name=recv_data['entry_name'],
@@ -196,18 +206,10 @@ def do_edit(request, entry_id, recv_data):
     if Entry.objects.filter(query).count():
         return HttpResponse('Duplicate name entry is existed', status=400)
 
-    # Checks specified value exceeds the limit of AttributeValue
-    for attr_data in recv_data['attrs']:
-        # Checks specified value exceeds the limit of AttributeValue
-        if any([len(str(y['data']).encode('utf-8')) > AttributeValue.MAXIMUM_VALUE_SIZE for y in attr_data['value']]):
-            return HttpResponse('Passed value is exceeded the limit', status=400)
-
-        # Check date value format
-        if (int(attr_data['type']) & AttrTypeValue['date']):
-            try:
-                [datetime.strptime(str(i['data']),'%Y-%m-%d') for i in attr_data['value'] if i['data']]
-            except ValueError:
-                return HttpResponse('Incorrect data format in date', status=400)
+    # validate contexts of each attributes
+    err = _validate_input(recv_data)
+    if err:
+        return err
 
     if entry.get_status(Entry.STATUS_CREATING):
         return HttpResponse('Target entry is now under processing', status=400)

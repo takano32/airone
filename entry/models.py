@@ -425,9 +425,7 @@ class Attribute(ACLBase):
                 return all([x for x in value if isinstance(x, dict) or isinstance(x, type({}.values()))])
 
             if(self.schema.type & AttrTypeValue['object']):
-                return all([x for x in value if (isinstance(x, str) or
-                                                 isinstance(x, Entry) or
-                                                 x is None)])
+                return all([isinstance(x, str) or isinstance(x, int) or isinstance(x, Entry) or x is None for x in value])
 
             if self.schema.type & AttrTypeValue['string']:
                 return True
@@ -439,7 +437,7 @@ class Attribute(ACLBase):
             return True
 
         if(self.schema.type & AttrTypeValue['object']):
-            return isinstance(value, str) or isinstance(value, Entry) or value is None
+            return isinstance(value, str) or isinstance(value, int) or isinstance(value, Entry) or value is None
 
         if(self.schema.type & AttrTypeValue['boolean']):
             return isinstance(value, bool)
@@ -448,10 +446,7 @@ class Attribute(ACLBase):
             return isinstance(value, date) or value is None
 
         if(self.schema.type & AttrTypeValue['group']):
-            if isinstance(value, Group):
-                return True
-            else:
-                return not value or Group.objects.filter(id=value)
+            return isinstance(value, Group) or not value or Group.objects.filter(id=value)
 
         return False
 

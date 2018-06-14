@@ -8,18 +8,14 @@ var get_register_attrs = function(base) {
     'id': '{{ attr.id }}',
     'type': '{{ attr.type }}',
     'value': $(base).find(".attr_value[attr_id='{{ attr.id }}'][enabled='True']").map(function(i, e) {
-      if(! ($(e).val() == '0' || $(e).val() == '')) {
-        if($(e).attr('type') == 'checkbox') {
-          return {'data': $(e).prop('checked'), 'index': $(e).attr('index')};
-        } else {
-          return {'data': $(e).val(), 'index': $(e).attr('index')};
-        }
+      if($(e).attr('type') == 'checkbox') {
+        return {'data': $(e).prop('checked'), 'index': $(e).attr('index')};
+      } else {
+        return {'data': $(e).val(), 'index': $(e).attr('index')};
       }
     }).get(),
     'referral_key': $(base).find(".referral_key[attr_id='{{ attr.id }}'][enabled='True']").map(function(i, e){
-      if(! $(e).val() == '') {
-        return {'data': $(e).val(), 'index': $(e).attr('index')};
-      }
+      return {'data': $(e).val(), 'index': $(e).attr('index')};
     }).get(),
   });
   {% endfor %}

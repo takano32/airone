@@ -562,7 +562,7 @@ class ViewTest(AironeViewTest):
         entry = Entry(name='fuga', schema=self._entity, created_user=user)
         entry.save()
 
-        for attr_name in ['foo', 'bar']:
+        for attr_name in ['foo', 'bar', 'baz']:
             attr = self.make_attr(name=attr_name,
                                   created_user=user,
                                   parent_entry=entry)
@@ -574,6 +574,7 @@ class ViewTest(AironeViewTest):
                 # include blank value
                 {'id': str(Attribute.objects.get(name='foo').id), 'type': str(AttrTypeArrStr), 'value': [{'data': '', 'index': 0}], 'referral_key': []},
                 {'id': str(Attribute.objects.get(name='bar').id), 'type': str(AttrTypeArrStr), 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
+                {'id': str(Attribute.objects.get(name='baz').id), 'type': str(AttrTypeArrStr), 'value': [{'data': '0', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -584,6 +585,8 @@ class ViewTest(AironeViewTest):
         self.assertEqual(Attribute.objects.get(name='foo').values.filter(is_latest=True).count(), 0)
         self.assertEqual(Attribute.objects.get(name='bar').values.filter(is_latest=True).count(), 1)
         self.assertEqual(Attribute.objects.get(name='bar').values.last().value, 'fuga')
+        self.assertEqual(Attribute.objects.get(name='baz').values.filter(is_latest=True).count(), 1)
+        self.assertEqual(Attribute.objects.get(name='baz').values.last().value, '0')
         self.assertEqual(Entry.objects.get(id=entry.id).name, entry.name)
 
     @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
@@ -2432,3 +2435,56 @@ class ViewTest(AironeViewTest):
         for (name, info) in attr_info.items():
             self.assertEqual(entry.attrs.get(schema=info['schema']).get_latest_value().get_value(),
                              info['expect_blank_value'])
+
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    def test_create_with_invalid_referral_params(self):
+        user = self.admin_login()
+
+        def checker_obj(attrv):
+            self.assertIsNone(attrv.referral)
+
+        def checker_name(attrv):
+            self.assertEqual(attrv.value, 'foo')
+            self.assertIsNone(attrv.referral)
+
+        def checker_arr_obj(attrv):
+            self.assertEqual(attrv.data_array.count(), 0)
+
+        def checker_arr_name(attrv):
+            self.assertEqual(attrv.data_array.count(), 1)
+            self.assertEqual(attrv.data_array.first().value, 'foo')
+            self.assertIsNone(attrv.data_array.first().referral)
+
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        attr_info = {
+            'obj': {'type': AttrTypeValue['object'], 'checker': checker_obj},
+            'name': {'type': AttrTypeValue['named_object'], 'checker': checker_name},
+            'arr_obj': {'type': AttrTypeValue['array_object'], 'checker': checker_arr_obj},
+            'arr_name': {'type': AttrTypeValue['array_named_object'], 'checker': checker_arr_name},
+        }
+        for attr_name, info in attr_info.items():
+            entity.attrs.add(EntityAttr.objects.create(name=attr_name,
+                                                       type=info['type'],
+                                                       created_user=user,
+                                                       parent_entity=entity))
+
+        for (i, value) in enumerate(['', '0', 0, '9999', None]):
+            entry_name = 'entry-%d' % i
+            params = {
+                'entry_name': entry_name,
+                'attrs':  [{
+                    'id': str(x.id),
+                    'type': str(x.type),
+                    'value': [{'data': value, 'index': 0}],
+                    'referral_key': [{'data': 'foo', 'index': 0}] if x.type & AttrTypeValue['named'] else [],
+                } for x in entity.attrs.all()],
+            }
+            resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                    json.dumps(params),
+                                    'application/json')
+
+            self.assertEqual(resp.status_code, 200)
+            entry = Entry.objects.get(name=entry_name, schema=entity)
+
+            for (name, info) in attr_info.items():
+                info['checker'](entry.attrs.get(schema__name=name).get_latest_value())

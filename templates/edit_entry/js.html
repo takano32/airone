@@ -66,6 +66,22 @@ var form_validator = function() {
     result = false;
   }
 
+  // check mandatory attrs of referral entry
+  $('.attr_referral[mandatory]').each(function() {
+    var all_empty = true;
+    $(this).find('input[class="referral_key"],select[class="attr_value"]').each(function() {
+      if($(this).val()) {
+        all_empty = false;
+      }
+    });
+    if(all_empty) {
+      $(this).parent().addClass('table-danger');
+      result = false;
+    } else {
+      $(this).parent().removeClass('table-danger');
+    }
+  });
+
   // check mandatory attrs of text-input
   $('input[type="text"][class="attr_value"][mandatory]').each(function() {
     if(! $(this).val()) {
@@ -106,7 +122,7 @@ var form_validator = function() {
     }
 
     var all_empty = true;
-    $(this).find('input[class="attr_value"],select[class="attr_value"]').each(function(i) {
+    $(this).find('input[class="attr_value"],input[class="referral_key"],select[class="attr_value"]').each(function() {
       if($(this).val()) {
         all_empty = false;
       }

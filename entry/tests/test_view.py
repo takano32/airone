@@ -613,6 +613,7 @@ class ViewTest(AironeViewTest):
                                                                 parent_attr=attr))
 
         attr.values.add(attr_value)
+        entry.attrs.add(attr)
 
         params = {
             'entry_name': entry.name,
@@ -675,6 +676,7 @@ class ViewTest(AironeViewTest):
                                                                 parent_attr=attr))
 
         attr.values.add(attr_value)
+        entry.attrs.add(attr)
 
         params = {
             'entry_name': entry.name,
@@ -2488,3 +2490,63 @@ class ViewTest(AironeViewTest):
 
             for (name, info) in attr_info.items():
                 info['checker'](entry.attrs.get(schema__name=name).get_latest_value())
+
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    def test_attribute_of_mandatory_params(self):
+        """
+        This tests the processing of creating entry would return error, or not,
+        when non-value was specified in a mandatory parameter for each attribute type.
+        """
+        user = self.admin_login()
+
+        # prepare to Entity and Entries which importing data refers to
+        entity_info = {
+            'str': {'type': AttrTypeValue['string']},
+            'obj': {'type': AttrTypeValue['object']},
+            'grp': {'type': AttrTypeValue['group']},
+            'name': {'type': AttrTypeValue['named_object']},
+            'bool': {'type': AttrTypeValue['boolean']},
+            'date': {'type': AttrTypeValue['date']},
+            'arr1': {'type': AttrTypeValue['array_string']},
+            'arr2': {'type': AttrTypeValue['array_object']},
+            'arr3': {'type': AttrTypeValue['array_named_object']},
+        }
+        for name, info in entity_info.items():
+            # create entity that only has one attribute of specified type
+            entity = Entity.objects.create(name=name, created_user=user)
+            attr = EntityAttr.objects.create(name=name,
+                                             type=info['type'],
+                                             created_user=user,
+                                             is_mandatory=True,
+                                             parent_entity=entity)
+
+            entity.attrs.add(attr)
+
+            # send a request to create entry and expect to be error
+            referral_key = []
+            if info['type'] & AttrTypeValue['named']:
+                referral_key = [{'data': '', 'index': 0}]
+            params = {
+                'entry_name': 'entry',
+                'attrs': [{
+                    'id': str(attr.id),
+                    'type': str(info['type']),
+                    'value': [{'data': '', 'index': 0}],
+                    'referral_key': referral_key
+                }],
+            }
+            resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                    json.dumps(params),
+                                    'application/json')
+            self.assertEqual(resp.status_code, 400)
+            self.assertEqual(Entry.objects.filter(schema=entity).count(), 0)
+
+            # when a referral_key is specified, named type will be successful to create
+            if info['type'] & AttrTypeValue['named']:
+                referral_key[0]['data'] = 'hoge'
+                resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                    json.dumps(params),
+                                    'application/json')
+
+                self.assertEqual(resp.status_code, 200)
+                self.assertEqual(Entry.objects.filter(schema=entity).count(), 1)

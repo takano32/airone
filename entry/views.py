@@ -28,14 +28,29 @@ from .settings import CONFIG
 from .tasks import create_entry_attrs, edit_entry_attrs, delete_entry, copy_entry
 
 
-def _validate_input(recv_data):
+def _validate_input(recv_data, obj):
     for attr_data in recv_data['attrs']:
+        attr = obj.attrs.filter(id=attr_data['id']).first()
+        if not attr:
+            return HttpResponse('Specified attribute is invalid', status=400)
+
+        if isinstance(obj, Entry):
+            attr = attr.schema
+
+        if attr.is_mandatory:
+            is_valid = any([not (x['data'] == '' or x['data'] is None) for x in attr_data['value']])
+            if attr.type & AttrTypeValue['named']:
+                is_valid |= any([not (x['data'] == '' or x['data'] is None) for x in attr_data['referral_key']])
+
+            if not is_valid:
+                return HttpResponse('You have to specify value at mandatory parameters', status=400)
+
         # Checks specified value exceeds the limit of AttributeValue
         if any([len(str(y['data']).encode('utf-8')) > AttributeValue.MAXIMUM_VALUE_SIZE for y in attr_data['value']]):
             return HttpResponse('Passed value is exceeded the limit', status=400)
 
         # Check date value format
-        if (int(attr_data['type']) & AttrTypeValue['date']):
+        if (attr.type & AttrTypeValue['date']):
             try:
                 [datetime.strptime(str(i['data']),'%Y-%m-%d') for i in attr_data['value'] if i['data']]
             except:
@@ -106,12 +121,7 @@ def create(request, entity_id):
     {'name': 'attrs', 'type': list, 'meta': [
         {'name': 'id', 'type': str},
         {'name': 'type', 'type': str},
-        {'name': 'value', 'type': list,
-           'checker': lambda x: (
-               EntityAttr.objects.filter(id=x['id']).count() > 0 and
-               (EntityAttr.objects.get(id=x['id']).is_mandatory and x['value'] or
-               not EntityAttr.objects.get(id=x['id']).is_mandatory)
-           )},
+        {'name': 'value', 'type': list},
     ]}
 ])
 @check_permission(Entity, ACLType.Writable)
@@ -121,11 +131,11 @@ def do_create(request, entity_id, recv_data):
     entity = Entity.objects.get(id=entity_id)
 
     # checks that a same name entry corresponding to the entity is existed, or not.
-    if Entry.objects.filter(schema=entity_id, name=recv_data['entry_name']).count():
+    if Entry.objects.filter(schema=entity_id, name=recv_data['entry_name']):
         return HttpResponse('Duplicate name entry is existed', status=400)
 
     # validate contexts of each attributes
-    err = _validate_input(recv_data)
+    err = _validate_input(recv_data, entity)
     if err:
         return err
 
@@ -188,12 +198,7 @@ def edit(request, entry_id):
     {'name': 'attrs', 'type': list, 'meta': [
         {'name': 'id', 'type': str},
         {'name': 'type', 'type': str},
-        {'name': 'value', 'type': list,
-           'checker': lambda x: (
-               Attribute.objects.filter(id=x['id']).count() > 0 and
-               (Attribute.objects.get(id=x['id']).schema.is_mandatory and x['value'] or
-               not Attribute.objects.get(id=x['id']).schema.is_mandatory)
-           )},
+        {'name': 'value', 'type': list},
     ]},
 ])
 @check_permission(Entry, ACLType.Writable)
@@ -203,11 +208,11 @@ def do_edit(request, entry_id, recv_data):
 
     # checks that a same name entry corresponding to the entity is existed.
     query = Q(schema=entry.schema, name=recv_data['entry_name']) & ~Q(id=entry.id)
-    if Entry.objects.filter(query).count():
+    if Entry.objects.filter(query):
         return HttpResponse('Duplicate name entry is existed', status=400)
 
     # validate contexts of each attributes
-    err = _validate_input(recv_data)
+    err = _validate_input(recv_data, entry)
     if err:
         return err
 

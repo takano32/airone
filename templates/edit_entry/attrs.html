@@ -67,7 +67,7 @@
         </div>
       </div>
     {% elif attr.type|bitwise_and:attr_type.entry %}
-      <div class='row'>
+      <div class='row attr_referral' {% if attr.is_mandatory %}mandatory="true"{% endif %}>
       {% if attr.type|bitwise_and:attr_type_value.named %}
         <div class='col-3'>
           <input type='text' class='referral_key' attr_id="{{ attr.id }}" value="{{ attr.last_value }}" enabled="True" index="0"></input>
@@ -87,7 +87,7 @@
         {% if attr.referrals|length > 5 %}
         <select class="attr_value" attr_id="{{ attr.id }}" enabled="True" index='0' size='5' style="width: 100%">
         {% else %}
-        <select class="attr_value" attr_id="{{ attr.id }}" enabled="True" index='0' size='{{ attr.referrals|length|add:1 }}' style="width: 100%" {%if attr.is_mandatory%}mandatory="true"{%endif%}>
+        <select class="attr_value" attr_id="{{ attr.id }}" enabled="True" index='0' size='{{ attr.referrals|length|add:1 }}' style="width: 100%">
         {% endif %}
 
           {% if not attr.is_mandatory %}
@@ -130,7 +130,7 @@
 
     {% elif attr.type|bitwise_and:attr_type.group %}
 
-      <select class="attr_value" attr_id="{{ attr.id }}" enabled="True" index='0' size='5' style="width: 100%">
+      <select class="attr_value" attr_id="{{ attr.id }}" enabled="True" index='0' size='5' style="width: 100%" {% if attr.is_mandatory %}mandatory="true"{% endif %}>
           {% if not attr.is_mandatory %}
           <option value='0'>- NOT SET -</option>
           {% endif %}

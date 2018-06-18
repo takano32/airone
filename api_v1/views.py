@@ -75,19 +75,15 @@ class EntryAPI(APIView):
             return Response({'result': 'Parameter "entity" and "entry" are mandatory'},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        entity = Entity.objects.filter(name=param_entity)
+        entity = Entity.objects.filter(name=param_entity).first()
         if not entity:
             return Response({'result': 'Failed to find specified Entity (%s)' % param_entity},
                             status=status.HTTP_404_NOT_FOUND)
-        else:
-            entity = entity.first()
 
-        entry = Entry.objects.filter(name=param_entry, schema=entity)
+        entry = Entry.objects.filter(name=param_entry, schema=entity).first()
         if not entry:
             return Response({'result': 'Failed to find specified Entry (%s)' % param_entry},
                             status=status.HTTP_404_NOT_FOUND)
-        else:
-            entry = entry.first()
 
         # permission check
         user = User.objects.get(id=request.user.id)
@@ -102,3 +98,35 @@ class EntryAPI(APIView):
                 'value': x.get_latest_value().get_value()
             } for x in entry.attrs.filter(is_active=True) if user.has_permission(x, ACLType.Readable)]
         })
+
+    def delete(self, request, *args, **kwargs):
+        if not request.user.id:
+            return Response('You have to login AirOne to perform this request',
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # checks mandatory parameters are specified
+        if not all([x in request.data for x in ['entity', 'entry']]):
+            return Response('Parameter "entity" and "entry" are mandatory',
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        entity = Entity.objects.filter(name=request.data['entity']).first()
+        if not entity:
+            return Response('Failed to find specified Entity (%s)' % request.data['entity'],
+                            status=status.HTTP_404_NOT_FOUND)
+
+        entry = Entry.objects.filter(name=request.data['entry'], schema=entity).first()
+        if not entry:
+            return Response('Failed to find specified Entry (%s)' % request.data['entry'],
+                            status=status.HTTP_404_NOT_FOUND)
+
+        # permission check
+        user = User.objects.get(id=request.user.id)
+        if (not user.has_permission(entry, ACLType.Full) or
+            not user.has_permission(entity, ACLType.Readable)):
+            return Response('Permission denied to operate', status=status.HTTP_400_BAD_REQUEST)
+
+        # Delete the specified entry then return its id, if is active
+        if entry.is_active:
+            entry.delete()
+
+        return Response({'id': entry.id})

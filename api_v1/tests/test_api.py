@@ -427,3 +427,60 @@ class APITest(AironeViewTest):
         entry = Entry.objects.get(name='entry-0')
         self.assertEqual(result['id'], entry.id)
         self.assertEqual(len(result['attrs']), entry.attrs.count())
+
+    def test_delete_entry(self):
+        # wrapper to send delete request in this test
+        def send_request(param):
+            return self.client.delete('/api/v1/entry', json.dumps(param), 'application/json')
+
+        admin = self.admin_login()
+
+        entity1 = Entity.objects.create(name='Entity1', created_user=admin)
+        entity2 = Entity.objects.create(name='Entity2', created_user=admin, is_public=False)
+
+        # The 'entry1' will be deleted from API request for testing. And 'entry2' is also used for this test,
+        # but this is not public one so it couldn't be deleted by the user who doesn't have priviledged level.
+        entry11 = Entry.objects.create(name='entry11', schema=entity1, created_user=admin)
+        entry12 = Entry.objects.create(name='entry12', schema=entity1, created_user=admin, is_public=False)
+        entry21 = Entry.objects.create(name='entry21', schema=entity2, created_user=admin)
+
+        # re-login for checking entries permission
+        user = self.guest_login()
+
+        # The case of no specifying mandatory parameter
+        resp = send_request({})
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content.decode('utf-8'),
+                         '"Parameter \\"entity\\" and \\"entry\\" are mandatory"')
+
+        # The case of specifying invalid entity parameter
+        resp = send_request({'entity': 'hoge', 'entry': 'fuga'})
+        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(resp.content.decode('utf-8'),
+                         '"Failed to find specified Entity (hoge)"')
+
+        # The case of specifying invalid etnry parameter
+        resp = send_request({'entity': 'Entity1', 'entry': 'fuga'})
+        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(resp.content.decode('utf-8'),
+                         '"Failed to find specified Entry (fuga)"')
+
+        # The case of specifying entry of entity which user doesn't have read permission
+        resp = send_request({'entity': 'Entity2', 'entry': 'entry21'})
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content.decode('utf-8'),
+                         '"Permission denied to operate"')
+
+        # The case of specifying entry which user doen't have delete permission
+        resp = send_request({'entity': 'Entity1', 'entry': 'entry12'})
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content.decode('utf-8'),
+                         '"Permission denied to operate"')
+
+        # The case of success to delete
+        resp = send_request({'entity': 'Entity1', 'entry': 'entry11'})
+        self.assertEqual(resp.status_code, 200)
+
+        # checks specified entry would be deleted
+        entry11.refresh_from_db()
+        self.assertFalse(entry11.is_active)

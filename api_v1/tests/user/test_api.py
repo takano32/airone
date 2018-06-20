@@ -43,18 +43,3 @@ class APITest(AironeViewTest):
         })
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()['results'], str(token))
-
-    def test_refresh_token_using_expired_token(self):
-        user = User.objects.create(username='guest')
-
-        # Update token lifetime to negative value to occur lifetime expiring
-        user.token_lifetime = -1
-        user.save()
-
-        token = Token.objects.create(user=DjangoUser.objects.get(id=user.id))
-
-        resp = self.client.get('/api/v1/user/access_token', **{
-            'HTTP_AUTHORIZATION': 'Token %s' % str(token),
-        })
-        self.assertEqual(resp.status_code, 401)
-        self.assertEqual(resp.json()['detail'], 'Token lifetime is expired')

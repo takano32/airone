@@ -16,7 +16,7 @@ cat << END | python3 manage.py shell
 from user.models import User
 
 for name in ['demo', 'racktables']:
-    user = User(username=name, email='%s@dmm.local' % name)
+    user = User(username=name, email='%s@dmm.local' % name, is_superuser=True)
     user.set_password('demo')
     user.save()
 END

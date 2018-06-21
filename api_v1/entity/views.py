@@ -6,16 +6,16 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.authentication import BasicAuthentication
-from rest_framework.authentication import TokenAuthentication
 from rest_framework.authentication import SessionAuthentication
 
 from airone.lib.acl import ACLType
+from api_v1.auth import AironeTokenAuth
 from entity.models import Entity
 from user.models import User
 
 
 class EntityAttrsAPI(APIView):
-    authentication_classes = (TokenAuthentication, BasicAuthentication, SessionAuthentication,)
+    authentication_classes = (AironeTokenAuth, BasicAuthentication, SessionAuthentication,)
 
     def get(self, request, entity_ids, format=None):
         user = User.objects.get(id=request.user.id)

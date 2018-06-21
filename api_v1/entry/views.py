@@ -1,12 +1,12 @@
 import json
 
+from api_v1.auth import AironeTokenAuth
 from airone.lib.profile import airone_profile
 
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.authentication import BasicAuthentication
-from rest_framework.authentication import TokenAuthentication
 from rest_framework.authentication import SessionAuthentication
 
 from entry.models import Entry
@@ -15,7 +15,7 @@ from user.models import User
 
 
 class EntrySearchAPI(APIView):
-    authentication_classes = (TokenAuthentication, BasicAuthentication, SessionAuthentication,)
+    authentication_classes = (AironeTokenAuth, BasicAuthentication, SessionAuthentication,)
 
     @airone_profile
     def post(self, request, format=None):

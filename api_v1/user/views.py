@@ -5,15 +5,15 @@ from django.contrib.auth.models import User as DjangoUser
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from rest_framework.authentication import BasicAuthentication
-from rest_framework.authentication import TokenAuthentication
 from rest_framework.authentication import SessionAuthentication
+from rest_framework.views import APIView
 
-from airone.lib.api import AironeAPIView
+from api_v1.auth import AironeTokenAuth
 from user.models import User as AironeUser
 
 
-class AccessTokenAPI(AironeAPIView):
-    authentication_classes = (TokenAuthentication, BasicAuthentication, SessionAuthentication,)
+class AccessTokenAPI(APIView):
+    authentication_classes = (AironeTokenAuth, BasicAuthentication, SessionAuthentication,)
 
     def get(self, request, format=None):
         user = DjangoUser.objects.get(id=request.user.id)

@@ -1,6 +1,7 @@
 import re
 import json
 import yaml
+import pytz
 
 from django.test import Client
 from django.conf import settings
@@ -13,8 +14,8 @@ from entry.models import Entry, AttributeValue
 from group.models import Group
 from user.models import User
 
-from unittest import skip
-from datetime import date
+from unittest import skip, mock
+from datetime import date, datetime, timedelta
 
 class APITest(AironeViewTest):
     def test_post_entry(self):
@@ -484,3 +485,35 @@ class APITest(AironeViewTest):
         # checks specified entry would be deleted
         entry11.refresh_from_db()
         self.assertFalse(entry11.is_active)
+
+    @mock.patch('api_v1.auth.datetime')
+    def test_expiring_token_lifetime(self, dt_mock):
+        user = User.objects.create(username='testuser')
+
+        entity = Entity.objects.create(name='E1', created_user=user)
+        entry = Entry.objects.create(name='e1', schema=entity, created_user=user,)
+
+        # Fixed value of datetime.now() for 100-seconds future
+        dt_mock.now = mock.Mock(return_value=datetime.now(tz=pytz.UTC) + timedelta(seconds=100))
+
+        # By default, token_lifetime is set of User.TOKEN_LIFETIME which is more than 100 seconds
+        resp = self.client.get('/api/v1/entry', {'entity': 'E1', 'entry': 'e1'}, **{
+            'HTTP_AUTHORIZATION': 'Token %s' % str(user.token),
+        })
+        self.assertEqual(resp.status_code, 200)
+
+        # Set token_lifetime shortest one, it means current token has been expired already.
+        user.token_lifetime = 1
+        user.save()
+        resp = self.client.get('/api/v1/entry', {'entity': 'E1', 'entry': 'e1'}, **{
+            'HTTP_AUTHORIZATION': 'Token %s' % str(user.token),
+        })
+        self.assertEqual(resp.status_code, 401)
+
+        # Once setting 0 at token_lifetime, access token will never be expired
+        user.token_lifetime = 0
+        user.save()
+        resp = self.client.get('/api/v1/entry', {'entity': 'E1', 'entry': 'e1'}, **{
+            'HTTP_AUTHORIZATION': 'Token %s' % str(user.token),
+        })
+        self.assertEqual(resp.status_code, 200)

@@ -92,7 +92,7 @@ def do_edit(request, user_id, recv_data):
 
         # Validate specified token_lifetime
         if (not re.match(r'^[0-9]+$', recv_data['token_lifetime']) or
-            int(recv_data['token_lifetime']) < 1 or
+            int(recv_data['token_lifetime']) < 0 or
             int(recv_data['token_lifetime']) > User.MAXIMUM_TOKEN_LIFETIME):
             return HttpResponse("Invalid token lifetime is specified", status=400)
 

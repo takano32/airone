@@ -106,14 +106,12 @@ class ViewTest(AironeViewTest):
         resp = self.client.get(reverse('dashboard:advanced_search'))
         self.assertEqual(resp.status_code, 200)
 
-        root = ElementTree.fromstring(resp.content.decode('utf-8'))
+        entity_names = map(lambda e: e.name, resp.context['entities'])
 
-        # find entity options
-        options = root.findall(".//select[@id='all_entity']/option")
         # entity-1 should be displayed
-        self.assertEquals(1, len(list(filter(lambda o: o.text=="entity-1", options))))
+        self.assertEquals(1, len(list(filter(lambda n: n=="entity-1", entity_names))))
         # entity-2 should not be displayed
-        self.assertEquals(0, len(list(filter(lambda o: o.text=="entity-2", options))))
+        self.assertEquals(0, len(list(filter(lambda n: n=="entity-2", entity_names))))
 
 
     def test_show_advanced_search_results(self):

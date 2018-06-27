@@ -87,6 +87,7 @@
 
 {% block script %}
 <script>
+
 function initialize_attr_condition() {
   // search all attrs which are selected and show form to set condition for attr
   target_entities = $('#selected_entity').children().map(function() { return this.value; });
@@ -130,6 +131,7 @@ $('#append_target_entity').on('click', function() {
 
   initialize_attr_condition();
 });
+
 $('#delete_target_entity').on('click', function() {
   $("#selected_entity").find(":selected").each(function(i, elem){
     $(elem).remove();
@@ -137,6 +139,7 @@ $('#delete_target_entity').on('click', function() {
 
   initialize_attr_condition();
 });
+
 $('#append_target_attr').on('click', function() {
   var elem_selected = $('#selected_attr');
 
@@ -146,6 +149,7 @@ $('#append_target_attr').on('click', function() {
     }
   });
 });
+
 $('#delete_target_attr').on('click', function() {
   $("#selected_attr").find(":selected").each(function(i, elem){
     $(elem).remove();
@@ -176,5 +180,6 @@ $('#do_search').on('click', function() {
 
   location.href = `/dashboard/advanced_search_result?${ attrs }&${ entities }`;
 });
+
 </script>
 {% endblock %}

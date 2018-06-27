@@ -59,7 +59,7 @@ class ACLBase(models.Model):
         content_type = ContentType.objects.get_for_model(self)
         for acltype in ACLType.availables():
             codename = '%s.%s' % (self.id, acltype.id)
-            if not Permission.objects.filter(codename=codename).count():
+            if not Permission.objects.filter(codename=codename).exists():
                 Permission(name=acltype.name, codename=codename, content_type=content_type).save()
 
     def delete(self, *args, **kwargs):

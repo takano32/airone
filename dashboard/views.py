@@ -106,8 +106,11 @@ def search(request):
 
 @http_get
 def advanced_search(request):
+    entities = [x for x in Entity.objects.filter(is_active=True).order_by('name')
+                if len(x.attrs.filter(is_active=True)) > 0]
+
     return render(request, 'advanced_search.html', {
-        'entities': Entity.objects.filter(is_active=True),
+        'entities': entities,
     })
 
 @http_get

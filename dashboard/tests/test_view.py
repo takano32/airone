@@ -89,9 +89,33 @@ class ViewTest(AironeViewTest):
         sys.stdout = sys.__stdout__
 
     def test_show_advanced_search(self):
+        # create entity which has attr
+        entity1 = Entity.objects.create(name="entity-1", created_user=self.admin)
+        entity1.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr-1-1',
+            'type': AttrTypeValue['string'],
+            'created_user': self.admin,
+            'parent_entity': entity1,
+        }))
+        entity1.save()
+        
+        # create entity which doesn't have attr
+        entity2 = Entity.objects.create(name="entity-2", created_user=self.admin)
+        entity2.save()
+        
         resp = self.client.get(reverse('dashboard:advanced_search'))
         self.assertEqual(resp.status_code, 200)
 
+        root = ElementTree.fromstring(resp.content.decode('utf-8'))
+
+        # find entity options
+        options = root.findall(".//select[@id='all_entity']/option")
+        # entity-1 should be displayed
+        self.assertEquals(1, len(list(filter(lambda o: o.text=="entity-1", options))))
+        # entity-2 should not be displayed
+        self.assertEquals(0, len(list(filter(lambda o: o.text=="entity-2", options))))
+        
+        
     def test_show_advanced_search_results(self):
         for entity_index in range(0, 2):
             entity = Entity.objects.create(name='entity-%d' % entity_index, created_user=self.admin)

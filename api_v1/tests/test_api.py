@@ -10,7 +10,7 @@ from airone.lib.test import AironeViewTest
 from airone.lib.types import AttrTypeValue
 
 from entity.models import Entity, EntityAttr
-from entry.models import Entry, AttributeValue
+from entry.models import Entry, Attribute, AttributeValue
 from group.models import Group
 from user.models import User
 
@@ -384,50 +384,89 @@ class APITest(AironeViewTest):
         resp = self.client.get('/api/v1/entry', {'entity': 'foo', 'entry': 'bar'})
         self.assertEqual(resp.status_code, 404)
 
-        # send request without permission
-        admin = User.objects.create(username='admin', is_superuser=True)
-        Entry.objects.create(name='bar', schema=entity, created_user=admin, is_public=False)
-        resp = self.client.get('/api/v1/entry', {'entity': 'foo', 'entry': 'bar'})
-        self.assertEqual(resp.status_code, 400)
-
     def test_get_entry(self):
         user = self.admin_login()
 
         ref_entity = Entity.objects.create(name='RefEntity', created_user=user)
         ref_entry = Entry.objects.create(name='RefEntry', created_user=user, schema=ref_entity)
 
-        entity = Entity.objects.create(name='hoge', created_user=user)
-        attr_info = {
-            'str': {'type': AttrTypeValue['string'], 'value': 'foo'},
-            'ref': {'type': AttrTypeValue['object'], 'value': ref_entry, 'referral': ref_entity},
-            'no_str': {'type': AttrTypeValue['string']},
-        }
-        for (name, info) in attr_info.items():
-            attr = EntityAttr.objects.create(name=name,
-                                             type=info['type'],
-                                             parent_entity=entity,
-                                             created_user=user)
-            if 'referral' in info:
-                attr.referral.add(info['referral'])
-
-            entity.attrs.add(attr)
-
-        for i in range(0, 10):
-            entry = Entry.objects.create(name='entry-%d' % i, schema=entity, created_user=user)
-            entry.complement_attrs(user)
-
+        for entity_name in ['hoge', 'fuga']:
+            entity = Entity.objects.create(name=entity_name, created_user=user)
+            attr_info = {
+                'str': {'type': AttrTypeValue['string'], 'value': 'foo'},
+                'ref': {'type': AttrTypeValue['object'], 'value': ref_entry, 'referral': ref_entity},
+                'no_str': {'type': AttrTypeValue['string']},
+            }
             for (name, info) in attr_info.items():
-                if 'value' in info:
-                    attr = entry.attrs.get(schema__name=name)
-                    attr.add_value(user, info['value'])
+                attr = EntityAttr.objects.create(name=name,
+                                                 type=info['type'],
+                                                 parent_entity=entity,
+                                                 created_user=user)
+                if 'referral' in info:
+                    attr.referral.add(info['referral'])
 
+                entity.attrs.add(attr)
+
+            for i in range(0, 10):
+                entry = Entry.objects.create(name='entry-%d' % i, schema=entity, created_user=user)
+                entry.complement_attrs(user)
+
+                for (name, info) in attr_info.items():
+                    if 'value' in info:
+                        attr = entry.attrs.get(schema__name=name)
+                        attr.add_value(user, info['value'])
+
+        # set private to Entity 'fuga'
+        Entity.objects.filter(name='fuga').update(is_public=False)
+
+        # set private to Entry 'entry-0'
+        Entry.objects.filter(name='entry-0').update(is_public=False)
+
+        # set private to EntityAttr 'str'
+        EntityAttr.objects.filter(name='str').update(is_public=False)
+
+        # set private to Attribute 'ref' in Entry 'entry-1'
+        Attribute.objects.filter(name='ref', parent_entry__name='entry-1').update(is_public=False)
+
+        # the case to specify 'eitnty' and 'entry' parameters
         resp = self.client.get('/api/v1/entry', {'entity': 'hoge', 'entry': 'entry-0'})
         self.assertEqual(resp.status_code, 200)
 
-        result = resp.json()
-        entry = Entry.objects.get(name='entry-0')
-        self.assertEqual(result['id'], entry.id)
-        self.assertEqual(len(result['attrs']), entry.attrs.count())
+        results = resp.json()
+        self.assertTrue(isinstance(results, list))
+        self.assertEqual(len(results), 1)
+
+        entry = Entry.objects.get(name='entry-0', schema__name='hoge')
+        self.assertEqual(results[0]['id'], entry.id)
+        self.assertEqual(len(results[0]['attrs']), entry.attrs.count())
+
+        # the case to specify only 'entry' parameter
+        resp = self.client.get('/api/v1/entry', {'entry': 'entry-0'})
+        self.assertEqual(resp.status_code, 200)
+
+        results = resp.json()
+        self.assertEqual(len(results), 2)
+        self.assertEqual([x['id'] for x in results], [x.id for x in Entry.objects.filter(name='entry-0')])
+        self.assertEqual([x['entity']['name'] for x in results], ['hoge', 'fuga'])
+
+        # switch to the guest user to verify permission checking processing will work
+        self.guest_login()
+
+        # the case to specify only 'entry' parameter
+        resp = self.client.get('/api/v1/entry', {'entry': 'entry-0'})
+        self.assertEqual(resp.status_code, 404)
+
+        resp = self.client.get('/api/v1/entry', {'entry': 'entry-1'})
+        self.assertEqual(resp.status_code, 200)
+
+        results = resp.json()
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['id'], Entry.objects.get(name='entry-1', schema__name='hoge').id)
+        self.assertEqual([x['name'] for x in results[0]['attrs']], ['no_str'])
+
+        resp = self.client.get('/api/v1/entry', {'entry': 'entry-2'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(sorted([x['name'] for x in resp.json()[0]['attrs']]), sorted(['ref', 'no_str']))
 
     def test_delete_entry(self):
         # wrapper to send delete request in this test

@@ -13,6 +13,8 @@ from user.models import User
 from entity.models import Entity
 from entry.models import Entry
 
+from django.db.models import Q
+
 
 class EntryAPI(APIView):
     authentication_classes = (AironeTokenAuth, BasicAuthentication, SessionAuthentication,)
@@ -65,39 +67,53 @@ class EntryAPI(APIView):
         return Response({'result': entry.id})
 
     def get(self, request, *args, **kwargs):
-        if not request.user.id:
+        user = User.objects.filter(id=request.user.id).first()
+        if not user:
             return Response({'result': 'You have to login AirOne to perform this request'},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        param_entity = request.query_params.get('entity')
         param_entry = request.query_params.get('entry')
-        if not param_entity or not param_entry:
+        if not param_entry:
             return Response({'result': 'Parameter "entity" and "entry" are mandatory'},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        entity = Entity.objects.filter(name=param_entity).first()
-        if not entity:
-            return Response({'result': 'Failed to find specified Entity (%s)' % param_entity},
-                            status=status.HTTP_404_NOT_FOUND)
+        entity = None
+        param_entity = request.query_params.get('entity')
+        if param_entity:
+            entity = Entity.objects.filter(name=param_entity).first()
+            if not entity:
+                return Response({'result': 'Failed to find specified Entity (%s)' % param_entity},
+                                status=status.HTTP_404_NOT_FOUND)
 
-        entry = Entry.objects.filter(name=param_entry, schema=entity).first()
-        if not entry:
+        retinfo = []
+        query = Q(name=param_entry, schema=entity) if entity else Q(name=param_entry)
+        for entry in Entry.objects.filter(query):
+            # check permissions for each entry, entity and attrs
+            if (not user.has_permission(entry.schema, ACLType.Readable) or
+                not user.has_permission(entry, ACLType.Readable)):
+                continue
+
+            attrs = [x for x in entry.attrs.filter(is_active=True, schema__is_active=True)
+                     if (user.has_permission(x.schema, ACLType.Readable) and
+                         user.has_permission(x, ACLType.Readable))]
+
+            retinfo.append({
+                'id': entry.id,
+                'entity': {
+                    'id': entry.schema.id,
+                    'name': entry.schema.name,
+                },
+                'attrs': [{
+                    'name': x.schema.name,
+                    'value': x.get_latest_value().get_value()
+                } for x in attrs]
+            })
+
+        if not retinfo:
             return Response({'result': 'Failed to find specified Entry (%s)' % param_entry},
                             status=status.HTTP_404_NOT_FOUND)
 
-        # permission check
-        user = User.objects.get(id=request.user.id)
-        if not all([user.has_permission(x, ACLType.Readable) for x in [entity, entry]]):
-            return Response({'result': 'Permission denied to access target information'},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        return Response({
-            'id': entry.id,
-            'attrs': [{
-                'name': x.schema.name,
-                'value': x.get_latest_value().get_value()
-            } for x in entry.attrs.filter(is_active=True) if user.has_permission(x, ACLType.Readable)]
-        })
+        return Response(retinfo)
 
     def delete(self, request, *args, **kwargs):
         if not request.user.id:

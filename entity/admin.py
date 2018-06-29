@@ -31,7 +31,7 @@ class EntityResource(AironeModelResource):
 
     def import_obj(self, instance, data, dry_run):
         # will not import duplicate entity
-        if Entity.objects.filter(name=data['name']).count():
+        if Entity.objects.filter(name=data['name']).exists():
             entity = Entity.objects.filter(name=data['name']).get()
             if 'id' not in data or not data['id'] or entity.id != data['id']:
                 raise RuntimeError('There is a duplicate entity object (%s)' % data['name'])
@@ -68,14 +68,14 @@ class EntityAttrResource(AironeModelResource):
         if not dry_run:
             entity = instance.parent_entity
 
-            if not entity.attrs.filter(id=instance.id):
+            if not entity.attrs.filter(id=instance.id).exists():
                 entity.attrs.add(instance)
 
     def import_obj(self, instance, data, dry_run):
-        if not Entity.objects.filter(name=data['entity']).count():
+        if not Entity.objects.filter(name=data['entity']).exists():
             raise RuntimeError('failed to identify entity object')
 
-        if data['refer'] and not Entity.objects.filter(name=data['refer']).count():
+        if data['refer'] and not Entity.objects.filter(name=data['refer']).exists():
             raise RuntimeError('refer to invalid entity object')
 
         super(EntityAttrResource, self).import_obj(instance, data, dry_run)

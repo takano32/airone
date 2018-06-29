@@ -19,7 +19,7 @@ Logger = logging.getLogger(__name__)
 
 @http_get
 def index(request, obj_id):
-    if not ACLBase.objects.filter(id=obj_id).count():
+    if not ACLBase.objects.filter(id=obj_id).exists():
         return HttpResponse('Failed to find target object to set ACL', status=400)
 
     # This is an Entity or EntityAttr
@@ -61,7 +61,7 @@ def index(request, obj_id):
 
 @http_post([
     {'name': 'object_id', 'type': str,
-     'checker': lambda x: ACLBase.objects.filter(id=x['object_id']).count()},
+     'checker': lambda x: ACLBase.objects.filter(id=x['object_id']).exists()},
     {'name': 'object_type', 'type': str,
      'checker': lambda x: x['object_type']},
     {'name': 'acl', 'type': list, 'meta': [
@@ -69,7 +69,7 @@ def index(request, obj_id):
          'checker': lambda x: x['member_type'] == 'user' or x['member_type'] == 'group'},
         {'name': 'member_id', 'type': str,
          'checker': lambda x: any(
-             [k.objects.filter(id=x['member_id']).count() for k in [User, Group]]
+             [k.objects.filter(id=x['member_id']).exists() for k in [User, Group]]
           )},
         {'name': 'value', 'type': (str, type(None)),
          'checker': lambda x: [y for y in ACLType.all() if int(x['value']) == y]},

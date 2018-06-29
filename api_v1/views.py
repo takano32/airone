@@ -43,7 +43,7 @@ class EntryAPI(APIView):
             entry.name = sel.validated_data['name']
             entry.save()
 
-        elif Entry.objects.filter(**entry_condition):
+        elif Entry.objects.filter(**entry_condition).exists():
             entry = Entry.objects.get(**entry_condition)
 
         else:
@@ -52,7 +52,7 @@ class EntryAPI(APIView):
         entry.complement_attrs(user)
         for name, value in sel.validated_data['attrs'].items():
             # If user doesn't have readable permission for target Attribute, it won't be created.
-            if not entry.attrs.filter(name=name):
+            if not entry.attrs.filter(name=name).exists():
                 continue
 
             attr = entry.attrs.get(name=name)

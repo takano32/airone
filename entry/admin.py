@@ -53,7 +53,7 @@ class AttrValueResource(AironeModelResource):
             # register data_type parameter which is same with EntityAttr's type
             instance.data_type = attr.schema.type
 
-            if (not attr.values.filter(id=instance.id) and
+            if (not attr.values.filter(id=instance.id).exists() and
                 (not attr.schema.type & AttrTypeValue['array'] or
                  (attr.schema.type & AttrTypeValue['array'] and
                   instance.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)))):
@@ -84,8 +84,8 @@ class AttrValueResource(AironeModelResource):
 
             attr_value = AttributeValue.objects.get(id=data['id'])
             for child_id in [int(x) for x in  data['data_arr'].split(',')]:
-                if (AttributeValue.objects.filter(id=child_id).count() and
-                    not attr_value.data_array.filter(id=child_id).count()):
+                if (AttributeValue.objects.filter(id=child_id).exists() and
+                    not attr_value.data_array.filter(id=child_id).exists()):
 
                     # append related AttributeValue if it's not existed
                     attr_value.data_array.add(AttributeValue.objects.get(id=child_id))
@@ -119,7 +119,7 @@ class AttrResource(AironeModelResource):
         if not dry_run:
             entry = instance.parent_entry
 
-            if not entry.attrs.filter(id=instance.id):
+            if not entry.attrs.filter(id=instance.id).exists():
                 entry.attrs.add(instance)
 
 class EntryResource(AironeModelResource):
@@ -145,12 +145,12 @@ class EntryResource(AironeModelResource):
 
     def import_obj(self, instance, data, dry_run):
         # will not import entry which refers invalid entity
-        if not Entity.objects.filter(name=data['entity']).count():
+        if not Entity.objects.filter(name=data['entity']).exists():
             raise RuntimeError("Specified entity(%s) doesn't exist" % data['entity'])
 
         # will not import entry which has same name and refers same entity
         entity = Entity.objects.get(name=data['entity'])
-        if Entry.objects.filter(schema=entity, name=data['name']).count():
+        if Entry.objects.filter(schema=entity, name=data['name']).exists():
             entry = Entry.objects.get(schema=entity, name=data['name'])
             if 'id' not in data or not data['id'] or entry.id != data['id']:
                 raise RuntimeError('There is a duplicate entry object')

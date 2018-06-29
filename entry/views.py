@@ -60,7 +60,7 @@ def _validate_input(recv_data, obj):
 @http_get
 @check_permission(Entity, ACLType.Readable)
 def index(request, entity_id):
-    if not Entity.objects.filter(id=entity_id).count():
+    if not Entity.objects.filter(id=entity_id).exists():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     entity = Entity.objects.get(id=entity_id)
@@ -84,7 +84,7 @@ def index(request, entity_id):
 def create(request, entity_id):
     user = User.objects.get(id=request.user.id)
 
-    if not Entity.objects.filter(id=entity_id).count():
+    if not Entity.objects.filter(id=entity_id).exists():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     def get_referrals(attr):
@@ -131,7 +131,7 @@ def do_create(request, entity_id, recv_data):
     entity = Entity.objects.get(id=entity_id)
 
     # checks that a same name entry corresponding to the entity is existed, or not.
-    if Entry.objects.filter(schema=entity_id, name=recv_data['entry_name']):
+    if Entry.objects.filter(schema=entity_id, name=recv_data['entry_name']).exists():
         return HttpResponse('Duplicate name entry is existed', status=400)
 
     # validate contexts of each attributes
@@ -165,7 +165,7 @@ def do_create(request, entity_id, recv_data):
 def edit(request, entry_id):
     user = User.objects.get(id=request.user.id)
 
-    if not Entry.objects.filter(id=entry_id).count():
+    if not Entry.objects.filter(id=entry_id).exists():
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
     entry = Entry.objects.get(id=entry_id)
@@ -208,7 +208,7 @@ def do_edit(request, entry_id, recv_data):
 
     # checks that a same name entry corresponding to the entity is existed.
     query = Q(schema=entry.schema, name=recv_data['entry_name']) & ~Q(id=entry.id)
-    if Entry.objects.filter(query):
+    if Entry.objects.filter(query).exists():
         return HttpResponse('Duplicate name entry is existed', status=400)
 
     # validate contexts of each attributes
@@ -333,7 +333,7 @@ def export(request, entity_id):
     output = io.StringIO()
     user = User.objects.get(id=request.user.id)
 
-    if not Entity.objects.filter(id=entity_id).count():
+    if not Entity.objects.filter(id=entity_id).exists():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     entity = Entity.objects.get(id=entity_id)
@@ -373,7 +373,7 @@ def export(request, entity_id):
 
 @http_get
 def import_data(request, entity_id):
-    if not Entity.objects.filter(id=entity_id, is_active=True).count():
+    if not Entity.objects.filter(id=entity_id, is_active=True).exists():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     return render(request, 'import_entry.html', {'entity': Entity.objects.get(id=entity_id)})
@@ -381,7 +381,7 @@ def import_data(request, entity_id):
 @http_file_upload
 def do_import_data(request, entity_id, context):
     user = User.objects.get(id=request.user.id)
-    if not Entity.objects.filter(id=entity_id).count():
+    if not Entity.objects.filter(id=entity_id).exists():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     entity = Entity.objects.get(id=entity_id)
@@ -407,15 +407,14 @@ def do_import_data(request, entity_id, context):
 
     # create or update entry
     for entry_data in values:
-        if Entry.objects.filter(name=entry_data['name'], schema=entity):
-            entry = Entry.objects.get(name=entry_data['name'], schema=entity)
-        else:
+        entry = Entry.objects.filter(name=entry_data['name'], schema=entity).first()
+        if not entry:
             entry = Entry.objects.create(name=entry_data['name'], schema=entity, created_user=user)
 
         entry.complement_attrs(user)
         for attr_name, value in entry_data['attrs'].items():
             # If user doesn't have readable permission for target Attribute, it won't be created.
-            if not entry.attrs.filter(schema__name=attr_name):
+            if not entry.attrs.filter(schema__name=attr_name).exists():
                 continue
 
             entity_attr = EntityAttr.objects.get(name=attr_name, parent_entity=entry.schema)
@@ -435,7 +434,7 @@ def do_delete(request, entry_id, recv_data):
     user = User.objects.get(id=request.user.id)
     ret = {}
 
-    if not Entry.objects.filter(id=entry_id).count():
+    if not Entry.objects.filter(id=entry_id).exists():
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
     # update name of Entry object
@@ -460,7 +459,7 @@ def do_delete(request, entry_id, recv_data):
 def copy(request, entry_id):
     user = User.objects.get(id=request.user.id)
 
-    if not Entry.objects.filter(id=entry_id).count():
+    if not Entry.objects.filter(id=entry_id).exists():
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
     entry = Entry.objects.get(id=entry_id)
@@ -485,14 +484,14 @@ def do_copy(request, entry_id, recv_data):
     if 'entries' not in recv_data:
         return HttpResponse('Malformed data is specified (%s)' % recv_data, status=400)
 
-    if not Entry.objects.filter(id=entry_id).count():
+    if not Entry.objects.filter(id=entry_id).exists():
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
     ret = []
     entry = Entry.objects.get(id=entry_id)
     dest_entry_names = []
     for new_name in [x for x in recv_data['entries'].split('\n') if x]:
-        if Entry.objects.filter(schema=entry.schema, name=new_name).count() > 0:
+        if Entry.objects.filter(schema=entry.schema, name=new_name).exists():
             ret.append({
                 'status': 'fail',
                 'msg': 'A same named entry (%s) already exists' % new_name,

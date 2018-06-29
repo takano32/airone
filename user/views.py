@@ -35,10 +35,10 @@ def create(request):
 
 @http_post([
     {'name': 'name', 'type': str, 'checker': lambda x: (
-        x['name'] and not User.objects.filter(username=x['name']).count()
+        x['name'] and not User.objects.filter(username=x['name']).exists()
     )},
     {'name': 'email', 'type': str, 'checker': lambda x: (
-        x['email'] and not User.objects.filter(email=x['email']).count()
+        x['email'] and not User.objects.filter(email=x['email']).exists()
     )},
     {'name': 'passwd', 'type': str, 'checker': lambda x: x['passwd']},
 ])
@@ -103,12 +103,12 @@ def do_edit(request, user_id, recv_data):
 
         # validate duplication of username
         if (target_user.username != recv_data['name'] and
-            User.objects.filter(username=recv_data['name']).count()):
+            User.objects.filter(username=recv_data['name']).exists()):
             return HttpResponse("username is duplicated", status=400)
 
         # validate duplication of email
         if (target_user.email != recv_data['email'] and
-            User.objects.filter(email=recv_data['email']).count()):
+            User.objects.filter(email=recv_data['email']).exists()):
             return HttpResponse("email is duplicated", status=400)
 
         # update each params

@@ -58,7 +58,7 @@ def create(request):
 def edit(request, entity_id):
     user = User.objects.get(id=request.user.id)
 
-    if not Entity.objects.filter(id=entity_id):
+    if not Entity.objects.filter(id=entity_id).exists():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     # entity to be editted is given by url
@@ -101,7 +101,7 @@ def edit(request, entity_id):
 def do_edit(request, entity_id, recv_data):
     user = User.objects.get(id=request.user.id)
 
-    if not Entity.objects.filter(id=entity_id).count():
+    if not Entity.objects.filter(id=entity_id).exists():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     # validation checks
@@ -113,7 +113,7 @@ def do_edit(request, entity_id, recv_data):
         if int(attr['type']) & AttrTypeValue['object'] and not attr['ref_ids']:
             return HttpResponse('Need to specify enabled referral ids', status=400)
 
-        if any([Entity.objects.filter(id=x).count() == 0 for x in attr['ref_ids']]):
+        if any([not Entity.objects.filter(id=x).exists() for x in attr['ref_ids']]):
             return HttpResponse('Specified referral is invalid', status=400)
 
     entity = Entity.objects.get(id=entity_id)
@@ -219,7 +219,7 @@ def do_edit(request, entity_id, recv_data):
 
 @http_post([
     {'name': 'name', 'type': str, 'checker': lambda x: (
-        x['name'] and not Entity.objects.filter(name=x['name']).count()
+        x['name'] and not Entity.objects.filter(name=x['name']).exists()
     )},
     {'name': 'note', 'type': str},
     {'name': 'is_toplevel', 'type': bool},
@@ -246,7 +246,7 @@ def do_create(request, recv_data):
         if int(attr['type']) & AttrTypeValue['object'] and not attr['ref_ids']:
             return HttpResponse('Need to specify enabled referral ids', status=400)
 
-        if any([Entity.objects.filter(id=x).count() == 0 for x in attr['ref_ids']]):
+        if any([not Entity.objects.filter(id=x).exists() for x in attr['ref_ids']]):
             return HttpResponse('Specified referral is invalid', status=400)
 
     # get user object that current access
@@ -313,7 +313,7 @@ def do_delete(request, entity_id, recv_data):
     user = User.objects.get(id=request.user.id)
     ret = {}
 
-    if not Entity.objects.filter(id=entity_id).count():
+    if not Entity.objects.filter(id=entity_id).exists():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     entity = Entity.objects.get(id=entity_id)
@@ -321,7 +321,7 @@ def do_delete(request, entity_id, recv_data):
     # save deleting target name before do it
     ret['name'] = entity.name
 
-    if Entry.objects.filter(schema=entity,is_active=True).count() != 0:
+    if Entry.objects.filter(schema=entity,is_active=True).exists():
         return HttpResponse('cannot delete Entity because one or more Entries are not deleted', status=400)
 
     entity.delete()
@@ -338,7 +338,7 @@ def do_delete(request, entity_id, recv_data):
 def history(request, entity_id):
     user = User.objects.get(id=request.user.id)
 
-    if not Entity.objects.filter(id=entity_id).count():
+    if not Entity.objects.filter(id=entity_id).exists():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     # entity to be editted is given by url
@@ -355,7 +355,7 @@ def history(request, entity_id):
 def dashboard(request, entity_id):
     user = User.objects.get(id=request.user.id)
 
-    if not Entity.objects.filter(id=entity_id).count():
+    if not Entity.objects.filter(id=entity_id).exists():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     # entity to be editted is given by url
@@ -420,7 +420,7 @@ def dashboard(request, entity_id):
 def conf_dashboard(request, entity_id):
     user = User.objects.get(id=request.user.id)
 
-    if not Entity.objects.filter(id=entity_id).count():
+    if not Entity.objects.filter(id=entity_id).exists():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     # entity to be editted is given by url
@@ -435,12 +435,12 @@ def conf_dashboard(request, entity_id):
 
 @http_post([
     {'name': 'attrs', 'type': list,
-     'checker': lambda x: all([EntityAttr.objects.filter(id=v).count() for v in x['attrs']])}
+     'checker': lambda x: all([EntityAttr.objects.filter(id=v).exists() for v in x['attrs']])}
 ])
 def do_conf_dashboard(request, entity_id, recv_data):
     user = User.objects.get(id=request.user.id)
 
-    if not Entity.objects.filter(id=entity_id).count():
+    if not Entity.objects.filter(id=entity_id).exists():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     # clear is_summarized flag for each EntityAttrs corresponding to the entity

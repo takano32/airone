@@ -190,7 +190,7 @@ class Attribute(ACLBase):
     # This checks whether each specified attribute needs to update
     def is_updated(self, recv_value):
         # the case new attribute-value is specified
-        if self.values.count() == 0:
+        if not self.values.exists():
             # the result depends on the specified value
             if isinstance(recv_value, bool):
                 # the case that first value is 'False' at the boolean typed parameter
@@ -483,7 +483,7 @@ class Attribute(ACLBase):
             attr_value.referral = None
             if not value:
                 pass
-            elif isinstance(value, str) and Entry.objects.filter(id=value):
+            elif isinstance(value, str) and Entry.objects.filter(id=value).exists():
                 attr_value.referral = Entry.objects.get(id=value)
             elif isinstance(value, Entry):
                 attr_value.referral = value
@@ -505,7 +505,7 @@ class Attribute(ACLBase):
             attr_value.referral = None
             if not value['id']:
                 pass
-            elif isinstance(value['id'], str) and Entry.objects.filter(id=value['id']):
+            elif isinstance(value['id'], str) and Entry.objects.filter(id=value['id']).exists():
                 attr_value.referral = Entry.objects.get(id=value['id'])
             elif isinstance(value['id'], Entry):
                 attr_value.referral = value['id']
@@ -533,7 +533,7 @@ class Attribute(ACLBase):
                 for v in value:
                     if isinstance(v, Entry):
                         attrv_bulk.append(AttributeValue(referral=v, **co_attrv_params))
-                    elif Entry.objects.filter(id=v):
+                    elif Entry.objects.filter(id=v).exists():
                         attrv_bulk.append(AttributeValue(referral=Entry.objects.get(id=v),
                                                          **co_attrv_params))
 
@@ -545,7 +545,7 @@ class Attribute(ACLBase):
                         pass
                     elif isinstance(data['id'], Entry):
                         referral = data['id']
-                    elif Entry.objects.filter(id=data['id']):
+                    elif Entry.objects.filter(id=data['id']).exists():
                         referral = Entry.objects.get(id=data['id'])
 
                     attrv_bulk.append(AttributeValue(referral=referral,
@@ -613,7 +613,7 @@ class Attribute(ACLBase):
         elif self.schema.type == AttrTypeValue['group']:
             if isinstance(value, Group):
                 return value.id
-            elif isinstance(value, str) and Group.objects.filter(name=value):
+            elif isinstance(value, str) and Group.objects.filter(name=value).exists():
                 return Group.objects.get(name=value).id
 
         elif self.schema.type == AttrTypeValue['boolean']:
@@ -748,7 +748,7 @@ class Entry(ACLBase):
             # set last-value of current attributes
             attrinfo['last_value'] = ''
             attrinfo['last_referral'] = None
-            if attr.values.count() > 0:
+            if attr.values.exists():
                 last_value = attr.get_last_value()
                 if not last_value.data_type:
                     last_value.data_type = attr.schema.type
@@ -928,7 +928,7 @@ class Entry(ACLBase):
                 attrinfo['referral_id'] = attrv.referral.id if attrv.referral else ''
 
             elif attr.type & AttrTypeValue['group']:
-                if attrv.value and Group.objects.filter(id=attrv.value):
+                if attrv.value and Group.objects.filter(id=attrv.value).exists():
                     group = Group.objects.get(id=attrv.value)
                     attrinfo['value'] = truncate(group.name)
                     attrinfo['referral_id'] = group.id

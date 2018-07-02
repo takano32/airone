@@ -32,7 +32,7 @@ class AironeModelResource(ModelResource):
 
     def skip_row(self, instance, original):
         # the case of creating new instance
-        if self._meta.model.objects.filter(id=instance.id).count() == 0:
+        if not self._meta.model.objects.filter(id=instance.id).exists():
             # Inhibits the spoofing
             if isinstance(instance, ACLBase) and instance.created_user != self.request_user:
                 return True

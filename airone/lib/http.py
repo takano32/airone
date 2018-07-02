@@ -38,7 +38,7 @@ def check_permission(model, permission_level):
             # the arguments length is assured by the Django URL dispatcher
             (request, object_id) = args
 
-            if not model.objects.filter(id=object_id).count():
+            if not model.objects.filter(id=object_id).exists():
                 return HttpResponse('Failed to get entity of specified id', status=400)
 
             user = User.objects.get(id=request.user.id)
@@ -144,7 +144,7 @@ def http_file_upload(func):
     return wrapper
 
 def render(request, template, context={}):
-    if User.objects.filter(id=request.user.id).count():
+    if User.objects.filter(id=request.user.id).exists():
         user = User.objects.get(id=request.user.id)
 
         # added default parameters for navigate

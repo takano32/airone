@@ -36,7 +36,7 @@ Logger = logging.getLogger(__name__)
 @airone_profile
 def index(request):
     context = {}
-    if request.user.is_authenticated() and User.objects.filter(id=request.user.id).count():
+    if request.user.is_authenticated() and User.objects.filter(id=request.user.id).exists():
         user = User.objects.get(id=request.user.id)
 
         history = []
@@ -107,7 +107,7 @@ def search(request):
 @http_get
 def advanced_search(request):
     entities = [x for x in Entity.objects.filter(is_active=True).order_by('name')
-                if x.attrs.filter(is_active=True).count() > 0]
+                if x.attrs.filter(is_active=True).exists()]
 
     return render(request, 'advanced_search.html', {
         'entities': entities,
@@ -124,7 +124,7 @@ def advanced_search_result(request):
     if not recv_entity or not recv_attr:
         return HttpResponse("The attr[] and entity[] parameters are required", status=400)
 
-    if not all([Entity.objects.filter(id=x, is_active=True) for x in recv_entity]):
+    if not all([Entity.objects.filter(id=x, is_active=True).exists() for x in recv_entity]):
         return HttpResponse("Invalid entity ID is specified", status=400)
 
     return render(request, 'advanced_search_result.html', {

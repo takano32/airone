@@ -17,7 +17,7 @@ def get_referrals(request, entry_id):
     """
     This returns entries by which specified entry is referred.
     """
-    if not Entry.objects.filter(id=entry_id).count():
+    if not Entry.objects.filter(id=entry_id).exists():
         return HttpResponse('Failed to get ', status=400)
 
     entry = Entry.objects.get(id=entry_id)
@@ -55,7 +55,7 @@ def search_entries(request, entity_ids, recv_data):
 
     total_entries = []
     for entity_id in entity_ids.split(','):
-        if not Entity.objects.filter(id=entity_id).count():
+        if not Entity.objects.filter(id=entity_id).exists():
             return HttpResponse('Failed to get entity(%s)' % entity_id, status=400)
 
         entries = Entry.objects.order_by('name').filter(schema__id=entity_id, is_active=True)
@@ -116,7 +116,7 @@ def search_entries(request, entity_ids, recv_data):
 @http_get
 def get_entries(request, entity_ids):
     total_entries = []
-    for entity_id in [x for x in entity_ids.split(',') if x and Entity.objects.filter(id=x, is_active=True).count()]:
+    for entity_id in [x for x in entity_ids.split(',') if x and Entity.objects.filter(id=x, is_active=True).exists()]:
         entries = Entry.objects.order_by('name').filter(schema__id=entity_id, is_active=True)
         if 'keyword' in request.GET:
             entries = entries.filter(name__regex=request.GET.get('keyword'))
@@ -141,12 +141,12 @@ def get_attr_referrals(request, attr_id):
     """
     This returns entries that target attribute refers to.
     """
-    if (not Attribute.objects.filter(id=attr_id).count() and
-        not EntityAttr.objects.filter(id=attr_id).count()):
+    if (not Attribute.objects.filter(id=attr_id).exists() and
+        not EntityAttr.objects.filter(id=attr_id).exists()):
         return HttpResponse('Failed to get target attribute(%s)' % attr_id, status=400)
 
     attr = None
-    if Attribute.objects.filter(id=attr_id).count():
+    if Attribute.objects.filter(id=attr_id).exists():
         attr = Attribute.objects.get(id=attr_id).schema
     else:
         attr = EntityAttr.objects.get(id=attr_id)

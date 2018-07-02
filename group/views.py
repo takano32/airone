@@ -32,7 +32,7 @@ def index(request):
 @http_get
 @check_superuser
 def edit(request, group_id):
-    if not Group.objects.filter(id=group_id).count():
+    if not Group.objects.filter(id=group_id).exists():
         return HttpResponse('Failed to get group of specified id', status=400)
 
     group = Group.objects.get(id=group_id)
@@ -65,16 +65,16 @@ def edit(request, group_id):
 @http_post([
     {'name': 'name', 'type': str, 'checker': lambda x: x['name']},
     {'name': 'users', 'type': list, 'checker': lambda x: (
-        x['users'] and all([User.objects.filter(id=u).count() for u in x['users']])
+        x['users'] and all([User.objects.filter(id=u).exists() for u in x['users']])
     )}
 ])
 @check_superuser
 def do_edit(request, group_id, recv_data):
-    if not Group.objects.filter(id=group_id).count():
+    if not Group.objects.filter(id=group_id).exists():
         return HttpResponse('Failed to get group of specified id', status=400)
 
     group = Group.objects.get(id=group_id)
-    if Group.objects.filter(name=recv_data['name']).count():
+    if Group.objects.filter(name=recv_data['name']).exists():
         same_name_group = Group.objects.get(name=recv_data['name'])
 
         if group.id != same_name_group.id:
@@ -126,10 +126,10 @@ def create(request):
 
 @http_post([
     {'name': 'name', 'type': str, 'checker': lambda x: (
-        x['name'] and not Group.objects.filter(name=x['name']).count()
+        x['name'] and not Group.objects.filter(name=x['name']).exists()
     )},
     {'name': 'users', 'type': list, 'checker': lambda x: (
-        x['users'] and all([User.objects.filter(id=u).count() for u in x['users']])
+        x['users'] and all([User.objects.filter(id=u).exists() for u in x['users']])
     )}
 ])
 @check_superuser

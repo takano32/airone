@@ -77,7 +77,13 @@ def index(request, entity_id):
         'total_count': total_count,
         'list_count': list_count,
     }
-    return render(request, 'list_entry.html', context)
+
+    if custom_view.is_custom_list_entry(entity.name):
+        # list custom view
+        return custom_view.call_custom_list_entry(entity.name, request, entity, context)
+    else:
+        # list ordinal view
+        return render(request, 'list_entry.html', context)
 
 @http_get
 @check_permission(Entity, ACLType.Writable)

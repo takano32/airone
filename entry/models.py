@@ -862,6 +862,11 @@ class Entry(ACLBase):
 
     def export(self, user):
         attrinfo = {}
+
+        # This calling of complement_attrs is needed to take into account the case of the Attributes
+        # that are added after creating this entry.
+        self.complement_attrs(user)
+
         for attr in self.attrs.filter(is_active=True):
             if not user.has_permission(attr, ACLType.Readable):
                 continue

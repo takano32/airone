@@ -92,7 +92,7 @@ function disable_input() {
   $('#sortdata').sortable('disable');
 }
 
-$('form').submit(function(event){
+$('#edit-form').submit(function(event){
   if(!validate_form()) {
     MessageBox.error("Some parameters are required to input");
     return false;

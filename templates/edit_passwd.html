@@ -19,9 +19,9 @@
       <h2>パスワード編集</h2>
     </div>
     {% if user_grade == 'self' %}
-    <form name='edit' url="/user/do_edit_passwd/{{ user_id }}" method='post'>
+    <form id="edit-form" name="edit-form" url="/user/do_edit_passwd/{{ user_id }}" method='post'>
     {% else %}
-    <form name='edit' url="/user/do_su_edit_passwd/{{ user_id }}" method='post'>
+    <form id="edit-form" name="edit-form" url="/user/do_su_edit_passwd/{{ user_id }}" method='post'>
     {% endif %}
     <p><input type="submit" class="btn btn-primary align-right" value='保存'/></p>
     <table class="table table-bordered" style="table-layout:fixed;">
@@ -51,7 +51,7 @@
 
 {% block script %}
 <script>
-$('form').submit(function(){
+$('#edit-form').submit(function(){
   HttpPost($(this)).done(function() {
     // set successful message to the updated page
     MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS,

@@ -13,7 +13,7 @@
 
 {% block content %}
 <div class="container">
-<form url='{{ submit_ref }}' method='post'>
+<form id="edit-form" name="edit-form" url='{{ submit_ref }}' method='post'>
   {% csrf_token %}
   <div class="form-row">
     <div class="form-group col-md-11">
@@ -82,7 +82,7 @@
 
 {% block script %}
 <script>
-$('form').submit(function(){
+$('#edit-form').submit(function(){
   var selected_users = [];
   $('#selected_users option').each(function(i, elem) {
     selected_users.push($(elem).val());

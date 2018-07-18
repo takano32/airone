@@ -885,6 +885,28 @@ class ViewTest(AironeViewTest):
         resp = self.client.get(reverse('entry:export', args=[entity.id]), {'format': 'CSV'})
         self.assertEqual(resp.status_code, 200)
 
+        # append an unpermitted Attribute
+        entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'new_attr',
+            'type': AttrTypeValue['string'],
+            'created_user': user,
+            'parent_entity': entity,
+            'is_public': False,
+        }))
+
+        # re-login with guest user
+        user = self.guest_login()
+
+        resp = self.client.get(reverse('entry:export', args=[entity.id]))
+        self.assertEqual(resp.status_code, 200)
+        obj = yaml.load(resp.content)
+
+        # check permitted attributes exist in the result
+        self.assertTrue(all([x in obj['ほげ'][0]['attrs'] for x in ['foo', 'bar']]))
+
+        # check unpermitted attribute doesn't exist in the result
+        self.assertFalse('new_attr' in obj['ほげ'][0]['attrs'])
+
     @patch('entry.views.delete_entry.delay', Mock(side_effect=tasks.delete_entry))
     def test_post_delete_entry(self):
         user = self.admin_login()

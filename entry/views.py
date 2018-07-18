@@ -368,7 +368,10 @@ def export(request, entity_id):
                 return '"%s"' % str(data)
 
         for data in exported_data:
-            output.write('%s\n' % ','.join([data['name'], *[data2str(data['attrs'][x]) for x in attrs]]))
+            output.write('%s\n' % ','.join([
+                data['name'],
+                *[data2str(data['attrs'][x]) for x in attrs if x in data['attrs']]
+            ]))
 
     else:
         fname = 'entry_%s.yaml' % entity.name

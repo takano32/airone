@@ -1,6 +1,7 @@
 import io
 import logging
 import re
+import csv
 import yaml
 
 import urllib.parse
@@ -145,50 +146,70 @@ def advanced_search_result(request):
 ])
 def export_search_result(request, recv_data):
     user = User.objects.get(id=request.user.id)
-    output = io.StringIO()
 
     resp = Entry.search_entries(user,
                                 recv_data['entities'],
                                 recv_data['attrinfo'],
                                 settings.ES_CONFIG['MAXIMUM_RESULTS_NUM'])
 
+    
+    output = io.StringIO(newline='')
+    writer = csv.writer(output)
+    
     # write first line of CSV
-    output.write('%s\n' % ','.join(['Name'] + [x['name'] for x in recv_data['attrinfo']]))
+    writer.writerow(['Name'] + [x['name'] for x in recv_data['attrinfo']])
+    
     for entry_info in resp['ret_values']:
         line_data = [entry_info['entry']['name']]
 
         for attrinfo in recv_data['attrinfo']:
 
             value = entry_info['attrs'][attrinfo['name']]
+
+            vtype = None
+            if (value is not None) and ('type' in value):
+                vtype = value['type']
+
+            vval = None
+            if (value is not None) and ('value' in value):
+                vval = value['value']
+            
             if not value or 'value' not in value or not value['value']:
                 line_data.append('')
 
-            elif (value['type'] == AttrTypeValue['string'] or
-                value['type'] == AttrTypeValue['text'] or
-                value['type'] == AttrTypeValue['boolean']):
+            elif (vtype == AttrTypeValue['string'] or
+                vtype == AttrTypeValue['text'] or
+                vtype == AttrTypeValue['boolean']):
 
-                line_data.append(str(value['value']))
+                line_data.append(str(vval))
 
-            elif (value['type'] == AttrTypeValue['object'] or
-                  value['type'] == AttrTypeValue['group'] or
-                  value['type'] == AttrTypeValue['named_object']):
+            elif (vtype == AttrTypeValue['object'] or
+                  vtype == AttrTypeValue['group']):
 
-                line_data.append(str(value['value']['name']))
+                line_data.append(str(vval['name']))
 
-            elif (value['type'] == AttrTypeValue['array_string']):
+            elif vtype == AttrTypeValue['named_object']:
 
-                line_data.append('"[%s]"' % str(value['value']))
+                [(k, v)] = vval.items()
+                line_data.append(str({k: v['name']}))
 
-            elif (value['type'] == AttrTypeValue['array_object'] or
-                  value['type'] == AttrTypeValue['array_named_object']):
+            elif vtype == AttrTypeValue['array_string']:
+
+                line_data.append(str(vval))
+
+            elif vtype == AttrTypeValue['array_object']:
+
+                line_data.append(str([x['name'] for x in vval]))
+
+            elif vtype == AttrTypeValue['array_named_object']:
 
                 items = []
-                for vset in value['value']:
+                for vset in vval:
                     [(k, v)] = vset.items()
-                    items.append(str({k: v['name']}))
+                    items.append({k: v['name']})
 
-                line_data.append('"[%s]"' % ','.join(items))
+                line_data.append(str(items))
 
-        output.write('%s\n' % ','.join(line_data))
+        writer.writerow(line_data)
 
     return get_download_response(output, 'search_results.csv')

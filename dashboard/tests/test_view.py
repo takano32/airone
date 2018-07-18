@@ -149,7 +149,7 @@ class ViewTest(AironeViewTest):
         })
         self.assertEqual(resp.status_code, 200)
 
-        csv_contents = [x for x in resp.content.decode('utf-8').split('\n') if x]
+        csv_contents = [x for x in resp.content.decode('utf-8').splitlines() if x]
         self.assertEqual(len(csv_contents), 3)
         self.assertEqual(csv_contents[0], 'Name,attr')
         self.assertEqual(csv_contents[1], 'entry-5,data-5')

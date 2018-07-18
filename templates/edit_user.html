@@ -21,7 +21,7 @@
   </div>
   <div class="row">
     <div class="col">
-      <form name='edit' url="/user/do_edit/{{ user_id }}" method='post'>
+      <form id="edit-form" name="edit-form" url="/user/do_edit/{{ user_id }}" method='post'>
 
         <!-- Top navigation buttons-->
         <p><input type="submit" class="btn btn-primary align-right" value='保存'/></p>
@@ -88,7 +88,7 @@
 
 {% block script %}
 <script>
-$('form').submit(function(){
+$('#edit-form').submit(function(){
   var username = $('input[name="name"]').val();
 
   HttpPost($(this)).done(function(data) {

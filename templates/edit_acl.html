@@ -22,7 +22,7 @@
   </div>
   {% endif %}
 
-  <form id="form" name="form" url="/acl/set" method="post">
+  <form id="acl-form" name="acl-form" url="/acl/set" method="post">
 
   <br/>
   <div class="row">
@@ -99,7 +99,7 @@ $("input[name=is_public]").change(function() {
   }
 });
 
-$('form').submit(function(event){
+$('#acl-form').submit(function(event){
   event.preventDefault();
   var acl = [];
 

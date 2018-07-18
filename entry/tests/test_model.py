@@ -1122,6 +1122,16 @@ class ModelTest(AironeTestCase):
         self.assertTrue(NEW_ATTR_NAME in exported_data['attrs'])
         self.assertEqual(exported_data['attrs'][NEW_ATTR_NAME], 'hoge')
 
+        # Add an Attribute after creating entry
+        entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'new_attr',
+            'type': AttrTypeValue['string'],
+            'created_user': user,
+            'parent_entity': entity,
+        }))
+        exported_data = entry.export(user)
+        self.assertTrue('new_attr' in exported_data['attrs'])
+
     def test_search_entries(self):
         user = User.objects.create(username='hoge')
 

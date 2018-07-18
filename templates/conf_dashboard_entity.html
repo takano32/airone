@@ -15,7 +15,7 @@
   {% include 'entity_tab.html' with tab='config_dashboard' %}
 
   <div class="tab-content">
-    <form url='{{ redirect_url }}' method='post'>
+    <form id="conf-form" name="conf-form" url='{{ redirect_url }}' method='post'>
       {% csrf_token %}
       <div class="row">
         <div class="col-md-5">
@@ -74,7 +74,7 @@ $('#delete_attr').on('click', function() {
   });
 });
 
-$('form').submit(function(){
+$('#conf-form').submit(function(){
   var selected_attrs = [];
   $('#selected_attrs option').each(function(i, elem) {
     selected_attrs.push($(elem).val());

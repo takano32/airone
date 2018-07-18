@@ -11,7 +11,7 @@
   {% include 'entry_tab.html' with tab='copy' %}
 
   <div class="tab-content">
-  <form url='{{ form_url }}' method='post'>
+  <form id="copy-form" name="copy-form" url='{{ form_url }}' method='post'>
   <div class="row">
     <div class="col">
       <div class="float-left">
@@ -46,7 +46,7 @@ vm0006
 
 {% block script %}
 <script>
-$('form').submit(function(event){
+$('#copy-form').submit(function(event){
   const SHOW_ALL_COPY_RESULT = 5;
   // disable submit button
   $('input[type="submit"]').prop('disabled', true);

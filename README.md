@@ -19,7 +19,7 @@ $ sudo apt-get install python3 python3-pip
 
 And you have to install RabbitMQ for executing heavy processing as background task using [Celery](http://docs.celeryproject.org/) and Memcached for caching backend.
 ```
-$ sudo apt-get install rabbitmq-server memcached
+$ sudo apt-get install rabbitmq-server memcached mysql-server python-dev libmysqlclient-dev
 ```
 
 Then, you can install libraries on which AieOne depends by following.
@@ -27,6 +27,15 @@ Then, you can install libraries on which AieOne depends by following.
 $ git https://git.dmm.com/XaaS/airone
 $ cd airone
 $ sudo pip install -r requirements.txt
+```
+
+Cerate database and user for airone in MySQL.
+```
+$ mysql -uroot -p****
+
+mysql> create database airone;
+mysql> CREATE USER 'airone'@'localhost' IDENTIFIED BY 'password';
+mysql> GRANT ALL ON airone.* to airone@'localhost' IDENTIFIED BY 'password';
 ```
 
 This command makes database schema using the [django Migrations](https://docs.djangoproject.com/en/1.11/topics/migrations/), and makes default user account.

@@ -4,13 +4,16 @@ import sys
 import json
 
 from airone.lib.test import AironeViewTest
+from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
+from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
+from airone.lib.types import AttrTypeNamedObj, AttrTypeArrNamedObj
 from airone.lib.types import AttrTypeValue
 from django.urls import reverse
 from django.contrib.auth.models import User as DjangoUser
 from io import StringIO
 
 from entity.models import Entity, EntityAttr
-from entry.models import Entry, AttributeValue
+from entry.models import Entry, Attribute, AttributeValue
 
 from xml.etree import ElementTree
 
@@ -154,3 +157,90 @@ class ViewTest(AironeViewTest):
         self.assertEqual(csv_contents[0], 'Name,attr')
         self.assertEqual(csv_contents[1], 'entry-5,data-5')
         self.assertEqual(csv_contents[2], 'entry-5,data-5')
+
+    def test_show_advanced_search_results_csv_escape(self):
+        user = self.admin
+
+        dummy_entity = Entity.objects.create(name='Dummy', created_user=user)
+        dummy_entry = Entry(name='D,U"MM"Y', schema=dummy_entity, created_user=user)
+        dummy_entry.save()
+        
+        CASES = [
+            [AttrTypeStr, 'raison,de"tre', '"raison,de""tre"'],
+            [AttrTypeObj,  dummy_entry, '"D,U""MM""Y"'],
+            [AttrTypeText, "1st line\r\n2nd line", '"1st line' + "\r\n" + '2nd line"'],
+            [AttrTypeNamedObj, {"key": dummy_entry}, "\"{'key': 'D,U\"\"MM\"\"Y'}\""],
+            [AttrTypeArrStr, ["one", "two", "three"], "\"['one', 'two', 'three']\""],
+            [AttrTypeArrObj, [dummy_entry], "\"['D,U\"\"MM\"\"Y']\""],
+            [AttrTypeArrNamedObj, [{"key1": dummy_entry}], "\"[{'key1': 'D,U\"\"MM\"\"Y'}]\""]
+        ]
+        
+        for case in CASES:
+            # setup data
+            type_name = case[0].__name__ # AttrTypeStr -> 'AttrTypeStr'
+            attr_name = type_name + ',"ATTR"'
+            
+            test_entity = Entity.objects.create(name="TestEntity_" + type_name, created_user=user)
+
+            test_entity_attr = EntityAttr.objects.create(
+                name=attr_name, type=case[0], created_user=user, parent_entity=test_entity)
+
+            test_entity.attrs.add(test_entity_attr)
+            test_entity.save()
+            
+            test_entry = Entry.objects.create(name=type_name + ',"ENTRY"', schema=test_entity, created_user=user)
+            test_entry.save()
+
+            test_attr = Attribute.objects.create(
+                name=attr_name, schema=test_entity_attr, created_user=user, parent_entry=test_entry)
+
+            test_attr.save()
+            test_entry.attrs.add(test_attr)
+            test_entry.save()
+            
+            test_val = None
+
+            if case[0].TYPE & AttrTypeValue['array'] ==0:
+                if case[0] == AttrTypeStr:
+                    test_val = AttributeValue.create(user=user, attr=test_attr, value=case[1])
+                elif case[0] == AttrTypeObj:
+                    test_val = AttributeValue.create(user=user, attr=test_attr, referral=case[1])
+                elif case[0] == AttrTypeText:
+                    test_val = AttributeValue.create(user=user, attr=test_attr, value=case[1])
+                elif case[0] == AttrTypeNamedObj:
+                    [(k, v)] = case[1].items()
+                    test_val = AttributeValue.create(user=user, attr=test_attr, value=k, referral=v)
+            else:
+                test_val = AttributeValue.create(user=user, attr=test_attr)
+                test_val.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
+                for child in case[1]:
+                    test_val_child = None
+                    if case[0] == AttrTypeArrStr:
+                        test_val_child = AttributeValue.create(user=user, attr=test_attr, value=child)
+                    elif case[0] == AttrTypeArrObj:
+                        test_val_child = AttributeValue.create(user=user, attr=test_attr, referral=child)
+                    elif case[0] == AttrTypeArrNamedObj:
+                        [(k, v)] = child.items()
+                        test_val_child = AttributeValue.create(user=user, attr=test_attr, value=k, referral=v)
+                    test_val.data_array.add(test_val_child)
+                
+            test_val.save()
+            test_attr.values.add(test_val)
+            test_attr.save()
+
+            test_entry.register_es()
+            
+            resp = self.client.post(reverse('dashboard:export_search_result'), {
+                'entities': json.dumps([test_entity.id]),
+                'attrinfo': json.dumps([{'name': test_attr.name, 'keyword': ''}])
+            })
+            self.assertEqual(resp.status_code, 200)
+
+            content = resp.content.decode('utf-8')
+            header = content.splitlines()[0]
+            self.assertEqual(header, 'Name,"%s,""ATTR"""' % type_name)
+
+            data = content.replace(header, '', 1).strip()
+            self.assertEqual(data, '"%s,""ENTRY""",' % type_name + case[2] )
+
+        

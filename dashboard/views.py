@@ -152,13 +152,13 @@ def export_search_result(request, recv_data):
                                 recv_data['attrinfo'],
                                 settings.ES_CONFIG['MAXIMUM_RESULTS_NUM'])
 
-    
+
     output = io.StringIO(newline='')
     writer = csv.writer(output)
-    
+
     # write first line of CSV
     writer.writerow(['Name'] + [x['name'] for x in recv_data['attrinfo']])
-    
+
     for entry_info in resp['ret_values']:
         line_data = [entry_info['entry']['name']]
 
@@ -173,7 +173,7 @@ def export_search_result(request, recv_data):
             vval = None
             if (value is not None) and ('value' in value):
                 vval = value['value']
-            
+
             if not value or 'value' not in value or not value['value']:
                 line_data.append('')
 

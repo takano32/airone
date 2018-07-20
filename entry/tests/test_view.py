@@ -914,7 +914,7 @@ class ViewTest(AironeViewTest):
         dummy_entity = Entity.objects.create(name='Dummy', created_user=user)
         dummy_entry = Entry(name='D,U"MM"Y', schema=dummy_entity, created_user=user)
         dummy_entry.save()
-        
+
         CASES = [
             [AttrTypeStr, 'raison,de"tre', '"raison,de""tre"'],
             [AttrTypeObj,  dummy_entry, '"D,U""MM""Y"'],
@@ -924,11 +924,11 @@ class ViewTest(AironeViewTest):
             [AttrTypeArrObj, [dummy_entry], "\"['D,U\"\"MM\"\"Y']\""],
             [AttrTypeArrNamedObj, [{"key1": dummy_entry}], "\"[{'key1': 'D,U\"\"MM\"\"Y'}]\""]
         ]
-        
+
         for case in CASES:
             type_name = case[0].__name__ # AttrTypeStr -> 'AttrTypeStr'
             attr_name = type_name + ',"ATTR"'
-            
+
             test_entity = Entity.objects.create(name="TestEntity_" + type_name, created_user=user)
 
             test_entity_attr = EntityAttr.objects.create(
@@ -936,7 +936,7 @@ class ViewTest(AironeViewTest):
 
             test_entity.attrs.add(test_entity_attr)
             test_entity.save()
-            
+
             test_entry = Entry.objects.create(name=type_name + ',"ENTRY"', schema=test_entity, created_user=user)
             test_entry.save()
 
@@ -946,7 +946,7 @@ class ViewTest(AironeViewTest):
             test_attr.save()
             test_entry.attrs.add(test_attr)
             test_entry.save()
-            
+
             test_val = None
 
             if case[0].TYPE & AttrTypeValue['array'] ==0:
@@ -972,11 +972,11 @@ class ViewTest(AironeViewTest):
                         [(k, v)] = child.items()
                         test_val_child = AttributeValue.create(user=user, attr=test_attr, value=k, referral=v)
                     test_val.data_array.add(test_val_child)
-                
+
             test_val.save()
             test_attr.values.add(test_val)
             test_attr.save()
-            
+
             resp = self.client.get(reverse('entry:export', args=[test_entity.id]), {'format': 'CSV'})
             self.assertEqual(resp.status_code, 200)
 
@@ -986,7 +986,7 @@ class ViewTest(AironeViewTest):
 
             data = content.replace(header, '', 1).strip()
             self.assertEqual(data, '"%s,""ENTRY""",' % type_name + case[2] )
-        
+
     @patch('entry.views.delete_entry.delay', Mock(side_effect=tasks.delete_entry))
     def test_post_delete_entry(self):
         user = self.admin_login()

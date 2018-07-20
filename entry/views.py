@@ -1,4 +1,5 @@
 import io
+import csv
 import yaml
 
 import custom_view
@@ -336,7 +337,6 @@ def refer(request, entry_id):
 
 @http_get
 def export(request, entity_id):
-    output = io.StringIO()
     user = User.objects.get(id=request.user.id)
 
     if not Entity.objects.filter(id=entity_id).exists():
@@ -351,29 +351,30 @@ def export(request, entity_id):
         if user.has_permission(entry, ACLType.Readable):
             exported_data.append(entry.export(user))
 
+    output = None
     if 'format' in request.GET and request.GET.get('format') == 'CSV':
+        # newline is blank because csv module performs universal newlines
+        # https://docs.python.org/ja/3/library/csv.html#id3
+        output = io.StringIO(newline='')
+        writer = csv.writer(output)
+
         fname = 'entry_%s.csv' % entity.name
 
         attrs = [x.name for x in entity.attrs.filter(is_active=True)]
-        output.write('%s\n' % (','.join(['Name', *attrs])))
+        writer.writerow(['Name', *attrs])
 
         def data2str(data):
             if not data:
                 return ''
-            elif isinstance(data, str):
-                return '"%s"' % data.replace('"', '""')
-            elif isinstance(data, list) or isinstance(data, dict):
-                return '"""%s"""' % str(data)
-            else:
-                return '"%s"' % str(data)
+            return str(data)
 
         for data in exported_data:
-            output.write('%s\n' % ','.join([
+            writer.writerow([
                 data['name'],
                 *[data2str(data['attrs'][x]) for x in attrs if x in data['attrs']]
-            ]))
-
+            ])
     else:
+        output = io.StringIO()
         fname = 'entry_%s.yaml' % entity.name
         output.write(yaml.dump({entity.name: exported_data}, default_flow_style=False, allow_unicode=True))
 

@@ -357,7 +357,7 @@ def export(request, entity_id):
         # https://docs.python.org/ja/3/library/csv.html#id3
         output = io.StringIO(newline='')
         writer = csv.writer(output)
-        
+
         fname = 'entry_%s.csv' % entity.name
 
         attrs = [x.name for x in entity.attrs.filter(is_active=True)]

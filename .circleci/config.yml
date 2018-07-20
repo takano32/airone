@@ -9,6 +9,7 @@ jobs:
         environment:
           discovery.type: single-node
           ES_JAVA_OPTS: -Xms512m -Xmx512m
+          AIRONE_BACKEND_DB: sqlite3
     environment:
       TOXENV: "py36"
     steps:
@@ -44,6 +45,7 @@ jobs:
         environment:
           discovery.type: single-node
           ES_JAVA_OPTS: -Xms512m -Xmx512m
+          AIRONE_BACKEND_DB: sqlite3
     environment:
       TOXENV: "py35"
     steps:

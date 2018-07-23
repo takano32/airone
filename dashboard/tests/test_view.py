@@ -41,6 +41,21 @@ class ViewTest(AironeViewTest):
         self.assertEquals(len(root.findall('.//table/tr')),
                           Entry.objects.filter(name__icontains=query).count() + 1)
 
+    def test_search_entry_deduped_result(self):
+        query = 'srv001'
+
+        # In fixture, Entry 'srv001' has Attribute 'attr-str' and AttributeValue 'I am srv001'.
+        # Search result should be displayed as single row.
+        
+        resp = self.client.get(reverse('dashboard:search'), {'query': query})
+        self.assertEqual(resp.status_code, 200)
+
+        root = ElementTree.fromstring(resp.content.decode('utf-8'))
+
+        # '+1' means description of table
+        self.assertEquals(len(root.findall('.//table/tr')),
+                          Entry.objects.filter(name__icontains=query).count() + 1)
+        
     def test_search_entry_from_value(self):
         resp = self.client.get(reverse('dashboard:search'), {'query': 'hoge'})
         self.assertEqual(resp.status_code, 200)

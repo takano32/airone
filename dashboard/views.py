@@ -102,7 +102,7 @@ def search(request):
 
     search_results = sum([x.search(query) for x in target_models], [])
     dic = {}
-    
+
     for result in search_results:
         eid = result['object'].id
         if eid not in dic:
@@ -113,7 +113,8 @@ def search(request):
             }
 
         dic[eid]['types'].append(result['type'])
-        dic[eid]['hints'].append(result['hint'])
+        if result['hint'] != '':
+            dic[eid]['hints'].append(result['hint'])
 
     results = []
     for result in dic.values():
@@ -124,7 +125,7 @@ def search(request):
         })
 
     results.sort(key=lambda x: x['object'].name)
-        
+
     return render(request, 'show_search_results.html', {
         'results': results
     })

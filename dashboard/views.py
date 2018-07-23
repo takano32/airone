@@ -94,15 +94,40 @@ def do_import_data(request, context):
 
 @http_get
 def search(request):
-    results = []
-    target_models = [Entry, AttributeValue]
-
     query = request.GET.get('query')
     if not query:
         return HttpResponse("Invalid query parameter is specified", status=400)
 
+    target_models = [Entry, AttributeValue]
+
+    search_results = sum([x.search(query) for x in target_models], [])
+    dic = {}
+
+    for result in search_results:
+        eid = result['object'].id
+        if eid not in dic:
+            dic[eid] = {
+                'types': [],
+                'object': result['object'],
+                'hints': []
+            }
+
+        dic[eid]['types'].append(result['type'])
+        if result['hint'] != '':
+            dic[eid]['hints'].append(result['hint'])
+
+    results = []
+    for result in dic.values():
+        results.append({
+            'type': ', '.join(result['types']),
+            'object': result['object'],
+            'hint': ', '.join(result['hints'])
+        })
+
+    results.sort(key=lambda x: x['object'].name)
+
     return render(request, 'show_search_results.html', {
-        'results': sum([x.search(query) for x in target_models], [])
+        'results': results
     })
 
 @http_get

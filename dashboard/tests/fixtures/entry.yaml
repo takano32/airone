@@ -30,7 +30,7 @@ Attribute:
 
 AttributeValue:
 - {attribute_id: 15, created_time: '2017-08-29 03:07:21', created_user: admin, data_arr: '',
-  id: 1, refer: '', status: 0, value: foo}
+  id: 1, refer: '', status: 0, value: 'I am srv001'}
 - {attribute_id: 16, created_time: '2017-08-29 03:07:21', created_user: admin, data_arr: '',
   id: 2, refer: 8, status: 0, value: ''}
 - {attribute_id: 17, created_time: '2017-08-29 03:07:21', created_user: admin, data_arr: '4,5',

@@ -116,7 +116,7 @@ class ACLBase(models.Model):
             results.append({
                 'type': kls.__name__,
                 'object': obj,
-                'hint': kls.__name__,
+                'hint': '',
             })
 
         return results

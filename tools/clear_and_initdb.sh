@@ -7,6 +7,14 @@ do
   rm ${dir}/0*.py || true
 done
 
+# recreate database of MySQL
+db_name=$(python3 -c "from airone import settings; print(settings.DATABASES['default']['NAME'])")
+db_user=$(python3 -c "from airone import settings; print(settings.DATABASES['default']['USER'])")
+db_pass=$(python3 -c "from airone import settings; print(settings.DATABASES['default']['PASSWORD'])")
+
+echo "drop database ${db_name}" | mysql -u${db_user} -p${db_pass}
+echo "create database ${db_name}" | mysql -u${db_user} -p${db_pass}
+
 # re-construct database
 python3 manage.py makemigrations
 python3 manage.py migrate

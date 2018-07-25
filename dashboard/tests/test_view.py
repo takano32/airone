@@ -35,40 +35,32 @@ class ViewTest(AironeViewTest):
         resp = self.client.get(reverse('dashboard:search'), {'query': query})
         self.assertEqual(resp.status_code, 200)
 
-        root = ElementTree.fromstring(resp.content.decode('utf-8'))
+        self.assertEqual(len(resp.context['results']), Entry.objects.filter(name__icontains=query).count())
 
-        # '+1' means description of table
-        self.assertEquals(len(root.findall('.//table/tr')),
-                          Entry.objects.filter(name__icontains=query).count() + 1)
 
     def test_search_entry_deduped_result(self):
         query = 'srv001'
 
         # In fixture, Entry 'srv001' has Attribute 'attr-str' and AttributeValue 'I am srv001'.
         # Search result should be displayed as single row.
-        
+
         resp = self.client.get(reverse('dashboard:search'), {'query': query})
         self.assertEqual(resp.status_code, 200)
 
-        root = ElementTree.fromstring(resp.content.decode('utf-8'))
+        self.assertEqual(len(resp.context['results']), 1)
 
-        # '+1' means description of table
-        self.assertEquals(len(root.findall('.//table/tr')),
-                          Entry.objects.filter(name__icontains=query).count() + 1)
-        
+
     def test_search_entry_from_value(self):
         resp = self.client.get(reverse('dashboard:search'), {'query': 'hoge'})
         self.assertEqual(resp.status_code, 200)
 
-        root = ElementTree.fromstring(resp.content.decode('utf-8'))
-        self.assertEquals(len(root.findall('.//table/tr')), 2)
+        self.assertEqual(len(resp.context['results']), 1)
 
     def test_search_invalid_objects(self):
         resp = self.client.get(reverse('dashboard:search'), {'query': 'hogefuga'})
         self.assertEqual(resp.status_code, 200)
 
-        root = ElementTree.fromstring(resp.content.decode('utf-8'))
-        self.assertEquals(len(root.findall('.//table/tr')), 0)
+        self.assertEqual(len(resp.context['results']), 0)
 
     def test_show_dashboard_with_django_user(self):
         # create test user which is authenticated by Django, not AirOne
@@ -257,5 +249,3 @@ class ViewTest(AironeViewTest):
 
             data = content.replace(header, '', 1).strip()
             self.assertEqual(data, '"%s,""ENTRY""",' % type_name + case[2] )
-
-

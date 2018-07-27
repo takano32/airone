@@ -1259,6 +1259,15 @@ class ModelTest(AironeTestCase):
         self.assertEqual(ret['ret_count'], 1)
         self.assertEqual(ret['ret_values'][0]['entry']['name'], 'e-5')
 
+        # search entries with blank values
+        entry = Entry.objects.create(name='entry-blank', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+        entry.register_es()
+
+        for attrname in attr_info.keys():
+            ret = Entry.search_entries(user, [entity.id], [{'name': attrname}])
+            self.assertEqual(len([x for x in ret['ret_values'] if x['entry']['id'] == entry.id]), 1)
+
     def test_register_entry_to_elasticsearch(self):
         ENTRY_COUNTS = 10
         user = User.objects.create(username='hoge')

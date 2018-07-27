@@ -891,16 +891,24 @@ class Entry(ACLBase):
             attrinfo = {
                 'name': attr.name,
                 'type': attr.type,
-                'key': None,
-                'value': None,
+                'key': '',
+                'value': '',
                 'referral_id': None,
             }
 
             # Basically register attribute information whatever value doesn't exist
             if not (attr.type & AttrTypeValue['array'] and not is_recursive):
                 container.append(attrinfo)
+
             elif attr.type & AttrTypeValue['array'] and not is_recursive and attrv != None:
-                return [_set_attrinfo(attr, x, container, True) for x in attrv.data_array.all()]
+                # Here is the case of parent array, set each child values
+                [_set_attrinfo(attr, x, container, True) for x in attrv.data_array.all()]
+
+                # If there is no value in container, this set blank value for maching blank search request
+                if not [x for x in container if x['name'] == attr.name]:
+                    container.append(attrinfo)
+
+                return
 
             # This is the processing to be safe even if the empty AttributeValue was passed.
             if attrv == None:

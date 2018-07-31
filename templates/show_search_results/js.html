@@ -19,7 +19,7 @@ $(document).ready(function() {
   }
 
   /* set search box default value to current query */
-  $('input[name="query"]').val(search_query);
+  $('input[name="query"]').val(decodeURIComponent(search_query));
 
   /* highlight row which entry name is exactly same as search query */
   $('td>a').each(function(idx, val) {

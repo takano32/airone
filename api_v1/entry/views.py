@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from rest_framework.authentication import BasicAuthentication
 from rest_framework.authentication import SessionAuthentication
 
+from entity.models import Entity
 from entry.models import Entry
 from entry.settings import CONFIG as CONFIG_ENTRY
 from user.models import User
@@ -29,6 +30,18 @@ class EntrySearchAPI(APIView):
             return Response('The entities and attrinfo parameters are required',
                             status=status.HTTP_400_BAD_REQUEST)
 
-        resp = Entry.search_entries(user, hint_entity, hint_attr, entry_limit)
+        hint_entity_ids = []
+        for hint in hint_entity:
+            try:
+                if Entity.objects.filter(id=hint).exists():
+                    hint_entity_ids.append(hint)
+
+            except ValueError:
+                # This may happen when a string value is specified in the entities parameter
+                entity = Entity.objects.filter(name=hint).first()
+                if entity:
+                    hint_entity_ids.append(entity.id)
+
+        resp = Entry.search_entries(user, hint_entity_ids, hint_attr, entry_limit)
 
         return Response({'result': resp}, content_type='application/json; charset=UTF-8')

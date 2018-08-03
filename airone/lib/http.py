@@ -12,6 +12,7 @@ from entity import models as entity_models
 from entry import models as entry_models
 from acl.models import ACLBase
 from user.models import User, History
+from job.models import Job
 
 from airone.lib.types import AttrTypes, AttrTypeValue
 from airone.lib.acl import ACLObjType, ACLType
@@ -168,6 +169,22 @@ def render(request, template, context={}):
         'DEL_ENTITY': History.DEL_ENTITY,
         'DEL_ATTR': History.DEL_ATTR,
         'DEL_ENTRY': History.DEL_ENTRY,
+    }
+
+    # set constracts for job
+    context['JOB'] = {
+        'STATUS': {
+            'PROCESSING': Job.STATUS_PROCESSING,
+            'DONE': Job.STATUS_DONE,
+            'ERROR': Job.STATUS_ERROR,
+            'TIMEOUT': Job.STATUS_TIMEOUT,
+        },
+        'OPERATION': {
+            'CREATE': Job.OP_CREATE,
+            'EDIT': Job.OP_EDIT,
+            'DELETE': Job.OP_DELETE,
+            'COPY': Job.OP_COPY,
+        }
     }
 
     # set constant values which are defined in each applications

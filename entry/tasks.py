@@ -7,6 +7,7 @@ from airone.celery import app
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
 from datetime import datetime
+from job.models import Job
 
 Logger = logging.getLogger(__name__)
 
@@ -80,9 +81,10 @@ def _convert_data_value(attr, info):
             return recv_value
 
 @app.task(bind=True)
-def create_entry_attrs(self, user_id, entry_id, recv_data):
+def create_entry_attrs(self, user_id, entry_id, recv_data, job_id):
     user = User.objects.get(id=user_id)
     entry = Entry.objects.get(id=entry_id)
+    job = Job.objects.get(id=job_id)
 
     # Create new Attributes objects based on the specified value
     for entity_attr in entry.schema.attrs.filter(is_active=True):
@@ -111,10 +113,15 @@ def create_entry_attrs(self, user_id, entry_id, recv_data):
     # clear flag to specify this entry has been completed to ndcreate
     entry.del_status(Entry.STATUS_CREATING)
 
+    # update job status and save it
+    job.status = Job.STATUS_DONE
+    job.save()
+
 @app.task(bind=True)
-def edit_entry_attrs(self, user_id, entry_id, recv_data):
+def edit_entry_attrs(self, user_id, entry_id, recv_data, job_id):
     user = User.objects.get(id=user_id)
     entry = Entry.objects.get(id=entry_id)
+    job = Job.objects.get(id=job_id)
 
     for info in recv_data['attrs']:
         attr = Attribute.objects.get(id=info['id'])
@@ -144,14 +151,23 @@ def edit_entry_attrs(self, user_id, entry_id, recv_data):
     # clear flag to specify this entry has been completed to edit
     entry.del_status(Entry.STATUS_EDITING)
 
+    # update job status and save it
+    job.status = Job.STATUS_DONE
+    job.save()
+
 @app.task(bind=True)
-def delete_entry(self, entry_id):
+def delete_entry(self, entry_id, job_id):
     entry = Entry.objects.get(id=entry_id)
+    job = Job.objects.get(id=job_id)
 
     entry.delete()
 
+    # update job status and save it
+    job.status = Job.STATUS_DONE
+    job.save()
+
 @app.task(bind=True)
-def copy_entry(self, user_id, src_entry_id, dest_entry_names):
+def copy_entry(self, user_id, src_entry_id, dest_entry_names, jobset):
     user = User.objects.get(id=user_id)
     src_entry = Entry.objects.get(id=src_entry_id)
 
@@ -159,3 +175,10 @@ def copy_entry(self, user_id, src_entry_id, dest_entry_names):
         if not Entry.objects.filter(schema=src_entry.schema, name=name).exists():
             dest_entry = src_entry.clone(user, name=name)
             dest_entry.register_es()
+
+        job = Job.objects.get(id=jobset[name])
+        job.target = dest_entry
+        job.status = Job.STATUS_DONE
+        job.text = 'original entry: %s' % src_entry.name
+
+        job.save()

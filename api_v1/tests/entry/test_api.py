@@ -37,14 +37,20 @@ class APITest(AironeViewTest):
         resp = self.client.post('/api/v1/entry/search')
         self.assertEqual(resp.status_code, 400)
 
-        # send search request and checks returned values are valid
-        params = {
-            'entities': [x.id for x in Entity.objects.filter(name__regex='^entity-')],
-            'attrinfo': [{'name': 'attr', 'keyword': 'data-5'}]
-        }
-        resp = self.client.post('/api/v1/entry/search', json.dumps(params), 'application/json')
+        # send search request and checks returned values are valid with several format of parameter,
+        # This tests specifing informations of entity both id and name.
+        hint_entities = [
+            [x.id for x in Entity.objects.filter(name__regex='^entity-')],
+            ['entity-%d' % i for i in range(0, 2)]
+        ]
+        for hint_entity in hint_entities:
+            params = {
+                'entities': hint_entity,
+                'attrinfo': [{'name': 'attr', 'keyword': 'data-5'}]
+            }
+            resp = self.client.post('/api/v1/entry/search', json.dumps(params), 'application/json')
 
-        self.assertEqual(resp.status_code, 200)
+            self.assertEqual(resp.status_code, 200)
 
-        result = resp.json()['result']
-        self.assertEqual(result['ret_count'], 2)
+            result = resp.json()['result']
+            self.assertEqual(result['ret_count'], 2)

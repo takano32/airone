@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block title %}List Jobs{% endblock %}
+
+{% block nav_sub_header %}
+<div class="conatiner-fluid">
+  <ul class="breadcrumb airone-breadcrumb">
+    <li class="breadcrumb-item"><a href="/">TOP</a></li>
+    <li class="breadcrumb-item">ジョブ一覧</li>
+  </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col">
+      <div class="float-left">
+        <button name="button_new" type="button" class="btn btn-primary" onclick="location.href='?nolimit=1'">全件表示</button>
+      </div>
+      <div class="float-right">
+      </div>
+    </div>
+  </div>
+
+  <p/>
+  <div class="row">
+    <div class="col">
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>対象エントリ</th>
+            <th>操作</th>
+            <th>状況</th>
+            <th>実行時間</th>
+            <th>実行日時</th>
+            <th>備考</th>
+          </tr>
+        </thead>
+        <tbody id='entry_container'>
+          {% for job in jobs %}
+          <tr>
+            <!-- set target ACLbase object -->
+            <td><a href='/entry/show/{{ job.target.id }}/'>{{ job.target.name }}</a></td>
+
+            <!-- set operation -->
+            <td>
+            {% if job.operation == JOB.OPERATION.CREATE %}
+              作成
+            {% elif job.operation == JOB.OPERATION.EDIT %}
+              編集
+            {% elif job.operation == JOB.OPERATION.DELETE %}
+              削除
+            {% elif job.operation == JOB.OPERATION.COPY %}
+              コピー
+            {% endif %}
+            </td>
+
+            <!-- set status -->
+            {% if job.status == JOB.STATUS.PROCESSING %}
+            <td class='table-warning'>処理中</td>
+            {% elif job.status == JOB.STATUS.DONE %}
+            <td class='table-success'>完了</td>
+            {% elif job.status == JOB.STATUS.ERROR %}
+            <td class='table-danger'>エラー</td>
+            {% elif job.status == JOB.STATUS.TIMEOUT %}
+            <td class='table-danger'>タイムアウト</td>
+            {% else %}
+            <td></td>
+            {% endif %}
+            </td>
+
+            <!-- set time -->
+            <td>{{ job.passed_time }} s</td>
+
+            <!-- set created_time -->
+            <td>{{ job.created_at }}</td>
+
+            <!-- set text -->
+            <td>{{ job.text }}</td>
+
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+{% endblock %}

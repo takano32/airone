@@ -87,3 +87,26 @@ body {
 .tab-content {
   padding: 10px 0px 0px;
 }
+
+/* ---------------------------------------------------- *
+ * Configuration for Job dropdown menu in top navigator
+ * ---------------------------------------------------- */
+.jobinfo img {
+  opacity: 0.5;
+}
+
+.jobinfo img:hover {
+  opacity: 1;
+}
+
+.job-status-done {
+  background-color: #B8E1C0;
+}
+
+.job-status-processing {
+  background-color: #FFEBAC;
+}
+
+.job-status-error,.job-status-tieout {
+  background-color: #d9534f;
+}

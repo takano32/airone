@@ -81,7 +81,6 @@ $('#conf-form').submit(function(){
   });
 
   HttpPost($(this), {'attrs': selected_attrs}).done(function(data) {
-    console.info('[onix/success]' + data);
     MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, data.msg);
 
     location.href = '/entity/dashboard/{{ entity.id }}';

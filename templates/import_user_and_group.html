@@ -3,9 +3,13 @@
 {% block title %}Import User and Group{% endblock %}
 
 {% block nav_sub_header %}
-{% with "import_user_and_group" as path %}
-{% include 'navigation.html' %}
-{% endwith %}
+<div class="conatiner-fluid">
+  <ul class="breadcrumb airone-breadcrumb">
+    <li class="breadcrumb-item"><a href="/">TOP</a></li>
+    <li class="breadcrumb-item"><a href="/group/">グループ管理</a></li>
+    <li class="breadcrumb-item">インポート</li>
+  </ul>
+</div>
 {% endblock %}
 
 {% block content %}

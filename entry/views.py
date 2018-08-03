@@ -23,6 +23,7 @@ from entity.models import Entity, EntityAttr
 from entity.admin import EntityResource
 from entry.models import Entry, Attribute, AttributeValue
 from entry.admin import EntryResource, AttrResource, AttrValueResource
+from job.models import Job
 from user.models import User
 from group.models import Group
 from .settings import CONFIG
@@ -158,8 +159,11 @@ def do_create(request, entity_id, recv_data):
                   status=Entry.STATUS_CREATING)
     entry.save()
 
+    # Create a new job
+    job = Job.new_create(user, entry)
+
     # register a task to create Attributes for the created entry
-    val = create_entry_attrs.delay(user.id, entry.id, recv_data)
+    val = create_entry_attrs.delay(user.id, entry.id, recv_data, job.id)
 
     return JsonResponse({
         'entry_id': entry.id,
@@ -241,8 +245,11 @@ def do_edit(request, entry_id, recv_data):
 
     entry.save()
 
+    # Create a new job
+    job = Job.new_edit(user, entry)
+
     # register a task to edit entry attributes
-    edit_entry_attrs.delay(user.id, entry.id, recv_data)
+    edit_entry_attrs.delay(user.id, entry.id, recv_data, job.id)
 
     return JsonResponse({
         'entry_id': entry.id,
@@ -459,7 +466,10 @@ def do_delete(request, entry_id, recv_data):
     # register operation History for deleting entry
     user.seth_entry_del(entry)
 
-    delete_entry.delay(entry.id)
+    # Create a new job
+    job = Job.new_delete(user, entry)
+
+    delete_entry.delay(entry.id, job.id)
 
     return JsonResponse(ret)
 
@@ -488,7 +498,7 @@ def copy(request, entry_id):
 @http_post([])
 @check_permission(Entry, ACLType.Writable)
 def do_copy(request, entry_id, recv_data):
-    user_id = request.user.id
+    user = User.objects.get(id=request.user.id)
 
     # validation check
     if 'entries' not in recv_data:
@@ -500,6 +510,7 @@ def do_copy(request, entry_id, recv_data):
     ret = []
     entry = Entry.objects.get(id=entry_id)
     dest_entry_names = []
+    jobset = {}
     for new_name in [x for x in recv_data['entries'].split('\n') if x]:
         if Entry.objects.filter(schema=entry.schema, name=new_name).exists():
             ret.append({
@@ -519,6 +530,8 @@ def do_copy(request, entry_id, recv_data):
             'msg': "Success to create new entry '%s'" % new_name,
         })
 
-    copy_entry.delay(user_id, entry_id, dest_entry_names)
+        jobset[new_name] = Job.new_copy(user, entry, text=new_name).id
+
+    copy_entry.delay(user.id, entry_id, dest_entry_names, jobset)
 
     return JsonResponse({'results': ret})

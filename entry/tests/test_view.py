@@ -25,6 +25,7 @@ from unittest.mock import patch
 from unittest.mock import Mock
 from unittest import skip
 from entry import tasks
+from job.models import Job
 
 
 class ViewTest(AironeViewTest):
@@ -205,7 +206,7 @@ class ViewTest(AironeViewTest):
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_post_create_entry(self):
-        self.admin_login()
+        user = self.admin_login()
 
         params = {
             'entry_name': 'hoge',
@@ -240,6 +241,17 @@ class ViewTest(AironeViewTest):
         for attrinfo in res['_source']['attr']:
             attrv = AttributeValue.objects.get(parent_attr__name=attrinfo['name'], is_latest=True)
             self.assertEqual(attrinfo['value'], attrv.value)
+
+        # checks job was created
+        job = Job.objects.filter(user=user)
+        self.assertEqual(job.count(), 1)
+
+        # checks each parameters of the job are as expected
+        obj = job.first()
+        self.assertEqual(obj.target.id, entry.id)
+        self.assertEqual(obj.target_type, Job.TARGET_ENTRY)
+        self.assertEqual(obj.status, Job.STATUS_DONE)
+        self.assertEqual(obj.operation, Job.OP_CREATE)
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_post_create_entry_without_permission(self):
@@ -554,6 +566,17 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp['ret_count'], 1)
         self.assertEqual(resp['ret_values'][0]['entity']['id'], entity.id)
         self.assertEqual(resp['ret_values'][0]['entry']['id'], entry.id)
+
+        # checks job was created
+        job = Job.objects.filter(user=user)
+        self.assertEqual(job.count(), 1)
+
+        # checks each parameters of the job are as expected
+        obj = job.first()
+        self.assertEqual(obj.target.id, entry.id)
+        self.assertEqual(obj.target_type, Job.TARGET_ENTRY)
+        self.assertEqual(obj.status, Job.STATUS_DONE)
+        self.assertEqual(obj.operation, Job.OP_EDIT)
 
     @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
     def test_post_edit_with_optional_params(self):
@@ -1632,6 +1655,18 @@ class ViewTest(AironeViewTest):
         self.assertEqual(list(ref_entry2.get_referred_objects()), [])
         self.assertEqual(list(ref_entry3.get_referred_objects()), [])
 
+        # checks jobs were created
+        self.assertEqual(Job.objects.filter(user=user).count(), 4)
+
+        job = Job.objects.filter(user=user, operation=Job.OP_DELETE)
+        self.assertEqual(job.count(), 1)
+
+        # checks each parameters of the job are as expected
+        obj = job.first()
+        self.assertEqual(obj.target.id, entry.id)
+        self.assertEqual(obj.target_type, Job.TARGET_ENTRY)
+        self.assertEqual(obj.status, Job.STATUS_DONE)
+
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_create_entry_with_named_ref(self):
         user = self.admin_login()
@@ -2003,6 +2038,20 @@ class ViewTest(AironeViewTest):
         # checks copied entries were registered to the Elasticsearch
         res = self._es.indices.stats(index=settings.ES_CONFIG['INDEX'])
         self.assertEqual(res['_all']['total']['segments']['count'], 3)
+
+        # checks jobs were created
+        self.assertEqual(Job.objects.filter(user=user).count(), 3)
+
+        jobs = Job.objects.filter(user=user, operation=Job.OP_COPY)
+
+        self.assertEqual(jobs.count(), 3)
+        for obj in jobs.all():
+            self.assertTrue(any([obj.target.name == x for x in ['foo', 'bar', 'baz']]))
+            self.assertEqual(obj.text, 'original entry: %s' % entry.name)
+            self.assertEqual(obj.target_type, Job.TARGET_ENTRY)
+            self.assertEqual(obj.status, Job.STATUS_DONE)
+            self.assertNotEqual(obj.created_at, obj.updated_at)
+            self.assertTrue((obj.updated_at - obj.created_at).total_seconds() > 0)
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_create_entry_with_group_attr(self):
@@ -2652,3 +2701,29 @@ class ViewTest(AironeViewTest):
 
                 self.assertEqual(resp.status_code, 200)
                 self.assertEqual(Entry.objects.filter(schema=entity).count(), 1)
+
+    def test_update_entry_without_backend(self):
+        user = self.guest_login()
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entry = Entry.objects.create(name='entry', created_user=user, schema=entity)
+
+        params = {
+            'entry_name': 'hoge',
+            'attrs': [],
+        }
+
+        def side_effect(user_id, entry_id, recv_data, job_id):
+            job = Job.objects.get(id=job_id)
+
+            self.assertEqual(job.user.id, user_id)
+            self.assertEqual(job.target.id, entry_id)
+            self.assertEqual(job.target_type, Job.TARGET_ENTRY)
+            self.assertEqual(job.status, Job.STATUS_PROCESSING)
+            self.assertEqual(job.operation, Job.OP_EDIT)
+
+        with patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=side_effect)):
+            resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                    json.dumps(params),
+                                    'application/json')
+
+            self.assertEqual(resp.status_code, 200)

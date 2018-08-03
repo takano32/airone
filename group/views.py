@@ -1,5 +1,6 @@
 import io
 import json
+import yaml
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
@@ -8,7 +9,7 @@ from django.http.response import JsonResponse
 from group.models import Group
 
 from airone.lib.http import HttpResponseSeeOther
-from airone.lib.http import http_get, http_post
+from airone.lib.http import http_get, http_post, http_file_upload
 from airone.lib.http import render
 from airone.lib.http import get_download_response
 from airone.lib.http import check_superuser
@@ -16,7 +17,6 @@ from airone.lib.http import check_superuser
 from user.models import User
 from user.admin import UserResource
 from .admin import GroupResource
-
 
 @http_get
 def index(request):
@@ -183,10 +183,7 @@ def import_user_and_group(request):
 
 @http_file_upload
 @check_superuser
-def do_import_user_and_group(request):
-    if request.FILES['file'].size >= CONFIG.LIMIT_FILE_SIZE:
-        return HttpResponse("File size over", status=400)
-
+def do_import_user_and_group(request, context):
     try:
         data = yaml.load(context)
     except yaml.parser.ParserError:
@@ -208,16 +205,25 @@ def do_import_user_and_group(request):
             return HttpResponse("Group name is required", status=400)
 
         if 'id' in group_data:
-            # update group
+            # update group by id
             group = Group.objects.filter(id=group_data['id']).first()
             if not group:
                 return HttpResponse("Specified id group does not exist(id:%s, group:%s)" %
                                     (group_data['id'], group_data['name']), status=400)
+
+            # check new name is not used
+            if Group.objects.filter(name=group_data['name']).count() > 0:
+                return HttpResponse("New group name is already used(id:%s, group:%s->%s)" %
+                                    (group_data['id'], group.name, group_data['name']), status=400)
+
             group.name = group_data['name']
             group.save()
         else:
-            # create group
-            group = Group(name=group_data['name'])
+            # update group by name
+            group = Group.objects.filter(name=group_data['name']).first()
+            if not group:
+                # create group
+                group = Group(name=group_data['name'])
             group.save()
 
     # update or create user
@@ -233,18 +239,24 @@ def do_import_user_and_group(request):
             if not user:
                 return HttpResponse("Specified id user does not exist(id:%s, user:%s)" %
                                     (user_data['id'], user_data['username']), status=400)
+            if User.objects.filter(username=user_data['username']).count() > 0:
+                return HttpResponse("New username is already used(id:%s, user:%s->%s)" %
+                                    (user_data['id'], user.username, user_data['name']), status=400)
         else:
             # update user by username
             user = User.objects.filter(username=user_data['username']).first()
             if not user:
                 # create user
                 user = User(username=user_data['username'])
+                user.save()
 
         user.username = user_data['username']
         user.email = user_data['email']
 
         new_groups = []
         for group_name in user_data['groups'].split(","):
+            if group_name == "":
+                continue
             new_group = Group.objects.filter(name=group_name).first()
             if not new_group:
                 return HttpResponse("Specified group does not exist(user:%s, group:%s)" %
@@ -253,3 +265,6 @@ def do_import_user_and_group(request):
 
         user.groups = new_groups
         user.save()
+
+
+    return HttpResponseSeeOther('/group/')

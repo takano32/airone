@@ -570,6 +570,32 @@ class ViewTest(AironeViewTest):
         self.assertEqual(len(obj['Entity']), 1)
         self.assertEqual(obj['Entity'][0]['name'], 'entity1')
 
+    def test_export_data_with_utf8(self):
+        user = self.admin_login()
+
+        # create entity with unicode
+        entity1 = Entity.objects.create(name='\\u30a8\\u30f3\\u30c6\\u30a3\\u30c6\\u30a3',
+                                        note='hoge', created_user=user)
+        for name in ['foo']:
+            entity1.attrs.add(EntityAttr.objects.create(name=name,
+                                                        type=AttrTypeStr,
+                                                        created_user=user,
+                                                        parent_entity=entity1))
+
+        # exported data is utf-8
+        resp = self.client.get(reverse('entity:export'))
+        self.assertEqual(resp.status_code, 200)
+
+        # convert utf-8 to unicode
+        obj = yaml.load(resp.content)
+
+        self.assertTrue(list(filter(lambda x: (
+                x['name'] == 'foo' and
+                x['entity'] == '\\u30a8\\u30f3\\u30c6\\u30a3\\u30c6\\u30a3' and
+                x['type'] == AttrTypeStr and
+                x['refer'] == ''
+            ), obj['EntityAttr'])))
+
     def test_post_delete(self):
         user1 = self.admin_login()
 

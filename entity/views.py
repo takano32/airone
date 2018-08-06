@@ -1,6 +1,7 @@
 import logging
 import re
 import io
+import yaml
 
 from django.http import HttpResponse
 from django.http.response import JsonResponse
@@ -12,7 +13,6 @@ from .models import Entity
 from .models import EntityAttr
 from user.models import User, History
 from entry.models import Entry, Attribute, AttributeValue
-from entity.admin import EntityResource, EntityAttrResource
 
 from airone.lib.types import AttrTypes, AttrTypeValue
 from airone.lib.http import HttpResponseSeeOther
@@ -294,17 +294,35 @@ def export(request):
 
     output = io.StringIO()
 
-    output.write("Entity: \n")
-    output.write(EntityResource().export(get_permitted_objects(user,
-                                                               Entity,
-                                                               ACLType.Readable)).yaml)
+    data = {
+        "Entity": [],
+        "EntityAttr": []
+    }
 
-    output.write("\n")
-    output.write("EntityAttr: \n")
-    output.write(EntityAttrResource().export(get_permitted_objects(user,
-                                                                   EntityAttr,
-                                                                   ACLType.Readable)).yaml)
+    entities = get_permitted_objects(user, Entity, ACLType.Readable)
+    for entity in entities:
+        data["Entity"].append({
+            "created_user": entity.created_user.username,
+            "id": entity.id,
+            "name": entity.name,
+            "note": entity.note,
+            "status": entity.status,
+        })
 
+
+    attrs = get_permitted_objects(user, EntityAttr, ACLType.Readable)
+    for attr in attrs:
+        data["EntityAttr"].append({
+            "created_user": attr.created_user.username,
+            "entity": attr.parent_entity.name,
+            "id": attr.id,
+            "is_mandatory": attr.is_mandatory,
+            "name": attr.name,
+            "refer": ",".join(list(map(lambda x: x.name, attr.referral.filter(is_active=True)))),
+            "type": attr.type,
+        })
+
+    output.write(yaml.dump(data, default_flow_style=False, allow_unicode=True))
     return get_download_response(output, 'entity.yaml')
 
 @http_post([])

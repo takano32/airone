@@ -168,13 +168,26 @@ def export(request):
 
     output = io.StringIO()
 
-    output.write("Group: \n")
-    output.write(GroupResource().export().yaml)
+    data = {
+        "Group": [],
+        "User": [],
+    }
 
-    output.write("\n")
-    output.write("User: \n")
-    output.write(UserResource().export().yaml)
+    for group in Group.objects.filter(is_active=True):
+        data["Group"].append({
+            "id": group.id,
+            "name": group.name,
+        })
 
+    for user in User.objects.filter(is_active=True):
+        data["User"].append({
+            "email": user.email,
+            "groups": ",".join(list(map(lambda x: x.name, user.groups.filter(group__is_active=True)))),
+            "id": user.id,
+            "username": user.username,
+        })
+
+    output.write(yaml.dump(data, default_flow_style=False, allow_unicode=True))
     return get_download_response(output, 'user_group.yaml')
 
 @http_get

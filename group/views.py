@@ -186,7 +186,7 @@ def import_user_and_group(request):
 def do_import_user_and_group(request, context):
     try:
         data = yaml.load(context)
-    except yaml.parser.ParserError:
+    except (yaml.parser.ParserError, yaml.scanner.ScannerError):
         return HttpResponse("Couldn't parse uploaded file", status=400)
 
     # complement if empty in request
@@ -212,7 +212,7 @@ def do_import_user_and_group(request, context):
                                     (group_data['id'], group_data['name']), status=400)
 
             # check new name is not used
-            if Group.objects.filter(name=group_data['name']).count() > 0:
+            if (group.name != group_data['name']) and (Group.objects.filter(name=group_data['name']).count() > 0):
                 return HttpResponse("New group name is already used(id:%s, group:%s->%s)" %
                                     (group_data['id'], group.name, group_data['name']), status=400)
 
@@ -239,9 +239,9 @@ def do_import_user_and_group(request, context):
             if not user:
                 return HttpResponse("Specified id user does not exist(id:%s, user:%s)" %
                                     (user_data['id'], user_data['username']), status=400)
-            if User.objects.filter(username=user_data['username']).count() > 0:
+            if (user.username != user_data['username']) and (User.objects.filter(username=user_data['username']).count() > 0):
                 return HttpResponse("New username is already used(id:%s, user:%s->%s)" %
-                                    (user_data['id'], user.username, user_data['name']), status=400)
+                                    (user_data['id'], user.username, user_data['username']), status=400)
         else:
             # update user by username
             user = User.objects.filter(username=user_data['username']).first()

@@ -15,8 +15,6 @@ from airone.lib.http import get_download_response
 from airone.lib.http import check_superuser
 
 from user.models import User
-from user.admin import UserResource
-from .admin import GroupResource
 
 @http_get
 def index(request):

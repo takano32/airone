@@ -22,6 +22,7 @@ def index(request):
 
     context = {
         'jobs': [{
+            'id': x.id,
             'target': x.target,
             'text': x.text,
             'status': x.status,

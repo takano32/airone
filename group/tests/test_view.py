@@ -54,14 +54,14 @@ class ViewTest(AironeViewTest):
         user2.groups.add(group)
         user2.delete()
         user2.save()
-                
+
         resp = self.client.get(reverse('group:index'))
         self.assertEqual(resp.status_code, 200)
 
         root = ElementTree.fromstring(resp.content.decode('utf-8'))
         self.assertEqual(len(root.findall('.//tbody/tr/td/ul/li')), 1,
                          "1 active user should be displayed")
-        
+
     def test_create_get(self):
         self.admin_login()
 
@@ -79,7 +79,7 @@ class ViewTest(AironeViewTest):
         self.admin_login()
 
         group_count = self._get_group_count()
-        
+
         user1 = self._create_user('hoge')
         user2 = self._create_user('fuga')
 
@@ -174,10 +174,10 @@ class ViewTest(AironeViewTest):
                                 json.dumps({}),
                                 'application/json')
 
-        
+
         user1 = User.objects.get(username="user1")
         user2 = User.objects.get(username="user2")
-        
+
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(self._get_group_count(), group_count,
                          "group should not be decreased because of soft-delete")
@@ -332,7 +332,23 @@ class ViewTest(AironeViewTest):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 400)
-        
+
+    def test_import_user_and_group(self):
+        user = self.admin_login()
+
+        fp = self.open_fixture_file('import_user_and_group.yaml')
+        resp = self.client.post(reverse('group:do_import_user_and_group'), {'file': fp})
+
+        self.assertEqual(resp.status_code, 303)
+
+        self.assertEqual(Group.objects.filter(name='Group1').count(), 1)
+        self.assertEqual(Group.objects.filter(name='Group2').count(), 1)
+
+        user1 = User.objects.filter(username='User1').first()
+
+        self.assertEqual(user1.email, 'user1@example.net')
+        self.assertEqual(user1.groups.count(), 2)
+
     # utility functions
     def _create_user(self, name):
         user = User(username=name)

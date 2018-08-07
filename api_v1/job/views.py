@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
+from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authentication import BasicAuthentication
@@ -8,6 +9,7 @@ from rest_framework.authentication import SessionAuthentication
 from job.models import Job
 from job.settings import CONFIG as JOB_CONFIG
 from user.models import User
+from entry.tasks import create_entry_attrs, edit_entry_attrs, delete_entry, copy_entry
 
 from api_v1.auth import AironeTokenAuth
 
@@ -54,3 +56,32 @@ class JobAPI(APIView):
             'result': jobs,
             'constant': constant,
         }, content_type='application/json; charset=UTF-8')
+
+class SpecificJobAPI(APIView):
+    authentication_classes = (AironeTokenAuth, BasicAuthentication, SessionAuthentication,)
+
+    def post(self, request, job_id, format=None):
+        job = Job.objects.filter(id=job_id).first()
+        if not job:
+            return Response('Failed to find Job(id=%s)' % job_id, status=status.HTTP_400_BAD_REQUEST)
+
+        if job.status == Job.STATUS_DONE:
+            return Response('Target job has already been done')
+
+        if job.operation == Job.OP_CREATE:
+            create_entry_attrs(job.user.id, job.target.id, job.id)
+
+        elif job.operation == Job.OP_EDIT:
+            edit_entry_attrs(job.user.id, job.target.id, job.id)
+
+        elif job.operation == Job.OP_COPY:
+            copy_entry(job.user.id, job.target.id, job.id)
+
+        elif job.operation == Job.OP_DELETE:
+            delete_entry(job.target.id, job.id)
+
+        else:
+            return Response('Job(id=%d) has unsupported operation(%d)' % (job_id, job.operation),
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        return Response('Success to run command')

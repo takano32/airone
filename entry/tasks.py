@@ -1,5 +1,6 @@
 import logging
 import custom_view
+import json
 
 from airone.lib.acl import ACLType
 from airone.lib.types import AttrTypeValue
@@ -81,102 +82,117 @@ def _convert_data_value(attr, info):
             return recv_value
 
 @app.task(bind=True)
-def create_entry_attrs(self, user_id, entry_id, recv_data, job_id):
-    user = User.objects.get(id=user_id)
-    entry = Entry.objects.get(id=entry_id)
+def create_entry_attrs(self, user_id, entry_id, job_id):
     job = Job.objects.get(id=job_id)
 
-    # Create new Attributes objects based on the specified value
-    for entity_attr in entry.schema.attrs.filter(is_active=True):
-        # skip for unpermitted attributes
-        if not entity_attr.is_active or not user.has_permission(entity_attr, ACLType.Readable):
-            continue
+    if job.status != Job.STATUS_DONE:
+        user = User.objects.get(id=user_id)
+        entry = Entry.objects.get(id=entry_id)
+        recv_data = json.loads(job.params)
+        # Create new Attributes objects based on the specified value
+        for entity_attr in entry.schema.attrs.filter(is_active=True):
+            # skip for unpermitted attributes
+            if not entity_attr.is_active or not user.has_permission(entity_attr, ACLType.Readable):
+                continue
 
-        # create Attibute object that contains AttributeValues
-        attr = entry.add_attribute_from_base(entity_attr, user)
+            # create Attibute object that contains AttributeValues
+            attr = entry.add_attribute_from_base(entity_attr, user)
 
-        # make an initial AttributeValue object if the initial value is specified
-        attr_data = [x for x in recv_data['attrs'] if int(x['id']) == attr.schema.id][0]
+            # make an initial AttributeValue object if the initial value is specified
+            attr_data = [x for x in recv_data['attrs'] if int(x['id']) == attr.schema.id][0]
 
-        # register new AttributeValue to the "attr"
-        try:
-            attr.add_value(user, _convert_data_value(attr, attr_data))
-        except ValueError as e:
-            Logger.warning('(%s) attr_data: %s' % (e, str(attr_data)))
+            # register new AttributeValue to the "attr"
+            try:
+                attr.add_value(user, _convert_data_value(attr, attr_data))
+            except ValueError as e:
+                Logger.warning('(%s) attr_data: %s' % (e, str(attr_data)))
 
-    if custom_view.is_custom_after_create_entry(entry.schema.name):
-        custom_view.call_custom_after_create_entry(entry.schema.name, recv_data, user, entry)
+        # Delete duplicate attrs because this processing may execute concurrently
+        for entity_attr in entry.schema.attrs.filter(is_active=True):
+            if entry.attrs.filter(schema=entity_attr, is_active=True).count() > 1:
+                query = entry.attrs.filter(schema=entity_attr, is_active=True)
+                query.exclude(id=query.first().id).delete()
 
-    # register entry information to Elasticsearch
-    entry.register_es()
+        if custom_view.is_custom_after_create_entry(entry.schema.name):
+            custom_view.call_custom_after_create_entry(entry.schema.name, recv_data, user, entry)
 
-    # clear flag to specify this entry has been completed to ndcreate
-    entry.del_status(Entry.STATUS_CREATING)
+        # register entry information to Elasticsearch
+        entry.register_es()
 
-    # update job status and save it
-    job.status = Job.STATUS_DONE
-    job.save()
+        # clear flag to specify this entry has been completed to ndcreate
+        entry.del_status(Entry.STATUS_CREATING)
+
+        # update job status and save it
+        job.status = Job.STATUS_DONE
+        job.save()
 
 @app.task(bind=True)
-def edit_entry_attrs(self, user_id, entry_id, recv_data, job_id):
-    user = User.objects.get(id=user_id)
-    entry = Entry.objects.get(id=entry_id)
+def edit_entry_attrs(self, user_id, entry_id, job_id):
     job = Job.objects.get(id=job_id)
 
-    for info in recv_data['attrs']:
-        attr = Attribute.objects.get(id=info['id'])
+    if job.status != Job.STATUS_DONE:
+        user = User.objects.get(id=user_id)
+        entry = Entry.objects.get(id=entry_id)
 
-        try:
-            converted_value = _convert_data_value(attr, info)
-        except ValueError as e:
-            Logger.warning('(%s) attr_data: %s' % (e, str(info)))
-            continue
+        recv_data = json.loads(job.params)
+        for info in recv_data['attrs']:
+            attr = Attribute.objects.get(id=info['id'])
 
-        # Check a new update value is specified, or not
-        if not attr.is_updated(converted_value):
-            continue
+            try:
+                converted_value = _convert_data_value(attr, info)
+            except ValueError as e:
+                Logger.warning('(%s) attr_data: %s' % (e, str(info)))
+                continue
 
-        # Get current latest value to reconstruct referral cache
-        old_value = attr.get_latest_value()
+            # Check a new update value is specified, or not
+            if not attr.is_updated(converted_value):
+                continue
 
-        # Add new AttributeValue instance to Attribute instnace
-        new_value = attr.add_value(user, converted_value)
+            # Get current latest value to reconstruct referral cache
+            old_value = attr.get_latest_value()
 
-    if custom_view.is_custom_after_edit_entry(entry.schema.name):
-        custom_view.call_custom_after_edit_entry(entry.schema.name, recv_data, user, entry)
+            # Add new AttributeValue instance to Attribute instnace
+            new_value = attr.add_value(user, converted_value)
 
-    # update entry information to Elasticsearch
-    entry.register_es()
+        if custom_view.is_custom_after_edit_entry(entry.schema.name):
+            custom_view.call_custom_after_edit_entry(entry.schema.name, recv_data, user, entry)
 
-    # clear flag to specify this entry has been completed to edit
-    entry.del_status(Entry.STATUS_EDITING)
+        # update entry information to Elasticsearch
+        entry.register_es()
 
-    # update job status and save it
-    job.status = Job.STATUS_DONE
-    job.save()
+        # clear flag to specify this entry has been completed to edit
+        entry.del_status(Entry.STATUS_EDITING)
+
+        # update job status and save it
+        job.status = Job.STATUS_DONE
+        job.save()
 
 @app.task(bind=True)
 def delete_entry(self, entry_id, job_id):
-    entry = Entry.objects.get(id=entry_id)
     job = Job.objects.get(id=job_id)
 
-    entry.delete()
+    if job.status != Job.STATUS_DONE:
+        entry = Entry.objects.get(id=entry_id)
+        entry.delete()
 
-    # update job status and save it
-    job.status = Job.STATUS_DONE
-    job.save()
+        # update job status and save it
+        job.status = Job.STATUS_DONE
+        job.save()
 
 @app.task(bind=True)
-def copy_entry(self, user_id, src_entry_id, dest_entry_names, jobset):
-    user = User.objects.get(id=user_id)
-    src_entry = Entry.objects.get(id=src_entry_id)
+def copy_entry(self, user_id, src_entry_id, job_id):
+    job = Job.objects.get(id=job_id)
 
-    for name in dest_entry_names:
-        if not Entry.objects.filter(schema=src_entry.schema, name=name).exists():
+    if job.status != Job.STATUS_DONE:
+        user = User.objects.get(id=user_id)
+        src_entry = Entry.objects.get(id=src_entry_id)
+
+        name = job.params
+        dest_entry = Entry.objects.filter(schema=src_entry.schema, name=name).first()
+        if not dest_entry:
             dest_entry = src_entry.clone(user, name=name)
             dest_entry.register_es()
 
-        job = Job.objects.get(id=jobset[name])
         job.target = dest_entry
         job.status = Job.STATUS_DONE
         job.text = 'original entry: %s' % src_entry.name

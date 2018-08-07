@@ -2712,7 +2712,7 @@ class ViewTest(AironeViewTest):
             'attrs': [],
         }
 
-        def side_effect(user_id, entry_id, recv_data, job_id):
+        def side_effect(user_id, entry_id, job_id):
             job = Job.objects.get(id=job_id)
 
             self.assertEqual(job.user.id, user_id)

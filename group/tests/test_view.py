@@ -212,6 +212,34 @@ class ViewTest(AironeViewTest):
         self.assertEqual(len(obj['User']), 3)
         self.assertEqual(len(obj['Group']), 2)
 
+    def test_export_deleted_group(self):
+        self.admin_login()
+
+        groups = []
+        users = []
+
+        # create 3 group and 3 user
+        for i in range(3):
+            groups.append(self._create_group("group%d" % (i+1)))
+            users.append(self._create_user("user%d" % (i+1)))
+
+        # delete 1 group
+        groups[-1].delete()
+        groups[-1].save()
+
+        # delete 1 user
+        users[-1].delete()
+        users[-1].save()
+
+        resp = self.client.get(reverse('group:export'))
+        self.assertEqual(resp.status_code, 200)
+
+        obj = yaml.load(resp.content)
+
+        self.assertEqual(len(obj['User']), self._get_active_user_count())
+        self.assertEqual(len(obj['Group']), 2)
+
+
     def test_create_group_by_guest_user(self):
         user = self.guest_login()
 

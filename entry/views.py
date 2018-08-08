@@ -186,6 +186,9 @@ def edit(request, entry_id):
     if entry.get_status(Entry.STATUS_CREATING):
         return HttpResponse('Target entry is now under processing', status=400)
 
+    if not entry.is_active:
+        return HttpResponse('Target entry has been deleted', status=400)
+
     entry.complement_attrs(user)
 
     context = {
@@ -268,6 +271,12 @@ def show(request, entry_id):
     except ObjectDoesNotExist:
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
+    if entry.get_status(Entry.STATUS_CREATING):
+        return HttpResponse('Target entry is now under processing', status=400)
+
+    if not entry.is_active:
+        return HttpResponse('Target entry has been deleted', status=400)
+
     # create new attributes which are appended after creation of Entity
     entry.complement_attrs(user)
 
@@ -312,6 +321,12 @@ def history(request, entry_id):
     except ObjectDoesNotExist:
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
+    if entry.get_status(Entry.STATUS_CREATING):
+        return HttpResponse('Target entry is now under processing', status=400)
+
+    if not entry.is_active:
+        return HttpResponse('Target entry has been deleted', status=400)
+
     # get all values that are set in the past
     value_history = sum([x.get_value_history(user) for x in entry.attrs.filter(is_active=True)], [])
 
@@ -332,6 +347,12 @@ def refer(request, entry_id):
         entry = Entry.objects.extra(where=['status & %d = 0' % Entry.STATUS_CREATING]).get(id=entry_id)
     except ObjectDoesNotExist:
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
+
+    if entry.get_status(Entry.STATUS_CREATING):
+        return HttpResponse('Target entry is now under processing', status=400)
+
+    if not entry.is_active:
+        return HttpResponse('Target entry has been deleted', status=400)
 
     # get referred entries and count of them
     referred_objects = entry.get_referred_objects()
@@ -484,6 +505,13 @@ def copy(request, entry_id):
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
     entry = Entry.objects.get(id=entry_id)
+
+    # prevent to show edit page under the creating processing
+    if entry.get_status(Entry.STATUS_CREATING) or  entry.get_status(Entry.STATUS_EDITING):
+        return HttpResponse('Target entry is now under processing', status=400)
+
+    if not entry.is_active:
+        return HttpResponse('Target entry has been deleted', status=400)
 
     context = {
         'form_url': '/entry/do_copy/%s' % entry.id,

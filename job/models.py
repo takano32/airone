@@ -40,8 +40,11 @@ class Job(models.Model):
     # This parameter will be used for supplementing this job
     text = models.TextField()
 
+    # This has serialized parameters to which user sent
+    params = models.TextField()
+
     @classmethod
-    def _create_new_job(kls, user, target, operation, text):
+    def _create_new_job(kls, user, target, operation, text, params):
         t_type = kls.TARGET_UNKNOWN
         if isinstance(target, Entry):
             t_type = kls.TARGET_ENTRY
@@ -53,22 +56,23 @@ class Job(models.Model):
             'status': kls.STATUS_PROCESSING,
             'operation': operation,
             'text': text,
+            'params': params,
         }
 
         return kls.objects.create(**params)
 
     @classmethod
-    def new_create(kls, user, target, text=''):
-        return kls._create_new_job(user, target, kls.OP_CREATE, text)
+    def new_create(kls, user, target, text='', params={}):
+        return kls._create_new_job(user, target, kls.OP_CREATE, text, params)
 
     @classmethod
-    def new_edit(kls, user, target, text=''):
-        return kls._create_new_job(user, target, kls.OP_EDIT, text)
+    def new_edit(kls, user, target, text='', params={}):
+        return kls._create_new_job(user, target, kls.OP_EDIT, text, params)
 
     @classmethod
-    def new_delete(kls, user, target, text=''):
-        return kls._create_new_job(user, target, kls.OP_DELETE, text)
+    def new_delete(kls, user, target, text='', params={}):
+        return kls._create_new_job(user, target, kls.OP_DELETE, text, params)
 
     @classmethod
-    def new_copy(kls, user, target, text=''):
-        return kls._create_new_job(user, target, kls.OP_COPY, text)
+    def new_copy(kls, user, target, text='', params={}):
+        return kls._create_new_job(user, target, kls.OP_COPY, text, params)

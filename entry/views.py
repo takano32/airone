@@ -1,6 +1,7 @@
 import io
 import csv
 import yaml
+import json
 
 import custom_view
 
@@ -160,10 +161,10 @@ def do_create(request, entity_id, recv_data):
     entry.save()
 
     # Create a new job
-    job = Job.new_create(user, entry)
+    job = Job.new_create(user, entry, params=json.dumps(recv_data))
 
     # register a task to create Attributes for the created entry
-    val = create_entry_attrs.delay(user.id, entry.id, recv_data, job.id)
+    create_entry_attrs.delay(user.id, entry.id, job.id)
 
     return JsonResponse({
         'entry_id': entry.id,
@@ -246,10 +247,10 @@ def do_edit(request, entry_id, recv_data):
     entry.save()
 
     # Create a new job
-    job = Job.new_edit(user, entry)
+    job = Job.new_edit(user, entry, params=json.dumps(recv_data))
 
     # register a task to edit entry attributes
-    edit_entry_attrs.delay(user.id, entry.id, recv_data, job.id)
+    edit_entry_attrs.delay(user.id, entry.id, job.id)
 
     return JsonResponse({
         'entry_id': entry.id,
@@ -509,8 +510,6 @@ def do_copy(request, entry_id, recv_data):
 
     ret = []
     entry = Entry.objects.get(id=entry_id)
-    dest_entry_names = []
-    jobset = {}
     for new_name in [x for x in recv_data['entries'].split('\n') if x]:
         if Entry.objects.filter(schema=entry.schema, name=new_name).exists():
             ret.append({
@@ -518,20 +517,13 @@ def do_copy(request, entry_id, recv_data):
                 'msg': 'A same named entry (%s) already exists' % new_name,
             })
             continue
-        if new_name in dest_entry_names:
-            ret.append({
-                'status': 'fail',
-                'msg': 'Same name(%s) exists more than once in the request' % new_name,
-            })
-            continue
-        dest_entry_names.append(new_name)
+
+        # make a new job to copy entry
+        copy_entry.delay(user.id, entry_id, Job.new_copy(user, entry, text=new_name, params=new_name).id)
+
         ret.append({
             'status': 'success',
             'msg': "Success to create new entry '%s'" % new_name,
         })
-
-        jobset[new_name] = Job.new_copy(user, entry, text=new_name).id
-
-    copy_entry.delay(user.id, entry_id, dest_entry_names, jobset)
 
     return JsonResponse({'results': ret})

@@ -12,6 +12,7 @@
 {% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="container-fluid">
   <div class="row">
     <div class="col">
@@ -35,6 +36,7 @@
             <th>実行時間</th>
             <th>実行日時</th>
             <th>備考</th>
+            <th>再実行</th>
           </tr>
         </thead>
         <tbody id='entry_container'>
@@ -79,6 +81,13 @@
             <!-- set text -->
             <td>{{ job.text }}</td>
 
+            <!-- set re-run button if it's under executing -->
+            <td>
+              {% if job.status != JOB.STATUS.DONE %}
+              <button type='button' class='btn btn-info btn-sm rerun-job' value='{{ job.id }}'>Re-run</button>
+              {% endif %}
+            </td>
+
           </tr>
           {% endfor %}
         </tbody>
@@ -89,4 +98,21 @@
 {% endblock %}
 
 {% block script %}
+<script>
+$(document).ready(function() {
+
+  $('.rerun-job').on('click', function(e) {
+    $(this).prop("disabled", true);
+
+    $.ajax({
+      type: 'POST',
+      url: `/api/v1/job/run/${$(this).val()}`,
+    }).done(function(data) {
+      location.reload();
+    }).fail(function(data) {
+      MessageBox.error(data);
+    });
+  });
+});
+</script>
 {% endblock %}

@@ -2727,3 +2727,34 @@ class ViewTest(AironeViewTest):
                                     'application/json')
 
             self.assertEqual(resp.status_code, 200)
+
+    @patch('entry.views.delete_entry.delay', Mock(side_effect=tasks.delete_entry))
+    def test_not_to_show_deleted_entry(self):
+        user = self.guest_login()
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entry = Entry.objects.create(name='entry', created_user=user, schema=entity)
+
+        # delete entry and check each page couldn't be shown
+        entry.delete()
+
+        self.assertEqual(self.client.get(reverse('entry:show', args=[entry.id])).status_code, 400)
+        self.assertEqual(self.client.get(reverse('entry:edit', args=[entry.id])).status_code, 400)
+        self.assertEqual(self.client.get(reverse('entry:copy', args=[entry.id])).status_code, 400)
+        self.assertEqual(self.client.get(reverse('entry:refer', args=[entry.id])).status_code, 400)
+        self.assertEqual(self.client.get(reverse('entry:history', args=[entry.id])).status_code, 400)
+
+    def test_not_to_show_under_processing_entry(self):
+        user = self.guest_login()
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entry = Entry.objects.create(name='entry', created_user=user, schema=entity)
+
+        # update status of entry and check each page couldn't be shown
+        entry.set_status(Entry.STATUS_EDITING)
+        self.assertEqual(self.client.get(reverse('entry:copy', args=[entry.id])).status_code, 400)
+
+        entry.set_status(Entry.STATUS_CREATING)
+        self.assertEqual(self.client.get(reverse('entry:show', args=[entry.id])).status_code, 400)
+        self.assertEqual(self.client.get(reverse('entry:edit', args=[entry.id])).status_code, 400)
+        self.assertEqual(self.client.get(reverse('entry:copy', args=[entry.id])).status_code, 400)
+        self.assertEqual(self.client.get(reverse('entry:refer', args=[entry.id])).status_code, 400)
+        self.assertEqual(self.client.get(reverse('entry:history', args=[entry.id])).status_code, 400)

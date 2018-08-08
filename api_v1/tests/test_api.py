@@ -121,11 +121,24 @@ class APITest(AironeViewTest):
             'attrs': {},
         }
 
-        resp = self.client.post('/api/v1/entry', json.dumps(params), 'application/json', **{
-            'HTTP_AUTHORIZATION': 'Token %s' % str(admin.token),
-        })
+        def side_effect():
+            entry = Entry.objects.get(schema=entity, name='Entry')
+
+            # checking that CREATING flag is set at calling register_es method
+            self.assertTrue(entry.get_status(Entry.STATUS_CREATING))
+
+        with mock.patch.object(Entry, 'register_es', side_effect=side_effect):
+            resp = self.client.post('/api/v1/entry', json.dumps(params), 'application/json', **{
+                'HTTP_AUTHORIZATION': 'Token %s' % str(admin.token),
+            })
+
         self.assertEqual(Entry.objects.filter(schema=entity).count(), 1)
-        self.assertEqual(Entry.objects.filter(schema=entity).first().name, 'Entry')
+
+        entry = Entry.objects.filter(schema=entity).first()
+        self.assertEqual(entry.name, 'Entry')
+
+        # checking that CREATING flag is unset after finishing this processing
+        self.assertFalse(entry.get_status(Entry.STATUS_CREATING))
 
     def test_post_entry_with_invalid_params(self):
         admin = self.admin_login()

@@ -43,13 +43,16 @@ class EntryAPI(APIView):
         if 'id' in sel.validated_data:
             entry = Entry.objects.get(id=sel.validated_data['id'])
             entry.name = sel.validated_data['name']
-            entry.save()
+            entry.set_status(Entry.STATUS_EDITING)
 
         elif Entry.objects.filter(**entry_condition).exists():
             entry = Entry.objects.get(**entry_condition)
+            entry.set_status(Entry.STATUS_EDITING)
 
         else:
-            entry = Entry.objects.create(created_user=user, **entry_condition)
+            entry = Entry.objects.create(created_user=user,
+                                         status=Entry.STATUS_CREATING,
+                                         **entry_condition)
 
         entry.complement_attrs(user)
         for name, value in sel.validated_data['attrs'].items():
@@ -63,6 +66,8 @@ class EntryAPI(APIView):
 
         # register target Entry to the Elasticsearch
         entry.register_es()
+
+        entry.del_status(Entry.STATUS_CREATING | Entry.STATUS_EDITING)
 
         return Response({'result': entry.id})
 

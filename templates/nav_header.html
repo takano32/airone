@@ -2,6 +2,9 @@
   <!-- logo -->
   <div class="mr-auto">
     <a href="/" class="navbar-brand">AirOne(alpha)</a>
+    {% if version %}
+    <span class="navbar-text align-top">{{version}}</span>
+    {% endif %}
   </div>
   <div>
     <ul class="navbar-nav">

@@ -28,6 +28,12 @@ class ViewTest(AironeViewTest):
         self.assertTrue('results' in resp.json())
         self.assertEqual(len(resp.json()['results']), CONFIG.MAX_LIST_ENTRIES)
 
+        # send request with empty keyword
+        resp = self.client.get(reverse('entry:api_v1:get_entries', args=[entity.id]), {'keyword': ''})
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue('results' in resp.json())
+        self.assertEqual(len(resp.json()['results']), CONFIG.MAX_LIST_ENTRIES)
+
         # send request with keyword parameter
         resp = self.client.get(reverse('entry:api_v1:get_entries', args=[entity.id]),
                                {'keyword': '10'})
@@ -170,7 +176,8 @@ class ViewTest(AironeViewTest):
 
         # try to get entries without keyword
         resp = self.client.get(reverse('entry:api_v1:get_attr_referrals', args=[attr.id]))
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.json()['results']), CONFIG.MAX_LIST_REFERRALS)
 
         # specify invalid Attribute ID
         resp = self.client.get(reverse('entry:api_v1:get_attr_referrals', args=[9999]))

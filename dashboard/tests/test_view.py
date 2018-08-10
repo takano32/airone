@@ -62,6 +62,11 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(len(resp.context['results']), 0)
 
+    def test_show_dashboard_with_airone_user(self):
+        resp = self.client.get(reverse('dashboard:index'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsNotNone(resp.context["version"])
+
     def test_show_dashboard_with_django_user(self):
         # create test user which is authenticated by Django, not AirOne
         user = DjangoUser(username='django-user')

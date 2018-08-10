@@ -33,7 +33,7 @@ CELERY_RESULT_BACKEND = 'rpc://'
 CELERY_TASK_SERIALIZER = 'json'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 
@@ -175,3 +175,4 @@ if 'test' in sys.argv or os.getenv('AIRONE_BACKEND_DB') == 'sqlite3':
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': os.path.join(BASE_DIR, 'db.sqlite3')
     }
+    DEBUG = True

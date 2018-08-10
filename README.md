@@ -95,6 +95,59 @@ Then, you can execute ElasticSearch search like that.
 $ elasticsearch-6.2.3/bin/elasticsearch
 ```
 
+### Nginx
+Install Nginx by package manager like this.
+```
+$ sudo apt-get install nginx
+```
+
+Create Self-Signed SSL Certificate and key-pair.
+```
+$ openssl genrsa 2048 > server.key
+$ openssl req -new -key server.key > server.csr
+... (set appropriate configuration)
+
+$ openssl x509 -days 3650 -req -signkey server.key < server.csr > server.crt
+$ sudo mkdir /etc/nginx/ssl
+$ sudo mv server* /etc/nginx/ssl
+```
+
+Write following configuration for AirOne on Nginx at `/etc/nginx/conf.d/airone.conf`.
+```
+upstream airone {
+  server localhost:8080;
+}
+
+server {
+  listen 443 ssl;
+
+  ssl_certificate /etc/nginx/ssl/server.crt;
+  ssl_certificate_key /etc/nginx/ssl/server.key;
+
+  proxy_set_header    Host    $host;
+  proxy_set_header    X-Real-IP    $remote_addr;
+  proxy_set_header    X-Forwarded-Host       $host;
+  proxy_set_header    X-Forwarded-Server    $host;
+  proxy_set_header    X-Forwarded-For    $proxy_add_x_forwarded_for;
+
+  location / {
+    rewrite ^/(.*) /$1 break;
+
+    proxy_pass    http://airone/;
+  }
+
+  location /static {
+    # Please change this appropriate path on your environment
+    alias /home/ubuntu/airone/static;
+  }
+
+  access_log /var/log/nginx/airone.ssl.access.log combined;
+  error_log /var/log/nginx/airone.ssl.error.log;
+}
+```
+
+This includes the configuration to proxy HTTP request to AirOne and cache static files. The static file path indicates the static directory which is in the top of AirOne local repository. If necessary, please fix this value depending on your environment.
+
 ## Tools
 There are some heler scripts about AirOne in the `tools` directory.
 

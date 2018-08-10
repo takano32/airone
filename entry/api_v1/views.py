@@ -1,5 +1,6 @@
 import re
 
+from django.db.models import Q
 from django.http import HttpResponse
 from django.http.response import JsonResponse
 from airone.lib.http import http_get, http_post
@@ -117,11 +118,15 @@ def search_entries(request, entity_ids, recv_data):
 def get_entries(request, entity_ids):
     total_entries = []
     for entity_id in [x for x in entity_ids.split(',') if x and Entity.objects.filter(id=x, is_active=True).exists()]:
-        entries = Entry.objects.order_by('name').filter(schema__id=entity_id, is_active=True)
-        if 'keyword' in request.GET:
-            entries = entries.filter(name__regex=request.GET.get('keyword'))
+        keyword = request.GET.get('keyword')
+        if keyword:
+            query_name_regex = Q(name__regex=keyword)
+        else:
+            query_name_regex = Q()
 
-        total_entries += entries.all()
+        total_entries += Entry.objects.order_by('name').filter(Q(schema__id=entity_id, is_active=True), query_name_regex)
+        if(len(total_entries) > CONFIG.MAX_LIST_ENTRIES):
+            break
 
     if(len(total_entries) > CONFIG.MAX_LIST_ENTRIES):
         total_entries = total_entries[0:CONFIG.MAX_LIST_ENTRIES]
@@ -154,14 +159,18 @@ def get_attr_referrals(request, attr_id):
     if not attr.type & AttrTypeValue['object']:
         return HttpResponse('Target Attribute does not referring type', status=400)
 
-    if 'keyword' not in request.GET:
-        return HttpResponse('Keyword is mandatory to response in this request', status=400)
-
     results = []
     for referral in attr.referral.all():
+        keyword = request.GET.get('keyword')
+        if keyword:
+            query_name_regex = Q(name__regex=keyword)
+        else:
+            query_name_regex = Q()
+
         results += [{'id': x.id, 'name': x.name}
-                    for x in Entry.objects.filter(schema=referral,
-                                                  is_active=True,
-                                                  name__regex=request.GET['keyword'])]
+                    for x in Entry.objects.filter(Q(schema=referral, is_active=True), query_name_regex)]
+
+        if len(results) > CONFIG.MAX_LIST_REFERRALS:
+            break
 
     return JsonResponse({'results': results[0:CONFIG.MAX_LIST_REFERRALS]})

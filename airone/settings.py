@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 
 import os
 import sys
+import subprocess
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -154,7 +155,16 @@ LOGIN_REDIRECT_URL='/dashboard/'
 # global settins for AirOne
 AIRONE = {
     'ENABLE_PROFILE': True,
+    'VERSION': 'unknown'
 }
+try:
+    proc = subprocess.Popen('git describe --tags', shell=True, stdout=subprocess.PIPE)
+    outs, errs = proc.communicate(timeout=1)
+    if outs:
+        AIRONE['VERSION'] = outs.strip()
+except:
+    pass
+
 
 CACHES = {
     'default': {

@@ -16,7 +16,7 @@ from job.models import Job
 
 from airone.lib.types import AttrTypes, AttrTypeValue
 from airone.lib.acl import ACLObjType, ACLType
-
+from airone import settings
 
 class HttpResponseSeeOther(HttpResponseRedirect):
     status_code = 303
@@ -206,6 +206,9 @@ def render(request, template, context={}):
     context['STATUS_ENTRY'] = {}
     context['STATUS_ENTRY']['CREATING'] = entry_models.Entry.STATUS_CREATING
     context['STATUS_ENTRY']['EDITING'] = entry_models.Entry.STATUS_EDITING
+
+    # set Version
+    context['version'] = settings.AIRONE['VERSION']
 
     return django_render(request, template, context)
 

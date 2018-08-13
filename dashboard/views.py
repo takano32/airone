@@ -3,7 +3,6 @@ import logging
 import re
 import csv
 import yaml
-import subprocess
 
 import urllib.parse
 
@@ -17,7 +16,6 @@ from airone.lib.types import AttrTypeValue
 from django.http import HttpResponse
 from django.http.response import JsonResponse
 from django.conf import settings
-from django.core.cache import cache
 from entity.admin import EntityResource, EntityAttrResource
 from entry.admin import EntryResource, AttrResource, AttrValueResource
 from entity.models import Entity, EntityAttr
@@ -56,31 +54,8 @@ def index(request):
                 })
 
         context['last_entries'] = history
-        context['version'] = _get_git_version()
 
     return render(request, 'dashboard_user_top.html', context)
-
-def _get_git_version():
-    CACHE_KEY = 'airone_git_version'
-
-    # if cache exists, use the value
-    ver = cache.get(CACHE_KEY)
-    if ver is not None:
-        return ver
-
-    proc = subprocess.Popen('git describe --tags', shell=True, stdout=subprocess.PIPE)
-    outs, errs = proc.communicate(timeout=1)
-
-    if outs:
-        ver = outs.strip()
-    else:
-        ver = 'unknown'
-
-    # cache version string not to run process each time
-    cache.set(CACHE_KEY, ver, None)
-
-    return ver
-
 
 @http_get
 def import_data(request):

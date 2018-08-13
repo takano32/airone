@@ -1587,10 +1587,10 @@ class ViewTest(AironeViewTest):
         # checks referred_object cache is set
         entry = Entry.objects.get(name='entry')
 
-        self.assertEqual(set(list(ref_entry1.get_referred_objects())), set([entry]))
-        self.assertEqual(set(list(ref_entry2.get_referred_objects())), set([entry]))
+        self.assertEqual(list(ref_entry1.get_referred_objects()), [entry])
+        self.assertEqual(list(ref_entry2.get_referred_objects()), [entry])
         self.assertEqual(list(ref_entry3.get_referred_objects()), [])
-        self.assertEqual(ref_entry1.get_referred_objects().count(), 2)
+        self.assertEqual(ref_entry1.get_referred_objects().count(), 1)
         self.assertEqual(ref_entry2.get_referred_objects().count(), 1)
 
         # checks referred_object cache will be updated by unrefering
@@ -1640,9 +1640,9 @@ class ViewTest(AironeViewTest):
 
         # checks referred_object cache is updated by changing referring
         self.assertEqual(list(ref_entry1.get_referred_objects()), [])
-        self.assertEqual(set(ref_entry2.get_referred_objects()), set([entry]))
-        self.assertEqual(set(ref_entry3.get_referred_objects()), set([entry]))
-        self.assertEqual(ref_entry2.get_referred_objects().count(), 2)
+        self.assertEqual(list(ref_entry2.get_referred_objects()), [entry])
+        self.assertEqual(list(ref_entry3.get_referred_objects()), [entry])
+        self.assertEqual(ref_entry2.get_referred_objects().count(), 1)
         self.assertEqual(ref_entry3.get_referred_objects().count(), 1)
 
         # delete referring entry and make sure that

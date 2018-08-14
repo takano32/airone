@@ -160,9 +160,12 @@ AIRONE = {
 try:
     proc = subprocess.Popen('git describe --tags', shell=True, stdout=subprocess.PIPE)
     outs, errs = proc.communicate(timeout=1)
-    if outs:
+    # if `git describe --tags` prints some string to stdout, use the result as version
+    # else use 'unknown' as version (e.g. untagged git repository)
+    if outs != '':
         AIRONE['VERSION'] = outs.strip()
-except:
+except FileNotFoundError:
+    # do nothing and use 'unknown' as version when git does not exists
     pass
 
 

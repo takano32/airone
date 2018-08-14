@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 
 import os
 import sys
+import logging
 import subprocess
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -158,15 +159,18 @@ AIRONE = {
     'VERSION': 'unknown'
 }
 try:
-    proc = subprocess.Popen('git describe --tags', shell=True, stdout=subprocess.PIPE)
+    proc = subprocess.Popen('git describe --tags', shell=True,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     outs, errs = proc.communicate(timeout=1)
     # if `git describe --tags` prints some string to stdout, use the result as version
     # else use 'unknown' as version (e.g. untagged git repository)
-    if outs != '':
+    if outs != b'':
         AIRONE['VERSION'] = outs.strip()
+    else:
+        logging.getLogger(__name__).warning('could not describe airone version from git')
 except FileNotFoundError:
     # do nothing and use 'unknown' as version when git does not exists
-    pass
+    logging.getLogger(__name__).warning('git command not found.')
 
 
 CACHES = {

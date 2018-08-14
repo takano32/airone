@@ -976,7 +976,7 @@ class Entry(ACLBase):
             es.refresh()
 
     @classmethod
-    def search_entries(kls, user, hint_entity_ids, hint_attrs=[], limit=CONFIG.MAX_LIST_ENTRIES):
+    def search_entries(kls, user, hint_entity_ids, hint_attrs=[], limit=CONFIG.MAX_LIST_ENTRIES, entry_name=None, or_match=False):
         results = {
             'ret_count': 0,
             'ret_values': []
@@ -1001,6 +1001,10 @@ class Entry(ACLBase):
             }
         })
 
+        # set condition to get results that only have specified entity
+        if entry_name:
+            query['query']['bool']['filter'].append({'regexp': {'name': '.*%s.*' % entry_name}})
+
         for hint in hint_attrs:
             conditions = []
 
@@ -1024,26 +1028,27 @@ class Entry(ACLBase):
                         },
                     })
                 else:
-                    conditions.append({
-                        'bool' : {
-                            'should': [
-                                {'regexp': {'attr.value': '.*%s.*' % hint['keyword']}},
-                                {'match': {'attr.value': hint['keyword']}},
-                            ]
-                        }
-                    })
+                    cond_val = [{'match': {'attr.value': hint['keyword']}}]
+                    if 'exact_match' not in hint:
+                        cond_val.append({'regexp': {'attr.value': '.*%s.*' % hint['keyword']}})
 
-            query['query']['bool']['filter'].append({
+                    conditions.append({'bool' : {'should': cond_val}})
+
+            cond_attr = {
                 'nested': {
                     'path': 'attr',
                     'inner_hits': {},
                     'query': {
-                        'bool': {
-                            'must': conditions,
-                        }
+                        'bool': {}
                     }
                 }
-            })
+            }
+            if or_match:
+                cond_attr['nested']['query']['bool']['should'] = conditions
+            else:
+                cond_attr['nested']['query']['bool']['must'] = conditions
+
+            query['query']['bool']['filter'].append(cond_attr)
 
         try:
             res = ESS().search(body=query, ignore=[404])

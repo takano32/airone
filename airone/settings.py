@@ -185,6 +185,7 @@ ES_CONFIG = {
     'NODES': ['es_node:9200'],
     'INDEX': 'airone',
     'MAXIMUM_RESULTS_NUM': 10000,
+    'TIMEOUT': None
 }
 
 if 'test' in sys.argv or os.getenv('AIRONE_BACKEND_DB') == 'sqlite3':

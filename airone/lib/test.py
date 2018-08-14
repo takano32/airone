@@ -11,6 +11,7 @@ from .elasticsearch import ESS
     'NODES': ['localhost:9200'],
     'INDEX': 'test-airone',
     'MAXIMUM_RESULTS_NUM': 10000,
+    'TIMEOUT': 300
 })
 class AironeTestCase(TestCase):
     def setUp(self):

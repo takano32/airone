@@ -16,7 +16,7 @@ from job.models import Job
 
 from airone.lib.types import AttrTypes, AttrTypeValue
 from airone.lib.acl import ACLObjType, ACLType
-from airone import settings
+from django.conf import settings
 
 class HttpResponseSeeOther(HttpResponseRedirect):
     status_code = 303

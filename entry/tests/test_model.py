@@ -386,26 +386,38 @@ class ModelTest(AironeTestCase):
 
     def test_get_referred_objects(self):
         entity = Entity.objects.create(name='Entity2', created_user=self._user)
-        entry = Entry.objects.create(name='refered', created_user=self._user, schema=entity)
+        entry1 = Entry.objects.create(name='r1', created_user=self._user, schema=entity)
+        entry2 = Entry.objects.create(name='r2', created_user=self._user, schema=entity)
 
-        attr = self.make_attr('attr_ref', attrtype=AttrTypeObj)
+        attr = self.make_attr('attr_ref', attrtype=AttrTypeValue['object'])
         attr.save()
+
+        # this attribute is needed to check not only get referral from normal object attribute,
+        # but also from an attribute that refers array referral objects
+        arr_attr = self.make_attr('attr_arr_ref', attrtype=AttrTypeValue['array_object'])
+        arr_attr.save()
 
         # make multiple value that refer 'entry' object
         [attr.values.add(AttributeValue.objects.create(created_user=self._user,
                                                        parent_attr=attr,
-                                                       referral=entry)) for _ in range(0, 10)]
+                                                       referral=entry1)) for _ in range(0, 10)]
         # make a self reference value
         attr.values.add(AttributeValue.objects.create(created_user=self._user,
                                                       parent_attr=attr,
                                                       referral=self._entry))
+
+        # set another referral value to the 'attr_arr_ref' attr
+        arr_attr.add_value(self._user, [entry1, entry2])
+
         self._entry.attrs.add(attr)
+        self._entry.attrs.add(arr_attr)
 
         # This function checks that this get_referred_objects method only get
         # unique reference objects except for the self referred object.
-        referred_entries = entry.get_referred_objects()
-        self.assertEqual(referred_entries.count(), 10)
-        self.assertEqual(set(referred_entries), set([self._entry]))
+        for entry in [entry1, entry2]:
+            referred_entries = entry.get_referred_objects()
+            self.assertEqual(referred_entries.count(), 1)
+            self.assertEqual(list(referred_entries), [self._entry])
 
     def test_coordinating_attribute_with_dynamically_added_one(self):
         newattr = EntityAttr.objects.create(name='newattr',

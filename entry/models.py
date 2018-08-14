@@ -701,11 +701,12 @@ class Entry(ACLBase):
         """
         This returns objects that refer current Entry in the AttributeValue
         """
-        return Entry.objects.filter(
-                Q(attrs__is_active=True, attrs__values__is_latest=True,
-                  attrs__values__referral=self) |
-                Q(attrs__is_active=True, attrs__values__is_latest=True,
-                  attrs__values__data_array__referral=self))
+        ids = AttributeValue.objects.filter(
+                Q(referral=self, is_latest=True) |
+                Q(referral=self, parent_attrv__is_latest=True)
+                ).values_list('parent_attr__parent_entry', flat=True)
+
+        return Entry.objects.filter(pk__in=ids, is_active=True)
 
     def complement_attrs(self, user):
         """

@@ -11,6 +11,9 @@ class ESS(Elasticsearch):
         if not index:
             self._index = settings.ES_CONFIG['INDEX']
 
+        if ('timeout' not in kwargs) and (settings.ES_CONFIG['TIMEOUT'] is not None):
+            kwargs['timeout'] = settings.ES_CONFIG['TIMEOUT']
+
         super(ESS, self).__init__(settings.ES_CONFIG['NODES'], *args, **kwargs)
 
     def delete(self, *args, **kwargs):

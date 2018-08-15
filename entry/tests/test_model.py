@@ -1154,6 +1154,7 @@ class ModelTest(AironeTestCase):
 
         attr_info = {
             'str': {'type': AttrTypeValue['string'], 'value': 'foo-%d'},
+            'str2': {'type': AttrTypeValue['string'], 'value': 'foo-%d'},
             'obj': {'type': AttrTypeValue['object'], 'value': str(ref_entry.id)},
             'name': {'type': AttrTypeValue['named_object'], 'value': {'name': 'bar', 'id': str(ref_entry.id)}},
             'bool': {'type': AttrTypeValue['boolean'], 'value': False},
@@ -1178,7 +1179,7 @@ class ModelTest(AironeTestCase):
 
             entity.attrs.add(attr)
 
-        for index in range(0, 10):
+        for index in range(0, 11):
             entry = Entry.objects.create(name='e-%d' % index, schema=entity, created_user=user)
             entry.complement_attrs(user)
 
@@ -1186,6 +1187,8 @@ class ModelTest(AironeTestCase):
                 attr = entry.attrs.get(name=attr_name)
                 if attr_name == 'str':
                     attr.add_value(user, info['value'] % index)
+                elif attr_name == 'str2':
+                    attr.add_value(user, info['value'] % (index + 100))
                 else:
                     attr.add_value(user, info['value'])
 
@@ -1194,6 +1197,7 @@ class ModelTest(AironeTestCase):
         # search entries
         ret = Entry.search_entries(user, [entity.id], [
             {'name': 'str'},
+            {'name': 'str2'},
             {'name': 'obj'},
             {'name': 'name'},
             {'name': 'bool'},
@@ -1203,13 +1207,13 @@ class ModelTest(AironeTestCase):
             {'name': 'arr_obj'},
             {'name': 'arr_name'},
         ])
-        self.assertEqual(ret['ret_count'], 10)
-        self.assertEqual(len(ret['ret_values']), 10)
+        self.assertEqual(ret['ret_count'], 11)
+        self.assertEqual(len(ret['ret_values']), 11)
 
         # check returned contents is corrected
         for v in ret['ret_values']:
             self.assertEqual(v['entity']['id'], entity.id)
-            self.assertEqual(len(v['attrs']), 9)
+            self.assertEqual(len(v['attrs']), len(attr_info))
 
             entry = Entry.objects.get(id=v['entry']['id'])
 
@@ -1221,7 +1225,7 @@ class ModelTest(AironeTestCase):
                 self.assertEqual(attrinfo['type'], attrv.data_type)
 
                 # checks accurate values are stored
-                if attrname == 'str':
+                if attrname == 'str' or attrname == 'str2':
                     self.assertEqual(attrinfo['value'], attrv.value)
 
                 elif attrname == 'obj':
@@ -1263,7 +1267,7 @@ class ModelTest(AironeTestCase):
 
         # search entries with maximum entries to get
         ret = Entry.search_entries(user, [entity.id], [{'name': 'str'}], 5)
-        self.assertEqual(ret['ret_count'], 10)
+        self.assertEqual(ret['ret_count'], 11)
         self.assertEqual(len(ret['ret_values']), 5)
 
         # search entries with keyword
@@ -1279,6 +1283,60 @@ class ModelTest(AironeTestCase):
         for attrname in attr_info.keys():
             ret = Entry.search_entries(user, [entity.id], [{'name': attrname}])
             self.assertEqual(len([x for x in ret['ret_values'] if x['entry']['id'] == entry.id]), 1)
+
+        # check functionallity of the 'exact_match' parameter
+        ret = Entry.search_entries(user, [entity.id], [{'name': 'str', 'keyword': 'foo-1'}])
+        self.assertEqual(ret['ret_count'], 2)
+        ret = Entry.search_entries(user, [entity.id], [{'name': 'str', 'keyword': 'foo-1', 'exact_match': True}])
+        self.assertEqual(ret['ret_count'], 1)
+        self.assertEqual(ret['ret_values'][0]['entry']['name'], 'e-1')
+
+        # check functionallity of the 'entry_name' parameter
+        ret = Entry.search_entries(user, [], entry_name='e-1')
+        self.assertEqual(ret['ret_count'], 2)
+
+        # check combination of 'entry_name' and 'hint_attrs' parameter
+        ret = Entry.search_entries(user, [entity.id], [{'name': 'str', 'keyword': 'foo-10'}], entry_name='e-1')
+        self.assertEqual(ret['ret_count'], 1)
+
+    def test_search_entries_with_or_match(self):
+        user = User.objects.create(username='hoge')
+        entity_info = {
+            'E1': [
+                {'type': AttrTypeValue['string'], 'name': 'foo'}
+            ],
+            'E2': [
+                {'type': AttrTypeValue['string'], 'name': 'bar'}
+            ]
+        }
+
+        for (name, attrinfos) in entity_info.items():
+            entity = Entity.objects.create(name=name, created_user=user)
+
+            for attrinfo in attrinfos:
+                entity.attrs.add(EntityAttr.objects.create(**{
+                    'name': attrinfo['name'],
+                    'type': attrinfo['type'],
+                    'created_user': user,
+                    'parent_entity': entity,
+                }))
+
+            for i in [x for x in range(0, 5)]:
+                entry = Entry.objects.create(name='%s-%d' % (entity.name, i), schema=entity, created_user=user)
+                entry.complement_attrs(user)
+
+                for attrinfo in attrinfos:
+                    attr = entry.attrs.get(schema__name=attrinfo['name'])
+                    attr.add_value(user, str(i))
+
+                entry.register_es()
+
+        # search entries by only attribute name and keyword without entity
+        hints = [{'name': x.name, 'keyword': '3'} for x in EntityAttr.objects.filter(is_active=True)]
+        ret = Entry.search_entries(user, [], hints, or_match=True)
+
+        self.assertEqual(ret['ret_count'], 2)
+        self.assertEqual(sorted([x['entry']['name'] for x in ret['ret_values']]), sorted(['E1-3', 'E2-3']))
 
     def test_register_entry_to_elasticsearch(self):
         ENTRY_COUNTS = 10

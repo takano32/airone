@@ -143,6 +143,9 @@ server {
 
   access_log /var/log/nginx/airone.ssl.access.log combined;
   error_log /var/log/nginx/airone.ssl.error.log;
+
+  # set longer to wait background processing until 300s
+  proxy_read_timeout 300;
 }
 ```
 

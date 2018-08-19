@@ -163,7 +163,7 @@ def get_attr_referrals(request, attr_id):
     for referral in attr.referral.all():
         keyword = request.GET.get('keyword')
         if keyword:
-            query_name_regex = Q(name__regex=keyword)
+            query_name_regex = Q(name__icontains=keyword)
         else:
             query_name_regex = Q()
 

@@ -54,3 +54,71 @@ class APITest(AironeViewTest):
 
             result = resp.json()['result']
             self.assertEqual(result['ret_count'], 2)
+
+    def test_api_referred_entry(self):
+        user = self.guest_login()
+
+        entity_ref = Entity.objects.create(name='ref', created_user=user)
+        entity = Entity.objects.create(name='E', created_user=user)
+
+        # set EntityAttr that refers entity_ref
+        attr_info = [
+                {'name': 'r0', 'type': AttrTypeValue['object']},
+                {'name': 'r1', 'type': AttrTypeValue['named_object']},
+                {'name': 'r2', 'type': AttrTypeValue['array_object']},
+                {'name': 'r3', 'type': AttrTypeValue['array_named_object']},
+        ]
+        for info in attr_info:
+            attr = EntityAttr.objects.create(**{
+                'name': info['name'],
+                'type': info['type'],
+                'created_user': user,
+                'parent_entity': entity,
+            })
+            attr.referral.add(entity_ref)
+            entity.attrs.add(attr)
+
+        # create referred entries
+        refs = [Entry.objects.create(name='r%d' % i, schema=entity_ref, created_user=user) for i in range(0, 5)]
+
+        # create referring entries and set values for each Attribute
+        entry = Entry.objects.create(name='e', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+
+        entry.attrs.get(name='r0').add_value(user, refs[0])
+        entry.attrs.get(name='r1').add_value(user, {'name':'foo', 'id':refs[1]})
+        entry.attrs.get(name='r2').add_value(user, [refs[2]])
+        entry.attrs.get(name='r3').add_value(user, [{'name':'bar', 'id':refs[3]}])
+
+        # send request without entry parameter
+        resp = self.client.get('/api/v1/entry/referral')
+        self.assertEqual(resp.status_code, 400)
+
+        # send request with invalid entry parameter
+        resp = self.client.get('/api/v1/entry/referral?entry=hoge')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json(), {'result': []})
+
+        # check to be able to get referred object no matter whether AttributeType
+        for index in range(0, 4):
+            resp = self.client.get('/api/v1/entry/referral?entry=%s' % refs[index].name)
+            self.assertEqual(resp.status_code, 200)
+
+            result = resp.json()['result']
+            self.assertEqual(len(result), 1)
+            self.assertEqual(result[0]['id'], refs[index].id)
+            self.assertEqual(result[0]['entity'], {'id': entity_ref.id, 'name': entity_ref.name})
+            self.assertEqual(result[0]['referral'], [{
+                'id': entry.id,
+                'name': entry.name,
+                'entity': {'id': entity.id, 'name': entity.name}
+            }])
+
+        # check the case of no referred object
+        resp = self.client.get('/api/v1/entry/referral?entry=%s' % refs[4].name)
+        self.assertEqual(resp.status_code, 200)
+
+        result = resp.json()['result']
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['id'], refs[4].id)
+        self.assertEqual(result[0]['referral'], [])

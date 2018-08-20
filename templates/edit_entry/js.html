@@ -353,5 +353,11 @@ $(document).ready(function() {
     // clear danger notification if it's set
     $(this).parent().removeClass('table-danger');
   });
+  $('#edit-form').keypress(function(e){
+    console.info(`[onix/form_keypress] ${ e.keyCode }`);
+    if(e.which === 13){
+      return false;
+    }
+  });
 });
 </script>

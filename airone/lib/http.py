@@ -28,7 +28,7 @@ def http_get(func):
             return HttpResponse('Invalid HTTP method is specified', status=400)
 
         if not request.user.is_authenticated():
-            return HttpResponseSeeOther('/dashboard/login')
+            return HttpResponseSeeOther('/dashboard/login?next=%s' % request.path)
 
         return func(*args, **kwargs)
     return wrapper

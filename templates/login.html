@@ -5,6 +5,9 @@
       {% csrf_token %}
       {{ form.as_p }}
       <button type="submit">Login</button>
+      {% if request.GET.next %}
+        <input name="next" type="hidden" value="{{ request.GET.next }}"></input>
+      {% endif %}
     </form>
   </body>
 </html>

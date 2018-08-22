@@ -18,7 +18,7 @@
         <p>入力した各行毎に <a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a> と同じ属性値を持つ別エントリを作成</p>
       </div>
       <div class="float-right">
-        <input type="submit" class="btn btn-primary" value="作成"></button>
+        <input type="button" class="btn btn-primary" id="submit-button" value="作成" />
       </div>
     </div>
   </div>
@@ -46,10 +46,12 @@ vm0006
 
 {% block script %}
 <script>
+AirOneButtonUtil.initialize($("#submit-button"), "コピー", "通信中...", true, true, function(){
+  $('#copy-form').submit();
+});
+
 $('#copy-form').submit(function(event){
   const SHOW_ALL_COPY_RESULT = 5;
-  // disable submit button
-  $('input[type="submit"]').prop('disabled', true);
 
   event.preventDefault();
 
@@ -81,8 +83,7 @@ $('#copy-form').submit(function(event){
     location.href = '{{ redirect_url }}';
   }).fail(function(data) {
     MessageBox.error(data.responseText);
-    // re-enable submit button when fail
-    $('input[type="submit"]').prop('disabled', false);
+    $('#submit-button').trigger("disableButton");
   });
 
 });

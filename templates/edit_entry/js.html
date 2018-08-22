@@ -23,6 +23,10 @@ var get_register_attrs = function(base) {
   return attrs;
 }
 
+AirOneButtonUtil.initialize($('#submit-button'), '保存', '通信中...', true, true, function() {
+  $('#edit-form').submit();
+});
+  
 $('#edit-form').submit(function(event){
   event.preventDefault();
 
@@ -50,6 +54,7 @@ $('#edit-form').submit(function(event){
     if(data.responseText == 'Duplicate name entry is existed') {
       $('input[name="entry_name"]').parent().addClass('table-danger');
     }
+    $("#submit-button").trigger('disableButton');
   });
 
   return false;

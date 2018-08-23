@@ -23,6 +23,11 @@ var get_register_attrs = function(base) {
   return attrs;
 }
 
+AirOneButtonUtil.initialize($('#submit-button'), gettext('button_save'),
+                            gettext('button_communicating'), true, true, function() {
+  $('#edit-form').submit();
+});
+  
 $('#edit-form').submit(function(event){
   event.preventDefault();
 
@@ -31,6 +36,7 @@ $('#edit-form').submit(function(event){
 
   if(! form_validator()) {
     MessageBox.error('Some parameters are required to input');
+    $("#submit-button").trigger('enableButton');
     return false;
   }
 
@@ -50,6 +56,7 @@ $('#edit-form').submit(function(event){
     if(data.responseText == 'Duplicate name entry is existed') {
       $('input[name="entry_name"]').parent().addClass('table-danger');
     }
+    $("#submit-button").trigger('enableButton');
   });
 
   return false;

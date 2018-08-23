@@ -23,7 +23,8 @@ var get_register_attrs = function(base) {
   return attrs;
 }
 
-AirOneButtonUtil.initialize($('#submit-button'), '保存', '通信中...', true, true, function() {
+AirOneButtonUtil.initialize($('#submit-button'), gettext('button_save'),
+                            gettext('button_communicating'), true, true, function() {
   $('#edit-form').submit();
 });
   

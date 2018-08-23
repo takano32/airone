@@ -99,7 +99,8 @@ $("input[name=is_public]").change(function() {
   }
 });
 
-AirOneButtonUtil.initialize($('#submit-button'), '保存', '通信中...', true, true, function() {
+AirOneButtonUtil.initialize($('#submit-button'), gettext('button_save'),
+                            gettext('button_communicating'), true, true, function() {
   $('#acl-form').submit();
 });
   

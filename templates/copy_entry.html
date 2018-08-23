@@ -18,7 +18,7 @@
         <p>入力した各行毎に <a href='/entry/show/{{ entry.id }}'>{{ entry.name }}</a> と同じ属性値を持つ別エントリを作成</p>
       </div>
       <div class="float-right">
-        <input type="button" class="btn btn-primary" id="submit-button" value="作成" />
+        <input type="button" class="btn btn-primary" id="submit-button" value="コピー" />
       </div>
     </div>
   </div>
@@ -46,7 +46,9 @@ vm0006
 
 {% block script %}
 <script>
-AirOneButtonUtil.initialize($("#submit-button"), "コピー", "通信中...", true, true, function(){
+AirOneButtonUtil.initialize(
+  $("#submit-button"), gettext("button_copy"), gettext("button_communicating"),
+  true, true, function() {
   $('#copy-form').submit();
 });
 

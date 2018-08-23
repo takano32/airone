@@ -47,9 +47,9 @@ AirOneButtonUtil.initialize = function(button, enabled_text, disabled_text, is_e
   });
 
   // register custom event
-  button.on('click', function() {
+  button.on('click', function(e) {
     button.trigger('disableButton');
-    on_click_handler();
+    on_click_handler(e);
     if(!button.attr('is-async')) {
       button.trigger('enableButton');
     };

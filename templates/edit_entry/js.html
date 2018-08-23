@@ -36,6 +36,7 @@ $('#edit-form').submit(function(event){
 
   if(! form_validator()) {
     MessageBox.error('Some parameters are required to input');
+    $("#submit-button").trigger('enableButton');
     return false;
   }
 
@@ -55,7 +56,7 @@ $('#edit-form').submit(function(event){
     if(data.responseText == 'Duplicate name entry is existed') {
       $('input[name="entry_name"]').parent().addClass('table-danger');
     }
-    $("#submit-button").trigger('disableButton');
+    $("#submit-button").trigger('enableButton');
   });
 
   return false;

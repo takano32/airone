@@ -125,7 +125,7 @@ $('#acl-form').submit(function(event){
     location.href = data.redirect_url;
   }).fail(function(data) {
     MessageBox.error(data.responseText);
-    $("#submit-button").trigger('disableButton');
+    $("#submit-button").trigger('enableButton');
   });;
 
   return false;

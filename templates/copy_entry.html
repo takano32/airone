@@ -85,7 +85,7 @@ $('#copy-form').submit(function(event){
     location.href = '{{ redirect_url }}';
   }).fail(function(data) {
     MessageBox.error(data.responseText);
-    $('#submit-button').trigger("disableButton");
+    $('#submit-button').trigger("enableButton");
   });
 
 });

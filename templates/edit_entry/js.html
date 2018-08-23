@@ -24,7 +24,7 @@ var get_register_attrs = function(base) {
 }
 
 AirOneButtonUtil.initialize($('#submit-button'), gettext('button_save'),
-                            gettext('button_communicating'), true, true, function() {
+                            gettext('button_communicating'), true, true, function(e) {
   $('#edit-form').submit();
 });
   

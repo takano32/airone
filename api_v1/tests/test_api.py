@@ -111,6 +111,36 @@ class APITest(AironeViewTest):
             attr = new_entry.attrs.get(name=info['name'])
             info['check'](attr.get_latest_value())
 
+    def test_edit_entry_by_api(self):
+        user = self.guest_login()
+
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        entries = [Entry.objects.create(name='e-%d' % i, schema=entity, created_user=user) for i in range(0, 2)]
+
+        # checks that entry will be updated with same name
+        entry = entries[1]
+        params = {
+            'id': entry.id,
+            'name': entry.name,
+            'entity': entity.name,
+            'attrs': {}
+        }
+        resp = self.client.post('/api/v1/entry', json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        entry.refresh_from_db()
+        self.assertEqual(entry.name, 'e-1')
+
+        # checks that entry won't be updated because it specifies duplicate name with other entry
+        params = {
+            'id': entry.id,
+            'name': 'e-0',
+            'entity': entity.name,
+            'attrs': {}
+        }
+        resp = self.client.post('/api/v1/entry', json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 400)
+
     def test_post_entry_with_token(self):
         admin = User.objects.create(username='admin', is_superuser='True')
 

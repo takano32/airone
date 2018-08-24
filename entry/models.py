@@ -475,7 +475,7 @@ class Attribute(ACLBase):
             if isinstance(value, Group):
                 attr_value.value = str(value.id)
             else:
-                attr_value.value = value
+                attr_value.value = value if value else ''
 
         elif self.schema.type == AttrTypeValue['object']:
             attr_value = AttributeValue.create(user, self)

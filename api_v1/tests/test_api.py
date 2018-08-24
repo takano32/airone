@@ -111,10 +111,60 @@ class APITest(AironeViewTest):
             attr = new_entry.attrs.get(name=info['name'])
             info['check'](attr.get_latest_value())
 
+        # checking to be able to remove values
+        params = {
+            'name': 'entry1',
+            'entity': entity.name,
+            'attrs': {
+                'val': '',
+                'ref': '',
+                'name': {},
+                'group': '',
+                'text': '',
+                'vals': [],
+                'refs': [],
+                'names': [],
+            }
+        }
+        resp = self.client.post('/api/v1/entry', json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        ret_data = resp.json()
+        new_entry = Entry.objects.get(id=ret_data['result'])
+        for attr in new_entry.attrs.filter(is_active=True):
+            attrv = attr.get_latest_value()
+
+            if attr.schema.name == 'val':
+                self.assertEqual(attrv.value, '')
+            elif attr.schema.name == 'ref':
+                self.assertIsNone(attrv.referral)
+            elif attr.schema.name == 'name':
+                self.assertEqual(attrv.value, '')
+                self.assertIsNone(attrv.referral)
+            elif attr.schema.name == 'group':
+                self.assertEqual(attrv.value, '')
+            elif attr.schema.name == 'text':
+                self.assertEqual(attrv.value, '')
+            elif attr.schema.name == 'vals':
+                self.assertEqual(attrv.data_array.count(), 0)
+            elif attr.schema.name == 'refs':
+                self.assertEqual(attrv.data_array.count(), 0)
+            elif attr.schema.name == 'names':
+                self.assertEqual(attrv.data_array.count(), 0)
+
     def test_edit_entry_by_api(self):
         user = self.guest_login()
 
+        entity_ref = Entity.objects.create(name='Ref', created_user=user)
         entity = Entity.objects.create(name='Entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'ref',
+            'type': AttrTypeValue['object'],
+            'created_user': user,
+            'parent_entity': entity,
+        }))
+
+        entry_ref = Entry.objects.create(name='r1', schema=entity_ref, created_user=user)
         entries = [Entry.objects.create(name='e-%d' % i, schema=entity, created_user=user) for i in range(0, 2)]
 
         # checks that entry will be updated with same name
@@ -140,6 +190,19 @@ class APITest(AironeViewTest):
         }
         resp = self.client.post('/api/v1/entry', json.dumps(params), 'application/json')
         self.assertEqual(resp.status_code, 400)
+
+        # checks to be able to set referral attribute value by entry-id
+        params = {
+            'id': entry.id,
+            'name': entry.id,
+            'entity': entity.name,
+            'attrs': {
+                'ref': entry_ref.id,
+            }
+        }
+        resp = self.client.post('/api/v1/entry', json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(entry.attrs.first().get_latest_value().referral.id, entry_ref.id)
 
     def test_post_entry_with_token(self):
         admin = User.objects.create(username='admin', is_superuser='True')

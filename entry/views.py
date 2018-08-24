@@ -96,6 +96,11 @@ def create(request, entity_id):
     if not Entity.objects.filter(id=entity_id).exists():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
+    entity = Entity.objects.get(id=entity_id)
+    if custom_view.is_custom_create_entry_without_context(entity.name):
+        # show custom view
+        return custom_view.call_custom_create_entry_without_context(entity.name, request, user, entity)
+
     def get_referrals(attr):
         ret = []
         for entries in [Entry.objects.filter(schema=x, is_active=True) for x in attr.referral.filter(is_active=True)]:
@@ -103,7 +108,6 @@ def create(request, entity_id):
 
         return ret
 
-    entity = Entity.objects.get(id=entity_id)
     context = {
         'entity': entity,
         'form_url': '/entry/do_create/%s/' % entity.id,

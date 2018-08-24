@@ -46,6 +46,15 @@ def call_custom_create_entry(entity_name, *args, **kwargs):
     else:
         return HttpResponse("Custom view of create_entry doesn't exist", status=500)
 
+def is_custom_create_entry_without_context(entity_name):
+    return _is_view(entity_name, 'create_entry_without_context')
+
+def call_custom_create_entry_without_context(entity_name, *args, **kwargs):
+    if(_isin_cache(entity_name, 'create_entry_without_context') or _is_view(entity_name, 'create_entry_without_context')):
+        return CUSTOM_VIEW[entity_name]['create_entry_without_context'](*args, **kwargs)
+    else:
+        return HttpResponse("Custom view of create_entry_without_context doesn't exist", status=500)
+
 def is_custom_show_entry(entity_name):
     return _is_view(entity_name, 'show_entry')
 

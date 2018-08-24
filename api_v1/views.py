@@ -41,6 +41,11 @@ class EntryAPI(APIView):
             'is_active': True,
         }
         if 'id' in sel.validated_data:
+            # prevent to register duplicate entry-name with other entry
+            if Entry.objects.filter(Q(**entry_condition) & ~Q(id=sel.validated_data['id'])).exists():
+                return Response({'result': '"%s" is duplicate name with other Entry' % entry_condition['name']},
+                                status=status.HTTP_400_BAD_REQUEST)
+
             entry = Entry.objects.get(id=sel.validated_data['id'])
             entry.name = sel.validated_data['name']
             entry.set_status(Entry.STATUS_EDITING)

@@ -137,13 +137,18 @@ class PostEntrySerializer(serializers.Serializer):
             return validate_named_attr(value)
 
         elif attr.type & AttrTypeValue['object']:
-            if not isinstance(value, str):
-                return None
+            if not value:
+                # This means not None but empty referral value
+                return 0
 
-            entryset = [get_entry(x, value)
-                for x in attr.referral.all() if is_entry(x, value)]
-            if any(entryset):
-                return entryset[0]
+            if isinstance(value, str):
+                entryset = [get_entry(x, value)
+                    for x in attr.referral.all() if is_entry(x, value)]
+                if any(entryset):
+                    return entryset[0]
+
+            elif isinstance(value, int):
+                return Entry.objects.filter(id=value, is_active=True).first()
 
         elif attr.type & AttrTypeValue['boolean']:
             if not isinstance(value, bool):
@@ -161,6 +166,10 @@ class PostEntrySerializer(serializers.Serializer):
                 return None
 
         elif attr.type & AttrTypeValue['group']:
+            # This means not None but empty referral value
+            if not value:
+                return 0
+
             if not isinstance(value, str):
                 return None
 

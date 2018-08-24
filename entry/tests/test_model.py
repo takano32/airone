@@ -1707,6 +1707,32 @@ class ModelTest(AironeTestCase):
         for name in entity_info.keys():
             self.assertEqual(len([x for x in resp['ret_values'] if x['entity']['name'] == name]), 5)
 
+    def test_search_entries_sorted_result(self):
+        user = User.objects.create(username='hoge')
+
+        entity = Entity.objects.create(name='EntityA', created_user=user)
+        entity.save()
+
+        # register AAA5, AAA0, AAA4, AAA1, AAA3, AAA2 in this order 
+        for i in range(3):
+            e1 = Entry.objects.create(name="AAA%d" % (5- i), schema=entity, created_user=user)
+            e1.save()
+            e1.register_es()
+
+            e2 = Entry.objects.create(name="AAA%d" % i, schema=entity, created_user=user)
+            e2.save()
+            e2.register_es()
+            
+        # search
+        resp = Entry.search_entries(user, [], entry_name="AAA")
+
+        # 6 results should be returned
+        self.assertEqual(resp['ret_count'], 6)
+        # 6 results should be sorted
+        for i in range(6):
+            self.assertEqual(resp['ret_values'][i]['entry']['name'], "AAA%d" % i)
+        
+        
     def test_get_last_value(self):
         user = User.objects.create(username='hoge')
 

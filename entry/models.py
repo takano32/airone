@@ -1051,7 +1051,7 @@ class Entry(ACLBase):
             query['query']['bool']['filter'].append(cond_attr)
 
         try:
-            res = ESS().search(body=query, ignore=[404])
+            res = ESS().search(body=query, ignore=[404], sort=['name.keyword:asc'])
         except Exception as e:
             raise(e)
 

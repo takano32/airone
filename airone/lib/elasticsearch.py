@@ -38,7 +38,10 @@ class ESS(Elasticsearch):
                         'name': {
                             'type': 'text',
                             'index': 'true',
-                            'analyzer': 'keyword'
+                            'analyzer': 'keyword',
+                            'fields': {
+                                'keyword': { 'type': 'keyword' },
+                            },
                         },
                         'entity': {
                             'type': 'nested',

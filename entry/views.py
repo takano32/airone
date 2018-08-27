@@ -483,6 +483,14 @@ def do_delete(request, entry_id, recv_data):
     # update name of Entry object
     entry = Entry.objects.filter(id=entry_id).get()
 
+    if custom_view.is_custom_do_delete_entry(entry.schema.name):
+        # do_delete custom view
+        resp = custom_view.call_custom_do_delete_entry(entry.schema.name, request, user, entry)
+
+        # If custom_view returns available response this returns it to user,or continues default processing.
+        if resp:
+            return resp
+
     # set deleted flag in advance because deleting processing taks long time
     entry.is_active = False
 

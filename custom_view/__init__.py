@@ -117,3 +117,12 @@ def call_custom_do_edit_entry(entity_name, *args, **kwargs):
         return CUSTOM_VIEW[entity_name]['do_edit_entry'](*args, **kwargs)
     else:
         return HttpResponse("Custom view of do_edit_entry doesn't exist", status=500)
+
+def is_custom_do_delete_entry(entity_name):
+    return _is_view(entity_name, 'do_delete_entry')
+
+def call_custom_do_delete_entry(entity_name, *args, **kwargs):
+    if(_isin_cache(entity_name, 'do_delete_entry') or _is_view(entity_name, 'do_delete_entry')):
+        return CUSTOM_VIEW[entity_name]['do_delete_entry'](*args, **kwargs)
+    else:
+        return HttpResponse("Custom view of do_delete_entry doesn't exist", status=500)

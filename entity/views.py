@@ -53,6 +53,7 @@ def create(request):
     }
     return render(request, 'create_entity.html', context)
 
+@airone_profile
 @http_get
 @check_permission(Entity, ACLType.Writable)
 def edit(request, entity_id):
@@ -72,10 +73,13 @@ def edit(request, entity_id):
     context = {
         'entity': entity,
         'attr_types': AttrTypes,
-        'entities': [{'id': x.id, 'name': x.name} for x in Entity.objects.filter(is_active=True)
-            if user.has_permission(x, ACLType.Readable)],
-        'attributes': [x for x in entity.attrs.filter(is_active=True).order_by('index')
-            if user.has_permission(x, ACLType.Writable)],
+        'attributes': [{
+            'id': x.id,
+            'name': x.name,
+            'type': x.type,
+            'is_mandatory': x.is_mandatory,
+            'referrals': x.referral.all()
+        } for x in entity.attrs.filter(is_active=True).order_by('index') if user.has_permission(x, ACLType.Writable)],
     }
     return render(request, 'edit_entity.html', context)
 

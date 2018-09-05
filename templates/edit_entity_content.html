@@ -50,12 +50,10 @@
                 <div class='col-8'>
 
                   <ul class='list-group'>
-                    {% for entity in entities %}
-                      {% if entity|isin:attr.referral %}
-                        <li class='list-group-item list-group-item-info' style="height: 30px; padding: 5px 15px;">
-                          {{ entity.name }}
-                        </li>
-                      {% endif %}
+                    {% for ref in attr.referrals %}
+                    <li class='list-group-item list-group-item-info' style="height: 30px; padding: 5px 15px;">
+                      {{ ref.name }}
+                    </li>
                     {% endfor %}
                   </ul>
 
@@ -66,8 +64,8 @@
                       style="width:100%"
                     {% endif %}>
 
-                    {% for entity in entities %}
-                      <option value="{{ entity.id }}" {% if entity|isin:attr.referral %}selected="selected"{% endif %}>{{ entity.name }}</option>
+                    {% for ref in attr.referrals %}
+                      <option value="{{ ref.id }}" selected='True'>{{ ref.name }}</option>
                     {% endfor %}
                   </select>
 
@@ -120,10 +118,7 @@
                   <ul class='list-group' style="display:none">
                   </ul>
 
-                  <select class="attr_referral" style="display:none; width: 100%" size="3" multiple="True">
-                    {% for entity in entities %}
-                    <option value="{{ entity.id }}">{{ entity.name }}</option>
-                    {% endfor %}
+                  <select class="attr_referral template" style="display:none; width: 100%" size="3" multiple="True">
                   </select>
 
                   <input type="text" class="narrow_down_referral" placeholder="絞り込み"  style="width: 100%; display:none"/>

@@ -73,8 +73,6 @@ var check_not_empty = function(elem) {
 }
 
 function enable_input() {
-  console.info('enable_input');
-
   ['input', 'select', 'button', 'tr'].forEach(function(tag) {
     $(tag).prop('disabled', false);
   });
@@ -83,8 +81,6 @@ function enable_input() {
 }
 
 function disable_input() {
-  console.info('disable_input');
-
   ['input', 'select', 'button', 'tr'].forEach(function(tag) {
     $(tag).prop('disabled', true);
   });
@@ -153,11 +149,15 @@ $('#edit-form').submit(function(event){
 });
 $('.attr_type').change(toggle_referral);
 
-var table_column = $('[name=attr_template]').html();
 var append_attr_column = function() {
-  var new_column = $('<tr class="attr" />');
+  var new_column = $('[name=attr_template]').clone();
 
-  new_column.append($.parseHTML(table_column));
+  // clear template meta info
+  new_column.removeAttr('name');
+  new_column.find(".attr_referral").removeClass('template');
+  new_column.addClass('attr');
+
+  new_column.show();
   new_column.find('.attr_type').on('change', toggle_referral);
   new_column.find('.narrow_down_referral').on(narrow_down_handler);
   new_column.find('button[name=del_attr]').on('click', del_attr);
@@ -168,7 +168,6 @@ var append_attr_column = function() {
   // Re-sort row indexes
   update_row_index();
 }
-
 
 var bind_del_attr = function(column) {
   $("button[name=del_attr]").on('click', function() {
@@ -218,15 +217,51 @@ var narrow_down_handler = {
   }
 }
 
+function initialize_entries_list() {
+  // Get information for each entity at background processing to be fast to load page.
+  $.ajax({
+    url: '/entity/api/v1/get_entities',
+    type: 'GET',
+    dataType: 'json',
+    contentType: 'application/x-www-form-urlencoded;charset=utf-8',
+    scriptCharset: 'utf-8',
+    headers: {
+      'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val(),
+    },
+  }).done(function(data) {
+    $('.attr_referral').each(function(i, select) {
+      for(info of data['entities']) {
+        var is_append = true;
+        $(select).children('option').each(function(j, option){
+          if(info['id'] == $(option).val()) {
+            is_append = false;
+            return;
+          }
+        });
+
+        if(is_append) {
+          var new_option = $(`<option value=${ info['id'] }>${ info['name'] }</option>`);
+          if(! $(select).hasClass('template')) {
+            new_option.hide();
+          }
+          $(select).append(new_option);
+        }
+      }
+    });
+  });
+}
+
 var update_selected_referral = function() {
   var list_group = $(this).parent().find('ul');
   list_group.empty();
 
   $(this).find('option:selected').each(function(e) {
-    new_elem = $("<li class='list-group-item list-group-item-info' style='height: 30px; padding: 5px 15px;' />");
-    new_elem.text($(this).text());
+    if($(this).val() > 0) {
+      new_elem = $("<li class='list-group-item list-group-item-info' style='height: 30px; padding: 5px 15px;' />");
+      new_elem.text($(this).text());
 
-    list_group.append(new_elem);
+      list_group.append(new_elem);
+    }
   });
 }
 
@@ -242,4 +277,6 @@ $(document).ready(function() {
     append_attr_column();
     return false;
   });
+
+  initialize_entries_list();
 });

@@ -1667,6 +1667,47 @@ class ViewTest(AironeViewTest):
         self.assertEqual(obj.target_type, Job.TARGET_ENTRY)
         self.assertEqual(obj.status, Job.STATUS_DONE)
 
+        # checking for the cases of sending invalid referral parameters
+        requests = [
+            {'name': 'entry_with_zero1', 'value': '0'},
+            {'name': 'entry_with_zero2', 'value': ''},
+        ]
+
+        for req in requests:
+            params = {
+                'entry_name': req['name'],
+                'attrs': [
+                    {
+                        'id': str(entity.attrs.get(name='ref').id),
+                        'type': str(AttrTypeValue['object']),
+                        'value': [
+                            {'data': req['value'], 'index': 0},
+                        ],
+                        'referral_key': [],
+                    },
+                    {
+                        'id': str(entity.attrs.get(name='arr_ref').id),
+                        'type': str(AttrTypeValue['array_object']),
+                        'value': [
+                            {'data': req['value'], 'index': 0},
+                        ],
+                        'referral_key': [],
+                    },
+                ],
+            }
+            resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                    json.dumps(params),
+                                    'application/json')
+    
+            self.assertEqual(resp.status_code, 200)
+
+            entry = Entry.objects.get(name=req['name'])
+            attr_ref = entry.attrs.get(schema__name='ref')
+            attr_arr_ref = entry.attrs.get(schema__name='arr_ref')
+
+            self.assertIsNone(attr_ref.get_latest_value().referral)
+            self.assertEqual(attr_ref.get_latest_value().data_array.count(), 0)
+
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_create_entry_with_named_ref(self):
         user = self.admin_login()

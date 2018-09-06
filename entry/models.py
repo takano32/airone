@@ -207,14 +207,16 @@ class Attribute(ACLBase):
             # formalize recv_value type
             if isinstance(recv_value, Entry):
                 recv_value = recv_value.id
+            elif recv_value and isinstance(recv_value, str):
+                recv_value = int(recv_value)
 
             if not last_value.referral and not recv_value:
                 return False
             elif last_value.referral and not recv_value:
                 return True
-            elif not last_value.referral and int(recv_value):
+            elif not last_value.referral and recv_value:
                 return True
-            elif last_value.referral.id != int(recv_value):
+            elif last_value.referral.id != recv_value:
                 return True
 
         elif self.schema.type == AttrTypeArrStr:

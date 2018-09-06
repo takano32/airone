@@ -25,7 +25,27 @@ class User(DjangoUser):
     def token(self):
         return Token.objects.get_or_create(user=self)[0]
 
+    def is_permitted(self, target_obj, permission_level):
+        # check user permission
+        if any([permission_level.id <= x.get_aclid() for x in self.permissions.all() if target_obj.id == x.get_objid()]):
+            return True
+
+        # check group permission
+        if any(sum([[permission_level.id <= x.get_aclid() for x in g.permissions.all() if target_obj.id == x.get_objid()] for g in self.groups.all()], [])):
+            return True
+
+        # This means user has no permission to access target object
+        return False
+
     def has_permission(self, target_obj, permission_level):
+        # The case that parent data structure (Entity in Entry, or EntityAttr in Attribute) doesn't permit,
+        # access to the children's objects are also not permitted.
+        if ((isinstance(target_obj, import_module('entry.models').Entry) or
+             isinstance(target_obj, import_module('entry.models').Attribute)) and
+            (not self.is_permitted(target_obj, permission_level) and
+             not self.has_permission(target_obj.schema, permission_level))):
+             return False
+
         # A bypass processing to rapidly return.
         # This condition is effective when the public objects are majority.
         if target_obj.is_public or self.is_superuser:
@@ -43,21 +63,7 @@ class User(DjangoUser):
         if permission_level <= target_obj.default_permission:
             return True
 
-        if not hasattr(target_obj, permission_level.name):
-            return False
-
-        perm = getattr(target_obj, permission_level.name)
-
-        # check user permission
-        if any([permission_level.id <= x.get_aclid() for x in self.permissions.all() if target_obj.id == x.get_objid()]):
-            return True
-
-        # check group permission
-        if any(sum([[permission_level.id <= x.get_aclid() for x in g.permissions.all() if target_obj.id == x.get_objid()] for g in self.groups.all()], [])):
-            return True
-
-        # This means user has no permission to access target object
-        return False
+        return self.is_permitted(target_obj, permission_level)
 
     def get_acls(self, aclobj):
         return self.permissions.filter(codename__regex=(r'^%d\.' % aclobj.id))

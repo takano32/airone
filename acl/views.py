@@ -7,6 +7,7 @@ from django.contrib.auth.models import Permission
 
 from airone.lib.acl import ACLType, ACLObjType
 from airone.lib.http import http_get, http_post, render
+from airone.lib.profile import airone_profile
 
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute
@@ -59,6 +60,7 @@ def index(request, obj_id):
     }
     return render(request, 'edit_acl.html', context)
 
+@airone_profile
 @http_post([
     {'name': 'object_id', 'type': str,
      'checker': lambda x: ACLBase.objects.filter(id=x['object_id']).exists()},
@@ -101,23 +103,6 @@ def set(request, recv_data):
 
         # update permissios for the target ACLBased object
         _set_permission(member, acl_obj, acl_type)
-
-        # update permissios/acl for the related ACLBase object
-        if isinstance(acl_obj, Entity):
-            # update permissions of members
-            [_set_permission(member, x, acl_type)
-                    for x in Entry.objects.filter(schema=acl_obj)]
-
-            # update flag of aclbase object
-            Entry.objects.filter(schema=acl_obj).update(is_public=acl_obj.is_public)
-
-        elif isinstance(acl_obj, EntityAttr):
-            # update permissions of members
-            [_set_permission(member, x, acl_type)
-                    for x in Attribute.objects.filter(schema=acl_obj)]
-
-            # update flag of aclbase object
-            Attribute.objects.filter(schema=acl_obj).update(is_public=acl_obj.is_public)
 
     redirect_url = '/'
     if isinstance(acl_obj, Entity):

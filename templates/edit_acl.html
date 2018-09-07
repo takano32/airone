@@ -116,7 +116,6 @@ $('#acl-form').submit(function(event){
     });
   });
 
-  console.log(`acl: ${acl}`);
   HttpPost($(this), {'acl': acl}).done(function(data) {
     // set successful message to the updated page
     MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, data.msg);

@@ -271,7 +271,8 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 400)
 
-    def test_post_overwrite_entry_permission(self):
+    def test_check_entry_permission_by_setting_permission_of_entity(self):
+        guest = User.objects.create(username='guest', is_superuser=False)
         user = self.admin_login()
 
         entity = Entity.objects.create(name='hoge', created_user=user)
@@ -279,14 +280,23 @@ class ViewTest(AironeViewTest):
 
         resp = self.send_set_request(entity, user, ACLType.Readable.id)
 
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(user.permissions.count(), 2)
-        self.assertEqual(user.permissions.first(), entity.readable)
-        self.assertEqual(user.permissions.last(), entry.readable)
-        self.assertFalse(Entity.objects.get(id=entity.id).is_public)
-        self.assertFalse(Entry.objects.get(id=entry.id).is_public)
+        # reflesh object with latest DB data
+        entity.refresh_from_db()
+        entry.refresh_from_db()
 
-    def test_post_overwrite_attribute_permission(self):
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(user.permissions.count(), 1)
+        self.assertEqual(user.permissions.last(), entity.readable)
+        self.assertEqual(entity.default_permission, ACLType.Nothing)
+        self.assertFalse(entity.is_public)
+
+        # check that guest user can't access Entry that schema's acl is set
+        self.assertTrue(entry.is_public)
+        self.assertTrue(user.has_permission(entry, ACLType.Readable))
+        self.assertFalse(guest.has_permission(entry, ACLType.Readable))
+
+    def test_check_attribute_permission_by_setting_permission_of_entityattr(self):
+        guest = User.objects.create(username='guest', is_superuser=False)
         user = self.admin_login()
 
         entity = Entity.objects.create(name='hoge', created_user=user)
@@ -299,9 +309,17 @@ class ViewTest(AironeViewTest):
 
         resp = self.send_set_request(attrbase, user, ACLType.Full.id)
 
+        # reflesh object with latest DB data
+        attrbase.refresh_from_db()
+        attr.refresh_from_db()
+
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(user.permissions.count(), 2)
-        self.assertEqual(user.permissions.first(), attrbase.full)
-        self.assertEqual(user.permissions.last(), attr.full)
-        self.assertFalse(EntityAttr.objects.get(id=attrbase.id).is_public)
-        self.assertFalse(Attribute.objects.get(id=attr.id).is_public)
+        self.assertEqual(user.permissions.count(), 1)
+        self.assertEqual(user.permissions.last(), attrbase.full)
+        self.assertFalse(attrbase.is_public)
+        self.assertEqual(attrbase.default_permission, ACLType.Nothing)
+
+        # check that guest user can't access Entry that schema's acl is set
+        self.assertTrue(attr.is_public)
+        self.assertTrue(user.has_permission(attr, ACLType.Full))
+        self.assertFalse(guest.has_permission(attr, ACLType.Full))

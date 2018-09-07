@@ -361,7 +361,6 @@ $(document).ready(function() {
     $(this).parent().removeClass('table-danger');
   });
   $('#edit-form').keypress(function(e){
-    console.info(`[onix/form_keypress] ${ e.keyCode }`);
     if(e.which === 13){
       return false;
     }

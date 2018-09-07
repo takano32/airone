@@ -98,6 +98,9 @@ $("input[name=is_public]").change(function() {
     $('.default_permission').show();
   }
 });
+$("select[name=acl]").change(function(e) {
+  $(e.target).addClass('changed');
+});
 
 AirOneButtonUtil.initialize($('#submit-button'), gettext('button_save'),
                             gettext('button_communicating'), true, true, function(e) {
@@ -108,7 +111,7 @@ $('#acl-form').submit(function(event){
   event.preventDefault();
   var acl = [];
 
-  $(this).find('select[name=acl]').each(function(){
+  $(this).find('select[name=acl].changed').each(function(){
     acl.push({
       'member_type': $(this).attr('member_type'),
       'member_id': $(this).attr('member_id'),
@@ -125,7 +128,7 @@ $('#acl-form').submit(function(event){
   }).fail(function(data) {
     MessageBox.error(data.responseText);
     $("#submit-button").trigger('enableButton');
-  });;
+  });
 
   return false;
 });

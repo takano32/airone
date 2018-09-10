@@ -159,7 +159,7 @@ AIRONE = {
     'VERSION': 'unknown'
 }
 try:
-    proc = subprocess.Popen('git describe --tags', shell=True,
+    proc = subprocess.Popen("cd %s && git describe --tags" % BASE_DIR, shell=True,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     outs, errs = proc.communicate(timeout=1)
     # if `git describe --tags` prints some string to stdout, use the result as version

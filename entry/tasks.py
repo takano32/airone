@@ -85,7 +85,11 @@ def _convert_data_value(attr, info):
 def create_entry_attrs(self, user_id, entry_id, job_id):
     job = Job.objects.get(id=job_id)
 
-    if job.status != Job.STATUS_DONE:
+    if job.status != Job.STATUS_DONE and job.status != Job.STATUS_PROCESSING:
+        # At the first time, update job status to prevent executing this job duplicately
+        job.status = Job.STATUS_PROCESSING
+        job.save(update_fields=['status'])
+
         user = User.objects.get(id=user_id)
         entry = Entry.objects.get(id=entry_id)
         recv_data = json.loads(job.params)
@@ -130,7 +134,11 @@ def create_entry_attrs(self, user_id, entry_id, job_id):
 def edit_entry_attrs(self, user_id, entry_id, job_id):
     job = Job.objects.get(id=job_id)
 
-    if job.status != Job.STATUS_DONE:
+    if job.status != Job.STATUS_DONE and job.status != Job.STATUS_PROCESSING:
+        # At the first time, update job status to prevent executing this job duplicately
+        job.status = Job.STATUS_PROCESSING
+        job.save(update_fields=['status'])
+
         user = User.objects.get(id=user_id)
         entry = Entry.objects.get(id=entry_id)
 

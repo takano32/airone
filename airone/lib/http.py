@@ -175,6 +175,7 @@ def render(request, template, context={}):
     context['JOB'] = {
         'STATUS': {
             'PROCESSING': Job.STATUS_PROCESSING,
+            'PREPARING': Job.STATUS_PREPARING,
             'DONE': Job.STATUS_DONE,
             'ERROR': Job.STATUS_ERROR,
             'TIMEOUT': Job.STATUS_TIMEOUT,

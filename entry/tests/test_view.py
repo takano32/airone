@@ -2759,7 +2759,7 @@ class ViewTest(AironeViewTest):
             self.assertEqual(job.user.id, user_id)
             self.assertEqual(job.target.id, entry_id)
             self.assertEqual(job.target_type, Job.TARGET_ENTRY)
-            self.assertEqual(job.status, Job.STATUS_PROCESSING)
+            self.assertEqual(job.status, Job.STATUS_PREPARING)
             self.assertEqual(job.operation, Job.OP_EDIT)
 
         with patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=side_effect)):

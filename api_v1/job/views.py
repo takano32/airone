@@ -71,6 +71,10 @@ class SpecificJobAPI(APIView):
         elif job.status == Job.STATUS_PROCESSING:
             return Response('Target job is under processing', status=status.HTTP_400_BAD_REQUEST)
 
+        # check job target status
+        if not job.target.is_active:
+            return Response('Job target has already been deleted', status=status.HTTP_400_BAD_REQUEST)
+
         if job.operation == Job.OP_CREATE:
             create_entry_attrs(job.user.id, job.target.id, job.id)
 

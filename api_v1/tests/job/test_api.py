@@ -149,3 +149,17 @@ class APITest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.content, b'"Success to run command"')
         self.assertFalse(Entry.objects.get(id=entry.id).is_active)
+
+    def test_rerun_deleted_job(self):
+        user = self.guest_login()
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entry = Entry.objects.create(name='entry', created_user=user, schema=entity)
+        job = Job.new_create(user, entry)
+
+        # delete target entry
+        entry.delete()
+
+        resp = self.client.post('/api/v1/job/run/%d' % job.id)
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content, b'"Job target has already been deleted"')

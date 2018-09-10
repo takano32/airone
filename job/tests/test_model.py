@@ -27,5 +27,5 @@ class ModelTest(AironeTestCase):
             self.assertEqual(job.user, self.guest)
             self.assertEqual(job.target, entry)
             self.assertEqual(job.target_type, Job.TARGET_ENTRY)
-            self.assertEqual(job.status, Job.STATUS_PROCESSING)
+            self.assertEqual(job.status, Job.STATUS_PREPARING)
             self.assertEqual(job.operation, info['op'])

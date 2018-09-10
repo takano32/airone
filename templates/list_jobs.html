@@ -61,6 +61,8 @@
             <!-- set status -->
             {% if job.status == JOB.STATUS.PROCESSING %}
             <td class='table-warning'>処理中</td>
+            {% elif job.status == JOB.STATUS.PREPARING %}
+            <td class='table-warning'>処理前</td>
             {% elif job.status == JOB.STATUS.DONE %}
             <td class='table-success'>完了</td>
             {% elif job.status == JOB.STATUS.ERROR %}
@@ -83,7 +85,7 @@
 
             <!-- set re-run button if it's under executing -->
             <td>
-              {% if job.status != JOB.STATUS.DONE %}
+              {% if job.status != JOB.STATUS.DONE and job.status != JOB.STATUS.PROCESSING %}
               <button type='button' class='btn btn-info btn-sm rerun-job' value='{{ job.id }}'>Re-run</button>
               {% endif %}
             </td>

@@ -6,9 +6,14 @@ from datetime import datetime, timedelta
 
 from job.models import Job
 from user.models import User
+from entry import tasks
 from entry.models import Entry
 from entity.models import Entity, EntityAttr
 from django.contrib.auth.models import User as DjangoUser
+from django.urls import reverse
+
+from unittest.mock import patch
+from unittest.mock import Mock
 
 from job.settings import CONFIG
 

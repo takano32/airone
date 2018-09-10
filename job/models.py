@@ -24,10 +24,11 @@ class Job(models.Model):
     TARGET_UNKNOWN  = 0
     TARGET_ENTRY    = 1
 
-    STATUS_PROCESSING   = 1
+    STATUS_PREPARING    = 1
     STATUS_DONE         = 2
     STATUS_ERROR        = 3
     STATUS_TIMEOUT      = 4
+    STATUS_PROCESSING   = 5
 
     user = models.ForeignKey(User)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -53,7 +54,7 @@ class Job(models.Model):
             'user': user,
             'target': target,
             'target_type': t_type,
-            'status': kls.STATUS_PROCESSING,
+            'status': kls.STATUS_PREPARING,
             'operation': operation,
             'text': text,
             'params': params,

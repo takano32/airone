@@ -36,7 +36,6 @@ class ViewTest(AironeViewTest):
         CONFIG.conf = self.old_config
 
     def test_get_jobs(self):
-        someone = User.objects.create(username='someone', password='pass')
         user = self.guest_login()
 
         entity = Entity.objects.create(name='entity', created_user=user)
@@ -62,6 +61,24 @@ class ViewTest(AironeViewTest):
         resp = self.client.get('/job/?nolimit=1')
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.context['jobs']), 0)
+
+    def test_get_jobs_deleted_target(self):
+        user = self.guest_login()
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entry = Entry.objects.create(name='entry', created_user=user, schema=entity)
+        job = Job.new_create(user, entry)
+
+        resp = self.client.get('/job/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.context['jobs']), 1)
+
+        # check the case show jobs after deleting job target
+        entry.delete()
+
+        resp = self.client.get('/job/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['jobs'], [])
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_rerun_job_which_is_under_processing(self):

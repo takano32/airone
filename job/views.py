@@ -31,7 +31,7 @@ def index(request):
             'passed_time': (x.updated_at - x.created_at).seconds 
                     if x.status == Job.STATUS_DONE else \
                     (datetime.now(timezone.utc) - x.created_at).seconds,
-        } for x in Job.objects.filter(user=user).order_by('-created_at')[:limitation]]
+        } for x in Job.objects.filter(user=user).order_by('-created_at')[:limitation] if x.target.is_active]
     }
 
     return render(request, 'list_jobs.html', context)

@@ -182,12 +182,12 @@ class ModelTest(TestCase):
 
     def test_could_access_by_superuser(self):
         superuser = User.objects.create(username='superuser',
-                                        email='superuser@dmm.local',
+                                        email='superuser@example.com',
                                         password='',
                                         is_superuser=True)
 
         guestuser = User.objects.create(username='guestuser',
-                                        email='guestuser@dmm.local',
+                                        email='guestuser@example.com',
                                         password='',
                                         is_superuser=False)
 

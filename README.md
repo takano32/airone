@@ -1,8 +1,6 @@
 # AirOne
 This is a yet another DCIM(Data Center Infrastructure Management).
 
-[![CircleCI](https://cci.dmm.com/gh/XaaS/airone.svg?style=shield&circle-token=30a830821a30ded88a93523a2312306f7d241540)](https://cci.dmm.com/gh/XaaS/airone)
-
 # Feature
 These are the features of this software.
 - Flexible permission setting. You can set permissions for each attribute data.
@@ -22,9 +20,8 @@ And you have to install RabbitMQ for executing heavy processing as background ta
 $ sudo apt-get install rabbitmq-server memcached mysql-server python-dev libmysqlclient-dev
 ```
 
-Then, you can install libraries on which AieOne depends by following.
+Then, you can install libraries on which AieOne depends by following after cloning this repository.
 ```
-$ git https://git.dmm.com/XaaS/airone
 $ cd airone
 $ sudo pip install -r requirements.txt
 ```

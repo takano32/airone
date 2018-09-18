@@ -170,6 +170,22 @@ class ViewTest(AironeViewTest):
         self.assertEqual(csv_contents[1], 'entry-5,data-5')
         self.assertEqual(csv_contents[2], 'entry-5,data-5')
 
+        # test to show advanced_search_result page without mandatory params
+        resp = self.client.get(reverse('dashboard:advanced_search_result'), {
+            'attr[]': ['attr'],
+        })
+        self.assertEqual(resp.status_code, 400)
+
+        # test to show advanced_search_result page with is_all_entries param
+        resp = self.client.get(reverse('dashboard:advanced_search_result'), {
+            'attr[]': ['attr'],
+            'is_all_entities': 'true',
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(sorted(resp.context['entities'].split(',')),
+                         sorted([str(Entity.objects.get(name='entity-%d' % i).id) for i in range(2)]))
+        self.assertEqual(resp.context['results']['ret_count'], 20)
+
     def test_show_advanced_search_results_csv_escape(self):
         user = self.admin
 

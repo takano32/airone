@@ -146,21 +146,30 @@ def advanced_search_result(request):
 
     recv_entity = request.GET.getlist('entity[]')
     recv_attr = request.GET.getlist('attr[]')
+    is_all_entities = request.GET.get('is_all_entities') == 'true'
 
-    if not recv_entity or not recv_attr:
+    if not is_all_entities and (not recv_entity or not recv_attr):
         return HttpResponse("The attr[] and entity[] parameters are required", status=400)
+    elif is_all_entities and not recv_attr:
+        return HttpResponse("The attr[] parameters are required", status=400)
 
-    if not all([Entity.objects.filter(id=x, is_active=True).exists() for x in recv_entity]):
+    if not is_all_entities and not all([Entity.objects.filter(id=x, is_active=True).exists() for x in recv_entity]):
         return HttpResponse("Invalid entity ID is specified", status=400)
+
+    if is_all_entities:
+        attrs = sum([list(EntityAttr.objects.filter(name=x, is_active=True)) for x in recv_attr], [])
+        entities = list(set([x.parent_entity.id for x in attrs if x]))
+    else:
+        entities = recv_entity
 
     return render(request, 'advanced_search_result.html', {
         'attrs': recv_attr,
         'results': Entry.search_entries(user,
-                                        recv_entity,
+                                        entities,
                                         [{'name': x} for x in recv_attr],
                                         CONFIG.MAXIMUM_SEARCH_RESULTS),
         'max_num': CONFIG.MAXIMUM_SEARCH_RESULTS,
-        'entities': ','.join([str(x) for x in recv_entity]),
+        'entities': ','.join([str(x) for x in entities]),
     })
 
 @airone_profile

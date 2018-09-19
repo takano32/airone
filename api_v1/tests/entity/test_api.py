@@ -38,3 +38,8 @@ class APITest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(sorted(resp.json()['result']), sorted(['bar', 'fuga']))
+
+        # test to get all EntityAttrs
+        resp = self.client.get('/api/v1/entity/attrs/,')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(sorted(resp.json()['result']), sorted(['foo', 'bar', 'hoge', 'fuga']))

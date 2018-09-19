@@ -24,7 +24,8 @@
   <!-- context of target range of entitiy -->
   <div class="row">
     <div class="col-md-5">
-      <label class="col-label">全 Entity の一覧</label>
+      <label class="col-label">全 Entity の一覧　</label>
+      <input type='checkbox' id='select_all_entity'> 検索対象を絞り込まない</input>
       <select multiple='on' id="all_entity" class="form-control" size='7'>
         {% for entity in entities %}
           <option value='{{ entity.id }}'>{{ entity.name }}</option>
@@ -88,32 +89,36 @@
 {% block script %}
 <script>
 
+function update_attr_condition(entities) {
+  $.ajax({
+    type: 'GET',
+    url: `/api/v1/entity/attrs/${entities}`,
+    dataType: 'json',
+    contentType:   'application/x-www-form-urlencoded;charset=utf-8',
+    scriptCharset: 'utf-8',
+  }).done(function(data){
+    var all_attr = $('#all_attr');
+    var selected_attr = $('#selected_attr');
+
+    all_attr.children().remove();
+    selected_attr.children().remove();
+
+    for(var attr_name of data['result']) {
+      all_attr.append($(`<option value='${ attr_name }'>${ attr_name }</option>`));
+    }
+
+    $('#attr_condition').show();
+  }).fail(function(msg){
+    MessageBox.error(msg);
+  });
+}
+
 function initialize_attr_condition() {
   // search all attrs which are selected and show form to set condition for attr
   target_entities = $('#selected_entity').children().map(function() { return this.value; });
 
   if(target_entities.length > 0) {
-    $.ajax({
-      type: 'GET',
-      url: `/api/v1/entity/attrs/${target_entities.get().join()}`,
-      dataType: 'json',
-      contentType:   'application/x-www-form-urlencoded;charset=utf-8',
-      scriptCharset: 'utf-8',
-    }).done(function(data){
-      var all_attr = $('#all_attr');
-      var selected_attr = $('#selected_attr');
-  
-      all_attr.children().remove();
-      selected_attr.children().remove();
-  
-      for(var attr_name of data['result']) {
-        all_attr.append($(`<option value='${ attr_name }'>${ attr_name }</option>`));
-      }
-  
-      $('#attr_condition').show();
-    }).fail(function(msg){
-      MessageBox.error(msg);
-    });
+    update_attr_condition(target_entities.get().join());
   } else {
     $('#attr_condition').hide();
   }
@@ -168,8 +173,6 @@ $('.narrow_down_option').keyup(function() {
 });
 
 $('#do_search').on('click', function() {
-  var target_entities = $('#selected_entity').children().map(function() { return this.value; });
-
   var attrs = $('#selected_attr').children().map(function() {
     return 'attr[]=' + encodeURIComponent(this.value);
   }).get().join('&');
@@ -178,7 +181,20 @@ $('#do_search').on('click', function() {
     return 'entity[]=' + encodeURIComponent(this.value);
   }).get().join('&');
 
-  location.href = `/dashboard/advanced_search_result?${ attrs }&${ entities }`;
+  var is_all_entities = $('#select_all_entity').is(':checked');
+
+  location.href = `/dashboard/advanced_search_result?is_all_entities=${ is_all_entities }&${ attrs }&${ entities }`;
+});
+
+$('#select_all_entity').on('click', function() {
+  $('#all_entity').prop('disabled', $(this).is(':checked'));
+  $('#selected_entity').prop('disabled', $(this).is(':checked'));
+
+  if($(this).is(':checked')) {
+    update_attr_condition(',');
+  } else {
+    initialize_attr_condition();
+  }
 });
 
 </script>

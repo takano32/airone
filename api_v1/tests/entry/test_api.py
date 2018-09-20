@@ -37,6 +37,15 @@ class APITest(AironeViewTest):
         resp = self.client.post('/api/v1/entry/search')
         self.assertEqual(resp.status_code, 400)
 
+        # send request with invalid parameters (entities and attrinfo require value of list but
+        # but specify other typed ones)
+        params = {
+            'entities': 'entity-1',
+            'attrinfo': {'name': 'attr', 'keyword': 'data-5'}
+        }
+        resp = self.client.post('/api/v1/entry/search', json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 400)
+
         # send search request and checks returned values are valid with several format of parameter,
         # This tests specifing informations of entity both id and name.
         hint_entities = [

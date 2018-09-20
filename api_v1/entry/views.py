@@ -30,6 +30,11 @@ class EntrySearchAPI(APIView):
             return Response('The entities and attrinfo parameters are required',
                             status=status.HTTP_400_BAD_REQUEST)
 
+        if (not isinstance(hint_entity, list) or
+            not isinstance(hint_attr, list) or
+            not isinstance(entry_limit, int)):
+            return Response('The type of parameter is incorrect', status=status.HTTP_400_BAD_REQUEST)
+
         hint_entity_ids = []
         for hint in hint_entity:
             try:

@@ -191,6 +191,10 @@ var update_option = function(input_elem) {
   if($(input_elem).attr('use_api')) {
     if(! sending_request) {
       sending_request = true;
+
+      // disable selector until responsed is returned
+      $(input_elem).parent().find('select').prop('disabled', true);
+
       $.ajax({
         type: 'GET',
         url: `/entry/api/v1/get_attr_referrals/${ $(input_elem).attr('attr_id') }/`,
@@ -202,8 +206,10 @@ var update_option = function(input_elem) {
 
         // reset sending flag
         sending_request = false
+        $(input_elem).parent().find('select').prop('disabled', false);
       }).fail(function(data){
         MessageBox.error(data);
+        $(input_elem).parent().find('select').prop('disabled', false);
       });
     }
   } else {
@@ -222,10 +228,7 @@ var narrow_down_handler = {
     update_option(this);
   },
   "keyup": function(e) {
-    var inp = String.fromCharCode(e.keyCode);
-    var is_BS = (e.keyCode == 8);
-
-    if (!(!enable_key_handling || !(/[a-zA-Z0-9-_ ]/.test(inp) || is_BS))) {
+    if (e.keyCode == 13) {
       update_option(this);
     }
   }

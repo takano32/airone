@@ -133,7 +133,6 @@ def create(request, entity_id):
     {'name': 'entry_name', 'type': str, 'checker': lambda x: x['entry_name']},
     {'name': 'attrs', 'type': list, 'meta': [
         {'name': 'id', 'type': str},
-        {'name': 'type', 'type': str},
         {'name': 'value', 'type': list},
     ]}
 ])
@@ -216,7 +215,6 @@ def edit(request, entry_id):
     )},
     {'name': 'attrs', 'type': list, 'meta': [
         {'name': 'id', 'type': str},
-        {'name': 'type', 'type': str},
         {'name': 'value', 'type': list},
     ]},
 ])

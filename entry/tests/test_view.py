@@ -2799,3 +2799,37 @@ class ViewTest(AironeViewTest):
         self.assertEqual(self.client.get(reverse('entry:copy', args=[entry.id])).status_code, 400)
         self.assertEqual(self.client.get(reverse('entry:refer', args=[entry.id])).status_code, 400)
         self.assertEqual(self.client.get(reverse('entry:history', args=[entry.id])).status_code, 400)
+
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
+    def test_create_and_edit_without_type_parameter(self):
+        user = self.guest_login()
+        entity = Entity.objects.create(name='entity', created_user=user)
+        attr = EntityAttr.objects.create(name='attr', created_user=user, parent_entity=entity, type=AttrTypeValue['string'])
+        entity.attrs.add(attr)
+
+        # create without type parameter
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(attr.id), 'value': [{'data': 'hoge', 'index': '0'}]},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]), json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        entry = Entry.objects.get(name='entry', schema=entity, is_active=True)
+        self.assertEqual(entry.attrs.first().get_latest_value().value, 'hoge')
+
+        # edit without type parameter
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entry.attrs.first().id), 'value': [{'data': 'fuga', 'index': '0'}]},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]), json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        entry.refresh_from_db()
+        self.assertEqual(entry.attrs.first().get_latest_value().value, 'fuga')

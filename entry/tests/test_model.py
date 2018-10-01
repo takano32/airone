@@ -1766,3 +1766,99 @@ class ModelTest(AironeTestCase):
         self.assertEqual(attrv.value, 'hoge')
         self.assertEqual(attrv, attr.get_latest_value())
         self.assertEqual(attr.values.count(), 1)
+
+    def test_utility_for_updating_attributes(self):
+        user = User.objects.create(username='hoge')
+        entity_ref = Entity.objects.create(name='Ref', created_user=user)
+        entry_refs = [Entry.objects.create(name='ref-%d' % i, schema=entity_ref, created_user=user) for i in range(3)]
+        entity = Entity.objects.create(name='Entity', created_user=user)
+
+        attrinfos = [
+            {'name': 'arr_str', 'type': AttrTypeValue['array_string'],
+             'value': ['foo']},
+            {'name': 'arr_obj', 'type': AttrTypeValue['array_object'], 'referral': entity_ref,
+             'value': [entry_refs[0]]},
+            {'name': 'arr_name', 'type': AttrTypeValue['array_named_object'], 'referral': entity_ref,
+             'value': [{'id': entry_refs[0], 'name': 'foo'}]},
+        ]
+        for info in attrinfos:
+            attr = EntityAttr.objects.create(name=info['name'],
+                                             type=info['type'],
+                                             created_user=user,
+                                             parent_entity=entity)
+            if 'referral' in info:
+                attr.referral.add(info['referral'])
+
+            entity.attrs.add(attr)
+
+        # initialize test entry
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+
+        attrs = {}
+        for info in attrinfos:
+            attr = attrs[info['name']] = entry.attrs.get(schema__name=info['name'])
+            attr.add_value(user, info['value'])
+
+        # test append attrv
+        attrs['arr_str'].add_to_attrv(user, value='bar')
+        attrv = attrs['arr_str'].get_latest_value()
+        self.assertEqual(attrv.data_array.count(), 2)
+        self.assertEqual(sorted([x.value for x in attrv.data_array.all()]),
+                         sorted(['foo', 'bar']))
+
+        attrs['arr_obj'].add_to_attrv(user, referral=entry_refs[1])
+        attrv = attrs['arr_obj'].get_latest_value()
+        self.assertEqual(attrv.data_array.count(), 2)
+        self.assertEqual(sorted([x.referral.name for x in attrv.data_array.all()]),
+                         sorted(['ref-0', 'ref-1']))
+
+        attrs['arr_name'].add_to_attrv(user, referral=entry_refs[1], value='baz')
+        attrv = attrs['arr_name'].get_latest_value()
+        self.assertEqual(attrv.data_array.count(), 2)
+        self.assertEqual(sorted([x.value for x in attrv.data_array.all()]),
+                         sorted(['foo', 'baz']))
+        self.assertEqual(sorted([x.referral.name for x in attrv.data_array.all()]),
+                         sorted(['ref-0', 'ref-1']))
+
+        # test remove attrv
+        attrs['arr_str'].remove_from_attrv(user, value='foo')
+        attrv = attrs['arr_str'].get_latest_value()
+        self.assertEqual(attrv.data_array.count(), 1)
+        self.assertEqual(sorted([x.value for x in attrv.data_array.all()]),
+                         sorted(['bar']))
+
+        attrs['arr_obj'].remove_from_attrv(user, referral=entry_refs[0])
+        attrv = attrs['arr_obj'].get_latest_value()
+        self.assertEqual(attrv.data_array.count(), 1)
+        self.assertEqual(sorted([x.referral.name for x in attrv.data_array.all()]),
+                         sorted(['ref-1']))
+
+        attrs['arr_name'].remove_from_attrv(user, referral=entry_refs[0])
+        attrv = attrs['arr_name'].get_latest_value()
+        self.assertEqual(attrv.data_array.count(), 1)
+        self.assertEqual(sorted([x.value for x in attrv.data_array.all()]),
+                         sorted(['baz']))
+        self.assertEqual(sorted([x.referral.name for x in attrv.data_array.all()]),
+                         sorted(['ref-1']))
+
+        # test try to remove attrv with invalid value
+        attrs['arr_str'].remove_from_attrv(user, value=None)
+        attrv = attrs['arr_str'].get_latest_value()
+        self.assertEqual(attrv.data_array.count(), 1)
+        self.assertEqual(sorted([x.value for x in attrv.data_array.all()]),
+                         sorted(['bar']))
+
+        attrs['arr_obj'].remove_from_attrv(user, referral=None)
+        attrv = attrs['arr_obj'].get_latest_value()
+        self.assertEqual(attrv.data_array.count(), 1)
+        self.assertEqual(sorted([x.referral.name for x in attrv.data_array.all()]),
+                         sorted(['ref-1']))
+
+        attrs['arr_name'].remove_from_attrv(user, referral=None)
+        attrv = attrs['arr_name'].get_latest_value()
+        self.assertEqual(attrv.data_array.count(), 1)
+        self.assertEqual(sorted([x.value for x in attrv.data_array.all()]),
+                         sorted(['baz']))
+        self.assertEqual(sorted([x.referral.name for x in attrv.data_array.all()]),
+                         sorted(['ref-1']))

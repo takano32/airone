@@ -650,6 +650,63 @@ class Attribute(ACLBase):
 
         return None
 
+    def remove_from_attrv(self, user, referral=None, value=''):
+        """
+        This method removes target entry from specified attribute
+        """
+        attrv = self.get_latest_value()
+        if self.schema.type & AttrTypeValue['array']:
+
+            if self.schema.type == AttrTypeValue['array_string']:
+                if not value:
+                    return
+
+                updated_data = [x.value for x in attrv.data_array.all() if x.value != value]
+
+            elif self.schema.type == AttrTypeValue['array_object']:
+                if referral is None:
+                    return
+
+                updated_data = [x.referral.id for x in attrv.data_array.all()
+                        if x.referral and  x.referral.id != referral.id]
+
+            elif self.schema.type == AttrTypeValue['array_named_object']:
+                if referral is None:
+                    return
+
+                updated_data = [{
+                    'name': x.value,
+                    'id': x.referral.id,
+                } for x in attrv.data_array.all() if x.referral and x.referral.id != referral.id]
+
+            if self.is_updated(updated_data):
+                self.add_value(user, updated_data)
+
+    def add_to_attrv(self, user, referral=None, value=''):
+        """
+        This method adds target entry to specified attribute with referral_key
+        """
+        attrv = self.get_latest_value()
+        if self.schema.type & AttrTypeValue['array']:
+
+            if self.schema.type == AttrTypeValue['array_string']:
+                updated_data = [x.value for x in attrv.data_array.all()] + [value]
+
+            elif self.schema.type == AttrTypeValue['array_object']:
+                updated_data = [x.referral.id for x in attrv.data_array.all()] + [referral]
+
+            elif self.schema.type == AttrTypeValue['array_named_object']:
+                updated_data = [{
+                    'name': x.value,
+                    'id': x.referral.id
+                } for x in attrv.data_array.all()] + [{
+                    'name': str(value),
+                    'id': referral
+                }]
+
+            if self.is_updated(updated_data):
+                self.add_value(user, updated_data)
+
 class Entry(ACLBase):
     # This flag is set just after created or edited, then cleared at completion of the processing
     STATUS_CREATING = 1 << 0

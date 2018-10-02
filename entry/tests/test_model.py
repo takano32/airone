@@ -763,6 +763,14 @@ class ModelTest(AironeTestCase):
         self.assertEqual(latest_value.data_array.last().value, 'new_value')
         self.assertEqual(latest_value.data_array.last().referral.id, new_ref.id)
 
+        # test to get attribute values of empty entry
+        entry1 = Entry.objects.create(name='entry1', schema=entity, created_user=user)
+        entry1.complement_attrs(user)
+
+        results = entry1.get_available_attrs(user)
+        self.assertIsNone([x for x in results if x['name'] == 'group'][0]['last_referral'])
+        self.assertEqual([x for x in results if x['name'] == 'group'][0]['last_value'], '')
+
     def test_set_attrvalue_to_entry_attr_without_availabe_value(self):
         user = User.objects.create(username='hoge')
 

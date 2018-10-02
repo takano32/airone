@@ -849,7 +849,7 @@ class Entry(ACLBase):
                         'referral': r if r and r.is_active else None,
                     } for (v, r) in zip(values, referrals)], key=lambda x: x['value'])
 
-                elif last_value.data_type == AttrTypeValue['group']:
+                elif last_value.data_type == AttrTypeValue['group'] and last_value.value:
                     group = Group.objects.filter(id=last_value.value)
                     if group:
                         attrinfo['last_referral'] = group.first()

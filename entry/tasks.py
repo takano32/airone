@@ -101,6 +101,8 @@ def create_entry_attrs(self, user_id, entry_id, job_id):
 
             # create Attibute object that contains AttributeValues
             attr = entry.add_attribute_from_base(entity_attr, user)
+            if not any([int(x['id']) == attr.schema.id for x in recv_data['attrs']]):
+                continue
 
             # make an initial AttributeValue object if the initial value is specified
             attr_data = [x for x in recv_data['attrs'] if int(x['id']) == attr.schema.id][0]

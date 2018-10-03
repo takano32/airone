@@ -253,6 +253,33 @@ class ViewTest(AironeViewTest):
         self.assertEqual(obj.status, Job.STATUS_DONE)
         self.assertEqual(obj.operation, Job.OP_CREATE)
 
+        # checks specify part of attribute parameter then set AttributeValue which is only specified one
+        new_attr = EntityAttr.objects.create(name='new_attr',
+                                             created_user=user,
+                                             type=AttrTypeValue['string'],
+                                             parent_entity=self._entity,
+                                             is_mandatory=False)
+        self._entity.attrs.add(new_attr)
+        params['entry_name'] = 'new_entry'
+        params['attrs'] = [{'id': str(new_attr.id), 'value': [{'data': 'foo', 'index': '0'}]}]
+
+        resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
+                                json.dumps(params), 'application/json')
+
+        entry = Entry.objects.last()
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(entry.name, params['entry_name'])
+        self.assertEqual(entry.attrs.count(), 2)
+
+        attr_info = entry.get_available_attrs(user)
+        print(attr_info)
+        self.assertEqual(len(attr_info), 2)
+        self.assertEqual(sorted([x['name'] for x in attr_info]),
+                         sorted([x.schema.name for x in entry.attrs.all()]))
+
+        self.assertEqual([x['last_value'] for x in attr_info if x['name'] == 'test'], [''])
+        self.assertEqual([x['last_value'] for x in attr_info if x['name'] == 'new_attr'], ['foo'])
+
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_post_create_entry_without_permission(self):
         self.guest_login()
@@ -577,6 +604,22 @@ class ViewTest(AironeViewTest):
         self.assertEqual(obj.target_type, Job.TARGET_ENTRY)
         self.assertEqual(obj.status, Job.STATUS_DONE)
         self.assertEqual(obj.operation, Job.OP_EDIT)
+
+        # checks specify part of attribute parameter then set AttributeValue which is only specified one
+        params = {
+            'entry_name': 'foo',
+            'attrs': [
+                {'id': str(Attribute.objects.get(name='foo').id), 'value': [{'data': 'puyo', 'index': 0}]},
+            ],
+        }
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        entry.refresh_from_db()
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(entry.attrs.get(name='foo').get_latest_value().value, 'puyo')
+        self.assertEqual(entry.attrs.get(name='bar').get_latest_value().value, 'fuga')
 
     @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
     def test_post_edit_with_optional_params(self):

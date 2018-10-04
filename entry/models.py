@@ -676,8 +676,8 @@ class Attribute(ACLBase):
 
                 updated_data = [{
                     'name': x.value,
-                    'id': x.referral.id,
-                } for x in attrv.data_array.all() if x.referral and x.referral.id != referral.id]
+                    'id': x.referral.id if x.referral else None,
+                } for x in attrv.data_array.filter(~Q(referral__id=referral.id))]
 
             if self.is_updated(updated_data):
                 self.add_value(user, updated_data)
@@ -698,7 +698,7 @@ class Attribute(ACLBase):
             elif self.schema.type == AttrTypeValue['array_named_object']:
                 updated_data = [{
                     'name': x.value,
-                    'id': x.referral.id
+                    'id': x.referral.id if x.referral else None,
                 } for x in attrv.data_array.all()] + [{
                     'name': str(value),
                     'id': referral

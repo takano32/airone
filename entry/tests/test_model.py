@@ -6,6 +6,7 @@ from django.conf import settings
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
+from acl.models import ACLBase
 from airone.lib.acl import ACLObjType, ACLType
 from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeArrStr, AttrTypeArrObj
 from airone.lib.types import AttrTypeValue
@@ -1870,3 +1871,28 @@ class ModelTest(AironeTestCase):
                          sorted(['baz']))
         self.assertEqual(sorted([x.referral.name for x in attrv.data_array.all()]),
                          sorted(['ref-1']))
+
+        # test to apply with empty value
+        attrs['arr_str'].add_value(user, [])
+        attrs['arr_obj'].add_value(user, [])
+        attrs['arr_name'].add_value(user, [{'name': 'foo', 'id': None}])
+
+        attrs['arr_str'].remove_from_attrv(user, value='foo')
+        attrs['arr_obj'].remove_from_attrv(user, referral=entry_refs[0])
+        attrs['arr_name'].remove_from_attrv(user, referral=entry_refs[0])
+
+        attrs['arr_str'].add_to_attrv(user, value='foo')
+        attrs['arr_obj'].add_to_attrv(user, referral=entry_refs[0])
+        attrs['arr_name'].add_to_attrv(user, referral=entry_refs[0])
+
+        self.assertEqual(attrs['arr_str'].get_latest_value().data_array.count(), 1)
+        self.assertEqual([x.value for x in attrs['arr_str'].get_latest_value().data_array.all()],
+                         ['foo'])
+        self.assertEqual(attrs['arr_obj'].get_latest_value().data_array.count(), 1)
+        self.assertEqual([x.referral.id for x in attrs['arr_obj'].get_latest_value().data_array.all()],
+                         [entry_refs[0].id])
+        self.assertEqual(attrs['arr_name'].get_latest_value().data_array.count(), 2)
+        self.assertEqual([x.referral.id for x in attrs['arr_name'].get_latest_value().data_array.all() if x.referral],
+                         [entry_refs[0].id])
+        self.assertEqual(sorted([x.value for x in attrs['arr_name'].get_latest_value().data_array.all()]),
+                         sorted(['', 'foo']))

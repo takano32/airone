@@ -10,8 +10,8 @@ from xml.etree import ElementTree
 class ViewTest(TestCase):
     def setUp(self):
         self._client = Client()
-        self._create_user('guest', 'guest@guest.com')
-        self._create_user('admin', 'admin@admin.com', True)
+        self.guest = self._create_user('guest', 'guest@guest.com')
+        self.admin = self._create_user('admin', 'admin@admin.com', True)
 
     def _create_user(self, name, email='email', is_superuser=False):
         user = User(username=name, email=email, is_superuser=is_superuser)
@@ -324,7 +324,7 @@ class ViewTest(TestCase):
     def test_edit_passwd_post_without_login(self):
 
         params = {
-            'id':int(1), # guest user id
+            'id': self.guest.id,
             'old_passwd':'guest',
             'new_passwd':'hoge',
             'chk_passwd':'hoge',
@@ -338,7 +338,7 @@ class ViewTest(TestCase):
         count = User.objects.count()
 
         params = {
-            'id':int(1), # guest user id
+            'id': self.guest.id,
             'old_passwd':'guest',
             'new_passwd':'hoge',
             'chk_passwd':'hoge',
@@ -355,7 +355,7 @@ class ViewTest(TestCase):
         count = User.objects.count()
 
         params = {
-            'id':int(1), # guest user id
+            'id': self.guest.id,
             'new_passwd':'hoge',
             'chk_passwd':'hoge',
         }
@@ -370,7 +370,7 @@ class ViewTest(TestCase):
         self._guest_login()
 
         params = {
-            'id':int(1),# guest user id
+            'id': self.guest.id,
             'old_passwd':'guest',
             'new_passwd':'',
             'chk_passwd':'hoge',
@@ -385,7 +385,7 @@ class ViewTest(TestCase):
         self._admin_login()
 
         params = {
-            'id':int(1),# guest user id
+            'id': self.guest.id,
             'new_passwd':'',
             'chk_passwd':'hoge',
         }
@@ -399,7 +399,7 @@ class ViewTest(TestCase):
         self._guest_login()
 
         params = {
-            'id':int(1),# guest user id
+            'id': self.guest.id,
             'old_passwd':'hoge',
             'new_passwd':'hoge',
             'chk_passwd':'hoge',
@@ -414,7 +414,7 @@ class ViewTest(TestCase):
         self._guest_login()
 
         params = {
-            'id':int(1),# guest user id
+            'id': self.guest.id,
             'old_passwd':'guest',
             'new_passwd':'guest',
             'chk_passwd':'guest',
@@ -428,7 +428,7 @@ class ViewTest(TestCase):
         self._guest_login()
 
         params = {
-            'id':int(1),# guest user id
+            'id': self.guest.id,
             'old_passwd':'guest',
             'new_passwd':'hoge',
             'chk_passwd':'fuga',
@@ -443,7 +443,7 @@ class ViewTest(TestCase):
         self._admin_login()
 
         params = {
-            'id':int(1),# guest user id
+            'id': self.guest.id,
             'new_passwd':'hoge',
             'chk_passwd':'fuga',
         }

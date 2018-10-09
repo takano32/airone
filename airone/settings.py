@@ -92,8 +92,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'airone',
-        'USER':'airone',
-        'PASSWORD':'password',
+        'USER':'root',
+        'PASSWORD':'',
         'HOST':'localhost',
     }
 }
@@ -176,10 +176,3 @@ ES_CONFIG = {
     'MAXIMUM_RESULTS_NUM': 10000,
     'TIMEOUT': None
 }
-
-if 'test' in sys.argv or os.getenv('AIRONE_BACKEND_DB') == 'sqlite3':
-    DATABASES['default'] = {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3')
-    }
-    DEBUG = True

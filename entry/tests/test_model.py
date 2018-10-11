@@ -1308,7 +1308,7 @@ class ModelTest(AironeTestCase):
         ret = Entry.search_entries(user, [entity.id], [{'name': 'str', 'keyword': 'foo-10'}], entry_name='e-1')
         self.assertEqual(ret['ret_count'], 1)
 
-    def test_search_entries_with_or_match(self):
+    def test_search_entries_with_exclusive_attrs(self):
         user = User.objects.create(username='hoge')
         entity_info = {
             'E1': [
@@ -1340,12 +1340,20 @@ class ModelTest(AironeTestCase):
 
                 entry.register_es()
 
-        # search entries by only attribute name and keyword without entity
-        hints = [{'name': x.name, 'keyword': '3'} for x in EntityAttr.objects.filter(is_active=True)]
-        ret = Entry.search_entries(user, [], hints, or_match=True)
+        # search entries by only attribute name and keyword without entity with exclusive attrs
+        ret = Entry.search_entries(user, [], [{'name': 'foo', 'keyword': ''}, {'name': 'bar', 'keyword': ''}])
+        self.assertEqual(ret['ret_count'], 10)
+        self.assertEqual(sorted([x['entry']['name'] for x in ret['ret_values']]),
+                         sorted(['E1-%d' % i for i in range(5)] + ['E2-%d' % i for i in range(5)]))
 
-        self.assertEqual(ret['ret_count'], 2)
-        self.assertEqual(sorted([x['entry']['name'] for x in ret['ret_values']]), sorted(['E1-3', 'E2-3']))
+        # search entries by only attribute name and keyword without entity with exclusive attrs and one keyword
+        ret = Entry.search_entries(user, [], [{'name': 'foo', 'keyword': '3'}, {'name': 'bar', 'keyword': ''}])
+        self.assertEqual(ret['ret_count'], 1)
+        self.assertEqual(sorted([x['entry']['name'] for x in ret['ret_values']]), sorted(['E1-3']))
+
+        # search entries by only attribute name and keyword without entity with exclusive hint attrs and keywords
+        ret = Entry.search_entries(user, [], [{'name': 'foo', 'keyword': '3'}, {'name': 'bar', 'keyword': '3'}])
+        self.assertEqual(ret['ret_count'], 0)
 
     def test_register_entry_to_elasticsearch(self):
         ENTRY_COUNTS = 10
@@ -1707,9 +1715,11 @@ class ModelTest(AironeTestCase):
                 e = Entry.objects.create(name='entry-%d' % i, created_user=user, schema=entity)
                 e.register_es()
 
-        # This request expects 'no match' because attribute 'foo' and 'hoge' are not had by both two entities
+        resp = Entry.search_entries(user, entities, [{'name': 'foo'}])
+        self.assertEqual(resp['ret_count'], 5)
+
         resp = Entry.search_entries(user, entities, [{'name': x} for x in ['foo', 'hoge']])
-        self.assertEqual(resp['ret_count'], 0)
+        self.assertEqual(resp['ret_count'], 10)
 
         resp = Entry.search_entries(user, entities, [{'name': x} for x in ['bar']])
         self.assertEqual(resp['ret_count'], 10)

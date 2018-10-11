@@ -1035,7 +1035,7 @@ class Entry(ACLBase):
             es.refresh()
 
     @classmethod
-    def search_entries(kls, user, hint_entity_ids, hint_attrs=[], limit=CONFIG.MAX_LIST_ENTRIES, entry_name=None, or_match=False):
+    def search_entries(kls, user, hint_entity_ids, hint_attrs=[], limit=CONFIG.MAX_LIST_ENTRIES, entry_name=None):
         results = {
             'ret_count': 0,
             'ret_values': []
@@ -1046,6 +1046,7 @@ class Entry(ACLBase):
             "query": {
                 "bool": {
                     'filter': [],
+                    'should': [],
                 }
             }
         }
@@ -1064,50 +1065,55 @@ class Entry(ACLBase):
         if entry_name:
             query['query']['bool']['filter'].append({'regexp': {'name': '.*%s.*' % entry_name}})
 
-        for hint in hint_attrs:
-            conditions = []
-
-            if 'name' in hint:
-                conditions.append({
-                    'term': {'attr.name': hint['name']}
-                })
-
-            if 'keyword' in hint and hint['keyword']:
-
-                timeobj = kls._is_date(hint['keyword'])
-                if timeobj:
-                    timestr = timeobj.strftime('%Y/%m/%d')
-                    conditions.append({
-                        'range': {
-                            'attr.date_value': {
-                                'gte': timestr,
-                                'lte': timestr,
-                                'format': 'yyyy/MM/dd'
-                            }
-                        },
-                    })
-                else:
-                    cond_val = [{'match': {'attr.value': hint['keyword']}}]
-                    if 'exact_match' not in hint:
-                        cond_val.append({'regexp': {'attr.value': '.*%s.*' % hint['keyword']}})
-
-                    conditions.append({'bool' : {'should': cond_val}})
-
-            cond_attr = {
+        # set all attribute to be available
+        if hint_attrs:
+            query['query']['bool']['filter'].append({
                 'nested': {
                     'path': 'attr',
-                    'inner_hits': {},
                     'query': {
-                        'bool': {}
+                        'bool': {
+                            'should': [{'term': {'attr.name': x['name']}} for x in hint_attrs if 'name' in x]
+                        }
                     }
                 }
-            }
-            if or_match:
-                cond_attr['nested']['query']['bool']['should'] = conditions
-            else:
-                cond_attr['nested']['query']['bool']['must'] = conditions
+            })
 
-            query['query']['bool']['filter'].append(cond_attr)
+        # filter attribute by keywords
+        for hint in [x for x in hint_attrs if 'name' in x and 'keyword' in x and x['keyword']]:
+            cond_attr = []
+            cond_attr.append({
+                'term': {'attr.name': hint['name']}
+            })
+
+            timeobj = kls._is_date(hint['keyword'])
+            if timeobj:
+                timestr = timeobj.strftime('%Y/%m/%d')
+                cond_attr.append({
+                    'range': {
+                        'attr.date_value': {
+                            'gte': timestr,
+                            'lte': timestr,
+                            'format': 'yyyy/MM/dd'
+                        }
+                    },
+                })
+            else:
+                cond_val = [{'match': {'attr.value': hint['keyword']}}]
+                if 'exact_match' not in hint:
+                    cond_val.append({'regexp': {'attr.value': '.*%s.*' % hint['keyword']}})
+
+                cond_attr.append({'bool' : {'should': cond_val}})
+
+            query['query']['bool']['filter'].append({
+                'nested': {
+                    'path': 'attr',
+                    'query': {
+                        'bool': {
+                            'filter': cond_attr
+                        }
+                    }
+                }
+            })
 
         try:
             res = ESS().search(body=query, ignore=[404], sort=['name.keyword:asc'])

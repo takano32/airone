@@ -197,6 +197,11 @@ def export_search_result(request, recv_data):
         line_data = [entry_info['entry']['name']]
 
         for attrinfo in recv_data['attrinfo']:
+            # This condition eliminates the possibility that an attribute
+            # which target entry doens't have is specified in attrinfo variable.
+            if attrinfo['name'] not in entry_info['attrs']:
+                line_data.append('')
+                continue
 
             value = entry_info['attrs'][attrinfo['name']]
 

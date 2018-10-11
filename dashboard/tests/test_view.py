@@ -8,6 +8,7 @@ from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
 from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
 from airone.lib.types import AttrTypeNamedObj, AttrTypeArrNamedObj
 from airone.lib.types import AttrTypeValue
+from django.conf import settings
 from django.urls import reverse
 from django.contrib.auth.models import User as DjangoUser
 from io import StringIO
@@ -19,6 +20,8 @@ from xml.etree import ElementTree
 
 class ViewTest(AironeViewTest):
     def setUp(self):
+        super(ViewTest, self).setUp()
+
         self.admin = self.admin_login()
 
         # preparing test Entity/Entry objects

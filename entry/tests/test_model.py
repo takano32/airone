@@ -709,7 +709,10 @@ class ModelTest(AironeTestCase):
             'arr_obj': {'type': AttrTypeValue['array_object'],
                         'value': [str(x.id) for x in Entry.objects.filter(schema=ref_entity)]},
             'arr_name': {'type': AttrTypeValue['array_named_object'],
-                         'value': [{'name': 'hoge', 'id': str(last_ref.id)}]},
+                         'value': [
+                             {'name': 'hoge', 'id': str(last_ref.id)},
+                             {'name': 'fuga', 'boolean': False}, # specify boolean parameter
+                          ]},
             'group': {'type': AttrTypeValue['group'], 'value':
                       str(Group.objects.create(name='group').id)},
             'date': {'type': AttrTypeValue['date'], 'value': date(2018, 12, 31)}
@@ -736,6 +739,13 @@ class ModelTest(AironeTestCase):
 
             self.assertEqual(attrv, attr.get_latest_value())
             self.assertEqual(attr.values.last().data_type, info['type'])
+
+            # check boolean parameter for each attrv
+            self.assertTrue(all(x.boolean == False for x in attrv.data_array.all()))
+            if attr_name == 'bool':
+                self.assertEqual(attrv.boolean, info['value'])
+            else:
+                self.assertFalse(attrv.boolean)
 
             # checks that validation processing works well
             if 'invalid_values' in info:
@@ -771,6 +781,23 @@ class ModelTest(AironeTestCase):
         results = entry1.get_available_attrs(user)
         self.assertIsNone([x for x in results if x['name'] == 'group'][0]['last_referral'])
         self.assertEqual([x for x in results if x['name'] == 'group'][0]['last_value'], '')
+
+        # test add_value with boolean parameter
+        for attr_name, info in attr_info.items():
+            attr = entry.attrs.get(name=attr_name)
+            attrv = attr.add_value(user, info['value'], boolean=True)
+
+            # check boolean parameter for each attrv
+            if attr_name == 'bool':
+                self.assertEqual(attrv.boolean, info['value'])
+            else:
+                self.assertTrue(attrv.boolean)
+
+            for co_attrv in attrv.data_array.all():
+                if attr_name == 'arr_name' and co_attrv.value == 'fuga':
+                    self.assertFalse(co_attrv.boolean)
+                else:
+                    self.assertTrue(co_attrv.boolean)
 
     def test_set_attrvalue_to_entry_attr_without_availabe_value(self):
         user = User.objects.create(username='hoge')
@@ -1838,13 +1865,14 @@ class ModelTest(AironeTestCase):
         self.assertEqual(sorted([x.referral.name for x in attrv.data_array.all()]),
                          sorted(['ref-0', 'ref-1']))
 
-        attrs['arr_name'].add_to_attrv(user, referral=entry_refs[1], value='baz')
+        attrs['arr_name'].add_to_attrv(user, referral=entry_refs[1], value='baz', boolean=True)
         attrv = attrs['arr_name'].get_latest_value()
         self.assertEqual(attrv.data_array.count(), 2)
         self.assertEqual(sorted([x.value for x in attrv.data_array.all()]),
                          sorted(['foo', 'baz']))
         self.assertEqual(sorted([x.referral.name for x in attrv.data_array.all()]),
                          sorted(['ref-0', 'ref-1']))
+        self.assertEqual([x.boolean for x in attrv.data_array.filter(value='baz')], [True])
 
         # test remove attrv
         attrs['arr_str'].remove_from_attrv(user, value='foo')
@@ -1866,6 +1894,7 @@ class ModelTest(AironeTestCase):
                          sorted(['baz']))
         self.assertEqual(sorted([x.referral.name for x in attrv.data_array.all()]),
                          sorted(['ref-1']))
+        self.assertEqual([x.boolean for x in attrv.data_array.filter(value='baz')], [True])
 
         # test try to remove attrv with invalid value
         attrs['arr_str'].remove_from_attrv(user, value=None)

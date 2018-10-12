@@ -152,3 +152,6 @@ db.sqlite*
 
 # ignores screenlogs
 screenlog*
+
+# ignores AirOne configuration because this includes settings depends on each environment
+airone/settings.py

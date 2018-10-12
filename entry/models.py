@@ -452,7 +452,7 @@ class Attribute(ACLBase):
 
         return False
 
-    def add_value(self, user, value):
+    def add_value(self, user, value, boolean=False):
         """This method make AttributeValue and set it as the latest one"""
 
         # checks the type of specified value is acceptable for this Attribute object
@@ -470,10 +470,12 @@ class Attribute(ACLBase):
         # set attribute value according to the attribute-type
         if self.schema.type == AttrTypeValue['string'] or self.schema.type == AttrTypeValue['text']:
             attr_value = AttributeValue.create(user, self)
+            attr_value.boolean = boolean
             attr_value.value = str(value)
 
         if self.schema.type == AttrTypeValue['group']:
             attr_value = AttributeValue.create(user, self)
+            attr_value.boolean = boolean
             if isinstance(value, Group):
                 attr_value.value = str(value.id)
             else:
@@ -481,6 +483,7 @@ class Attribute(ACLBase):
 
         elif self.schema.type == AttrTypeValue['object']:
             attr_value = AttributeValue.create(user, self)
+            attr_value.boolean = boolean
             # set None if the referral entry is not specified
             attr_value.referral = None
             if not value:
@@ -497,12 +500,14 @@ class Attribute(ACLBase):
         elif self.schema.type == AttrTypeValue['date']:
             attr_value = AttributeValue.create(user, self)
             attr_value.date = value
+            attr_value.boolean = boolean
 
         elif (self.schema.type == AttrTypeValue['named_object'] and
               ('id' in value and value['id'] or 'name' in value and value['name'])):
 
             attr_value = AttributeValue.create(user, self)
             attr_value.value = value['name']
+            attr_value.boolean = boolean
 
             attr_value.referral = None
             if not value['id']:
@@ -516,6 +521,7 @@ class Attribute(ACLBase):
 
         elif self.schema.type & AttrTypeValue['array']:
             attr_value = AttributeValue.create(user, self)
+            attr_value.boolean = boolean
             # set status of parent data_array
             attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
             co_attrv_params = {
@@ -524,6 +530,7 @@ class Attribute(ACLBase):
                 'data_type': self.schema.type,
                 'parent_attrv': attr_value,
                 'is_latest': False,
+                'boolean': boolean,
             }
 
             # create and append updated values
@@ -549,6 +556,10 @@ class Attribute(ACLBase):
                         referral = data['id']
                     elif Entry.objects.filter(id=data['id']).exists():
                         referral = Entry.objects.get(id=data['id'])
+
+                    # update boolean parameter if data has its value
+                    if 'boolean' in data:
+                        co_attrv_params['boolean'] = data['boolean']
 
                     attrv_bulk.append(AttributeValue(referral=referral,
                                                      value=data['name'] if 'name' in data else '',
@@ -677,12 +688,13 @@ class Attribute(ACLBase):
                 updated_data = [{
                     'name': x.value,
                     'id': x.referral.id if x.referral else None,
+                    'boolean': x.boolean,
                 } for x in attrv.data_array.filter(~Q(referral__id=referral.id))]
 
             if self.is_updated(updated_data):
-                self.add_value(user, updated_data)
+                self.add_value(user, updated_data, boolean=attrv.boolean)
 
-    def add_to_attrv(self, user, referral=None, value=''):
+    def add_to_attrv(self, user, referral=None, value='', boolean=False):
         """
         This method adds target entry to specified attribute with referral_key
         """
@@ -698,14 +710,16 @@ class Attribute(ACLBase):
             elif self.schema.type == AttrTypeValue['array_named_object']:
                 updated_data = [{
                     'name': x.value,
+                    'boolean': x.boolean,
                     'id': x.referral.id if x.referral else None,
                 } for x in attrv.data_array.all()] + [{
                     'name': str(value),
+                    'boolean': boolean,
                     'id': referral
                 }]
 
             if self.is_updated(updated_data):
-                self.add_value(user, updated_data)
+                self.add_value(user, updated_data, boolean=attrv.boolean)
 
 class Entry(ACLBase):
     # This flag is set just after created or edited, then cleared at completion of the processing

@@ -1035,7 +1035,7 @@ class Entry(ACLBase):
             es.refresh()
 
     @classmethod
-    def search_entries(kls, user, hint_entity_ids, hint_attrs=[], limit=CONFIG.MAX_LIST_ENTRIES, entry_name=None):
+    def search_entries(kls, user, hint_entity_ids, hint_attrs=[], limit=CONFIG.MAX_LIST_ENTRIES, entry_name=None, or_match=False):
         results = {
             'ret_count': 0,
             'ret_values': []
@@ -1104,16 +1104,20 @@ class Entry(ACLBase):
 
                 cond_attr.append({'bool' : {'should': cond_val}})
 
-            query['query']['bool']['filter'].append({
+            adding_cond = {
                 'nested': {
                     'path': 'attr',
                     'query': {
-                        'bool': {
-                            'filter': cond_attr
-                        }
+                        'bool': {}
                     }
                 }
-            })
+            }
+            if or_match:
+                adding_cond['nested']['query']['bool']['should'] = cond_attr
+            else:
+                adding_cond['nested']['query']['bool']['filter'] = cond_attr
+
+            query['query']['bool']['filter'].append(adding_cond)
 
         try:
             res = ESS().search(body=query, ignore=[404], sort=['name.keyword:asc'])

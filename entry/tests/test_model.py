@@ -1355,6 +1355,12 @@ class ModelTest(AironeTestCase):
         ret = Entry.search_entries(user, [], [{'name': 'foo', 'keyword': '3'}, {'name': 'bar', 'keyword': '3'}])
         self.assertEqual(ret['ret_count'], 0)
 
+        # search entries using or_match parameter
+        hints = [{'name': x.name, 'keyword': '3'} for x in EntityAttr.objects.filter(is_active=True)]
+        ret = Entry.search_entries(user, [], hints, or_match=True)
+        self.assertEqual(ret['ret_count'], 2)
+        self.assertEqual(sorted([x['entry']['name'] for x in ret['ret_values']]), sorted(['E1-3', 'E2-3']))
+
     def test_register_entry_to_elasticsearch(self):
         ENTRY_COUNTS = 10
         user = User.objects.create(username='hoge')

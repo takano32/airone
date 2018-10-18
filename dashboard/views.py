@@ -147,6 +147,7 @@ def advanced_search_result(request):
     recv_entity = request.GET.getlist('entity[]')
     recv_attr = request.GET.getlist('attr[]')
     is_all_entities = request.GET.get('is_all_entities') == 'true'
+    has_referral = request.GET.get('has_referral') == 'true'
 
     if not is_all_entities and (not recv_entity or not recv_attr):
         return HttpResponse("The attr[] and entity[] parameters are required", status=400)
@@ -167,9 +168,11 @@ def advanced_search_result(request):
         'results': Entry.search_entries(user,
                                         entities,
                                         [{'name': x} for x in recv_attr],
-                                        CONFIG.MAXIMUM_SEARCH_RESULTS),
+                                        CONFIG.MAXIMUM_SEARCH_RESULTS,
+                                        hint_referral=has_referral),
         'max_num': CONFIG.MAXIMUM_SEARCH_RESULTS,
         'entities': ','.join([str(x) for x in entities]),
+        'has_referral': has_referral,
     })
 
 @airone_profile
@@ -177,21 +180,29 @@ def advanced_search_result(request):
     {'name': 'entities', 'type': list,
      'checker': lambda x: all([Entity.objects.filter(id=y) for y in x['entities']])},
     {'name': 'attrinfo', 'type': list},
+    {'name': 'has_referral', 'type': str, 'omittable': True},
 ])
 def export_search_result(request, recv_data):
     user = User.objects.get(id=request.user.id)
 
+    has_referral = False
+    if 'has_referral' in recv_data:
+        has_referral = recv_data['has_referral']
+
     resp = Entry.search_entries(user,
                                 recv_data['entities'],
                                 recv_data['attrinfo'],
-                                settings.ES_CONFIG['MAXIMUM_RESULTS_NUM'])
-
+                                settings.ES_CONFIG['MAXIMUM_RESULTS_NUM'],
+                                hint_referral=has_referral)
 
     output = io.StringIO(newline='')
     writer = csv.writer(output)
 
     # write first line of CSV
-    writer.writerow(['Name'] + [x['name'] for x in recv_data['attrinfo']])
+    if has_referral != False:
+        writer.writerow(['Name'] + [x['name'] for x in recv_data['attrinfo']] + ['Referral'])
+    else:
+        writer.writerow(['Name'] + [x['name'] for x in recv_data['attrinfo']])
 
     for entry_info in resp['ret_values']:
         line_data = [entry_info['entry']['name']]
@@ -248,6 +259,9 @@ def export_search_result(request, recv_data):
                     items.append({k: v['name']})
 
                 line_data.append(str(items))
+
+        if has_referral != False:
+            line_data.append(str(['%s / %s' % (x['name'], x['schema']) for x in entry_info['referrals']]))
 
         writer.writerow(line_data)
 

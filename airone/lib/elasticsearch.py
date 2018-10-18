@@ -8,6 +8,8 @@ class ESS(Elasticsearch):
     MAX_TERM_SIZE = 32766
 
     def __init__(self, index=None, *args, **kwargs):
+        self.additional_config = False
+
         if not index:
             self._index = settings.ES_CONFIG['INDEX']
 
@@ -26,6 +28,13 @@ class ESS(Elasticsearch):
         return super(ESS, self).index(index=self._index, *args, **kwargs)
 
     def search(self, *args, **kwargs):
+        # expand max_result_window parameter which indicates numbers to return at one searching
+        if not self.additional_config:
+            self.additional_config = True
+
+            body = {"index": {"max_result_window" : settings.ES_CONFIG['MAXIMUM_RESULTS_NUM']}}
+            self.indices.put_settings(index=self._index, body=body)
+
         return super(ESS, self).search(index=self._index,
                                        size=settings.ES_CONFIG['MAXIMUM_RESULTS_NUM'], *args, **kwargs)
 

@@ -1335,6 +1335,52 @@ class ModelTest(AironeTestCase):
         ret = Entry.search_entries(user, [entity.id], [{'name': 'str', 'keyword': 'foo-10'}], entry_name='e-1')
         self.assertEqual(ret['ret_count'], 1)
 
+    def test_search_entries_with_hint_referral(self):
+        user = User.objects.create(username='hoge')
+
+        # initialize Entities
+        ref_entity = Entity.objects.create(name='Referred Entity', created_user=user)
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entity_attr = EntityAttr.objects.create(name='attr_ref',
+                                                type=AttrTypeValue['object'],
+                                                created_user=user,
+                                                parent_entity=entity)
+        entity_attr.referral.add(ref_entity)
+        entity.attrs.add(entity_attr)
+
+        # initialize Entries
+        ref_entries = [Entry.objects.create(name='ref%d' % i, schema=ref_entity, created_user=user) for i in range(3)]
+        for index in range(10):
+            entry = Entry.objects.create(name='e-%d' % index, schema=entity, created_user=user)
+            entry.complement_attrs(user)
+
+            # set referral entry (ref0, ref1) alternately
+            entry.attrs.first().add_value(user, ref_entries[index % 2])
+
+        for ref_entry in ref_entries:
+            ref_entry.register_es()
+
+        # call search_entries with 'hint_referral' parameter, then checks that result includes referral entries
+        ret = Entry.search_entries(user, [ref_entity.id], [], hint_referral=True)
+        self.assertEqual(ret['ret_count'], 3)
+        self.assertEqual(sorted([x['id'] for x in ret['ret_values'][0]['referrals']]),
+                         sorted([x.id for x in ref_entries[0].get_referred_objects()]))
+
+        # call search_entries with 'hint_referral',
+        ret = Entry.search_entries(user, [ref_entity.id], [], hint_referral='e-')
+        self.assertEqual(ret['ret_count'], 2)
+
+        # call search_entries with 'hint_referral' parameter as string,
+        # then checks that result includes referral entries that match specified referral name
+        ret = Entry.search_entries(user, [ref_entity.id], [], hint_referral='e-1')
+        self.assertEqual(ret['ret_count'], 1)
+        self.assertEqual([x['entry']['name'] for x in ret['ret_values']], ['ref1'])
+
+        # call search_entries with 'hint_referral' parameter as name of entry
+        # which is not referred from any entries.
+        ret = Entry.search_entries(user, [ref_entity.id], [], hint_referral='hogefuga')
+        self.assertEqual(ret['ret_count'], 0)
+
     def test_search_entries_with_exclusive_attrs(self):
         user = User.objects.create(username='hoge')
         entity_info = {

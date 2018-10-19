@@ -173,6 +173,6 @@ CACHES = {
 ES_CONFIG = {
     'NODES': ['localhost:9200'],
     'INDEX': 'airone',
-    'MAXIMUM_RESULTS_NUM': 10000,
+    'MAXIMUM_RESULTS_NUM': 500000,
     'TIMEOUT': None
 }

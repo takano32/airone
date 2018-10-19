@@ -31,6 +31,9 @@
           <button id="export_csv" type="button" class="btn btn-primary btn-sm">全件検索＆CSV 出力</button>
           <input type='hidden' name='entities' value='[{{ entities }}]' />
           <input type='hidden' name='attrinfo' value='[]' />
+          {% if has_referral %}
+            <input type='hidden' id='param_export_csv_referral' name='has_referral' value='' />
+          {% endif %}
         </form>
       </div>
     </div>
@@ -49,6 +52,13 @@
         <input type='text' class='input-sm narrow_down_entries' attrname='{{ attrname }}'></input>
       </th>
       {% endfor %}
+
+      {% if has_referral %}
+      <th>
+        参照エントリ<br/>
+        <input type='text' class='input-sm narrow_down_referral'></input>
+      </th>
+      {% endif %}
     </tr>
   </thead>
   <tbody>
@@ -134,6 +144,18 @@
           {% endif %}
         {% endwith %}
       {% endfor %}
+
+      {% if has_referral %}
+      <td>
+        <ul class='list-group'>
+          {% for referral in result.referrals %}
+          <li class='list-group-item'>
+            <a href='/entry/show/{{ referral.id }}'>{{ referral.name }} / {{ referral.schema }}</a>
+          </li>
+          {% endfor %}
+        </ul>
+      </td>
+      {% endif %}
     </tr>
     {% endfor %}
   </tbody>
@@ -234,6 +256,18 @@ function reconstruct_tbody(results) {
       new_elem_entry.append(make_attr_elem(result.attrs['{{ attrname }}']));
     {% endfor %}
 
+    {% if has_referral %}
+      let elem_ref_td = $('<td/>');
+      let elem_ref_ul = $("<ul class='list-group'/>");
+
+      for(let ref of result.referrals) {
+        elem_ref_ul.append($(`<li class='list-group-item'><a href='/entry/show/${ ref.id }'>${ ref.name } / ${ ref.schema }</a></li>`));
+      }
+
+      elem_ref_td.append(elem_ref_ul)
+      new_elem_entry.append(elem_ref_td);
+    {% endif %}
+
     elem_parent.append(new_elem_entry);
   }
 }
@@ -243,15 +277,17 @@ $(document).ready(function() {
   var entities = '{{ entities }}';
 
   function get_attrinfo() {
-    return $('.narrow_down_entries').map(function() {
+    ret_value = $('.narrow_down_entries').map(function() {
       return {
         'name': $(this).attr('attrname'),
         'keyword': $(this).val(),
       }
     }).get();
+
+    return ret_value;
   }
 
-  $(".narrow_down_entries").on('keyup', function(e) {
+  function narrow_results_down(e) {
     if(! (e.keyCode != 13 || sending_request)) {
       sending_request = true;
 
@@ -261,6 +297,11 @@ $(document).ready(function() {
             entities: '{{ entities }}'.split(','),
             attrinfo: get_attrinfo(),
         };
+
+        {% if has_referral %}
+        request_params['referral'] = $('.narrow_down_referral').val();
+        {% endif %}
+
         if($('#check_search_all').is(':checked')) {
           request_params['entry_limit'] = 99999;
         }
@@ -285,10 +326,14 @@ $(document).ready(function() {
         MessageBox.error('failed to load data from server (Please reload this page or call Administrator)');
       });
     }
-  });
+  }
+
+  $(".narrow_down_referral").on('keyup', narrow_results_down);
+  $(".narrow_down_entries").on('keyup', narrow_results_down);
 
   $('#export_csv').on('click', function(e) {
     $('#form_export_csv input[name=attrinfo]').val(JSON.stringify(get_attrinfo()));
+    $('#param_export_csv_referral').val(JSON.stringify($('.narrow_down_referral').val()));
 
     $('#form_export_csv').submit();
   });

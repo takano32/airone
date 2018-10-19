@@ -24,16 +24,17 @@ class EntrySearchAPI(APIView):
 
         hint_entity = request.data.get('entities')
         hint_attr = request.data.get('attrinfo')
+        hint_referral = request.data.get('referral')
         entry_limit = request.data.get('entry_limit', CONFIG_ENTRY.MAX_LIST_ENTRIES)
-
-        if not hint_entity or not hint_attr:
-            return Response('The entities and attrinfo parameters are required',
-                            status=status.HTTP_400_BAD_REQUEST)
 
         if (not isinstance(hint_entity, list) or
             not isinstance(hint_attr, list) or
             not isinstance(entry_limit, int)):
             return Response('The type of parameter is incorrect', status=status.HTTP_400_BAD_REQUEST)
+
+        # convert hint_referral type to be eligible for search_entries method
+        if hint_referral is None:
+            hint_referral = False
 
         hint_entity_ids = []
         for hint in hint_entity:
@@ -47,7 +48,7 @@ class EntrySearchAPI(APIView):
                 if entity:
                     hint_entity_ids.append(entity.id)
 
-        resp = Entry.search_entries(user, hint_entity_ids, hint_attr, entry_limit)
+        resp = Entry.search_entries(user, hint_entity_ids, hint_attr, entry_limit, hint_referral=hint_referral)
 
         return Response({'result': resp}, content_type='application/json; charset=UTF-8')
 

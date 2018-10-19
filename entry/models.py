@@ -1049,7 +1049,7 @@ class Entry(ACLBase):
             es.refresh()
 
     @classmethod
-    def search_entries(kls, user, hint_entity_ids, hint_attrs=[], limit=CONFIG.MAX_LIST_ENTRIES, entry_name=None, or_match=False):
+    def search_entries(kls, user, hint_entity_ids, hint_attrs=[], limit=CONFIG.MAX_LIST_ENTRIES, entry_name=None, or_match=False, hint_referral=False):
         results = {
             'ret_count': 0,
             'ret_values': []
@@ -1144,20 +1144,44 @@ class Entry(ACLBase):
         # set numbers of found entries
         results['ret_count'] = res['hits']['total']
 
-        for hit in res['hits']['hits']:
-            if len(results['ret_values']) >= limit:
+        # get django objects from the hit information from Elasticsearch
+        hit_entry_ids = [x['_id'] for x in res['hits']['hits']]
+        if isinstance(hint_referral, str) and hint_referral:
+            # If the hint_referral parameter is specified,
+            # this filters results that only have specified referral entry.
+
+            filtered_ids = AttributeValue.objects.filter(
+                    Q(parent_attr__parent_entry__name__iregex=hint_referral,
+                      referral__id__in=hit_entry_ids,
+                      is_latest=True) |
+                    Q(parent_attr__parent_entry__name__iregex=hint_referral,
+                      referral__id__in=hit_entry_ids,
+                      parent_attrv__is_latest=True)
+                    ).values_list('referral', flat=True)
+
+            hit_entries = Entry.objects.filter(pk__in=filtered_ids, is_active=True)
+
+            # reset matched count by filtered results by hint_referral parameter
+            results['ret_count'] = len(hit_entries)
+        else:
+            hit_entries = Entry.objects.filter(id__in=hit_entry_ids, is_active=True)
+
+        hit_infos = {}
+        for entry in hit_entries:
+            if len(hit_infos) >= limit:
                 break
 
+            hit_infos[entry] = [x['_source']['attr'] for x in res['hits']['hits'] if int(x['_id']) == entry.id][0]
+
+        for (entry, hit_attrs) in sorted(hit_infos.items(), key=lambda x:x[0].name):
             # If 'keyword' parameter is specified and hited entry doesn't have value at the targt
             # attribute, that entry should be removed from result. This processing may be worth to
             # do before refering entry from DB for saving time of server-side processing.
             for hint in hint_attrs:
                 if ('keyword' in hint and hint['keyword'] and
                     # This checks hitted entry has specified attribute
-                    not [x for x in hit['_source']['attr'] if x['name'] == hint['name']]):
+                    not [x for x in hit_attrs if x['name'] == hint['name']]):
                         continue
-
-            entry = Entry.objects.get(id=hit['_id'])
 
             ret_info = {
                 'entity': {'id': entry.schema.id, 'name': entry.schema.name},
@@ -1165,8 +1189,16 @@ class Entry(ACLBase):
                 'attrs': {},
             }
 
+            # When 'hint_referral' parameter is specifed, return referred entries for each results
+            if hint_referral != False:
+                ret_info['referrals'] = [{
+                    'id': x.id,
+                    'name': x.name,
+                    'schema': x.schema.name,
+                } for x in entry.get_referred_objects()]
+
             # formalize attribute values according to the type
-            for attrinfo in hit['_source']['attr']:
+            for attrinfo in hit_attrs:
                 if attrinfo['name'] in ret_info['attrs']:
                     ret_attrinfo = ret_info['attrs'][attrinfo['name']]
                 else:

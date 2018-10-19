@@ -104,7 +104,9 @@ def http_post_form(validator=[]):
 
             recv_data = {}
             for x in validator:
-                recv_data[x['name']] = json.loads(request.POST.get(x['name']))
+                val = request.POST.get(x['name'])
+                if val:
+                    recv_data[x['name']] = json.loads(val)
 
             if _is_valid(recv_data, validator):
                 kwargs['recv_data'] = recv_data
@@ -222,11 +224,11 @@ def get_download_response(io_stream, fname):
 def _is_valid(params, meta_info):
     if not isinstance(params, dict):
         return False
-    # These are existance checks of each parameters
-    if not all([x['name'] in params for x in meta_info]):
+    # These are existance checks of each parameters except for ones which has omittable parameter
+    if not all([x['name'] in params for x in meta_info if 'omittable' not in x]):
         return False
     # These are type checks of each parameters
-    if not all([isinstance(params[x['name']], x['type']) for x in meta_info]):
+    if not all([isinstance(params[x['name']], x['type']) for x in meta_info if 'omittable' not in x]):
         return False
     # These are value checks of each parameters
     for _meta in meta_info:

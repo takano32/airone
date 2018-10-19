@@ -13,6 +13,10 @@ class APITest(AironeViewTest):
     def test_narrow_down_advanced_search_results(self):
         user = self.admin_login()
 
+        ref_entity = Entity.objects.create(name='Referred Entity', created_user=user)
+        ref_entry = Entry.objects.create(name='referred_entry', schema=ref_entity, created_user=user)
+        ref_entry.register_es()
+
         for entity_index in range(0, 2):
             entity = Entity.objects.create(name='entity-%d' % entity_index, created_user=user)
             entity.attrs.add(EntityAttr.objects.create(**{
@@ -22,13 +26,23 @@ class APITest(AironeViewTest):
                 'parent_entity': entity,
             }))
 
+            attr_ref = EntityAttr.objects.create(**{
+                'name': 'attr_ref',
+                'type': AttrTypeValue['object'],
+                'created_user': user,
+                'parent_entity': entity,
+            })
+            attr_ref.referral.add(ref_entry)
+            entity.attrs.add(attr_ref)
+
             for entry_index in range(0, 10):
                 entry = Entry.objects.create(name='entry-%d' % (entry_index),
                                              schema=entity, created_user=user)
                 entry.complement_attrs(user)
 
                 # add an AttributeValue
-                entry.attrs.first().add_value(user, 'data-%d' % entry_index)
+                entry.attrs.get(schema__name='attr').add_value(user, 'data-%d' % entry_index)
+                entry.attrs.get(schema__name='attr_ref').add_value(user, ref_entry)
 
                 # register entry to the Elasticsearch
                 entry.register_es()
@@ -63,6 +77,30 @@ class APITest(AironeViewTest):
 
             result = resp.json()['result']
             self.assertEqual(result['ret_count'], 2)
+            self.assertFalse('referrals' in result)
+
+        # send search request with 'hint_referral' parameter
+        params = {
+            'entities': [ref_entity.id],
+            'attrinfo': [],
+            'referral': '',
+        }
+        resp = self.client.post('/api/v1/entry/search', json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        result = resp.json()['result']
+        self.assertEqual(result['ret_count'], 1)
+        self.assertEqual(sorted([x['id'] for x in result['ret_values'][0]['referrals']]),
+                         sorted([x.id for x in ref_entry.get_referred_objects()]))
+
+        params = {
+            'entities': [ref_entity.id],
+            'attrinfo': [],
+            'referral': 'hogefuga',  # this is invalid referral name
+        }
+        resp = self.client.post('/api/v1/entry/search', json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['result']['ret_count'], 0)
 
     def test_api_referred_entry(self):
         user = self.guest_login()

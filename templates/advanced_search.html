@@ -75,6 +75,9 @@
 
     <div class="row">
       <div class="col">
+        <div class="float-left">
+          <input type='checkbox' id='add_referral'> 参照エントリも含める</input>
+        </div>
         <div class="float-right">
           <button id="do_search" type="button" class="btn btn-primary">検索</button>
         </div>
@@ -183,7 +186,7 @@ $('#do_search').on('click', function() {
 
   var is_all_entities = $('#select_all_entity').is(':checked');
 
-  location.href = `/dashboard/advanced_search_result?is_all_entities=${ is_all_entities }&${ attrs }&${ entities }`;
+  location.href = `/dashboard/advanced_search_result?has_referral=${ $('#add_referral').is(':checked') }&is_all_entities=${ is_all_entities }&${ attrs }&${ entities }`;
 });
 
 $('#select_all_entity').on('click', function() {

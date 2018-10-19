@@ -131,7 +131,6 @@ class ViewTest(AironeViewTest):
         # entity-2 should not be displayed
         self.assertEquals(0, len(list(filter(lambda n: n=="entity-2", entity_names))))
 
-
     def test_show_advanced_search_results(self):
         for entity_index in range(0, 2):
             entity = Entity.objects.create(name='entity-%d' % entity_index, created_user=self.admin)
@@ -188,6 +187,52 @@ class ViewTest(AironeViewTest):
         self.assertEqual(sorted(resp.context['entities'].split(',')),
                          sorted([str(Entity.objects.get(name='entity-%d' % i).id) for i in range(2)]))
         self.assertEqual(resp.context['results']['ret_count'], 20)
+
+    def test_export_advanced_search_result_with_referral(self):
+        user = self.admin
+
+        # initialize Entities
+        ref_entity = Entity.objects.create(name='Referred Entity', created_user=user)
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entity_attr = EntityAttr.objects.create(name='attr_ref',
+                                                type=AttrTypeValue['object'],
+                                                created_user=user,
+                                                parent_entity=entity)
+        entity_attr.referral.add(ref_entity)
+        entity.attrs.add(entity_attr)
+
+        # initialize Entries
+        ref_entry = Entry.objects.create(name='ref', schema=ref_entity, created_user=user)
+        ref_entry.register_es()
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+        entry.attrs.first().add_value(user, ref_entry)
+
+        # export with 'has_referral' parameter which has blank value
+        resp = self.client.post(reverse('dashboard:export_search_result'), {
+            'entities': json.dumps([ref_entity.id]),
+            'attrinfo': json.dumps([]),
+            'has_referral': json.dumps(''),
+        })
+        self.assertEqual(resp.status_code, 200)
+
+        # verifying result has referral entry's infomations
+        csv_contents = [x for x in resp.content.decode('utf-8').splitlines() if x]
+        self.assertEqual(len(csv_contents), 2)
+        self.assertEqual(csv_contents[0], 'Name,Referral')
+        self.assertEqual(csv_contents[1], "ref,['entry / entity']")
+
+        # export with 'has_referral' parameter which has invalid value
+        resp = self.client.post(reverse('dashboard:export_search_result'), {
+            'entities': json.dumps([ref_entity.id]),
+            'attrinfo': json.dumps([]),
+            'has_referral': json.dumps('hogefuga'),
+        })
+        self.assertEqual(resp.status_code, 200)
+
+        csv_contents = [x for x in resp.content.decode('utf-8').splitlines() if x]
+        self.assertEqual(len(csv_contents), 1)
 
     def test_show_advanced_search_results_csv_escape(self):
         user = self.admin

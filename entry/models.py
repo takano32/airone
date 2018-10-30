@@ -1050,6 +1050,9 @@ class Entry(ACLBase):
 
     @classmethod
     def search_entries(kls, user, hint_entity_ids, hint_attrs=[], limit=CONFIG.MAX_LIST_ENTRIES, entry_name=None, or_match=False, hint_referral=False):
+        def _get_regex_pattern(keyword):
+            return '.*%s.*' % ''.join(['[%s%s]' % (x.lower(), x.upper()) if x.isalpha() else x for x in keyword])
+
         results = {
             'ret_count': 0,
             'ret_values': []
@@ -1077,7 +1080,11 @@ class Entry(ACLBase):
 
         # set condition to get results that only have specified entity
         if entry_name:
-            query['query']['bool']['filter'].append({'regexp': {'name': '.*%s.*' % entry_name}})
+            query['query']['bool']['filter'].append({
+                'regexp': {
+                    'name': _get_regex_pattern(entry_name)
+                }
+            })
 
         # set all attribute to be available
         if hint_attrs:
@@ -1114,7 +1121,11 @@ class Entry(ACLBase):
             else:
                 cond_val = [{'match': {'attr.value': hint['keyword']}}]
                 if 'exact_match' not in hint:
-                    cond_val.append({'regexp': {'attr.value': '.*%s.*' % hint['keyword']}})
+                    cond_val.append({
+                        'regexp': {
+                            'attr.value': _get_regex_pattern(hint['keyword'])
+                        }
+                    })
 
                 cond_attr.append({'bool' : {'should': cond_val}})
 

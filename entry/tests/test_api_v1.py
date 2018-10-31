@@ -51,6 +51,13 @@ class ViewTest(AironeViewTest):
         self.assertTrue('results' in resp.json())
         self.assertEqual(len(resp.json()['results']), 0)
 
+        # send request to check keyword would be insensitive case
+        resp = self.client.get(reverse('entry:api_v1:get_entries', args=[entity.id]),
+                               {'keyword': 'E-0'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.json()['results']), 1)
+        self.assertTrue(resp.json()['results'][0]['name'], 'e-0')
+
     def test_get_entries_with_multiple_ids(self):
         admin = self.admin_login()
 

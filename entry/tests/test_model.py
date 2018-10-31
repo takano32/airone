@@ -1335,6 +1335,11 @@ class ModelTest(AironeTestCase):
         ret = Entry.search_entries(user, [entity.id], [{'name': 'str', 'keyword': 'foo-10'}], entry_name='e-1')
         self.assertEqual(ret['ret_count'], 1)
 
+        # check whether keyword would be insensitive case
+        ret = Entry.search_entries(user, [entity.id], [{'name': 'str', 'keyword': 'FOO-10'}])
+        self.assertEqual(ret['ret_count'], 1)
+        self.assertEqual(ret['ret_values'][0]['entry']['name'], 'e-10')
+
     def test_search_entries_with_hint_referral(self):
         user = User.objects.create(username='hoge')
 
@@ -1433,6 +1438,19 @@ class ModelTest(AironeTestCase):
         ret = Entry.search_entries(user, [], hints, or_match=True)
         self.assertEqual(ret['ret_count'], 2)
         self.assertEqual(sorted([x['entry']['name'] for x in ret['ret_values']]), sorted(['E1-3', 'E2-3']))
+
+    def test_search_entries_about_insensitive_case(self):
+        user = User.objects.create(username='hoge')
+
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        entry = Entry.objects.create(name='Foo', schema=entity, created_user=user)
+        entry.register_es()
+
+        # This checks entry_name parameter would be insensitive case
+        for name in ['foo', 'fOO', 'OO', 'f']:
+            resp = Entry.search_entries(user, [], entry_name="foo")
+            self.assertEqual(resp['ret_count'], 1)
+            self.assertEqual(resp['ret_values'][0]['entry']['id'], entry.id)
 
     def test_register_entry_to_elasticsearch(self):
         ENTRY_COUNTS = 10

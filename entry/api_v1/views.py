@@ -120,7 +120,7 @@ def get_entries(request, entity_ids):
     for entity_id in [x for x in entity_ids.split(',') if x and Entity.objects.filter(id=x, is_active=True).exists()]:
         keyword = request.GET.get('keyword')
         if keyword:
-            query_name_regex = Q(name__regex=keyword)
+            query_name_regex = Q(name__iregex=keyword)
         else:
             query_name_regex = Q()
 

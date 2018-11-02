@@ -548,6 +548,11 @@ class ModelTest(AironeTestCase):
         self.assertEqual(results[1]['attr_value'][1]['value'], 'key_2')
         self.assertEqual(results[1]['attr_value'][2]['value'], 'key_3')
 
+        # checks whether attribute will be invisible when a correspond EntityAttr is deleted
+        attr_base.delete()
+        results = entry.get_available_attrs(self._user)
+        self.assertEqual(len(results), 0)
+
     def test_clone_attribute_value(self):
         basic_params = {
             'created_user': self._user,

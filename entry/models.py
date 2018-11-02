@@ -809,7 +809,7 @@ class Entry(ACLBase):
         ref_entry_map = {}
 
         ret_attrs = []
-        attrs = [x for x in self.attrs.filter(is_active=True) if user.has_permission(x, permission)]
+        attrs = [x for x in self.attrs.filter(is_active=True, schema__is_active=True) if user.has_permission(x, permission)]
         for attr in sorted(attrs, key=lambda x:x.schema.index):
             attrinfo = {}
 

@@ -364,7 +364,7 @@ $(document).ready(function() {
     $(this).parent().removeClass('table-danger');
   });
   $('#edit-form').keypress(function(e){
-    if(e.which === 13){
+    if(!(e.which != 13 || $(e.target).prop('tagName').toLowerCase() == 'textarea')){
       return false;
     }
   });

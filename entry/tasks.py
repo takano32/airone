@@ -269,5 +269,5 @@ def import_entries(self, job_id):
             entry.register_es()
 
         job.status = Job.STATUS_DONE
-        job.text = 'Finished to import'
-        job.save(update_fields=['text', 'status'])
+        job.text = ''
+        job.save()

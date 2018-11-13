@@ -2278,7 +2278,7 @@ class ViewTest(AironeViewTest):
         # check job status
         job = Job.objects.filter(target=entity).last()
         self.assertEqual(job.status, Job.STATUS_DONE)
-        self.assertEqual(job.text, 'Finished to import')
+        self.assertEqual(job.text, '')
 
         entry = Entry.objects.get(name='Entry', schema=entity)
         checklist = [

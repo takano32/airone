@@ -16,7 +16,7 @@
 {% load bitwise_tags %}
 <div class="container">
   <div class="row">
-    <div class="col">
+    <div class="col-9">
       <h4>
       検索結果
       <span id='entry_count'>
@@ -24,18 +24,28 @@
       </span>
       </h4>
     </div>
-    <div class="col">
-      <div class="float-right">
-        <form id='form_export_csv' action='/dashboard/advanced_search_export' method='post'>
-          {% csrf_token %}
-          <button id="export_csv" type="button" class="btn btn-primary btn-sm">全件検索＆CSV 出力</button>
-          <input type='hidden' name='entities' value='[{{ entities }}]' />
-          <input type='hidden' name='attrinfo' value='[]' />
-          {% if has_referral %}
-            <input type='hidden' id='param_export_csv_referral' name='has_referral' value='' />
-          {% endif %}
-        </form>
-      </div>
+    <div class="col-3">
+      <form id='form_export' action='/dashboard/advanced_search_export' method='post'>
+        {% csrf_token %}
+        <input type='hidden' name='entities' value='[{{ entities }}]' />
+        <input type='hidden' name='attrinfo' value='[]' />
+        <input type='hidden' name='export_style' value='' />
+        {% if has_referral %}
+          <input type='hidden' id='param_export_csv_referral' name='has_referral' value='' />
+        {% endif %}
+
+        <div class="container">
+          <div class="row">
+            <div class="col">
+              <button type="button" class="btn btn-primary btn-sm export_yaml">YAML 出力</button>
+            </div>
+            <div class="col">
+              <button type="button" class="btn btn-primary btn-sm export_csv">CSV 出力</button>
+            </div>
+          </div>
+        </div>
+
+      </form>
     </div>
   </div>
 </div>
@@ -328,15 +338,19 @@ $(document).ready(function() {
     }
   }
 
+  function submit_export(style) {
+    $('#form_export input[name=attrinfo]').val(JSON.stringify(get_attrinfo()));
+    $('#param_export_csv_referral').val(JSON.stringify($('.narrow_down_referral').val()));
+    $('#form_export input[name=export_style]').val(JSON.stringify(style));
+
+    $('#form_export').submit();
+  }
+
   $(".narrow_down_referral").on('keyup', narrow_results_down);
   $(".narrow_down_entries").on('keyup', narrow_results_down);
 
-  $('#export_csv').on('click', function(e) {
-    $('#form_export_csv input[name=attrinfo]').val(JSON.stringify(get_attrinfo()));
-    $('#param_export_csv_referral').val(JSON.stringify($('.narrow_down_referral').val()));
-
-    $('#form_export_csv').submit();
-  });
+  $('.export_yaml').on('click', function(e) { submit_export('yaml'); });
+  $('.export_csv').on('click', function(e) { submit_export('csv'); });
 });
 </script>
 {% endblock %}

@@ -2,6 +2,7 @@ import mock
 import re
 import sys
 import json
+import yaml
 
 from airone.lib.test import AironeViewTest
 from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
@@ -11,7 +12,9 @@ from airone.lib.types import AttrTypeValue
 from django.conf import settings
 from django.urls import reverse
 from django.contrib.auth.models import User as DjangoUser
+from group.models import Group
 from io import StringIO
+from datetime import date
 
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
@@ -162,7 +165,8 @@ class ViewTest(AironeViewTest):
         # test to export results of advanced_search
         resp = self.client.post(reverse('dashboard:export_search_result'), {
             'entities': json.dumps([x.id for x in Entity.objects.filter(name__regex='^entity-')]),
-            'attrinfo': json.dumps([{'name': 'attr', 'keyword': 'data-5'}])
+            'attrinfo': json.dumps([{'name': 'attr', 'keyword': 'data-5'}]),
+            'export_style': '"csv"',
         })
         self.assertEqual(resp.status_code, 200)
 
@@ -214,6 +218,7 @@ class ViewTest(AironeViewTest):
             'entities': json.dumps([ref_entity.id]),
             'attrinfo': json.dumps([]),
             'has_referral': json.dumps(''),
+            'export_style': '"csv"',
         })
         self.assertEqual(resp.status_code, 200)
 
@@ -228,6 +233,7 @@ class ViewTest(AironeViewTest):
             'entities': json.dumps([ref_entity.id]),
             'attrinfo': json.dumps([]),
             'has_referral': json.dumps('hogefuga'),
+            'export_style': '"csv"',
         })
         self.assertEqual(resp.status_code, 200)
 
@@ -308,7 +314,8 @@ class ViewTest(AironeViewTest):
 
             resp = self.client.post(reverse('dashboard:export_search_result'), {
                 'entities': json.dumps([test_entity.id]),
-                'attrinfo': json.dumps([{'name': test_attr.name, 'keyword': ''}])
+                'attrinfo': json.dumps([{'name': test_attr.name, 'keyword': ''}]),
+                'export_style': '"csv"',
             })
             self.assertEqual(resp.status_code, 200)
 
@@ -318,3 +325,129 @@ class ViewTest(AironeViewTest):
 
             data = content.replace(header, '', 1).strip()
             self.assertEqual(data, '"%s,""ENTRY""",' % type_name + case[2] )
+
+    def test_yaml_export(self):
+        user = self.admin
+
+        # create entity
+        entity_ref = Entity.objects.create(name='RefEntity', created_user=user)
+        entry_ref = Entry.objects.create(name='ref', schema=entity_ref, created_user=user)
+
+        attr_info = {
+            'str': {'type': AttrTypeValue['string'], 'value': 'foo',
+                    'invalid_values': [123, entry_ref, True]},
+            'obj': {'type': AttrTypeValue['object'], 'value': str(entry_ref.id)},
+            'name': {'type': AttrTypeValue['named_object'],
+                     'value': {'name': 'bar', 'id': str(entry_ref.id)}},
+            'bool': {'type': AttrTypeValue['boolean'], 'value': False},
+            'arr_str': {'type': AttrTypeValue['array_string'], 'value': ['foo', 'bar', 'baz']},
+            'arr_obj': {'type': AttrTypeValue['array_object'],
+                        'value': [str(entry_ref.id)]},
+            'arr_name': {'type': AttrTypeValue['array_named_object'],
+                         'value': [
+                             {'name': 'hoge', 'id': str(entry_ref.id)},
+                             {'name': 'fuga', 'boolean': False}, # specify boolean parameter
+                          ]},
+            'group': {'type': AttrTypeValue['group'], 'value': str(Group.objects.create(name='group').id)},
+            'date': {'type': AttrTypeValue['date'], 'value': date(2020, 1, 1)}
+        }
+        entities = []
+        for index in range(2):
+            entity = Entity.objects.create(name='Entity-%d' % index, created_user=user)
+            for attr_name, info in attr_info.items():
+                attr = EntityAttr.objects.create(name=attr_name,
+                                                 type=info['type'],
+                                                 created_user=user,
+                                                 parent_entity=entity)
+
+                if info['type'] & AttrTypeValue['object']:
+                    attr.referral.add(entity_ref)
+
+                entity.attrs.add(attr)
+
+            # create an entry of Entity
+            for e_index in range(2):
+                entry = Entry.objects.create(name='e-%d' % e_index, schema=entity, created_user=user)
+                entry.complement_attrs(user)
+
+                for attr_name, info in attr_info.items():
+                    attr = entry.attrs.get(name=attr_name)
+                    attrv = attr.add_value(user, info['value'])
+
+                entry.register_es()
+
+            entities.append(entity)
+
+        resp = self.client.post(reverse('dashboard:export_search_result'), {
+            'entities': json.dumps([x.id for x in Entity.objects.filter(name__regex='^Entity-')]),
+            'attrinfo': json.dumps([{'name': x, 'keyword': ''} for x in attr_info.keys()]),
+            'export_style': '"yaml"',
+        })
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Disposition'], 'attachment; filename="search_results.yaml"')
+
+        resp_data = yaml.load(resp.content)
+        for index in range(2):
+            entity = Entity.objects.get(name='Entity-%d' % index)
+            e_data = resp_data[entity.name]
+
+            self.assertEqual(len(resp_data[entity.name]), Entry.objects.filter(schema=entity).count())
+            for e_data in resp_data[entity.name]:
+                self.assertTrue(e_data['name'] in ['e-0', 'e-1'])
+                self.assertTrue(all([x in attr_info.keys() for x in e_data['attrs']]))
+
+        # Checked to be able to import exported data
+        entry_another_ref = Entry.objects.create(name='another_ref', schema=entity_ref, created_user=user)
+        new_group = Group.objects.create(name='new_group')
+        new_attr_values = {
+            'str': 'bar',
+            'obj': 'another_ref',
+            'name': {'hoge': 'another_ref'},
+            'bool': True,
+            'arr_str': ['hoge', 'fuga'],
+            'arr_obj': ['another_ref'],
+            'arr_name': [{'foo': 'another_ref'}, {'bar': 'ref'}],
+            'group': 'new_group',
+            'date': '1999-01-01',
+        }
+        resp_data['Entity-1'][0]['attrs'] = new_attr_values
+
+        mockio = mock.mock_open(read_data=yaml.dump(resp_data))
+        with mock.patch('builtins.open', mockio):
+            with open('hogefuga.yaml') as fp:
+                resp = self.client.post(reverse('entry:do_import', args=[entities[1].id]), {'file': fp})
+                self.assertEqual(resp.status_code, 303)
+
+        self.assertEqual(entry_another_ref.get_referred_objects().count(), 1)
+
+        updated_entry = entry_another_ref.get_referred_objects().first()
+        self.assertEqual(updated_entry.name, resp_data['Entity-1'][0]['name'])
+
+        for (attr_name, value_info) in new_attr_values.items():
+            attrv = updated_entry.attrs.get(name=attr_name).get_latest_value()
+
+            if attr_name == 'str':
+                self.assertEqual(attrv.value, value_info)
+            elif attr_name == 'obj':
+                self.assertEqual(attrv.referral.id, entry_another_ref.id)
+            elif attr_name == 'name':
+                self.assertEqual(attrv.value, list(value_info.keys())[0])
+                self.assertEqual(attrv.referral.id, entry_another_ref.id)
+            elif attr_name == 'bool':
+                self.assertTrue(attrv.boolean)
+            elif attr_name == 'arr_str':
+                self.assertEqual(sorted([x.value for x in attrv.data_array.all()]),
+                                 sorted(value_info))
+            elif attr_name == 'arr_obj':
+                self.assertEqual([x.referral.id for x in attrv.data_array.all()],
+                                 [entry_another_ref.id])
+            elif attr_name == 'arr_name':
+                self.assertEqual(sorted([x.value for x in attrv.data_array.all()]),
+                                 sorted([list(x.keys())[0] for x in value_info]))
+                self.assertEqual(sorted([x.referral.name for x in attrv.data_array.all()]),
+                                 sorted([list(x.values())[0] for x in value_info]))
+            elif attr_name == 'group':
+                self.assertEqual(int(attrv.value), new_group.id)
+            elif attr_name == 'date':
+                self.assertEqual(attrv.date, date(1999, 1, 1))

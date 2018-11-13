@@ -2260,6 +2260,12 @@ class ViewTest(AironeViewTest):
 
             entity.attrs.add(attr)
 
+        # try to import data which has invalid data structure
+        for index in range(3):
+            fp = self.open_fixture_file('invalid_import_data%d.yaml' % index)
+            resp = self.client.post(reverse('entry:do_import', args=[entity.id]), {'file': fp})
+            self.assertEqual(resp.status_code, 400)
+
         # import data from test file
         fp = self.open_fixture_file('import_data.yaml')
         resp = self.client.post(reverse('entry:do_import', args=[entity.id]), {'file': fp})

@@ -43,7 +43,11 @@
           {% for job in jobs %}
           <tr>
             <!-- set target ACLbase object -->
-            <td><a href='/entry/show/{{ job.target.id }}/'>{{ job.target.name }}</a></td>
+            {% if job.operation == JOB.OPERATION.IMPORT %}
+              <td><a href='/entry/{{ job.target.id }}/'>{{ job.target.name }}</a></td>
+            {% else %}
+              <td><a href='/entry/show/{{ job.target.id }}/'>{{ job.target.name }}</a></td>
+            {% endif %}
 
             <!-- set operation -->
             <td>
@@ -55,6 +59,8 @@
               削除
             {% elif job.operation == JOB.OPERATION.COPY %}
               コピー
+            {% elif job.operation == JOB.OPERATION.IMPORT %}
+              インポート
             {% endif %}
             </td>
 

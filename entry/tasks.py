@@ -5,6 +5,7 @@ import json
 from airone.lib.acl import ACLType
 from airone.lib.types import AttrTypeValue
 from airone.celery import app
+from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
 from user.models import User
 from datetime import datetime
@@ -208,3 +209,65 @@ def copy_entry(self, user_id, src_entry_id, job_id):
         job.text = 'original entry: %s' % src_entry.name
 
         job.save()
+
+@app.task(bind=True)
+def import_entries(self, job_id):
+    job = Job.objects.get(id=job_id)
+
+    if (job.status != Job.STATUS_DONE and
+        job.status != Job.STATUS_PROCESSING and
+        job.status != Job.STATUS_ERROR):
+        user = job.user
+
+        entity = Entity.objects.get(id=job.target.id)
+        if not user.has_permission(entity, ACLType.Writable):
+            job.status = Job.STATUS_ERROR
+            job.text = 'Permission denied to import. You need Writable permission for "%s"' % entity.name
+            job.save(update_fields=['text', 'status'])
+            return
+
+        whole_data = json.loads(job.params).get(entity.name)
+        if not whole_data:
+            job.status = Job.STATUS_ERROR
+            job.text = 'Uploaded file has no entry data of %s' % entity.name
+            job.save(update_fields=['text', 'status'])
+            return
+
+        job.status = Job.STATUS_PROCESSING
+        job.save(update_fields=['status'])
+
+        total_count = len(whole_data)
+        # create or update entry
+        for (index, entry_data) in enumerate(whole_data):
+            job.text = 'Now importing... (progress: [%5d/%5d])' % (index + 1, total_count)
+            job.save(update_fields=['text'])
+
+            entry = Entry.objects.filter(name=entry_data['name'], schema=entity).first()
+            if not entry:
+                entry = Entry.objects.create(name=entry_data['name'], schema=entity, created_user=user)
+            else:
+                if not user.has_permission(entry, ACLType.Writable):
+                    continue
+
+            entry.complement_attrs(user)
+            for attr_name, value in entry_data['attrs'].items():
+                # If user doesn't have readable permission for target Attribute, it won't be created.
+                if not entry.attrs.filter(schema__name=attr_name).exists():
+                    continue
+
+                entity_attr = EntityAttr.objects.get(name=attr_name, parent_entity=entry.schema)
+                attr = entry.attrs.get(schema=entity_attr)
+                if (not user.has_permission(entity_attr, ACLType.Writable) or
+                    not user.has_permission(attr, ACLType.Writable)):
+                    continue
+
+                input_value = attr.convert_value_to_register(value)
+                if user.has_permission(attr.schema, ACLType.Writable) and attr.is_updated(input_value):
+                    attr.add_value(user, input_value)
+
+            # register entry to the Elasticsearch
+            entry.register_es()
+
+        job.status = Job.STATUS_DONE
+        job.text = 'Finished to import'
+        job.save(update_fields=['text', 'status'])

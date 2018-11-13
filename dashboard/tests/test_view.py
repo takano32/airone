@@ -18,7 +18,10 @@ from datetime import date
 
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
+from entry import tasks as entry_tasks
 
+from unittest.mock import patch
+from unittest.mock import Mock
 from xml.etree import ElementTree
 
 class ViewTest(AironeViewTest):
@@ -326,6 +329,7 @@ class ViewTest(AironeViewTest):
             data = content.replace(header, '', 1).strip()
             self.assertEqual(data, '"%s,""ENTRY""",' % type_name + case[2] )
 
+    @patch('entry.views.import_entries.delay', Mock(side_effect=entry_tasks.import_entries))
     def test_yaml_export(self):
         user = self.admin
 

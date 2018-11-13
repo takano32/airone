@@ -1,10 +1,18 @@
+import json
+
 from acl.models import ACLBase
+from datetime import date
 from entity.models import Entity, EntityAttr
 from entry.models import Entry
 
 from django.db import models
 from user.models import User
 
+
+def _support_time_default(o):
+    if isinstance(o, date):
+        return o.isoformat()
+    raise TypeError(repr(o) + " is not JSON serializable")
 
 class Job(models.Model):
     """
@@ -20,9 +28,11 @@ class Job(models.Model):
     OP_EDIT   = 2
     OP_DELETE = 3
     OP_COPY   = 4
+    OP_IMPORT = 5
 
     TARGET_UNKNOWN  = 0
     TARGET_ENTRY    = 1
+    TARGET_ENTITY   = 2
 
     STATUS_PREPARING    = 1
     STATUS_DONE         = 2
@@ -46,9 +56,12 @@ class Job(models.Model):
 
     @classmethod
     def _create_new_job(kls, user, target, operation, text, params):
+
         t_type = kls.TARGET_UNKNOWN
         if isinstance(target, Entry):
             t_type = kls.TARGET_ENTRY
+        if isinstance(target, Entity):
+            t_type = kls.TARGET_ENTITY
 
         params = {
             'user': user,
@@ -64,11 +77,11 @@ class Job(models.Model):
 
     @classmethod
     def new_create(kls, user, target, text='', params={}):
-        return kls._create_new_job(user, target, kls.OP_CREATE, text, params)
+        return kls._create_new_job(user, target, kls.OP_CREATE, text, json.dumps(params, default=_support_time_default))
 
     @classmethod
     def new_edit(kls, user, target, text='', params={}):
-        return kls._create_new_job(user, target, kls.OP_EDIT, text, params)
+        return kls._create_new_job(user, target, kls.OP_EDIT, text, json.dumps(params, default=_support_time_default))
 
     @classmethod
     def new_delete(kls, user, target, text='', params={}):
@@ -77,3 +90,7 @@ class Job(models.Model):
     @classmethod
     def new_copy(kls, user, target, text='', params={}):
         return kls._create_new_job(user, target, kls.OP_COPY, text, params)
+
+    @classmethod
+    def new_import(kls, user, entity, text='', params={}):
+        return kls._create_new_job(user, entity, kls.OP_IMPORT, text, json.dumps(params, default=_support_time_default))

@@ -90,11 +90,11 @@ class APITest(AironeViewTest):
 
         # make a job to create an entry
         entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
-        job = Job.new_create(user, entry, params=json.dumps({
+        job = Job.new_create(user, entry, params={
             'attrs': [
                 {'id': str(attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []}
             ]
-        }))
+        })
 
         # send request to run job
         resp = self.client.post('/api/v1/job/run/%d' % job.id)
@@ -118,11 +118,11 @@ class APITest(AironeViewTest):
         self.assertEqual(resp.status_code, 400)
 
         # make and send a job to update entry
-        job = Job.new_edit(user, entry, params=json.dumps({
+        job = Job.new_edit(user, entry, params={
             'attrs': [
                 {'id': str(entry.attrs.first().id), 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []}
             ]
-        }))
+        })
         resp = self.client.post('/api/v1/job/run/%d' % job.id)
 
         self.assertEqual(resp.status_code, 200)

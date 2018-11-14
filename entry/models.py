@@ -445,7 +445,12 @@ class Attribute(ACLBase):
             return isinstance(value, bool)
 
         if(self.schema.type & AttrTypeValue['date']):
-            return isinstance(value, date) or value is None
+            try:
+                return (isinstance(value, date) or
+                        (isinstance(value, str) and isinstance(datetime.strptime(value, '%Y-%m-%d'), date)) or
+                        value is None)
+            except ValueError:
+                return False
 
         if(self.schema.type & AttrTypeValue['group']):
             return isinstance(value, Group) or not value or Group.objects.filter(id=value)
@@ -499,7 +504,11 @@ class Attribute(ACLBase):
 
         elif self.schema.type == AttrTypeValue['date']:
             attr_value = AttributeValue.create(user, self)
-            attr_value.date = value
+            if isinstance(value, str):
+                attr_value.date = datetime.strptime(value, '%Y-%m-%d')
+            elif isinstance(value, date):
+                attr_value.date = value
+
             attr_value.boolean = boolean
 
         elif (self.schema.type == AttrTypeValue['named_object'] and
@@ -823,7 +832,7 @@ class Entry(ACLBase):
             attrinfo['last_value'] = ''
             attrinfo['last_referral'] = None
             if attr.values.exists():
-                last_value = attr.get_last_value()
+                last_value = attr.get_latest_value()
                 if not last_value.data_type:
                     last_value.data_type = attr.schema.type
                     last_value.save()
@@ -953,7 +962,7 @@ class Entry(ACLBase):
 
         return {'name': self.name, 'attrs': attrinfo}
 
-    def register_es(self, es=None, skip_refresh=False):
+    def get_es_document(self, es=None):
         """This processing registers entry information to Elasticsearch"""
         # This innner method truncates value in taking multi-byte in account
         def truncate(value):
@@ -1022,9 +1031,6 @@ class Entry(ACLBase):
                 else:
                     attrinfo['value'] = attrinfo['referral_id'] = ''
 
-        if not es:
-            es = ESS()
-
         document = {
             'entity': {'id': self.schema.id, 'name': self.schema.name},
             'name': self.name,
@@ -1044,7 +1050,13 @@ class Entry(ACLBase):
 
             _set_attrinfo(entity_attr, attrv, document['attr'])
 
-        resp = es.index(doc_type='entry', id=self.id, body=document)
+        return document
+
+    def register_es(self, es=None, skip_refresh=False):
+        if not es:
+            es = ESS()
+
+        resp = es.index(doc_type='entry', id=self.id, body=self.get_es_document(es))
         if not skip_refresh:
             es.refresh()
 
@@ -1291,3 +1303,34 @@ class Entry(ACLBase):
             return None
 
         return ret
+
+    @classmethod
+    def is_importable_data(kls, data):
+        """This method confirms import data has following data structure
+        Entity:
+            - name: entry_name
+            - attrs:
+                attr_name1: attr_value
+                attr_name2: attr_value
+                ...
+        """
+        if not isinstance(data, dict):
+            return False
+
+        if not all([isinstance(x, list) for x in data.values()]):
+            return False
+
+        for entry_data in sum(data.values(), []):
+            if not isinstance(entry_data, dict):
+                return False
+
+            if not ('attrs' in entry_data and 'name' in entry_data):
+                return False
+
+            if not isinstance(entry_data['name'], str):
+                return False
+
+            if not isinstance(entry_data['attrs'], dict):
+                return False
+
+        return True

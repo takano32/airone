@@ -187,6 +187,7 @@ def render(request, template, context={}):
             'EDIT': Job.OP_EDIT,
             'DELETE': Job.OP_DELETE,
             'COPY': Job.OP_COPY,
+            'IMPORT': Job.OP_IMPORT,
         }
     }
 

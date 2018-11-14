@@ -2229,8 +2229,9 @@ class ViewTest(AironeViewTest):
         self.assertIsNotNone(attrv)
         self.assertEqual(attrv.value, str(Group.objects.get(name='group-1').id))
 
+    @patch('entry.views.import_entries.delay', Mock(side_effect=tasks.import_entries))
     def test_import_entry(self):
-        user = self.admin_login()
+        user = self.guest_login()
 
         # prepare to Entity and Entries which importing data refers to
         ref_entity = Entity.objects.create(name='RefEntity', created_user=user)
@@ -2260,6 +2261,12 @@ class ViewTest(AironeViewTest):
 
             entity.attrs.add(attr)
 
+        # try to import data which has invalid data structure
+        for index in range(3):
+            fp = self.open_fixture_file('invalid_import_data%d.yaml' % index)
+            resp = self.client.post(reverse('entry:do_import', args=[entity.id]), {'file': fp})
+            self.assertEqual(resp.status_code, 400)
+
         # import data from test file
         fp = self.open_fixture_file('import_data.yaml')
         resp = self.client.post(reverse('entry:do_import', args=[entity.id]), {'file': fp})
@@ -2267,6 +2274,11 @@ class ViewTest(AironeViewTest):
         # check the import is success
         self.assertEqual(resp.status_code, 303)
         self.assertTrue(Entry.objects.filter(name='Entry', schema=entity))
+
+        # check job status
+        job = Job.objects.filter(target=entity).last()
+        self.assertEqual(job.status, Job.STATUS_DONE)
+        self.assertEqual(job.text, '')
 
         entry = Entry.objects.get(name='Entry', schema=entity)
         checklist = [
@@ -2293,6 +2305,20 @@ class ViewTest(AironeViewTest):
         res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=entry.id)
         self.assertTrue(res['found'])
 
+        # set permission to prohibit update and check the result of job
+        entity.is_public = False
+        entity.save(update_fields=['is_public'])
+
+        # check the import is success but job was failed
+        fp = self.open_fixture_file('import_data.yaml')
+        resp = self.client.post(reverse('entry:do_import', args=[entity.id]), {'file': fp})
+
+        self.assertEqual(resp.status_code, 303)
+        job = Job.objects.filter(target=entity).last()
+        self.assertEqual(job.status, Job.STATUS_ERROR)
+        self.assertEqual(job.text, 'Permission denied to import. You need Writable permission for "%s"' % entity.name)
+
+    @patch('entry.views.import_entries.delay', Mock(side_effect=tasks.import_entries))
     def test_import_entry_with_changing_entity_attr(self):
         user = self.admin_login()
 

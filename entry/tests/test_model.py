@@ -804,6 +804,10 @@ class ModelTest(AironeTestCase):
                 else:
                     self.assertTrue(co_attrv.boolean)
 
+        # test add_value date as string
+        entry.attrs.get(name='date').add_value(user, '2020-01-01')
+        self.assertEqual(entry.attrs.get(name='date').get_latest_value().date, date(2020, 1, 1))
+
     def test_set_attrvalue_to_entry_attr_without_availabe_value(self):
         user = User.objects.create(username='hoge')
 
@@ -1113,7 +1117,8 @@ class ModelTest(AironeTestCase):
              'checker': lambda x: (len(x) == 2 and x[0]['name'] == 'foo' and x[0]['id'].id == ref_entry.id and
                                   x[1]['name'] == 'bar' and x[1]['id'] == None)},
             {'attr': 'group', 'input': 'Group', 'checker': lambda x: x == group.id},
-            {'attr': 'date', 'input': date(2018, 12, 31), 'checker': lambda x: x == date(2018, 12, 31)}
+            {'attr': 'date', 'input': date(2018, 12, 31), 'checker': lambda x: x == date(2018, 12, 31)},
+            {'attr': 'date', 'input': '2020-01-01', 'checker': lambda x: x == '2020-01-01'}
         ]
         for info in checklist:
             attr = entry.attrs.get(name=info['attr'])
@@ -2010,3 +2015,20 @@ class ModelTest(AironeTestCase):
                          [entry_refs[0].id])
         self.assertEqual(sorted([x.value for x in attrs['arr_name'].get_latest_value().data_array.all()]),
                          sorted(['', 'foo']))
+
+    def test_is_importable_data(self):
+        check_data = [
+            {'expect': False, 'data': ['foo', 'bar']},
+            {'expect': False, 'data': 'foo'},
+            {'expect': False, 'data': {'Entity': 'hoge'}},
+            {'expect': False, 'data': {'Entity': ['hoge']}},
+            {'expect': False, 'data': {'Entity': [{'attrs': {}}]}},
+            {'expect': False, 'data': {'Entity': [{'name': 'entry'}]}},
+            {'expect': False, 'data': {'Entity': [{'attrs': {'foo': 'bar'}, 'name': 1234}]}},
+            {'expect': False, 'data': {'Entity': [{'attrs': ['foo', 'bar'], 'name': 'entry'}]}},
+            {'expect': True, 'data': {'Entity': [{'attrs': {'foo': 'bar'}, 'name': 'entry'}]}},
+        ]
+        for info in check_data:
+            ret = Entry.is_importable_data(info['data'])
+
+            self.assertEqual(ret, info['expect'])

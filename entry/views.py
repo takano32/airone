@@ -28,7 +28,7 @@ from job.models import Job
 from user.models import User
 from group.models import Group
 from .settings import CONFIG
-from .tasks import create_entry_attrs, edit_entry_attrs, delete_entry, copy_entry
+from .tasks import create_entry_attrs, edit_entry_attrs, delete_entry, copy_entry, import_entries
 
 
 def _validate_input(recv_data, obj):
@@ -164,7 +164,7 @@ def do_create(request, entity_id, recv_data):
     entry.save()
 
     # Create a new job
-    job = Job.new_create(user, entry, params=json.dumps(recv_data))
+    job = Job.new_create(user, entry, params=recv_data)
 
     # register a task to create Attributes for the created entry
     create_entry_attrs.delay(user.id, entry.id, job.id)
@@ -252,7 +252,7 @@ def do_edit(request, entry_id, recv_data):
     entry.save()
 
     # Create a new job
-    job = Job.new_edit(user, entry, params=json.dumps(recv_data))
+    job = Job.new_edit(user, entry, params=recv_data)
 
     # register a task to edit entry attributes
     edit_entry_attrs.delay(user.id, entry.id, job.id)
@@ -422,50 +422,20 @@ def import_data(request, entity_id):
 @http_file_upload
 def do_import_data(request, entity_id, context):
     user = User.objects.get(id=request.user.id)
-    if not Entity.objects.filter(id=entity_id).exists():
-        return HttpResponse('Failed to get entity of specified id', status=400)
-
-    entity = Entity.objects.get(id=entity_id)
-    if not user.has_permission(entity, ACLType.Readable):
-        return HttpResponse('Permission denied to export "%s"' % entity.name, status=400)
+    entity = Entity.objects.filter(id=entity_id, is_active=True).first()
+    if not entity:
+        return HttpResponse("Couldn't parse uploaded file", status=400)
 
     try:
         data = yaml.load(context)
     except yaml.parser.ParserError:
         return HttpResponse("Couldn't parse uploaded file", status=400)
 
-    # validate uploaded format and context
-    values = data.get(entity.name)
-    if not values:
-        return HttpResponse("Uploaded file has not import data for '%s'" % entity.name, status=400)
+    if not Entry.is_importable_data(data):
+        return HttpResponse("Uploaded file has invalid data structure to import", status=400)
 
-    if not all(['name' in x or 'attrs' in x or isinstance(x['attrs'], dict) for x in values]):
-        return HttpResponse("Uploaded file is invalid format to import", status=400)
-
-    entity_attrs = [x.name for x in entity.attrs.filter(is_active=True)]
-    if not all([any([k in y.keys() for k in entity_attrs]) for y in [x['attrs'] for x in values]]):
-        return HttpResponse("Uploaded file has invalid parameter", status=400)
-
-    # create or update entry
-    for entry_data in values:
-        entry = Entry.objects.filter(name=entry_data['name'], schema=entity).first()
-        if not entry:
-            entry = Entry.objects.create(name=entry_data['name'], schema=entity, created_user=user)
-
-        entry.complement_attrs(user)
-        for attr_name, value in entry_data['attrs'].items():
-            # If user doesn't have readable permission for target Attribute, it won't be created.
-            if not entry.attrs.filter(schema__name=attr_name).exists():
-                continue
-
-            entity_attr = EntityAttr.objects.get(name=attr_name, parent_entity=entry.schema)
-            attr = entry.attrs.get(schema=entity_attr)
-            input_value = attr.convert_value_to_register(value)
-            if user.has_permission(attr.schema, ACLType.Writable) and attr.is_updated(input_value):
-                attr.add_value(user, input_value)
-
-        # register entry to the Elasticsearch
-        entry.register_es()
+    job = Job.new_import(user, entity, text='Preparing to import data', params=data)
+    import_entries.delay(job.id)
 
     return HttpResponseSeeOther('/entry/%s/' % entity_id)
 

@@ -175,26 +175,7 @@ def advanced_search_result(request):
         'has_referral': has_referral,
     })
 
-@airone_profile
-@http_post_form([
-    {'name': 'entities', 'type': list,
-     'checker': lambda x: all([Entity.objects.filter(id=y) for y in x['entities']])},
-    {'name': 'attrinfo', 'type': list},
-    {'name': 'has_referral', 'type': str, 'omittable': True},
-])
-def export_search_result(request, recv_data):
-    user = User.objects.get(id=request.user.id)
-
-    has_referral = False
-    if 'has_referral' in recv_data:
-        has_referral = recv_data['has_referral']
-
-    resp = Entry.search_entries(user,
-                                recv_data['entities'],
-                                recv_data['attrinfo'],
-                                settings.ES_CONFIG['MAXIMUM_RESULTS_NUM'],
-                                hint_referral=has_referral)
-
+def _csv_export(values, recv_data, has_referral):
     output = io.StringIO(newline='')
     writer = csv.writer(output)
 
@@ -204,7 +185,7 @@ def export_search_result(request, recv_data):
     else:
         writer.writerow(['Name'] + [x['name'] for x in recv_data['attrinfo']])
 
-    for entry_info in resp['ret_values']:
+    for entry_info in values:
         line_data = [entry_info['entry']['name']]
 
         for attrinfo in recv_data['attrinfo']:
@@ -265,4 +246,81 @@ def export_search_result(request, recv_data):
 
         writer.writerow(line_data)
 
-    return get_download_response(output, 'search_results.csv')
+    return (output, 'search_results.csv')
+
+def _yaml_export(values, recv_data, has_referral):
+    output = io.StringIO()
+
+    def _get_attr_value(atype, value):
+        if atype & AttrTypeValue['array']:
+            return [_get_attr_value(atype ^ AttrTypeValue['array'], x) for x in value]
+
+        if atype == AttrTypeValue['named_object']:
+            [(key, val)] = value.items()
+
+            return {key: val['name']}
+
+        elif atype == AttrTypeValue['object'] or atype == AttrTypeValue['group']:
+            return value['name']
+
+        elif atype == AttrTypeValue['boolean']:
+            return True if value == 'True' else False
+
+        else:
+            return value
+
+    resp_data = {}
+    for entry_info in values:
+        data = {
+            'name': entry_info['entry']['name'],
+            'attrs': {},
+        }
+
+        for attrinfo in recv_data['attrinfo']:
+            data['attrs'][attrinfo['name']] = ''
+            if attrinfo['name'] in entry_info['attrs']:
+                _adata = entry_info['attrs'][attrinfo['name']]
+                if 'value' not in _adata:
+                    continue
+
+                data['attrs'][attrinfo['name']] = _get_attr_value(_adata['type'], _adata['value'])
+
+        if entry_info['entity']['name'] in resp_data:
+            resp_data[entry_info['entity']['name']].append(data)
+        else:
+            resp_data[entry_info['entity']['name']] = [data]
+
+    output.write(yaml.dump(resp_data, default_flow_style=False, allow_unicode=True))
+
+    return (output, 'search_results.yaml')
+
+@airone_profile
+@http_post_form([
+    {'name': 'entities', 'type': list,
+     'checker': lambda x: all([Entity.objects.filter(id=y) for y in x['entities']])},
+    {'name': 'attrinfo', 'type': list},
+    {'name': 'has_referral', 'type': str, 'omittable': True},
+    {'name': 'export_style', 'type': str},
+])
+def export_search_result(request, recv_data):
+    user = User.objects.get(id=request.user.id)
+
+    has_referral = False
+    if 'has_referral' in recv_data:
+        has_referral = recv_data['has_referral']
+
+    resp = Entry.search_entries(user,
+                                recv_data['entities'],
+                                recv_data['attrinfo'],
+                                settings.ES_CONFIG['MAXIMUM_RESULTS_NUM'],
+                                hint_referral=has_referral)
+
+
+    if recv_data['export_style'] == 'yaml':
+        return get_download_response(*_yaml_export(resp['ret_values'], recv_data, has_referral))
+
+    elif recv_data['export_style'] == 'csv':
+        return get_download_response(*_csv_export(resp['ret_values'], recv_data, has_referral))
+
+    else:
+        return HttpResponse('Invalid "export_type" is specified', status=400)

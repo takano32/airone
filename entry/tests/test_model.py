@@ -136,7 +136,15 @@ class ModelTest(AironeTestCase):
                                                 created_user=user,
                                                 parent_entity=entity)
         entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+
+        # the case setting STATUS_COMPLEMENTING_ATTRS before caling add_attribute_from_base metod
+        entry.set_status(Entry.STATUS_COMPLEMENTING_ATTRS)
+        self.assertIsNone(entry.add_attribute_from_base(attrbase, user))
+        self.assertEqual(entry.attrs.count(), 0)
+
+        entry.del_status(Entry.STATUS_COMPLEMENTING_ATTRS)
         attr = entry.add_attribute_from_base(attrbase, user)
+        self.assertEqual(entry.attrs.count(), 1)
 
         # update attrbase
         attrbase.name = 'hoge'

@@ -734,6 +734,7 @@ class Entry(ACLBase):
     # This flag is set just after created or edited, then cleared at completion of the processing
     STATUS_CREATING = 1 << 0
     STATUS_EDITING = 1 << 1
+    STATUS_COMPLEMENTING_ATTRS = 1 << 2
 
     attrs = models.ManyToManyField(Attribute)
     schema = models.ForeignKey(Entity)
@@ -758,6 +759,13 @@ class Entry(ACLBase):
         if not isinstance(user, User):
             raise TypeError('Variable "user" is incorrect type')
 
+        # This processing may avoid to run following more one time from mutiple request
+        if self.get_status(Entry.STATUS_COMPLEMENTING_ATTRS):
+            return
+
+        # set lock status
+        self.set_status(Entry.STATUS_COMPLEMENTING_ATTRS)
+
         attr = Attribute.objects.create(name=base.name,
                                         schema=base,
                                         created_user=user,
@@ -777,6 +785,10 @@ class Entry(ACLBase):
             for group in user.groups.all()]
 
         self.attrs.add(attr)
+
+        # release lock status
+        self.del_status(Entry.STATUS_COMPLEMENTING_ATTRS)
+
         return attr
 
     def get_referred_objects(self):

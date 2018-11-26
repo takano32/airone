@@ -20,6 +20,7 @@ from entity.admin import EntityResource, EntityAttrResource
 from entry.admin import EntryResource, AttrResource, AttrValueResource
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
+from natsort import natsorted
 from user.models import User
 from .settings import CONFIG
 
@@ -222,24 +223,24 @@ def _csv_export(values, recv_data, has_referral):
             elif vtype == AttrTypeValue['named_object']:
 
                 [(k, v)] = vval.items()
-                line_data.append(str({k: v['name']}))
+                line_data.append('%s: %s' % (k, v['name']))
 
             elif vtype == AttrTypeValue['array_string']:
 
-                line_data.append(str(vval))
+                line_data.append("\n".join(natsorted(vval)))
 
             elif vtype == AttrTypeValue['array_object']:
 
-                line_data.append(str([x['name'] for x in vval]))
+                line_data.append("\n".join(natsorted([x['name'] for x in vval])))
 
             elif vtype == AttrTypeValue['array_named_object']:
 
                 items = []
                 for vset in vval:
                     [(k, v)] = vset.items()
-                    items.append({k: v['name']})
+                    items.append('%s: %s' % (k, v['name']))
 
-                line_data.append(str(items))
+                line_data.append("\n".join(natsorted(items)))
 
         if has_referral != False:
             line_data.append(str(['%s / %s' % (x['name'], x['schema']) for x in entry_info['referrals']]))

@@ -195,6 +195,59 @@ class ViewTest(AironeViewTest):
                          sorted([str(Entity.objects.get(name='entity-%d' % i).id) for i in range(2)]))
         self.assertEqual(resp.context['results']['ret_count'], 20)
 
+    def test_export_advanced_search_result(self):
+        user = self.admin
+
+        ref_entity = Entity.objects.create(name='Referred Entity', created_user=user)
+        ref_entry = Entry.objects.create(name='ref_entry', schema=ref_entity, created_user=user)
+        attr_info = {
+            'str': {'type': AttrTypeValue['string'], 'value': 'foo'},
+            'name': {'type': AttrTypeValue['named_object'], 'value': {'name': 'bar', 'id': ref_entry}},
+            'arr_str': {'type': AttrTypeValue['array_string'], 'value': ['foo', 'bar', 'baz']},
+            'arr_name': {'type': AttrTypeValue['array_named_object'],
+                         'value': [
+                             {'name': 'hoge', 'id': ref_entry.id},
+                             {'name': 'fuga', 'id': ref_entry.id}
+                          ]
+                        }
+        }
+
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        for attr_name, info in attr_info.items():
+            entity.attrs.add(EntityAttr.objects.create(**{
+                'name': attr_name,
+                'type': info['type'],
+                'created_user': user,
+                'parent_entity': entity
+            }))
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+        for attr_name, info in attr_info.items():
+            attr = entry.attrs.get(schema__name=attr_name)
+            attr.add_value(user, info['value'])
+
+        # register entry information to the index database
+        entry.register_es()
+
+        # send request to export data
+        exporting_attr_names = ['str', 'arr_str', 'name', 'arr_name']
+        resp = self.client.post(reverse('dashboard:export_search_result'), {
+            'entities': json.dumps([entity.id]),
+            'attrinfo': json.dumps([{'name': x} for x in ['str', 'arr_str', 'name', 'arr_name']]),
+            'export_style': '"csv"',
+        })
+        self.assertEqual(resp.status_code, 200)
+
+        # verifying result has referral entry's infomations
+        csv_contents = [x for x in resp.content.decode('utf-8').splitlines() if x]
+
+        # checks all specified attributes and name are exported
+        self.assertEqual(len(csv_contents), entity.attrs.count() + 1)
+
+        # checks all data are exported in order of specified sequence
+        self.assertEqual(csv_contents[0], 'Name,%s' % ','.join(exporting_attr_names))
+
     def test_export_advanced_search_result_with_referral(self):
         user = self.admin
 
@@ -254,10 +307,10 @@ class ViewTest(AironeViewTest):
             [AttrTypeStr, 'raison,de"tre', '"raison,de""tre"'],
             [AttrTypeObj,  dummy_entry, '"D,U""MM""Y"'],
             [AttrTypeText, "1st line\r\n2nd line", '"1st line' + "\r\n" + '2nd line"'],
-            [AttrTypeNamedObj, {"key": dummy_entry}, "\"{'key': 'D,U\"\"MM\"\"Y'}\""],
-            [AttrTypeArrStr, ["one", "two", "three"], "\"['one', 'two', 'three']\""],
-            [AttrTypeArrObj, [dummy_entry], "\"['D,U\"\"MM\"\"Y']\""],
-            [AttrTypeArrNamedObj, [{"key1": dummy_entry}], "\"[{'key1': 'D,U\"\"MM\"\"Y'}]\""]
+            [AttrTypeNamedObj, {"key": dummy_entry}, "\"key: D,U\"\"MM\"\"Y\""],
+            [AttrTypeArrStr, ["one", "two", "three"], "\"one\nthree\ntwo\""],
+            [AttrTypeArrObj, [dummy_entry], "\"D,U\"\"MM\"\"Y\""],
+            [AttrTypeArrNamedObj, [{"key1": dummy_entry}], "\"key1: D,U\"\"MM\"\"Y\""]
         ]
 
         for case in CASES:

@@ -25,6 +25,8 @@ var DICTIONARY = {
     button_edit: '編集',
     button_save: '保存',
     button_update: '更新',
+    entity_edit_desc_mandatory: 'エントリを作成・更新する際、値の入力が無い場合、作成・更新を出来無いようにします。',
+    entity_edit_desc_delete_in_chain: 'エントリを削除する際、参照するエントリも削除します。',
   },
   en: { /* not implemented */ }
 };

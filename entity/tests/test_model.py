@@ -149,6 +149,7 @@ class ModelTest(TestCase):
             'refs': [ entity.id ],
             'index': attr.index,
             'is_mandatory': attr.is_mandatory,
+            'is_delete_in_chain': attr.is_delete_in_chain,
         }
 
         # check not to change any parameter
@@ -174,7 +175,12 @@ class ModelTest(TestCase):
         changed_params['index'] = attr.index + 1
         self.assertTrue(attr.is_updated(**changed_params))
 
-        # check to change index parameter
+        # check to change is_mandatory parameter
         changed_params = copy(params)
         changed_params['is_mandatory'] = not params['is_mandatory']
+        self.assertTrue(attr.is_updated(**changed_params))
+
+        # check to change is_delete_in_chain parameter
+        changed_params = copy(params)
+        changed_params['is_delete_in_chain'] = not params['is_delete_in_chain']
         self.assertTrue(attr.is_updated(**changed_params))

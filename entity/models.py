@@ -17,15 +17,20 @@ class EntityAttr(ACLBase):
     # at the dashboard of entity
     is_summarized = models.BooleanField(default=False)
 
+    # When an entry is deleted, another entry that is referred from this Attribute will be delete,
+    # if this parameter set.
+    is_delete_in_chain = models.BooleanField(default=False)
+
     def __init__(self, *args, **kwargs):
         super(ACLBase, self).__init__(*args, **kwargs)
         self.objtype = ACLObjType.EntityAttr
 
-    def is_updated(self, name, type, is_mandatory, index, refs):
+    def is_updated(self, name, type, is_mandatory, is_delete_in_chain, index, refs):
         # checks each parameters that are different between current object parameters
         if (self.name != name or
             self.type != int(type) or
             self.is_mandatory != is_mandatory or
+            self.is_delete_in_chain != is_delete_in_chain or
             self.index != int(index) or
             sorted([x.id for x in self.referral.all()]) != sorted(refs)):
 

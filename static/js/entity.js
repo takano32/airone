@@ -88,6 +88,24 @@ function disable_input() {
   $('#sortdata').sortable('disable');
 }
 
+function initialize_tooltips() {
+  $('.attr_option_mandatory').prop('title', gettext('entity_edit_desc_mandatory')).tooltip();
+  $('.attr_option_delete_in_chain').prop('title', gettext('entity_edit_desc_delete_in_chain')).tooltip();
+
+  $('[data-toggle="tooltip"]').on('click', function(e) {
+    let tgt_elem = $(e.target)
+    if (tgt_elem.prop('tagName') == 'SPAN') {
+      input_elem = tgt_elem.find('input');
+
+      if (input_elem.prop('checked')) {
+        input_elem.prop('checked', false);
+      } else {
+        input_elem.prop('checked', true);
+      }
+    }
+  });
+}
+
 $('#edit-form').submit(function(event){
   if(!validate_form()) {
     MessageBox.error("Some parameters are required to input");
@@ -100,6 +118,7 @@ $('#edit-form').submit(function(event){
         'name': $(this).find('.attr_name').val(),
         'type': $(this).find('.attr_type').val(),
         'is_mandatory': $(this).find('.is_mandatory:checked').val() != undefined ? true : false,
+        'is_delete_in_chain': $(this).find('.is_delete_in_chain:checked').val() != undefined ? true : false,
         'ref_ids': $(this).find('.attr_referral').val(),
         'row_index': $(this).find('.row_index').val(),
       };
@@ -165,8 +184,9 @@ var append_attr_column = function() {
 
   $('[name=attributes]').append(new_column);
 
-  // Re-sort row indexes
+  // Re-sort row indexes and toltip display and event handler
   update_row_index();
+  initialize_tooltips();
 }
 
 var bind_del_attr = function(column) {
@@ -279,4 +299,7 @@ $(document).ready(function() {
   });
 
   initialize_entries_list();
+
+  // this initialize all tooltip display and hover/click processing
+  initialize_tooltips();
 });

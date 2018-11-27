@@ -730,6 +730,34 @@ class Attribute(ACLBase):
             if self.is_updated(updated_data):
                 self.add_value(user, updated_data, boolean=attrv.boolean)
 
+    def delete(self):
+        super(Attribute, self).delete()
+
+        def _may_remove_referral(referral):
+            if not referral:
+                # the case this refers no entry, do nothing
+                return
+
+            entry = Entry.objects.filter(id=referral.id, is_active=True).first()
+            if not entry:
+                # the case referred entry is already deleted, do nothing
+                return
+
+            if entry.get_referred_objects().count() > 0:
+                # the case other entries also refer target referral, do nothing
+                return
+
+            entry.delete()
+
+        # delete referral object that isn't referred from any objects if it's necessary
+        if self.schema.is_delete_in_chain and self.schema.type & AttrTypeValue['object']:
+            attrv = self.get_latest_value()
+
+            if self.schema.type & AttrTypeValue['array']:
+                [_may_remove_referral(x.referral) for x in attrv.data_array.all()]
+            else:
+                _may_remove_referral(attrv.referral)
+
 class Entry(ACLBase):
     # This flag is set just after created or edited, then cleared at completion of the processing
     STATUS_CREATING = 1 << 0

@@ -78,6 +78,7 @@ def edit(request, entity_id):
             'name': x.name,
             'type': x.type,
             'is_mandatory': x.is_mandatory,
+            'is_delete_in_chain': x.is_delete_in_chain,
             'referrals': x.referral.all()
         } for x in entity.attrs.filter(is_active=True).order_by('index') if user.has_permission(x, ACLType.Writable)],
     }
@@ -96,6 +97,7 @@ def edit(request, entity_id):
             any([y == int(x['type']) for y in AttrTypes])
         )},
         {'name': 'is_mandatory', 'type': bool},
+        {'name': 'is_delete_in_chain', 'type': bool},
         {'name': 'row_index', 'type': str, 'checker': lambda x: (
             re.match(r"^[0-9]*$", x['row_index'])
         )}
@@ -177,6 +179,7 @@ def do_edit(request, entity_id, recv_data):
                 'refs': [int(x) for x in attr['ref_ids']],
                 'index': attr['row_index'],
                 'is_mandatory': attr['is_mandatory'],
+                'is_delete_in_chain': attr['is_delete_in_chain'],
             }
             if attr_obj.is_updated(**params):
                 # Especially if the type of Attribute is changed, clear the latest flag
@@ -187,6 +190,7 @@ def do_edit(request, entity_id, recv_data):
                 attr_obj.name = attr['name']
                 attr_obj.type = attr['type']
                 attr_obj.is_mandatory = attr['is_mandatory']
+                attr_obj.is_delete_in_chain = attr['is_delete_in_chain']
                 attr_obj.index = int(attr['row_index'])
 
                 # the case of an attribute that has referral entry
@@ -201,6 +205,7 @@ def do_edit(request, entity_id, recv_data):
             attr_obj = EntityAttr.objects.create(name=attr['name'],
                                                  type=int(attr['type']),
                                                  is_mandatory=attr['is_mandatory'],
+                                                 is_delete_in_chain=attr['is_delete_in_chain'],
                                                  index=int(attr['row_index']),
                                                  created_user=user,
                                                  parent_entity=entity)
@@ -235,6 +240,7 @@ def do_edit(request, entity_id, recv_data):
             any([y == int(x['type']) for y in AttrTypes])
         )},
         {'name': 'is_mandatory', 'type': bool},
+        {'name': 'is_delete_in_chain', 'type': bool},
         {'name': 'row_index', 'type': str, 'checker': lambda x: (
             re.match(r"^[0-9]*$", x['row_index'])
         )}
@@ -274,6 +280,7 @@ def do_create(request, recv_data):
         attr_base = EntityAttr.objects.create(name=attr['name'],
                                               type=int(attr['type']),
                                               is_mandatory=attr['is_mandatory'],
+                                              is_delete_in_chain=attr['is_delete_in_chain'],
                                               created_user=user,
                                               parent_entity=entity,
                                               index=int(attr['row_index']))

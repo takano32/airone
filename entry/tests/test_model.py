@@ -495,6 +495,54 @@ class ModelTest(AironeTestCase):
         res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=deleting_entry_id, ignore=[404])
         self.assertFalse(res['found'])
 
+    def test_delete_entry_in_chain(self):
+        # initilaize referral Entries for checking processing caused by setting 'is_delete_in_chain' flag
+        ref_entity = Entity.objects.create(name='ReferredEntity', created_user=self._user)
+        ref_entries = [Entry.objects.create(name='ref-%d' % i, created_user=self._user, schema=ref_entity) for i in range(3)]
+
+        # initialize EntityAttrs
+        attr_info = {
+            'obj': {'type': AttrTypeValue['object'], 'value': ref_entries[0]},
+            'arr_obj': {'type': AttrTypeValue['array_object'], 'value': ref_entries},
+        }
+        for attr_name, info in attr_info.items():
+            # create EntityAttr object with is_delete_in_chain object
+            attr = EntityAttr.objects.create(name=attr_name,
+                                             type=info['type'],
+                                             is_delete_in_chain=True,
+                                             created_user=self._user,
+                                             parent_entity=self._entity)
+
+            if info['type'] & AttrTypeValue['object']:
+                attr.referral.add(ref_entity)
+
+            self._entity.attrs.add(attr)
+
+        # create and initialize Entries
+        entries = []
+        for index in range(2):
+            entry = Entry.objects.create(name='entry-%d' % index, schema=self._entity, created_user=self._user)
+            entry.complement_attrs(self._user)
+            entries.append(entry)
+
+        # set AttributeValues of entry-0 that refers all referral entries
+        for attr_name, info in attr_info.items():
+            attr = entries[0].attrs.get(schema__name=attr_name)
+            attr.add_value(self._user, info['value'])
+
+        # set AttributeValues of entry-1 that refers only ref-2
+        entries[1].attrs.get(schema__name='obj').add_value(self._user, ref_entries[2])
+
+        # delete entry-0 and check the existance of each referred entries
+        entries[0].delete()
+
+        # sync referral entries from database
+        [x.refresh_from_db() for x in ref_entries]
+
+        self.assertFalse(ref_entries[0].is_active)
+        self.assertFalse(ref_entries[1].is_active)
+        self.assertTrue(ref_entries[2].is_active)
+
     def test_order_of_array_named_ref_entries(self):
         ref_entity = Entity.objects.create(name='referred_entity', created_user=self._user)
         ref_entry = Entry.objects.create(name='referred_entry', created_user=self._user, schema=ref_entity)

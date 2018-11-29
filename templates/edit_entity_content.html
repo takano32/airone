@@ -28,8 +28,7 @@
         <thead>
           <th>属性名</th>
           <th>型</th>
-          <th>必須</th>
-          <th></th>
+          <th>オプション</th>
           <th></th>
         </thead>
 
@@ -81,17 +80,27 @@
               </div>
             </td>
             <td>
+              <span class='attr_option_mandatory' data-toggle="tooltip">
               {% if attr.is_mandatory %}
-              <input type="checkbox" class="is_mandatory" checked="checked" />
+                <input type="checkbox" class="is_mandatory" checked="checked" /> 必須
               {% else %}
-              <input type="checkbox" class="is_mandatory" />
+                <input type="checkbox" class="is_mandatory" /> 必須
               {% endif %}
+              </span>
+
+              <br/>
+
+              <span class='attr_option_delete_in_chain' data-toggle="tooltip">
+              {% if attr.is_delete_in_chain %}
+              <input type="checkbox" class="is_delete_in_chain" checked="checked" /> 関連削除
+              {% else %}
+              <input type="checkbox" class="is_delete_in_chain" /> 関連削除
+              {% endif %}
+              </span>
             </td>
             <td>
               <a href="/acl/{{ attr.id }}"><button type="button" class="btn btn-info btn-sm">ACL</button></a>
-            </td>
-            <td>
-              <button type="button" class="btn btn-danger btn-sm" name="del_attr">del</button>
+              <button type="button" class="btn btn-danger btn-sm" name="del_attr">delete</button>
             </td>
           </tr>
           {% endfor %}
@@ -127,10 +136,15 @@
               </div>
             </td>
             <td>
-              <input type="checkbox" class="is_mandatory"></input>
-            </td>
-            <td>
+              <span class='attr_option_mandatory' data-toggle="tooltip">
+                <input type="checkbox" class="is_mandatory" /> 必須
+              </span>
 
+              <br/>
+
+              <span class='attr_option_delete_in_chain' data-toggle="tooltip">
+                <input type="checkbox" class="is_delete_in_chain" /> 関連削除
+              </span>
             </td>
             <td>
               <button type="button" class="btn btn-danger btn-sm" name="del_attr">del</button>

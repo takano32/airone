@@ -43,7 +43,7 @@ class ComplexViewTest(AironeViewTest):
             'note': '',
             'is_toplevel': False,
             'attrs': [
-                {'name': 'attr', 'type': str(AttrTypeStr), 'is_mandatory': False, 'row_index': '1'},
+                {'name': 'attr', 'type': str(AttrTypeStr), 'is_delete_in_chain': True, 'is_mandatory': False, 'row_index': '1'},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -82,12 +82,14 @@ class ComplexViewTest(AironeViewTest):
                 'name': attr.name,
                 'type': str(attr.type),
                 'is_mandatory': attr.is_mandatory,
+                'is_delete_in_chain': False,
                 'row_index': '1',
             },
             {
                 'name': 'arr-str',
                 'type': str(AttrTypeArrStr),
                 'is_mandatory': True,
+                'is_delete_in_chain': False,
                 'row_index': '2',
             },
             {
@@ -95,6 +97,7 @@ class ComplexViewTest(AironeViewTest):
                 'type': str(AttrTypeArrObj),
                 'ref_ids': [refer_entity.id],
                 'is_mandatory': True,
+                'is_delete_in_chain': False,
                 'row_index': '3',
             }],
         }
@@ -192,7 +195,8 @@ class ComplexViewTest(AironeViewTest):
             'note': '',
             'is_toplevel': False,
             'attrs': [
-                {'name': 'attr', 'type': str(AttrTypeStr), 'is_mandatory': False, 'row_index': '1'},
+                {'name': 'attr', 'type': str(AttrTypeStr),
+                 'is_delete_in_chain': False, 'is_mandatory': False, 'row_index': '1'},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -290,6 +294,7 @@ class ComplexViewTest(AironeViewTest):
                 'name': entity_attr.name,
                 'type': str(entity_attr.type),
                 'is_mandatory': entity_attr.is_mandatory,
+                'is_delete_in_chain': False,
                 'ref_ids': [ref_entity.id],
                 'deleted': True,
                 'row_index': '1'
@@ -341,6 +346,7 @@ class ComplexViewTest(AironeViewTest):
                 'name': entity_attr.name,
                 'type': str(AttrTypeValue['string']),
                 'is_mandatory': entity_attr.is_mandatory,
+                'is_delete_in_chain': False,
                 'row_index': '1'
             }], # delete EntityAttr 'ref'
         }

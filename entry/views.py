@@ -282,24 +282,6 @@ def show(request, entry_id):
     # create new attributes which are appended after creation of Entity
     entry.complement_attrs(user)
 
-    # create new attributes which are appended after creation of Entity
-    for attr_id in (set(entry.schema.attrs.values_list('id', flat=True)) -
-                    set([x.schema.id for x in entry.attrs.filter(is_active=True)])):
-
-        entity_attr = entry.schema.attrs.get(id=attr_id)
-        if not entity_attr.is_active or not user.has_permission(entity_attr, ACLType.Readable):
-            continue
-
-        newattr = entry.add_attribute_from_base(entity_attr, user)
-        if entity_attr.type & AttrTypeValue['array']:
-            # Create a initial AttributeValue for editing processing
-            attr_value = AttributeValue.objects.create(created_user=user, parent_attr=newattr)
-
-            # Set status of parent data_array
-            attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
-
-            newattr.values.add(attr_value)
-
     context = {
         'entry': entry,
         'attributes': entry.get_available_attrs(user),

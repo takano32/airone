@@ -150,10 +150,6 @@ def do_edit(request, entity_id, recv_data):
         if 'deleted' in attr:
             # In case of deleting attribute which has been already existed
             attr_obj = EntityAttr.objects.get(id=attr['id'])
-
-            # delete all related Attributes of target EntityAttr
-            [x.delete() for x in Attribute.objects.filter(schema=attr_obj.id, is_active=True)]
-
             attr_obj.delete()
 
             # register History to register deleting EntityAttr

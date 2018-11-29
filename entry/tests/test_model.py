@@ -137,12 +137,14 @@ class ModelTest(AironeTestCase):
                                                 parent_entity=entity)
         entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
 
-        # the case setting STATUS_COMPLEMENTING_ATTRS before caling add_attribute_from_base metod
-        entry.set_status(Entry.STATUS_COMPLEMENTING_ATTRS)
+        # the case setting attribute lock to assure adding adding attribute processing
+        # should be run only one time.
+        cache_key = 'add_%d' % attrbase.id
+        entry.set_cache(cache_key, True)
         self.assertIsNone(entry.add_attribute_from_base(attrbase, user))
         self.assertEqual(entry.attrs.count(), 0)
 
-        entry.del_status(Entry.STATUS_COMPLEMENTING_ATTRS)
+        entry.clear_cache(cache_key)
         attr = entry.add_attribute_from_base(attrbase, user)
         self.assertEqual(entry.attrs.count(), 1)
 

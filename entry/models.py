@@ -788,11 +788,12 @@ class Entry(ACLBase):
             raise TypeError('Variable "user" is incorrect type')
 
         # This processing may avoid to run following more one time from mutiple request
-        if self.get_status(Entry.STATUS_COMPLEMENTING_ATTRS):
+        cache_key = 'add_%d' % base.id
+        if self.get_cache(cache_key):
             return
 
         # set lock status
-        self.set_status(Entry.STATUS_COMPLEMENTING_ATTRS)
+        self.set_cache(cache_key, 1)
 
         attr = Attribute.objects.create(name=base.name,
                                         schema=base,
@@ -815,7 +816,7 @@ class Entry(ACLBase):
         self.attrs.add(attr)
 
         # release lock status
-        self.del_status(Entry.STATUS_COMPLEMENTING_ATTRS)
+        self.clear_cache(cache_key)
 
         return attr
 

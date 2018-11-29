@@ -307,7 +307,7 @@ class ComplexViewTest(AironeViewTest):
         # checks that the cache is cleared because of the removing EntityAttr
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(entity.attrs.filter(is_active=True).count(), 0)
-        self.assertEqual(entry.attrs.filter(is_active=True).count(), 0)
+        self.assertEqual(entry.attrs.filter(is_active=True).count(), 1)
 
     def test_make_cache_referred_entry_after_updating_attr_type(self):
         user = self.admin_login()

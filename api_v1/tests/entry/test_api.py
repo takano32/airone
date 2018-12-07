@@ -169,3 +169,15 @@ class APITest(AironeViewTest):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]['id'], refs[4].id)
         self.assertEqual(result[0]['referral'], [])
+
+    def test_search_with_large_size_parameter(self):
+        LARGE_DATA = 'A' * 2048
+        user = self.admin_login()
+
+        params = {
+            'entities': ['entity-1'],
+            'attrinfo': [{'name': 'attr', 'keyword': LARGE_DATA}]
+        }
+        resp = self.client.post('/api/v1/entry/search', json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content, b'"Sending parameter is too large"')

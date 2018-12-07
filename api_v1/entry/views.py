@@ -32,6 +32,10 @@ class EntrySearchAPI(APIView):
             not isinstance(entry_limit, int)):
             return Response('The type of parameter is incorrect', status=status.HTTP_400_BAD_REQUEST)
 
+        # forbid to input large size request
+        if any([len(str(x)) > CONFIG_ENTRY.MAX_QUERY_SIZE * 2 for x in hint_attr]):
+            return Response("Sending parameter is too large", status=400)
+
         # convert hint_referral type to be eligible for search_entries method
         if hint_referral is None:
             hint_referral = False

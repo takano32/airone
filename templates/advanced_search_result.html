@@ -333,7 +333,7 @@ $(document).ready(function() {
 
         reconstruct_tbody(data.result.ret_values);
       }).fail(function(data){
-        MessageBox.error('failed to load data from server (Please reload this page or call Administrator)');
+        MessageBox.error(data.responseText);
       });
     }
   }

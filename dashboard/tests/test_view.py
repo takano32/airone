@@ -46,6 +46,10 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(len(resp.context['results']), Entry.objects.filter(name__icontains=query).count())
 
+    def test_search_with_big_query(self):
+        resp = self.client.get(reverse('dashboard:search'), {'query': 'A' * 1024})
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content, b'Sending parameter is too large')
 
     def test_search_entry_deduped_result(self):
         query = 'srv001'

@@ -157,11 +157,10 @@ def do_create(request, entity_id, recv_data):
             return HttpResponse(msg, status=code)
 
     # Create a new Entry object
-    entry = Entry(name=recv_data['entry_name'],
-                  created_user=user,
-                  schema=entity,
-                  status=Entry.STATUS_CREATING)
-    entry.save()
+    entry = Entry.objects.create(name=recv_data['entry_name'],
+                                 created_user=user,
+                                 schema=entity,
+                                 status=Entry.STATUS_CREATING)
 
     # Create a new job
     job = Job.new_create(user, entry, params=recv_data)

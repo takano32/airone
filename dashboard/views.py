@@ -99,6 +99,9 @@ def search(request):
     if not query:
         return HttpResponse("Invalid query parameter is specified", status=400)
 
+    if len(query) > CONFIG.MAX_QUERY_SIZE:
+        return HttpResponse("Sending parameter is too large", status=400)
+
     target_models = [Entry, AttributeValue]
 
     search_results = sum([x.search(query) for x in target_models], [])

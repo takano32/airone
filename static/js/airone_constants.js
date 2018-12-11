@@ -23,10 +23,14 @@ var DICTIONARY = {
     button_copy: 'コピー',
     button_create: '作成',
     button_edit: '編集',
+    button_history_desc_replace: 'この属性の最新値を、この値に設定する',
+    button_history_more: 'より古い履歴を表示',
     button_save: '保存',
     button_update: '更新',
-    entity_edit_desc_mandatory: 'エントリを作成・更新する際、値の入力が無い場合、作成・更新を出来無いようにします。',
     entity_edit_desc_delete_in_chain: 'エントリを削除する際、参照するエントリも削除します。',
+    entity_edit_desc_mandatory: 'エントリを作成・更新する際、値の入力が無い場合、作成・更新を出来無いようにします。',
+    modal_history_desc: '以下の通り属性を更新します。',
+    modal_history_title: '属性値の更新',
   },
   en: { /* not implemented */ }
 };

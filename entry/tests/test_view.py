@@ -2656,9 +2656,8 @@ class ViewTest(AironeViewTest):
 
         ###
         # checks that value histories for each Attributes will be same when same values are set
-        before_vh = {}
-        for (name, info) in attr_info.items():
-            before_vh[name] = entry.attrs.get(schema=info['schema']).get_value_history(user)
+        #before_vh = [x.get_value() for x in entry.get_value_history(user)]
+        before_vh = entry.get_value_history(user)
 
         params = {
             'entry_name': 'entry',
@@ -2673,9 +2672,7 @@ class ViewTest(AironeViewTest):
                                 json.dumps(params),
                                 'application/json')
 
-        for (name, info) in attr_info.items():
-            self.assertEqual(entry.attrs.get(schema=info['schema']).get_value_history(user),
-                             before_vh[name])
+        self.assertEqual(entry.get_value_history(user), before_vh)
 
         ###
         # checks that expected values are set for each Attributes
@@ -2868,6 +2865,24 @@ class ViewTest(AironeViewTest):
         self.assertEqual(self.client.get(reverse('entry:copy', args=[entry.id])).status_code, 400)
         self.assertEqual(self.client.get(reverse('entry:refer', args=[entry.id])).status_code, 400)
         self.assertEqual(self.client.get(reverse('entry:history', args=[entry.id])).status_code, 400)
+
+    def test_show_entry_history(self):
+        user = self.guest_login()
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr',
+            'created_user': user,
+            'parent_entity': entity,
+            'type': AttrTypeValue['string']
+        }))
+
+        # create and add values
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+        [entry.attrs.first().add_value(user, str(x)) for x in range(3)]
+
+        resp = self.client.get(reverse('entry:history', args=[entry.id]))
+        self.assertEqual(resp.status_code, 200)
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))

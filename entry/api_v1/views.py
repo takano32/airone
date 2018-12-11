@@ -1,15 +1,21 @@
+import json
 import re
 
 from django.db.models import Q
 from django.http import HttpResponse
 from django.http.response import JsonResponse
+from acl.models import ACLBase
+from airone.lib.acl import ACLType
 from airone.lib.http import http_get, http_post
 from airone.lib.types import AttrTypeValue
 from airone.lib.profile import airone_profile
+from datetime import datetime, date
 
-from entry.models import Entry, Attribute
+from entry.models import Entry, Attribute, AttributeValue
 from entity.models import Entity, EntityAttr
 from entry.settings import CONFIG
+from pytz import timezone
+from user.models import User
 
 
 @airone_profile
@@ -174,3 +180,94 @@ def get_attr_referrals(request, attr_id):
             break
 
     return JsonResponse({'results': results[0:CONFIG.MAX_LIST_REFERRALS]})
+
+@airone_profile
+@http_get
+def get_entry_history(request, entry_id):
+    params = {'index': None, 'count': None}
+    user = User.objects.get(id=request.user.id)
+
+    for key in params.keys():
+        try:
+            params[key] = int(request.GET.get(key, 0))
+        except ValueError:
+            return HttpResponse('invaid parameter value "%s" is specified' % value, status=400)
+
+    if not all([isinstance(x, int) for x in params.values()]):
+        return HttpResponse('parameter "index" and "count" are mandatory', status=400)
+
+    entry = Entry.objects.filter(id=entry_id).first()
+    if not entry:
+        return HttpResponse("Specified entry doesn't exist", status=400)
+
+    def json_serial(obj):
+        if isinstance(obj, ACLBase):
+            return {'id': obj.id, 'name': obj.name}
+        elif isinstance(obj, datetime):
+            return obj.astimezone(timezone('Asia/Tokyo')).strftime('%b. %d, %Y, %I:%M %p')
+        elif isinstance(obj, date):
+            return str(obj)
+
+        raise TypeError ("Type %s not serializable" % type(obj))
+
+    history = entry.get_value_history(user, count=params['count'], index=params['index'])
+
+    return JsonResponse({
+        'results': json.loads(json.dumps(history, default=json_serial)),
+    })
+
+@airone_profile
+@http_post([
+    {'type': str, 'name': 'attr_id'},
+    {'type': str, 'name': 'attrv_id'}
+])
+def update_attr_with_attrv(request, recv_data):
+    user = User.objects.get(id=request.user.id)
+
+    attr = Attribute.objects.filter(id=recv_data['attr_id']).first()
+    if not attr:
+        return HttpResponse('Specified Attribute-id is invalid', status=400)
+
+    if not user.has_permission(attr, ACLType.Writable):
+        return HttpResponse("You don't have permission to update this Attribute", status=400)
+
+    attrv = AttributeValue.objects.filter(id=recv_data['attrv_id']).first()
+    if not attrv:
+        return HttpResponse('Specified AttributeValue-id is invalid', status=400)
+
+    latest_value = attr.get_latest_value()
+    if latest_value.get_value() != attrv.get_value():
+        # clear all exsts latest flag
+        attr.unset_latest_flag()
+
+        # copy specified AttributeValue
+        new_attrv = AttributeValue.objects.create(**{
+            'value': attrv.value,
+            'referral': attrv.referral,
+            'status': attrv.status,
+            'boolean': attrv.boolean,
+            'date': attrv.date,
+            'data_type': attrv.data_type,
+            'created_user': user,
+            'parent_attr': attr,
+            'is_latest': True,
+        })
+
+        # This also copies child attribute values and append new one
+        new_attrv.data_array.add(*[AttributeValue.objects.create(**{
+                'value': v.value,
+                'referral': v.referral,
+                'created_user': user,
+                'parent_attr': attr,
+                'status': v.status,
+                'boolean': v.boolean,
+                'date': v.date,
+                'data_type': v.data_type,
+                'is_latest': False,
+                'parent_attrv': new_attrv,
+        }) for v in attrv.data_array.all()])
+
+        # append cloned value to Attribute
+        attr.values.add(new_attrv)
+
+    return HttpResponse('Succeed in updating Attribute "%s"' % attr.schema.name)

@@ -2,56 +2,54 @@
   <div class="col">
     <table class="table table-bordered airone-entry-table-history">
       <tr>
-        <th>属性値</th>
+        <th>属性</th>
         <th>設定値</th>
         <th>ユーザ名</th>
         <th>更新日時</th>
+        <th></th>
       </tr>
       {% for history in value_history %}
-      <tr>
-        <td>{{ history.attr_name }}</td>
+      <tr class='attr_info'>
+        <td class='attr_name'>{{ history.attr_name }}</td>
+        <td class='attr_value'>
         {% if history.attr_type == attr_type.string %}
-          <td><span class='url_conv'>{{ history.attr_value }}</span></td>
+          <span class='url_conv'>{{ history.attr_value }}</span>
+
         {% elif history.attr_type == attr_type.textarea %}
-          <td><span class='url_conv textarea'>{{ history.attr_value }}</span></td>
+          <span class='url_conv textarea'>{{ history.attr_value }}</span>
+
         {% elif history.attr_type == attr_type.entry and history.attr_value %}
-          <td><a href='/entry/show/{{ history.attr_value.id}}'>{{ history.attr_value.name }}</a></td>
+          <a href='/entry/show/{{ history.attr_value.id}}'>{{ history.attr_value.name }}</a>
+
         {% elif history.attr_type == attr_type.array_string %}
-          <td>
-            <ul class='list-group'>
-            {% for attrv in history.attr_value %}
-              <li class='list-group-item'>{{ attrv }}</li>
-            {% endfor %}
-            </ul>
-          </td>
+          <ul class='list-group'>
+          {% for attrv in history.attr_value %}
+            <li class='list-group-item'>{{ attrv }}</li>
+          {% endfor %}
+          </ul>
 
         {% elif history.attr_type == attr_type.array_entry %}
-          <td>
-            <ul class='list-group'>
-            {% for attrv in history.attr_value %}
-              <li class='list-group-item'>
-                <a href='/entry/show/{{ attrv.id }}'>
-                  {{ attrv.name }}
-                </a>
-              </li>
-            {% endfor %}
-            </ul>
-          </td>
+          <ul class='list-group'>
+          {% for attrv in history.attr_value %}
+            <li class='list-group-item'>
+              <a href='/entry/show/{{ attrv.id }}'>
+                {{ attrv.name }}
+              </a>
+            </li>
+          {% endfor %}
+          </ul>
+
         {% elif history.attr_type == attr_type.boolean %}
-          <td>
-            {% if history.attr_value %}
-            <input type="checkbox" disabled='True' checked='True'/>
-            {% else %}
-            <input type="checkbox" disabled='True' />
-            {% endif %}
-          </td>
-      {% elif history.attr_type == attr_type.date %}
-        <td>
+          {% if history.attr_value %}
+          <input type="checkbox" disabled='True' checked='True'/>
+          {% else %}
+          <input type="checkbox" disabled='True' />
+          {% endif %}
+
+        {% elif history.attr_type == attr_type.date %}
           <span>{{ history.attr_value|date:"Y-m-d" }}</span>
-          </td>
 
         {% elif history.attr_type == attr_type.named_entry %}
-          <td>
             <div class='row'>
               <div class='col-3'>
                 {{ history.attr_value.value }}
@@ -60,10 +58,8 @@
                 <a href='/entry/show/{{ history.attr_value.referral.id }}'>{{ history.attr_value.referral.name }}</a>
               </div>
             </div>
-          </td>
 
         {% elif history.attr_type == attr_type.array_named_entry %}
-          <td>
             <ul class='list-group'>
             {% for attrv in history.attr_value %}
               <li class='list-group-item'>
@@ -78,18 +74,59 @@
               </li>
             {% endfor %}
             </ul>
-          </td>
 
         {% elif history.attr_type == attr_type.group %}
-          <td><a href='/group/edit/{{ history.attr_value.id}}'>{{ history.attr_value.name }}</a></td>
-
-        {% else %}
-          <td></td>
+          <a href='/group/edit/{{ history.attr_value.id}}'>{{ history.attr_value.name }}</a>
         {% endif %}
-        <td>{{ history.created_user }}</td>
-        <td>{{ history.created_time }}</td>
+        </td>
+        <td class='updated_user'>{{ history.created_user }}</td>
+        <td class='updated_time'>{{ history.created_time }}</td>
+        <td>
+          <span class='replace_attrv' data-toggle="tooltip">
+            <a href='#'><img src='/static/images/update.png' data-toggle="modal" data-target="#renew_checkbox"/></a>
+          </span>
+        </td>
+        <input type='hidden' class='attr_id' value='{{ history.attr_id }}' />
+        <input type='hidden' class='attrv_id' value='{{ history.attrv_id }}' />
       </tr>
       {% endfor %}
     </table>
+    <input type="button" class="btn btn-primary show_old_history"></button>
+  </div>
+</div>
+
+<div class="modal fade" id="renew_checkbox" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="renew_checkbox_title"></h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <table class='table'>
+          <p class='desc'></p>
+          <tr>
+            <th>属性</th>
+            <td class='modal_attr_name'></td>
+          </tr>
+          <tr>
+            <th>設定値</th>
+            <td class='modal_attr_value'></td>
+          </tr>
+          <tr>
+            <th>更新時刻</th>
+            <td class='modal_updated_time'></td>
+          </tr>
+        </table>
+        <input type='hidden' class='modal_attr_id'/>
+        <input type='hidden' class='modal_attrv_id'/>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">キャンセル</button>
+        <input type="button" class="btn btn-primary do_update_attr"></input>
+      </div>
+    </div>
   </div>
 </div>

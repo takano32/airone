@@ -5,6 +5,7 @@ from django.core.cache import cache
 from django.conf import settings
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
+from entry.settings import CONFIG
 from user.models import User
 from acl.models import ACLBase
 from airone.lib.acl import ACLObjType, ACLType
@@ -28,6 +29,9 @@ class ModelTest(AironeTestCase):
 
         self._attr = self.make_attr('attr')
         self._attr.save()
+
+        # clear all cache before start
+        cache.clear()
 
     def make_attr(self, name, attrtype=AttrTypeStr, user=None, entity=None, entry=None):
         entity_attr = EntityAttr(name=name,
@@ -444,23 +448,27 @@ class ModelTest(AironeTestCase):
         self.assertEqual(self._entry.attrs.last().schema, newattr)
 
     def test_get_value_history(self):
-        attr = self.make_attr('attr')
-        attr.save()
+        self._entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr',
+            'type': AttrTypeStr,
+            'created_user': self._user,
+            'parent_entity': self._entity
+        }))
+        entry = Entry.objects.create(name='entry', schema=self._entity, created_user=self._user)
+        entry.complement_attrs(self._user)
 
-        attr.values.add(AttributeValue.objects.create(value='foo',
-                                                      created_user=self._user,
-                                                      parent_attr=attr))
-        attr.values.add(AttributeValue.objects.create(value='bar',
-                                                      created_user=self._user,
-                                                      parent_attr=attr))
-        attr.values.add(AttributeValue.objects.create(value='baz',
-                                                      created_user=self._user,
-                                                      parent_attr=attr))
+        for i in range(10):
+            entry.attrs.first().add_value(self._user, 'value-%d' % i)
 
-        self.assertEqual(len(attr.get_value_history(self._user)), 3)
+        # check to get value history from the rear
+        history = entry.get_value_history(self._user, count=2)
+        self.assertEqual(len(history), 2)
+        self.assertEqual([x['attr_value'] for x in history], ['value-9', 'value-8'])
 
-        # checks data_type is set as the current type of Attribute if it's not set
-        self.assertTrue(all([v.data_type == AttrTypeValue['string'] for v in attr.values.all()]))
+        # check to skip history value by specifying index parameter
+        history = entry.get_value_history(self._user, count=3, index=3)
+        self.assertEqual(len(history), 3)
+        self.assertEqual([x['attr_value'] for x in history], ['value-6', 'value-5', 'value-4'])
 
     def test_delete_entry(self):
         entity = Entity.objects.create(name='ReferredEntity', created_user=self._user)
@@ -596,15 +604,6 @@ class ModelTest(AironeTestCase):
         self.assertEqual(results[0]['last_value'][0]['value'], 'key_1')
         self.assertEqual(results[0]['last_value'][1]['value'], 'key_2')
         self.assertEqual(results[0]['last_value'][2]['value'], 'key_3')
-
-        # checks the order of entries for array_named_ref that are shown in the history of
-        # show page
-        results = entry.attrs.get(name='arr_named_ref').get_value_history(self._user)
-        self.assertEqual(len(results), 2)
-        self.assertEqual(len(results[1]['attr_value']), 3)
-        self.assertEqual(results[1]['attr_value'][0]['value'], 'key_1')
-        self.assertEqual(results[1]['attr_value'][1]['value'], 'key_2')
-        self.assertEqual(results[1]['attr_value'][2]['value'], 'key_3')
 
         # checks whether attribute will be invisible when a correspond EntityAttr is deleted
         attr_base.delete()

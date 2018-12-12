@@ -7,4 +7,6 @@ urlpatterns = [
     url(r'^get_entries/([\d,]+)/$', views.get_entries, name='get_entries'),
     url(r'^search_entries/([\d,]+)$', views.search_entries, name='search_entries'),
     url(r'^get_attr_referrals/(\d+)/$', views.get_attr_referrals, name='get_attr_referrals'),
+    url(r'^get_entry_history/(\d+)/$', views.get_entry_history, name='get_entry_history'),
+    url(r'^update_attr_with_attrv$', views.update_attr_with_attrv, name='update_attr_with_attrv'),
 ]

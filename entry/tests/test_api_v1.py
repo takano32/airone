@@ -8,6 +8,7 @@ from django.urls import reverse
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
 from entry.settings import CONFIG
+from group.models import Group
 
 
 class ViewTest(AironeViewTest):
@@ -391,3 +392,165 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp['Content-Type'], 'application/json')
         self.assertEqual(len(resp.json()['results']), 12)
+
+    def test_get_entry_history(self):
+        user = self.guest_login()
+
+        # initialize Entity and Entry
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr',
+            'type': AttrTypeValue['string'],
+            'created_user': user,
+            'parent_entity': entity,
+        }))
+
+        entry = Entry.objects.create(name='Entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+        attr = entry.attrs.first()
+        for index in range(5):
+            attr.add_value(user, 'value-%d' % index)
+
+        # check to get all history data
+        resp = self.client.get(reverse('entry:api_v1:get_entry_history', args=[entry.id]), {'count': 10})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Type'], 'application/json')
+
+        resp_data = resp.json()['results']
+        self.assertEqual(len(resp_data), 5)
+        self.assertEqual([x['attr_value'] for x in resp_data],
+                         ['value-%d' % x for x in range(4, -1, -1)])
+
+        # check to get part of history data
+        resp = self.client.get(reverse('entry:api_v1:get_entry_history', args=[entry.id]),
+                               {'count': 2, 'index': 1})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Type'], 'application/json')
+
+        resp_data = resp.json()['results']
+        self.assertEqual(len(resp_data), 2)
+        self.assertEqual([x['attr_value'] for x in resp_data],
+                         ['value-%d' % x for x in range(3, 1, -1)])
+
+    def test_update_attr_with_attrv(self):
+        user = self.guest_login()
+
+        # initialize referred objects
+        ref_entity = Entity.objects.create(name='RefEntity', created_user=user)
+        ref_entries = [Entry.objects.create(name='r%d' % i, created_user=user, schema=ref_entity) for i in range(3)]
+        groups = [Group.objects.create(name='g%d' % i) for i in range(2)]
+
+        # initialize Entity and Entry
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        attr_info = {
+            'str': {
+                'type': AttrTypeValue['string'],
+                'values': ['foo', 'bar']
+            },
+            'obj': {
+                'type': AttrTypeValue['object'],
+                'values': [ref_entries[0], ref_entries[1]]
+            },
+            'grp': {
+                'type': AttrTypeValue['group'],
+                'values': [groups[0], groups[1]]
+            },
+            'name': {
+                'type': AttrTypeValue['named_object'],
+                'values': [
+                    {'name': 'foo', 'id': ref_entries[0]},
+                    {'name': 'bar', 'id': ref_entries[1]},
+                ]
+            },
+            'bool': {
+                'type': AttrTypeValue['boolean'],
+                'values': [False, True]
+            },
+            'date': {
+                'type': AttrTypeValue['date'],
+                'values': ['2018-01-01', '2018-02-01']
+            },
+            'arr1': {
+                'type': AttrTypeValue['array_string'],
+                'values': [
+                    ['foo', 'bar', 'baz'],
+                    ['hoge', 'fuga', 'puyo']
+                ]
+            },
+            'arr2': {
+                'type': AttrTypeValue['array_object'],
+                'values': [
+                    [ref_entries[0], ref_entries[1]],
+                    [ref_entries[2]]
+                ]
+            },
+            'arr3': {
+                'type': AttrTypeValue['array_named_object'],
+                'values': [
+                    [{'name': 'foo', 'id': ref_entries[0]}, {'name': 'bar', 'id': ref_entries[1]}],
+                    [{'name': '', 'id': ref_entries[1]}, {'name': 'fuga', 'id': ref_entries[2]}]
+                ]
+            }
+        }
+        for attr_name, info in attr_info.items():
+            attr = EntityAttr.objects.create(name=attr_name,
+                                             type=info['type'],
+                                             created_user=user,
+                                             parent_entity=entity)
+
+            if info['type'] & AttrTypeValue['object']:
+                attr.referral.add(ref_entity)
+
+            entity.attrs.add(attr)
+
+        # initialize each AttributeValues
+        entry = Entry.objects.create(name='Entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+        for attr_name, info in attr_info.items():
+            attr = entry.attrs.get(schema__name=attr_name)
+            attrv1 = attr.add_value(user, info['values'][0])
+
+            # store first value's attrv
+            info['expected_value'] = attrv1.get_value()
+
+            # update value to second value
+            attrv2 = attr.add_value(user, info['values'][1])
+
+            # check value is actually updated
+            self.assertNotEqual(attrv1.get_value(), attrv2.get_value())
+
+            # reset AttributeValue and latest_value equals with attrv1
+            params = {'attr_id': str(attr.id), 'attrv_id': str(attrv1.id)}
+            resp = self.client.post(reverse('entry:api_v1:update_attr_with_attrv'),
+                                    json.dumps(params), 'application/json')
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual(attrv1.get_value(), attr.get_latest_value().get_value())
+
+    def test_update_attr_with_attrv_with_invalid_value(self):
+        user = self.guest_login()
+
+        # initialize Entity and Entry
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr',
+            'type': AttrTypeValue['string'],
+            'created_user': user,
+            'parent_entity': entity,
+        }))
+
+        entry = Entry.objects.create(name='Entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+        attr = entry.attrs.first()
+
+        # send request with invalid arguments
+        params = {'attr_id': '0', 'attrv_id': '0'}
+        resp = self.client.post(reverse('entry:api_v1:update_attr_with_attrv'),
+                                json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content, b'Specified Attribute-id is invalid')
+
+        params = {'attr_id': str(attr.id), 'attrv_id': '0'}
+        resp = self.client.post(reverse('entry:api_v1:update_attr_with_attrv'),
+                                json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content, b'Specified AttributeValue-id is invalid')

@@ -159,9 +159,6 @@ def edit_entry_attrs(self, user_id, entry_id, job_id):
             if not attr.is_updated(converted_value):
                 continue
 
-            # Get current latest value to reconstruct referral cache
-            old_value = attr.get_latest_value()
-
             # Add new AttributeValue instance to Attribute instnace
             new_value = attr.add_value(user, converted_value)
 

@@ -154,6 +154,43 @@ class AttributeValue(models.Model):
 
         return value
 
+    def format_for_history(self):
+        if not self.data_type:
+            # complement data_type as the current type of Attribute
+            self.data_type = self.parent_attr.schema.type
+            self.save()
+
+        if self.data_type == AttrTypeValue['array_string']:
+            return [x.value for x in self.data_array.all()]
+        elif self.data_type == AttrTypeValue['array_object']:
+            return [x.referral for x in self.data_array.all()]
+        elif self.data_type == AttrTypeValue['object']:
+            return self.referral
+        elif self.data_type == AttrTypeValue['boolean']:
+            return self.boolean
+        elif self.data_type == AttrTypeValue['date']:
+            return self.date
+        elif self.data_type == AttrTypeValue['named_object']:
+            return {
+                'value': self.value,
+                'referral': self.referral,
+            }
+        elif self.data_type == AttrTypeValue['array_named_object']:
+            return sorted([{
+                'value': x.value,
+                'referral': x.referral,
+            } for x in self.data_array.all()], key=lambda x: x['value'])
+
+        elif self.data_type == AttrTypeValue['group'] and self.value:
+            try:
+                group = Group.objects.get(id=self.value)
+                return {'id': group.id, 'name': group.name}
+            except ObjectDoesNotExist:
+                return {'id': '', 'name': ''}
+
+        else:
+            return self.value
+
     @classmethod
     def search(kls, query):
         results = []
@@ -369,58 +406,6 @@ class Attribute(ACLBase):
         AttributeValue.objects.filter(parent_attr=self,
                                       is_latest=True).update(is_latest=False)
 
-    def get_value_history(self, user):
-        # At the first time, checks the ermission to read
-        if not user.has_permission(self, ACLType.Readable):
-            return []
-
-        # This helper function returns value in response to the type
-        def get_attr_value(attrv):
-            if not attrv.data_type:
-                # complement data_type as the current type of Attribute
-                attrv.data_type = attrv.parent_attr.schema.type
-                attrv.save()
-
-            if attrv.data_type == AttrTypeValue['array_string']:
-                return [x.value for x in attrv.data_array.all()]
-            elif attrv.data_type == AttrTypeValue['array_object']:
-                return [x.referral for x in attrv.data_array.all()]
-            elif attrv.data_type == AttrTypeValue['object']:
-                return attrv.referral
-            elif attrv.data_type == AttrTypeValue['boolean']:
-                return attrv.boolean
-            elif attrv.data_type == AttrTypeValue['date']:
-                return attrv.date
-            elif attrv.data_type == AttrTypeValue['named_object']:
-                return {
-                    'value': attrv.value,
-                    'referral': attrv.referral,
-                }
-            elif attrv.data_type == AttrTypeValue['array_named_object']:
-                return sorted([{
-                    'value': x.value,
-                    'referral': x.referral,
-                } for x in attrv.data_array.all()], key=lambda x: x['value'])
-
-            elif attrv.data_type == AttrTypeValue['group'] and attrv.value:
-                try:
-                    group = Group.objects.get(id=attrv.value)
-
-                    return {'id': group.id, 'name': group.name}
-                except ObjectDoesNotExist:
-                    return {'id': '', 'name': ''}
-
-            else:
-                return attrv.value
-
-        return [{
-            'attr_name': self.schema.name,
-            'attr_type': self.schema.type,
-            'attr_value': get_attr_value(attrv),
-            'created_time': attrv.created_time,
-            'created_user': attrv.created_user.username,
-        } for attrv in self.values.all()]
-
     def _validate_value(self, value):
         if self.schema.type & AttrTypeValue['array']:
             if(self.schema.type & AttrTypeValue['named']):
@@ -505,7 +490,7 @@ class Attribute(ACLBase):
         elif self.schema.type == AttrTypeValue['date']:
             attr_value = AttributeValue.create(user, self)
             if isinstance(value, str):
-                attr_value.date = datetime.strptime(value, '%Y-%m-%d')
+                attr_value.date = datetime.strptime(value, '%Y-%m-%d').date()
             elif isinstance(value, date):
                 attr_value.date = value
 
@@ -1100,6 +1085,30 @@ class Entry(ACLBase):
         resp = es.index(doc_type='entry', id=self.id, body=self.get_es_document(es))
         if not skip_refresh:
             es.refresh()
+
+    def get_value_history(self, user, count=CONFIG.MAX_HISTORY_COUNT, index=0):
+        ret_values = []
+        for attrv in AttributeValue.objects.filter(parent_attr__in=self.attrs.all(),
+                                                   parent_attrv__isnull=True).order_by('-created_time')[index:]:
+
+            if (len(ret_values) >= count):
+                break
+
+            if (attrv.parent_attr.is_active and
+                attrv.parent_attr.schema.is_active and
+                user.has_permission(attrv.parent_attr, ACLType.Readable)):
+
+                ret_values.append({
+                    'attr_id': attrv.parent_attr.id,
+                    'attrv_id': attrv.id,
+                    'attr_name': attrv.parent_attr.schema.name,
+                    'attr_type': attrv.parent_attr.schema.type,
+                    'attr_value': attrv.format_for_history(),
+                    'created_time': attrv.created_time,
+                    'created_user': attrv.created_user.username,
+                })
+
+        return ret_values
 
     @classmethod
     def search_entries(kls, user, hint_entity_ids, hint_attrs=[], limit=CONFIG.MAX_LIST_ENTRIES, entry_name=None, or_match=False, hint_referral=False):

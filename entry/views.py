@@ -310,12 +310,10 @@ def history(request, entry_id):
     if not entry.is_active:
         return HttpResponse('Target entry has been deleted', status=400)
 
-    # get all values that are set in the past
-    value_history = sum([x.get_value_history(user) for x in entry.attrs.filter(is_active=True)], [])
-
     context = {
         'entry': entry,
-        'value_history': sorted(value_history, key=lambda x: x['created_time']),
+        'value_history': entry.get_value_history(user),
+        'history_count': CONFIG.MAX_HISTORY_COUNT,
     }
 
     return render(request, 'show_entry_history.html', context)

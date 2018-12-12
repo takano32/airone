@@ -6,5 +6,6 @@ CONFIG = Settings({
     'TEMPLATE_CONFIG': {
         'MAX_LABEL_STRING': 45,
     },
+    'MAX_HISTORY_COUNT': 10,
     'MAX_QUERY_SIZE': 512,
 })

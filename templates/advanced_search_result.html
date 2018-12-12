@@ -74,7 +74,7 @@
   <tbody>
     {% for result in results.ret_values %}
     <tr>
-      <th><a href='/entry/show/{{ result.entry.id }}'>{{ result.entry.name }}</a></th>
+      <th><a href='/entry/show/{{ result.entry.id }}'>{{ result.entry.name }} [{{ result.entity.name }}]</a></th>
 
       {% for attrname in attrs %}
         {% with result.attrs|get_item:attrname as attr %}
@@ -260,7 +260,7 @@ function reconstruct_tbody(results) {
   for(var result of results) {
     var new_elem_entry = $('<tr/>');
 
-    new_elem_entry.append(`<th><a href='/entry/show/${ result.entry.id }/'>${ result.entry.name }</a></th>`);
+    new_elem_entry.append(`<th><a href='/entry/show/${ result.entry.id }/'>${ result.entry.name } [${ result.entity.name}]</a></th>`);
 
     {% for attrname in attrs %}
       new_elem_entry.append(make_attr_elem(result.attrs['{{ attrname }}']));

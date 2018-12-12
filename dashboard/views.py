@@ -185,12 +185,15 @@ def _csv_export(values, recv_data, has_referral):
 
     # write first line of CSV
     if has_referral != False:
-        writer.writerow(['Name'] + [x['name'] for x in recv_data['attrinfo']] + ['Referral'])
+        writer.writerow(['Name'] + ['Entity'] + [x['name'] for x in recv_data['attrinfo']] + ['Referral'])
     else:
-        writer.writerow(['Name'] + [x['name'] for x in recv_data['attrinfo']])
+        writer.writerow(['Name'] + ['Entity'] + [x['name'] for x in recv_data['attrinfo']])
 
     for entry_info in values:
         line_data = [entry_info['entry']['name']]
+
+        # Append the data which specifies Entity name to which target Entry belongs
+        line_data.append(entry_info['entity']['name'])
 
         for attrinfo in recv_data['attrinfo']:
             # This condition eliminates the possibility that an attribute

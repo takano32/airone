@@ -179,9 +179,9 @@ class ViewTest(AironeViewTest):
 
         csv_contents = [x for x in resp.content.decode('utf-8').splitlines() if x]
         self.assertEqual(len(csv_contents), 3)
-        self.assertEqual(csv_contents[0], 'Name,attr')
-        self.assertEqual(csv_contents[1], 'entry-5,data-5')
-        self.assertEqual(csv_contents[2], 'entry-5,data-5')
+        self.assertEqual(csv_contents[0], 'Name,Entity,attr')
+        self.assertEqual(sorted(csv_contents[1:]),
+                         sorted(['entry-5,entity-0,data-5', 'entry-5,entity-1,data-5']))
 
         # test to show advanced_search_result page without mandatory params
         resp = self.client.get(reverse('dashboard:advanced_search_result'), {
@@ -250,7 +250,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(len(csv_contents), entity.attrs.count() + 1)
 
         # checks all data are exported in order of specified sequence
-        self.assertEqual(csv_contents[0], 'Name,%s' % ','.join(exporting_attr_names))
+        self.assertEqual(csv_contents[0], 'Name,Entity,%s' % ','.join(exporting_attr_names))
 
     def test_export_advanced_search_result_with_referral(self):
         user = self.admin
@@ -285,8 +285,8 @@ class ViewTest(AironeViewTest):
         # verifying result has referral entry's infomations
         csv_contents = [x for x in resp.content.decode('utf-8').splitlines() if x]
         self.assertEqual(len(csv_contents), 2)
-        self.assertEqual(csv_contents[0], 'Name,Referral')
-        self.assertEqual(csv_contents[1], "ref,['entry / entity']")
+        self.assertEqual(csv_contents[0], 'Name,Entity,Referral')
+        self.assertEqual(csv_contents[1], "ref,Referred Entity,['entry / entity']")
 
         # export with 'has_referral' parameter which has invalid value
         resp = self.client.post(reverse('dashboard:export_search_result'), {
@@ -381,10 +381,10 @@ class ViewTest(AironeViewTest):
 
             content = resp.content.decode('utf-8')
             header = content.splitlines()[0]
-            self.assertEqual(header, 'Name,"%s,""ATTR"""' % type_name)
+            self.assertEqual(header, 'Name,Entity,"%s,""ATTR"""' % type_name)
 
             data = content.replace(header, '', 1).strip()
-            self.assertEqual(data, '"%s,""ENTRY""",' % type_name + case[2] )
+            self.assertEqual(data, '"%s,""ENTRY""",%s,%s' % (type_name, test_entity.name, case[2]))
 
     @patch('entry.views.import_entries.delay', Mock(side_effect=entry_tasks.import_entries))
     def test_yaml_export(self):

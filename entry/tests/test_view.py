@@ -916,21 +916,18 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
 
         entity = Entity.objects.create(name='ほげ', created_user=user)
-        entry = Entry(name='fuga', schema=entity, created_user=user)
-        entry.save()
+        for name in ['foo', 'bar']:
+            entity.attrs.add(EntityAttr.objects.create(**{
+                'name': name,
+                'type': AttrTypeValue['string'],
+                'created_user': user,
+                'parent_entity': entity,
+            }))
 
-        for attr_name in ['foo', 'bar']:
-            attr = self.make_attr(name=attr_name,
-                                  parent_entry=entry,
-                                  created_user=user)
-
-            for value in ['hoge', 'fuga']:
-                attr_value = AttributeValue(value=value, created_user=user, parent_attr=attr)
-                attr_value.save()
-
-                attr.values.add(attr_value)
-
-            entry.attrs.add(attr)
+        entry = Entry.objects.create(name='fuga', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+        for attr in entry.attrs.all():
+            [attr.add_value(user, x) for x in ['hoge', 'fuga']]
 
         resp = self.client.get(reverse('entry:export', args=[entity.id]))
         self.assertEqual(resp.status_code, 200)
@@ -1903,12 +1900,7 @@ class ViewTest(AironeViewTest):
         entry.complement_attrs(user)
 
         attr = entry.attrs.get(name='named_ref')
-        attr.values.add(AttributeValue.objects.create(**{
-            'created_user': user,
-            'parent_attr': attr,
-            'value': 'hoge',
-            'referral': ref_entry,
-        }))
+        attr.add_value(user, {'id': ref_entry, 'name': 'hoge'})
 
         # try to update with same data (expected not to be updated)
         params = {
@@ -1972,23 +1964,14 @@ class ViewTest(AironeViewTest):
         attr = entry.attrs.get(name='arr_named_ref')
         self.assertTrue(attr.is_updated([{'id': ref_entry.id}]))
 
-        attrv = attr.get_latest_value()
-
-        r_entries = []
-        for i in range(0, 3):
-            r_entry = Entry.objects.create(name='r_%d' % i, created_user=user, schema=ref_entity)
-            r_entries.append(r_entry.id)
-
-            attrv.data_array.add(AttributeValue.objects.create(**{
-                'parent_attr': attr,
-                'created_user': user,
-                'value': 'key_%d' % i,
-                'referral': r_entry,
-            }))
-
-        attr.values.add(attrv)
+        attrv = attr.add_value(user, [{
+            'name': 'key_%d' % i,
+            'id': Entry.objects.create(name='r_%d' % i, created_user=user, schema=ref_entity)
+        } for i in range(3)])
 
         # try to update with same data (expected not to be updated)
+        old_attrv_count = attr.values.count()
+        r_entries = [x.referral.id for x in attrv.data_array.all()]
         params = {
             'entry_name': 'updated_entry',
             'attrs': [{
@@ -1998,12 +1981,14 @@ class ViewTest(AironeViewTest):
                 'referral_key': [{'data': 'key_%d' % i, 'index': i} for i in range(0, 3)],
             }],
         }
-        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]), json.dumps(params), 'application/json')
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]), json.dumps(params),
+                                        'application/json')
         self.assertEqual(resp.status_code, 200)
 
         updated_entry = Entry.objects.get(id=entry.id)
         self.assertEqual(updated_entry.name, 'updated_entry')
-        self.assertEqual(updated_entry.attrs.get(name='arr_named_ref').values.count(), 1)
+        self.assertEqual(updated_entry.attrs.get(name='arr_named_ref').values.count(),
+                         old_attrv_count)
 
         # try to update with different data (expected to be updated)
         params = {
@@ -2022,7 +2007,8 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
 
         updated_entry = Entry.objects.get(id=entry.id)
-        self.assertEqual(updated_entry.attrs.get(name='arr_named_ref').values.count(), 2)
+        self.assertEqual(updated_entry.attrs.get(name='arr_named_ref').values.count(),
+                         old_attrv_count + 1)
 
         new_attrv = updated_entry.attrs.get(name='arr_named_ref').values.last()
         self.assertEqual(new_attrv.data_array.count(), 3)
@@ -2056,7 +2042,8 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
 
         updated_entry = Entry.objects.get(id=entry.id)
-        self.assertEqual(updated_entry.attrs.get(name='arr_named_ref').values.count(), 2)
+        self.assertEqual(updated_entry.attrs.get(name='arr_named_ref').values.count(),
+                                                 old_attrv_count + 1)
 
     def test_get_copy_with_invalid_entry(self):
         user = self.admin_login()

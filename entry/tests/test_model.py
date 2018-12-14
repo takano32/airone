@@ -1912,8 +1912,58 @@ class ModelTest(AironeTestCase):
         # 6 results should be sorted
         for i in range(6):
             self.assertEqual(resp['ret_values'][i]['entry']['name'], "AAA%d" % i)
-        
-        
+
+    def test_search_entries_with_date(self):
+        user = User.objects.create(username='hoge')
+
+        # initialize Entity
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(name='date',
+                                                   type=AttrTypeValue['date'],
+                                                   created_user=user,
+                                                   parent_entity=entity))
+
+        # Initialize to create following Entries
+        # (entry name) : (value in Attribute date)
+        #   - entry-1  :  2018-01-01
+        #   - entry-2  :  2018-02-01
+        #   - entry-3  :  2018-03-01
+        for month in range(1, 4):
+            entry = Entry.objects.create(name='entry-%d' % month, schema=entity, created_user=user)
+            entry.complement_attrs(user)
+
+            attr = entry.attrs.first()
+            attr.add_value(user, '2018-%02d-01' % month)
+
+            entry.register_es()
+
+        # search entry that have AttributeValue exact matches with specified date.
+        ret = Entry.search_entries(user, [entity.id], [{'name': 'date', 'keyword': '2018/01/01'}])
+        self.assertEqual(len(ret['ret_values']), 1)
+        self.assertEqual(ret['ret_values'][0]['entry']['name'], 'entry-1')
+
+        # The case of using condition 'less thatn', this expects that entry-2 and entry-3 are matched
+        ret = Entry.search_entries(user, [entity.id], [{'name': 'date', 'keyword': '>2018-01-01'}])
+        self.assertEqual(len(ret['ret_values']), 2)
+        self.assertEqual(sorted([x['entry']['name'] for x in ret['ret_values']]),
+                         ['entry-2', 'entry-3'])
+
+        # The case of using condition 'greater thatn', this expects that entry-1 and entry-2 are matched
+        ret = Entry.search_entries(user, [entity.id], [{'name': 'date', 'keyword': '<2018-03-01'}])
+        self.assertEqual(len(ret['ret_values']), 2)
+        self.assertEqual(sorted([x['entry']['name'] for x in ret['ret_values']]),
+                         ['entry-1', 'entry-2'])
+
+        # The case of using both conditions, this expects that only entry-2 is matched
+        ret = Entry.search_entries(user, [entity.id], [{'name': 'date', 'keyword': '<2018-03-01 >2018-01-01'}])
+        self.assertEqual(len(ret['ret_values']), 1)
+        self.assertEqual(ret['ret_values'][0]['entry']['name'], 'entry-2')
+
+        # The same case of before one, but date format of keyward was changed
+        ret = Entry.search_entries(user, [entity.id], [{'name': 'date', 'keyword': '<2018/03/01 >2018/01/01'}])
+        self.assertEqual(len(ret['ret_values']), 1)
+        self.assertEqual(ret['ret_values'][0]['entry']['name'], 'entry-2')
+
     def test_get_last_value(self):
         user = User.objects.create(username='hoge')
 

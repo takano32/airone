@@ -125,11 +125,7 @@ class ViewTest(AironeViewTest):
             e.complement_attrs(admin)
 
             ref_attr = e.attrs.get(name='Refer')
-            ref_attr.values.add(AttributeValue.objects.create(**{
-                'referral': ref_entry,
-                'parent_attr': ref_attr,
-                'created_user': admin,
-            }))
+            ref_attr.add_value(admin, ref_entry)
 
         # send request without keyword
         resp = self.client.get(reverse('entry:api_v1:get_referrals', args=[ref_entry.id]))
@@ -278,15 +274,10 @@ class ViewTest(AironeViewTest):
                     'parent_attr': attr,
                 }
                 if attr.schema.type & AttrTypeValue['string']:
-                    attr.values.add(AttributeValue.objects.create(**{
-                        'value': '%d' % index,
-                        **base_params,
-                    }))
+                    attr.add_value(admin, str(index))
+
                 elif attr.schema.type & AttrTypeValue['object']:
-                    attr.values.add(AttributeValue.objects.create(**{
-                        'referral': Entry.objects.get(name='r-%d' % index),
-                        **base_params,
-                    }))
+                    attr.add_value(admin, Entry.objects.get(name='r-%d' % index))
 
         # checks the the API request to get entries with 'or' cond_link parameter
         params = {
@@ -554,3 +545,12 @@ class ViewTest(AironeViewTest):
                                 json.dumps(params), 'application/json')
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.content, b'Specified AttributeValue-id is invalid')
+
+        attrvs = [attr.add_value(user, str(x)) for x in range(2)]
+        self.assertEqual(attr.get_latest_value(), attrvs[-1])
+
+        # change Attribute type of attr then get latest AttributeValue
+        attr.schema.type = AttrTypeValue['object']
+        attr.schema.save(update_fields=['type'])
+
+        self.assertGreater(attr.get_latest_value().id, attrvs[-1].id)

@@ -345,20 +345,45 @@ class Attribute(ACLBase):
         return self.get_values(**params)
 
     def get_latest_value(self):
-        attrv = self.values.filter(is_latest=True)
-        if attrv:
-            return attrv.last()
-        else:
-            attrv = AttributeValue.objects.create(**{
+        def _create_new_value():
+            params = {
                 'value': '',
                 'created_user': self.created_user,
                 'parent_attr': self,
-                'status': 1 if self.schema.type & AttrTypeValue['group'] else 0,
                 'data_type': self.schema.type,
-            })
+                'status': 0,
+            }
+            if self.schema.type & AttrTypeValue['array']:
+                params['status'] |= AttributeValue.STATUS_DATA_ARRAY_PARENT
+
+            attrv = AttributeValue.objects.create(**params)
             self.values.add(attrv)
 
             return attrv
+
+        attrv = self.values.filter(is_latest=True).last()
+        if attrv:
+            # When a type of attribute value is clear, a new Attribute value will be created
+            if attrv.data_type != self.schema.type:
+                return _create_new_value()
+            else:
+                return attrv
+
+        elif self.values.count() > 0:
+            # During the processing of updating attribute-value, a short period of time
+            # that the latest attribute value is vanished might happen. This condition
+            # prevents creating new blank AttributeValue when user get latest-value of
+            # this Attribute at that time.
+            attrv = self.values.last()
+
+            # When a type of attribute value is clear, a new Attribute value will be created
+            if attrv.data_type != self.schema.type:
+                return _create_new_value()
+            else:
+                return attrv
+
+        else:
+            return _create_new_value()
 
     def get_last_value(self):
         attrv = self.values.last()
@@ -455,16 +480,14 @@ class Attribute(ACLBase):
 
         # Initialize AttrValue as None, because this may not created
         # according to the specified parameters.
-        attr_value = None
+        attr_value = AttributeValue.create(user, self)
 
         # set attribute value according to the attribute-type
         if self.schema.type == AttrTypeValue['string'] or self.schema.type == AttrTypeValue['text']:
-            attr_value = AttributeValue.create(user, self)
             attr_value.boolean = boolean
             attr_value.value = str(value)
 
         if self.schema.type == AttrTypeValue['group']:
-            attr_value = AttributeValue.create(user, self)
             attr_value.boolean = boolean
             if isinstance(value, Group):
                 attr_value.value = str(value.id)
@@ -472,7 +495,6 @@ class Attribute(ACLBase):
                 attr_value.value = value if value else ''
 
         elif self.schema.type == AttrTypeValue['object']:
-            attr_value = AttributeValue.create(user, self)
             attr_value.boolean = boolean
             # set None if the referral entry is not specified
             attr_value.referral = None
@@ -484,11 +506,9 @@ class Attribute(ACLBase):
                 attr_value.referral = value
 
         elif self.schema.type == AttrTypeValue['boolean']:
-            attr_value = AttributeValue.create(user, self)
             attr_value.boolean = value
 
         elif self.schema.type == AttrTypeValue['date']:
-            attr_value = AttributeValue.create(user, self)
             if isinstance(value, str):
                 attr_value.date = datetime.strptime(value, '%Y-%m-%d').date()
             elif isinstance(value, date):
@@ -499,7 +519,6 @@ class Attribute(ACLBase):
         elif (self.schema.type == AttrTypeValue['named_object'] and
               ('id' in value and value['id'] or 'name' in value and value['name'])):
 
-            attr_value = AttributeValue.create(user, self)
             attr_value.value = value['name']
             attr_value.boolean = boolean
 
@@ -514,7 +533,6 @@ class Attribute(ACLBase):
                 attr_value.referral = None
 
         elif self.schema.type & AttrTypeValue['array']:
-            attr_value = AttributeValue.create(user, self)
             attr_value.boolean = boolean
             # set status of parent data_array
             attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
@@ -530,7 +548,7 @@ class Attribute(ACLBase):
             # create and append updated values
             attrv_bulk = []
             if self.schema.type == AttrTypeValue['array_string']:
-                attrv_bulk = [AttributeValue(value=v, **co_attrv_params) for v in value]
+                attrv_bulk = [AttributeValue(value=v, **co_attrv_params) for v in value if v]
 
             elif self.schema.type == AttrTypeValue['array_object']:
                 for v in value:
@@ -551,6 +569,9 @@ class Attribute(ACLBase):
                     elif Entry.objects.filter(id=data['id']).exists():
                         referral = Entry.objects.get(id=data['id'])
 
+                    if not referral and ('name' in data and not data['name']):
+                        continue
+
                     # update boolean parameter if data has its value
                     if 'boolean' in data:
                         co_attrv_params['boolean'] = data['boolean']
@@ -566,11 +587,10 @@ class Attribute(ACLBase):
             # set created leaf AttribueValues to the data_array parameter of parent AttributeValue
             attr_value.data_array.add(*AttributeValue.objects.filter(parent_attrv=attr_value))
 
-        if attr_value:
-            attr_value.save()
+        attr_value.save()
 
-            # append new AttributeValue
-            self.values.add(attr_value)
+        # append new AttributeValue
+        self.values.add(attr_value)
 
         return attr_value
 
@@ -832,7 +852,11 @@ class Entry(ACLBase):
             newattr = self.add_attribute_from_base(entity_attr, user)
             if entity_attr.type & AttrTypeValue['array']:
                 # Create a initial AttributeValue for editing processing
-                attr_value = AttributeValue.objects.create(created_user=user, parent_attr=newattr)
+                attr_value = AttributeValue.objects.create(**{
+                    'created_user': user,
+                    'parent_attr': newattr,
+                    'data_type': entity_attr.type,
+                })
 
                 # Set status of parent data_array
                 attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
@@ -863,7 +887,7 @@ class Entry(ACLBase):
                     last_value.data_type = attr.schema.type
                     last_value.save()
 
-                if last_value.data_type == AttrTypeStr or attr.schema.type == AttrTypeText:
+                if last_value.data_type == AttrTypeStr or last_value.data_type == AttrTypeText:
                     attrinfo['last_value'] = last_value.value
 
                 elif (last_value.data_type == AttrTypeObj and last_value.referral and last_value.referral.is_active):

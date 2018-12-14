@@ -235,6 +235,11 @@ def update_attr_with_attrv(request, recv_data):
     if not attrv:
         return HttpResponse('Specified AttributeValue-id is invalid', status=400)
 
+    # When the AttributeType was changed after settting value, this operation is aborted
+    if attrv.data_type != attr.schema.type:
+        return HttpResponse('Attribute-type was changed after this value was registered.',
+                            status=400)
+
     latest_value = attr.get_latest_value()
     if latest_value.get_value() != attrv.get_value():
         # clear all exsts latest flag

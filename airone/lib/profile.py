@@ -38,7 +38,7 @@ def airone_profile(func):
             req = args[1]
 
         if req:
-            prof.check("Total time of the request: %s" % req.path)
+            prof.check("(user-id: %s) Total time of the request: %s" % (req.user.id, req.path))
         else:
             prof.check("Total time of the request")
 

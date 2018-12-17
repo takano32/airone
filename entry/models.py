@@ -1052,9 +1052,9 @@ class Entry(ACLBase):
                 # When the value was date format, Elasticsearch detect it date type
                 # automatically. This processing explicitly set value to the date typed
                 # parameter.
-                timeobj = self._is_date(attrv.value)
-                if timeobj:
-                    attrinfo['date_value'] = timeobj
+                ret = self._is_date_check(attrv.value)
+                if ret and isinstance(ret[1], date):
+                    attrinfo['date_value'] = ret[1]
                 else:
                     attrinfo['value'] = truncate(attrv.value)
 
@@ -1192,18 +1192,33 @@ class Entry(ACLBase):
                 'term': {'attr.name': hint['name']}
             })
 
-            timeobj = kls._is_date(hint['keyword'])
-            if timeobj:
-                timestr = timeobj.strftime('%Y/%m/%d')
-                cond_attr.append({
+
+            date_results = kls._is_date(hint['keyword'])
+            if date_results:
+                date_cond = {
                     'range': {
                         'attr.date_value': {
-                            'gte': timestr,
-                            'lte': timestr,
-                            'format': 'yyyy/MM/dd'
+                            'format': 'yyyy-MM-dd'
                         }
                     },
-                })
+                }
+                for (range_check, date_obj) in date_results:
+                    timestr = date_obj.strftime('%Y-%m-%d')
+                    if range_check == '<':
+                        # search of before date user specified
+                        date_cond['range']['attr.date_value']['lt'] = timestr
+
+                    elif range_check == '>':
+                        # search of after date user specified
+                        date_cond['range']['attr.date_value']['gt'] = timestr
+
+                    else:
+                        # search of exact day
+                        date_cond['range']['attr.date_value']['gte'] = timestr
+                        date_cond['range']['attr.date_value']['lte'] = timestr
+
+                cond_attr.append(date_cond)
+
             else:
                 cond_val = [{'match': {'attr.value': hint['keyword']}}]
                 if 'exact_match' not in hint:
@@ -1362,21 +1377,34 @@ class Entry(ACLBase):
         return ESS().search(body={'query': {'match_all': {}}}, ignore=[404])
 
     @classmethod
-    def _is_date(kls, value):
-        ret = None
+    def _is_date_check(kls, value):
         try:
-            if re.match(r'^[0-9]{4}/[0-9]+/[0-9]+', value):
-                # ignore unconvert characters if exists by splitting
-                ret = datetime.strptime(value.split(' ')[0], '%Y/%m/%d')
+            for delimiter in ['-', '/']:
+                date_format = '%%Y%(del)s%%m%(del)s%%d' % {'del': delimiter}
 
-            elif re.match(r'^[0-9]{4}-[0-9]+-[0-9]+', value):
-                ret = datetime.strptime(value.split(' ')[0], '%Y-%m-%d')
+                if re.match(r'^[<>]?[0-9]{4}%(del)s[0-9]+%(del)s[0-9]+' % {'del': delimiter}, value):
+
+                    if value[0] in ['<', '>']:
+                        return (value[0],
+                                datetime.strptime(value[1:].split(' ')[0], date_format))
+                    else:
+                        return ('', datetime.strptime(value.split(' ')[0], date_format))
+
         except ValueError:
-            # When datetime.strptie raised ValueError, it means value parameter maches date format
-            # but they are not date value. In this case, we should deal it with a string value.
+            # When datetime.strptie raised ValueError, it means value parameter maches date
+            # format but they are not date value. In this case, we should deal it with a
+            # string value.
             return None
 
-        return ret
+        return None
+
+    @classmethod
+    def _is_date(kls, value):
+        # checks all specified value is date format
+        result = [kls._is_date_check(x) for x in value.split(' ') if x]
+
+        # If result is not empty and all value is date, this returns the result
+        return result if result and all(result) else None
 
     @classmethod
     def is_importable_data(kls, data):

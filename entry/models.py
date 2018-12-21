@@ -312,12 +312,23 @@ class Attribute(ACLBase):
                 else:
                     return value
 
-            current_refs = [x.referral.id for x in last_value.data_array.all() if x.referral]
-            if sorted(current_refs) != sorted([get_entry_id(x['id']) for x in recv_value if 'id' in x and x['id']]):
-                return True
+            cmp_curr = []
+            for co_attrv in last_value.data_array.all():
+                if co_attrv.referral:
+                    cmp_curr.append('%s-%s' % (co_attrv.referral.id, co_attrv.value))
+                else:
+                    cmp_curr.append('N-%s' % (co_attrv.value))
 
-            current_keys = [x.value for x in last_value.data_array.all() if x.value]
-            if sorted(current_keys) != sorted([x['name'] for x in recv_value if 'name' in x and x['name']]):
+            cmp_recv = []
+            for info in recv_value:
+                name = info['name'] if 'name' in info and info['name'] else ''
+
+                if 'id' in info and info['id']:
+                    cmp_recv.append('%s-%s' % (get_entry_id(info['id']), name))
+                else:
+                    cmp_recv.append('N-%s' % (name))
+
+            if sorted(cmp_curr) != sorted(cmp_recv):
                 return True
 
         return False

@@ -661,32 +661,30 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
 
         entity = Entity.objects.create(name='entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr',
+            'type': AttrTypeArrStr,
+            'created_user': user,
+            'parent_entity': entity,
+        }))
+
         entry = Entry.objects.create(name='entry', created_user=user, schema=entity)
+        entry.complement_attrs(user)
+        attr = entry.attrs.first()
+        attr.add_value(user, [
+            {'name': 'hoge', 'id': ''},
+            {'name': 'fuga', 'id': ''},
+        ])
 
-        attr = self.make_attr(name='attr',
-                              attrtype=AttrTypeArrStr,
-                              created_user=user,
-                              parent_entry=entry)
-
-        attr_value = AttributeValue.objects.create(created_user=user, parent_attr=attr)
-        attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
-
-        attr_value.data_array.add(AttributeValue.objects.create(value='hoge',
-                                                                created_user=user,
-                                                                parent_attr=attr))
-
-        attr_value.data_array.add(AttributeValue.objects.create(value='fuga',
-                                                                created_user=user,
-                                                                parent_attr=attr))
-
-        attr.values.add(attr_value)
-        entry.attrs.add(attr)
+        parent_values_count = AttributeValue.objects.extra(**{
+            'where': ['status & %s = 1' % AttributeValue.STATUS_DATA_ARRAY_PARENT]
+        }).count()
 
         params = {
             'entry_name': entry.name,
             'attrs': [{
                 'id': str(attr.id),
-                'type': str(AttrTypeArrStr),
+                'type': str(attr.schema.type),
                 'value': [
                     {'data': 'hoge', 'index': 0},
                     {'data': 'puyo', 'index': 1},
@@ -707,9 +705,9 @@ class ViewTest(AironeViewTest):
         parent_values = [x for x in AttributeValue.objects.all()
                          if x.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)]
         self.assertEqual(len(leaf_values), 4)
-        self.assertEqual(len(parent_values), 2)
+        self.assertEqual(len(parent_values), parent_values_count + 1)
 
-        self.assertEqual(attr.values.count(), 2)
+        self.assertEqual(attr.values.count(), parent_values_count + 1)
         self.assertTrue(attr.values.last().status & AttributeValue.STATUS_DATA_ARRAY_PARENT)
 
         self.assertEqual(attr.values.last().data_array.count(), 2)
@@ -720,30 +718,27 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
 
         entity = Entity.objects.create(name='entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr',
+            'type': AttrTypeValue['array_named_object'],
+            'created_user': user,
+            'parent_entity': entity,
+        }))
+
         entry = Entry.objects.create(name='entry', created_user=user, schema=entity)
+        entry.complement_attrs(user)
 
-        e1 = Entry.objects.create(name='E1', created_user=user, schema=entity)
-        e2 = Entry.objects.create(name='E2', created_user=user, schema=entity)
-        e3 = Entry.objects.create(name='E3', created_user=user, schema=entity)
+        (e1, e2, e3) = [Entry.objects.create(name='E%d' % i, created_user=user, schema=entity) for i in range(3)]
 
-        attr = self.make_attr(name='attr',
-                              attrtype=AttrTypeArrObj,
-                              created_user=user,
-                              parent_entry=entry)
+        attr = entry.attrs.first()
+        attr.add_value(user, [
+            {'name': '', 'id': e1},
+            {'name': '', 'id': e2},
+        ])
 
-        attr_value = AttributeValue.objects.create(created_user=user, parent_attr=attr)
-        attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
-
-        attr_value.data_array.add(AttributeValue.objects.create(referral=e1,
-                                                                created_user=user,
-                                                                parent_attr=attr))
-
-        attr_value.data_array.add(AttributeValue.objects.create(referral=e2,
-                                                                created_user=user,
-                                                                parent_attr=attr))
-
-        attr.values.add(attr_value)
-        entry.attrs.add(attr)
+        parent_values_count = AttributeValue.objects.extra(**{
+            'where': ['status & %s = 1' % AttributeValue.STATUS_DATA_ARRAY_PARENT]
+        }).count()
 
         params = {
             'entry_name': entry.name,
@@ -770,9 +765,8 @@ class ViewTest(AironeViewTest):
         parent_values = [x for x in AttributeValue.objects.all()
                          if x.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)]
         self.assertEqual(len(leaf_values), 4)
-        self.assertEqual(len(parent_values), 2)
-
-        self.assertEqual(attr.values.count(), 2)
+        self.assertEqual(len(parent_values), parent_values_count + 1)
+        self.assertEqual(attr.values.count(), parent_values_count + 1)
         self.assertTrue(attr.values.last().status & AttributeValue.STATUS_DATA_ARRAY_PARENT)
 
         self.assertEqual(attr.values.last().data_array.count(), 2)

@@ -353,9 +353,6 @@ class ModelTest(AironeTestCase):
 
         attr.values.add(attrv)
 
-        # this processing doesn't care the order of contet
-        self.assertFalse(attr.is_updated([{**x, 'name': y} for x, y in zip(r_entries, ['key_0', 'key_2', 'key_1'])]))
-
         self.assertTrue(attr.is_updated([{'name': x} for x in ['key_0', 'key_1', 'key_2']]))
         self.assertTrue(attr.is_updated([{**x, 'name': y} for x, y in zip(r_entries, ['key_0', 'key_1'])]))
         self.assertTrue(attr.is_updated(r_entries))
@@ -600,7 +597,7 @@ class ModelTest(AironeTestCase):
         attr = entry.attrs.get(name='arr_named_ref')
         self.assertTrue(attr.is_updated([{'id': ref_entry.id}]))
 
-        attr.add_value(self._user, [{
+        attrv = attr.add_value(self._user, [{
             'name': 'key_%d' % i,
             'id': Entry.objects.create(name='r_%d' % i, created_user=self._user, schema=ref_entity),
         } for i in range(3, 0, -1)])
@@ -618,6 +615,18 @@ class ModelTest(AironeTestCase):
         attr_base.delete()
         results = entry.get_available_attrs(self._user)
         self.assertEqual(len(results), 0)
+
+        # check following switched value case
+        # initiated value is
+        #   - [{'key_3': 'r_3'}, {'key_2': 'r_2'}, {'key_1': 'r_1'}]
+        # then, check following value is different
+        #   - [{'key_1': 'r_3'}, {'key_2': 'r_2'}, {'key_3': 'r_1'}]
+        new_value = [
+            {'name': 'key_3', 'id': attrv.data_array.get(referral__name='r_1').referral.id},
+            {'name': 'key_2', 'id': attrv.data_array.get(referral__name='r_2').referral.id},
+            {'name': 'key_1', 'id': attrv.data_array.get(referral__name='r_3').referral.id},
+        ]
+        self.assertTrue(attr.is_updated(new_value))
 
     def test_clone_attribute_value(self):
         basic_params = {

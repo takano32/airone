@@ -411,7 +411,8 @@ class Attribute(ACLBase):
         return attrv
 
     def clone(self, user, **extra_params):
-        if not user.has_permission(self, ACLType.Readable):
+        if (not user.has_permission(self, ACLType.Readable) or
+            not user.has_permission(self.schema, ACLType.Readable)):
             return None
 
         # We can't clone an instance by the way (.pk=None and save) like AttributeValue,
@@ -999,7 +1000,10 @@ class Entry(ACLBase):
         cloned_entry = Entry.objects.create(**params)
 
         for attr in self.attrs.filter(is_active=True):
-            cloned_entry.attrs.add(attr.clone(user, parent_entry=cloned_entry))
+            cloned_attr = attr.clone(user, parent_entry=cloned_entry)
+
+            if cloned_attr:
+                cloned_entry.attrs.add(cloned_attr)
 
         cloned_entry.del_status(Entry.STATUS_CREATING)
         return cloned_entry

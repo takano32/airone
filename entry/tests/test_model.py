@@ -706,12 +706,8 @@ class ModelTest(AironeTestCase):
         entry.complement_attrs(self._user)
 
         entry_attr = entry.attrs.last()
-        for i in range(0, 10):
-            entry_attr.values.add(AttributeValue.objects.create(**{
-                'parent_attr': entry_attr,
-                'created_user': self._user,
-                'value': str(i),
-            }))
+        for i in range(10):
+            entry_attr.add_value(self._user, str(i))
 
         clone = entry.clone(self._user)
 
@@ -729,6 +725,33 @@ class ModelTest(AironeTestCase):
         # checks parent_entry in the cloned AttributeValue object is updated
         self.assertEqual(entry_attr.values.last().parent_attr, entry_attr)
         self.assertEqual(clone_attr.values.last().parent_attr, clone_attr)
+
+    def test_clone_entry_with_non_permitted_attributes(self):
+        # set EntityAttr attr3 is not public
+        attr_infos = [
+            {'name': 'attr1', 'is_public': True},
+            {'name': 'attr2', 'is_public': True},
+            {'name': 'attr3', 'is_public': False}
+        ]
+        for info in attr_infos:
+            self._entity.attrs.add(EntityAttr.objects.create(**{
+                'type': AttrTypeValue['string'],
+                'created_user': self._user,
+                'parent_entity': self._entity,
+                **info,
+            }))
+
+        entry = Entry.objects.create(name='entry', schema=self._entity, created_user=self._user)
+        entry.complement_attrs(self._user)
+
+        # set Attribute attr2 is not public
+        entry.attrs.filter(schema__name='attr2').update(is_public=False)
+
+        # checks that cloned entry doesn't have non-permitted attributes
+        cloned_entry = entry.clone(self._user)
+
+        self.assertEqual(cloned_entry.attrs.count(), 1)
+        self.assertEqual(cloned_entry.attrs.first().schema.name, 'attr1')
 
     def test_clone_entry_with_extra_params(self):
         entry = Entry.objects.create(name='entry', schema=self._entity, created_user=self._user)

@@ -198,3 +198,57 @@ class ModelTest(TestCase):
 
         self.assertTrue(superuser.has_permission(aclobj, ACLType.Full))
         self.assertFalse(guestuser.has_permission(aclobj, ACLType.Full))
+
+    def test_check_may_permitted(self):
+        admin_user =  User.objects.create(username='admin', is_superuser=True)
+        non_admin_user = User.objects.create(username='user', is_superuser=False)
+
+        # add and register group to non_admin_user
+        group = Group.objects.create(name='group', is_active=True)
+        non_admin_user.groups.add(group)
+
+        acl_bases = {
+            'acl1': {'is_public': True,  'default_permission': ACLType.Nothing.id},
+            'acl2': {'is_public': False, 'default_permission': ACLType.Full.id},
+            'acl3': {'is_public': False, 'default_permission': ACLType.Readable.id},
+            'acl4': {'is_public': False, 'default_permission': ACLType.Nothing.id},
+        }
+
+        acl = {
+            'user_readable': {'acl_settings': [{
+                'member_id': str(non_admin_user.id),
+                'member_type': 'user',
+                'value': str(ACLType.Readable.id),
+            }]},
+            'user_full': {'acl_settings': [{
+                'member_id': str(non_admin_user.id),
+                'member_type': 'user',
+                'value': str(ACLType.Full.id),
+            }]},
+            'group_full': {'acl_settings': [{
+                'member_id': str(group.id),
+                'member_type': 'group',
+                'value': str(ACLType.Full.id),
+            }]},
+        }
+
+        # checks that admin user can access any case
+        for info in acl_bases.values():
+            self.assertTrue(admin_user.may_permitted(ACLType.Full, acl_settings=[], **info))
+
+        # checks permitted cases
+        self.assertTrue(non_admin_user.may_permitted(ACLType.Readable, acl_settings=[], **acl_bases['acl1']))
+        self.assertTrue(non_admin_user.may_permitted(ACLType.Readable, acl_settings=[], **acl_bases['acl2']))
+        self.assertTrue(non_admin_user.may_permitted(ACLType.Readable, acl_settings=[], **acl_bases['acl3']))
+
+        # checks permitted cases with indivisual permissions
+        self.assertTrue(non_admin_user.may_permitted(ACLType.Readable, **{**acl['user_readable'], **acl_bases['acl4']}))
+        self.assertTrue(non_admin_user.may_permitted(ACLType.Full, **{**acl['user_full'], **acl_bases['acl4']}))
+        self.assertTrue(non_admin_user.may_permitted(ACLType.Full, **{**acl['group_full'], **acl_bases['acl4']}))
+
+        # checks unpermitted cases
+        self.assertFalse(non_admin_user.may_permitted(ACLType.Full, acl_settings=[], **acl_bases['acl3']))
+        self.assertFalse(non_admin_user.may_permitted(ACLType.Full, acl_settings=[], **acl_bases['acl4']))
+
+        # checks unpermitted cases with indivisual permissions
+        self.assertFalse(non_admin_user.may_permitted(ACLType.Full, **{**acl['user_readable'], **acl_bases['acl4']}))

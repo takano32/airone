@@ -7,6 +7,7 @@ from django.contrib.auth.models import Permission
 
 from airone.lib.acl import ACLType, ACLObjType
 from airone.lib.http import http_get, http_post, render
+from airone.lib.http import check_permission
 from airone.lib.profile import airone_profile
 
 from entity.models import Entity, EntityAttr
@@ -19,11 +20,11 @@ Logger = logging.getLogger(__name__)
 
 
 @http_get
+@check_permission(ACLBase, ACLType.Full)
 def index(request, obj_id):
     if not ACLBase.objects.filter(id=obj_id).exists():
         return HttpResponse('Failed to find target object to set ACL', status=400)
 
-    # This is an Entity or EntityAttr
     target_obj = ACLBase.objects.get(id=obj_id).get_subclass_object()
 
     # get ACLTypeID of target_obj if a permission is set
@@ -81,8 +82,17 @@ def index(request, obj_id):
     )},
 ])
 def set(request, recv_data):
-    acl_obj = getattr(_get_acl_model(recv_data['object_type']),
-                      'objects').get(id=recv_data['object_id'])
+    user = User.objects.get(id=request.user.id)
+    acl_obj = getattr(_get_acl_model(recv_data['object_type']), 'objects').get(id=recv_data['object_id'])
+
+    if not user.has_permission(acl_obj, ACLType.Full):
+        return HttpResponse("User(%s) doesn't have permission to change this ACL" % user.username, status=400)
+
+    if not user.may_permitted(ACLType.Full, **{
+            'is_public': True if 'is_public' in recv_data else False,
+            'default_permission': int(recv_data['default_permission']),
+            'acl_settings': recv_data['acl']}):
+        return HttpResponse("Inadmissible setting. By this change you will never change this ACL", status=400)
 
     acl_obj.is_public = False
     if 'is_public' in recv_data:

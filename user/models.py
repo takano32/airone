@@ -37,6 +37,37 @@ class User(DjangoUser):
         # This means user has no permission to access target object
         return False
 
+    def may_permitted(self, expected_permission, is_public, default_permission, acl_settings):
+        '''
+        This checks specified permission settings have expected_permission for this user
+
+        Return value:
+            - True: user has expected_permission
+            - False: user doesn't have expected_permission
+        '''
+        if self.is_superuser:
+            return True
+
+        if is_public:
+            return True
+
+        if expected_permission <= default_permission:
+            return True
+
+        groups = [g.id for g in self.groups.all()]
+        for acl_data in [x for x in acl_settings if x['value']]:
+            if (acl_data['member_type'] == 'user' and
+                int(acl_data['member_id']) == self.id and
+                int(acl_data['value']) >= expected_permission):
+                return True
+
+            elif (acl_data['member_type'] == 'group' and
+                  int(acl_data['member_id']) in groups and
+                  int(acl_data['value']) >= expected_permission):
+                return True
+
+        return False
+
     def has_permission(self, target_obj, permission_level):
         # The case that parent data structure (Entity in Entry, or EntityAttr in Attribute) doesn't permit,
         # access to the children's objects are also not permitted.

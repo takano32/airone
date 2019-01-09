@@ -323,3 +323,17 @@ class ViewTest(AironeViewTest):
         self.assertTrue(attr.is_public)
         self.assertTrue(user.has_permission(attr, ACLType.Full))
         self.assertFalse(guest.has_permission(attr, ACLType.Full))
+
+    def test_access_to_no_permission_object(self):
+        user = self.guest_login()
+        obj = ACLBase.objects.create(name='obj', created_user=user, is_public=False)
+
+        # When normal user access to the ACL setting page of object which user doens't have ACLType.Full,
+        # AirOne returns http-staus 400.
+        resp = self.client.get(reverse('acl:index', args=[obj.id]))
+        self.assertEqual(resp.status_code, 400)
+
+        # While user has no permission of object, admin user can access to it.
+        self.admin_login()
+        resp = self.client.get(reverse('acl:index', args=[obj.id]))
+        self.assertEqual(resp.status_code, 200)

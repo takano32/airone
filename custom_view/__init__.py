@@ -73,6 +73,15 @@ def call_custom_list_entry(entity_name, *args, **kwargs):
     else:
         return HttpResponse("Custom view of list_entry doesn't exist", status=500)
 
+def is_custom_list_entry_without_context(entity_name):
+    return _is_view(entity_name, 'list_entry_without_context')
+
+def call_custom_list_entry_without_context(entity_name, *args, **kwargs):
+    if(_isin_cache(entity_name, 'list_entry_without_context') or _is_view(entity_name, 'list_entry_without_context')):
+        return CUSTOM_VIEW[entity_name]['list_entry_without_context'](*args, **kwargs)
+    else:
+        return HttpResponse("Custom view of list_entry_without_context doesn't exist", status=500)
+
 def is_custom_edit_entry(entity_name):
     return _is_view(entity_name, 'edit_entry')
 

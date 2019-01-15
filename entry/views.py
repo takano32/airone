@@ -67,6 +67,12 @@ def index(request, entity_id):
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     entity = Entity.objects.get(id=entity_id)
+    if custom_view.is_custom_list_entry_without_context(entity.name):
+        # show custom view without context
+        resp = custom_view.call_custom_list_entry_without_context(entity.name, request, entity)
+        if resp:
+            return resp
+
     entries = Entry.objects.order_by('name').filter(schema=entity, is_active=True)
 
     total_count = list_count = len(entries)

@@ -812,6 +812,14 @@ class Entry(ACLBase):
         # set lock status
         self.set_cache(cache_key, 1)
 
+        # While an Attribute object which corresponding to base EntityAttr has been already
+        # registered, a request to create same Attribute might be here when multiple request
+        # invoked and make requests simultaneously. That request may call this method after
+        # previous processing is finished.
+        # In this case, we have to prevent to create new Attribute object.
+        if Attribute.objects.filter(schema=base, parent_entry=self, is_active=True).exists():
+            return
+
         attr = Attribute.objects.create(name=base.name,
                                         schema=base,
                                         created_user=user,
@@ -848,20 +856,34 @@ class Entry(ACLBase):
 
         return Entry.objects.filter(pk__in=ids, is_active=True)
 
+    def may_remove_duplicate_attr(self, attr):
+        """
+        This removes speicified Attribute object if an Attribute object which refers same
+        EntityAttr at schema parameter is registered to prevent saving duplicate one.
+        """
+        if self.attrs.filter(Q(schema=attr.schema, is_active=True), ~Q(id=attr.id)).exists():
+            # remove attribute from Attribute list of this entry
+            self.attrs.remove(attr)
+
+            # update target attribute will be inactive
+            attr.is_active = False
+            attr.save(update_fields=['is_active'])
+
     def complement_attrs(self, user):
         """
         This method complements Attributes which are appended after creation of Entity
         """
-
-        for attr_id in (set(self.schema.attrs.values_list('id', flat=True)) -
-                        set(self.attrs.values_list('schema', flat=True))):
+        for attr_id in (set(self.schema.attrs.filter(is_active=True).values_list('id', flat=True)) -
+                        set(self.attrs.filter(is_active=True).values_list('schema', flat=True))):
 
             entity_attr = self.schema.attrs.get(id=attr_id)
-            if (not entity_attr.is_active or
-                not user.has_permission(entity_attr, ACLType.Readable)):
+            if not user.has_permission(entity_attr, ACLType.Readable):
                 continue
 
             newattr = self.add_attribute_from_base(entity_attr, user)
+            if not newattr:
+                continue
+
             if entity_attr.type & AttrTypeValue['array']:
                 # Create a initial AttributeValue for editing processing
                 attr_value = AttributeValue.objects.create(**{
@@ -874,6 +896,10 @@ class Entry(ACLBase):
                 attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
 
                 newattr.values.add(attr_value)
+
+            # When multiple requests to add new Attribute came here, multiple Attriutes
+            # might be existed. If there were, this would delete new one.
+            self.may_remove_duplicate_attr(newattr)
 
     def get_available_attrs(self, user, permission=ACLType.Readable, get_referral_entries=False):
         # To avoid unnecessary DB access for caching referral entries

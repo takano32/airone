@@ -13,6 +13,7 @@ from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeArrStr, AttrTypeA
 from airone.lib.types import AttrTypeValue
 from airone.lib.test import AironeTestCase
 from unittest import skip
+from unittest.mock import Mock
 
 
 class ModelTest(AironeTestCase):
@@ -151,6 +152,10 @@ class ModelTest(AironeTestCase):
 
         entry.clear_cache(cache_key)
         attr = entry.add_attribute_from_base(attrbase, user)
+        self.assertEqual(entry.attrs.count(), 1)
+
+        # check not to create multiple same Attribute objects by add_attribute_from_base method
+        self.assertIsNone(entry.add_attribute_from_base(attrbase, user))
         self.assertEqual(entry.attrs.count(), 1)
 
         # update attrbase
@@ -2181,3 +2186,40 @@ class ModelTest(AironeTestCase):
             ret = Entry.is_importable_data(info['data'])
 
             self.assertEqual(ret, info['expect'])
+
+    def test_remove_duplicate_attr(self):
+        # initialize EntityAttr and Entry objects to test
+        entity_attr = EntityAttr.objects.create(**{
+            'name': 'attr',
+            'created_user': self._user,
+            'parent_entity': self._entity
+        })
+        self._entity.attrs.add(entity_attr)
+
+        entry = Entry.objects.create(name='entry', schema=self._entity, created_user=self._user)
+        entry.complement_attrs(self._user)
+
+        # Add and register duplicate Attribute after registers
+        dup_attr = Attribute.objects.create(name=entity_attr.name,
+                                            schema=entity_attr,
+                                            created_user=self._user,
+                                            parent_entry=entry)
+        entry.attrs.add(dup_attr)
+
+        # checks duplicate attr is registered as expected
+        self.assertEqual(entry.attrs.count(), 2)
+        self.assertTrue(entry.attrs.filter(id=dup_attr.id).exists())
+
+        # remove duplicate attribute
+        entry.may_remove_duplicate_attr(dup_attr)
+
+        # checks duplicate attr would be removed
+        self.assertEqual(entry.attrs.count(), 1)
+        self.assertNotEqual(entry.attrs.first().id, dup_attr)
+        self.assertFalse(dup_attr.is_active)
+
+        # checks original attr would never be removed by same method
+        orig_attr = entry.attrs.first()
+        entry.may_remove_duplicate_attr(orig_attr)
+        self.assertEqual(entry.attrs.count(), 1)
+        self.assertEqual(entry.attrs.first(), orig_attr)

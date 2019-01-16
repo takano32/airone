@@ -1371,7 +1371,10 @@ class ViewTest(AironeViewTest):
         attr = entry.add_attribute_from_base(self._entity_attr, user)
 
         dup_entry = Entry.objects.create(name='dup_entry', created_user=user, schema=self._entity)
-        dup_attr = entry.add_attribute_from_base(self._entity_attr, user)
+        dup_attr = Attribute.objects.create(name=self._entity_attr.name,
+                                            schema=self._entity_attr,
+                                            created_user=user,
+                                            parent_entry=entry)
 
         params = {
             'entry_name': 'entry',

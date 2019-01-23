@@ -1,5 +1,6 @@
 import inspect
 import os
+import shutil
 
 from django.test import TestCase, Client, override_settings
 from django.conf import settings
@@ -18,6 +19,16 @@ class AironeTestCase(TestCase):
         # Before starting test, clear all documents in the Elasticsearch of test index
         self._es = ESS()
         self._es.recreate_index()
+
+        # update airone app
+        settings.AIRONE['FILE_STORE_PATH'] = '/tmp/airone_app_test'
+        if not os.path.exists(settings.AIRONE['FILE_STORE_PATH']):
+            os.makedirs(settings.AIRONE['FILE_STORE_PATH'])
+
+    def tearDown(self):
+        #shutil.rmtree(settings.AIRONE['FILE_STORE_PATH'])
+        for fname in os.listdir(settings.AIRONE['FILE_STORE_PATH']):
+            os.unlink(os.path.join(settings.AIRONE['FILE_STORE_PATH'], fname))
 
 class AironeViewTest(AironeTestCase):
     def setUp(self):

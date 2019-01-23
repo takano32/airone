@@ -33,6 +33,8 @@ class JobAPI(APIView):
                 'edit': Job.OP_EDIT,
                 'delete': Job.OP_DELETE,
                 'copy': Job.OP_COPY,
+                'import': Job.OP_IMPORT,
+                'export': Job.OP_EXPORT,
             }
         }
 
@@ -41,10 +43,11 @@ class JobAPI(APIView):
             'created_at__gte': time_threashold,
         }
         jobs = [{
+            'id': x.id,
             'target': {
                 'id': x.target.id,
                 'name': x.target.name,
-            },
+            } if x.target else {},
             'text': x.text,
             'status': x.status,
             'operation': x.operation,

@@ -18,35 +18,59 @@ $(document).ready(function() {
           container.append(`<a class='dropdown-item job-status-nothing' href='#'>実行タスクなし</a>`);
         }
 
-        for (var jobinfo of data['result']) {
-          var operation = '';
+        for (let jobinfo of data['result']) {
+          let operation = '';
+          let target_name = '';
           switch(jobinfo['operation']) {
             case data['constant']['operation']['create']:
+              target_name = jobinfo['target']['name'];
               operation = '作成';
               break;
             case data['constant']['operation']['edit']:
+              target_name = jobinfo['target']['name'];
               operation = '編集';
               break;
             case data['constant']['operation']['delete']:
+              target_name = jobinfo['target']['name'];
               operation = '削除';
               break;
             case data['constant']['operation']['copy']:
+              target_name = jobinfo['target']['name'];
               operation = 'コピー';
+              break;
+            case data['constant']['operation']['import']:
+              target_name = jobinfo['target']['name'];
+              operation = 'インポート';
+              break;
+            case data['constant']['operation']['export']:
+              operation = 'エクスポート';
               break;
           }
 
           switch(jobinfo['status']) {
             case data['constant']['status']['processing']:
-              container.append(`<li class='dropdown-item job-status-processing' href='#'>[処理中/${operation}] ${ jobinfo['target']['name'] }</li>`);
+              container.append(`<li class='dropdown-item job-status-processing' href='#'>[処理中/${operation}] ${ target_name }</li>`);
               break;
             case data['constant']['status']['done']:
-              container.append(`<a class='dropdown-item job-status-done' href="/entry/show/${ jobinfo['target']['id'] }">[完了/${operation}] ${ jobinfo['target']['name'] }</a>`);
+              if (jobinfo['operation'] == data['constant']['operation']['import']) {
+                // The case of import job, target-id indicates Entity-ID
+                link_url = `/entry/${ jobinfo['target']['id'] }`;
+              } else if (jobinfo['operation'] == data['constant']['operation']['export']) {
+                // The case of export job, it has no target
+                link_url = `/job/download/${ jobinfo['id'] }`;
+              } else {
+                // This indicates Entry-ID by default
+                link_url = `/entry/show/${ jobinfo['target']['id'] }`;
+              }
+
+              container.append(`<a class='dropdown-item job-status-done' href="${ link_url }">[完了/${operation}] ${ target_name }</a>`);
+
               break;
             case data['constant']['status']['error']:
-              container.append(`<a class='dropdown-item job-status-error' href='#'>[エラー/${operation}] ${ jobinfo['target']['name'] }</a>`);
+              container.append(`<a class='dropdown-item job-status-error' href='#'>[エラー/${operation}] ${ target_name }</a>`);
               break;
             case data['constant']['status']['timeout']:
-              container.append(`<a class='dropdown-item job-status-timeout' href='#'>[タイムアウト/${operation}] ${ jobinfo['target']['name'] }</a>`);
+              container.append(`<a class='dropdown-item job-status-timeout' href='#'>[タイムアウト/${operation}] ${ target_name }</a>`);
               break;
           }
         }

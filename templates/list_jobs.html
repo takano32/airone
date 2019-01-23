@@ -43,7 +43,9 @@
           {% for job in jobs %}
           <tr>
             <!-- set target ACLbase object -->
-            {% if job.operation == JOB.OPERATION.IMPORT %}
+            {% if job.operation == JOB.OPERATION.EXPORT %}
+              <td></td>
+            {% elif job.operation == JOB.OPERATION.IMPORT %}
               <td><a href='/entry/{{ job.target.id }}/'>{{ job.target.name }}</a></td>
             {% else %}
               <td><a href='/entry/show/{{ job.target.id }}/'>{{ job.target.name }}</a></td>
@@ -61,6 +63,8 @@
               コピー
             {% elif job.operation == JOB.OPERATION.IMPORT %}
               インポート
+            {% elif job.operation == JOB.OPERATION.EXPORT %}
+              エクスポート
             {% endif %}
             </td>
 
@@ -87,7 +91,15 @@
             <td>{{ job.created_at }}</td>
 
             <!-- set text -->
-            <td>{{ job.text }}</td>
+            {% if job.operation == JOB.OPERATION.EXPORT %}
+              {% if job.status == JOB.STATUS.DONE %}
+              <td><a href='/job/download/{{ job.id }}'>Download</td>
+              {% else %}
+              <td></td>
+              {% endif %}
+            {% else %}
+              <td>{{ job.text }}</td>
+            {% endif %}
 
             <!-- set re-run button if it's under executing -->
             <td>

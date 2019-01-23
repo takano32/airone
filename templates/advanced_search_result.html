@@ -339,11 +339,30 @@ $(document).ready(function() {
   }
 
   function submit_export(style) {
-    $('#form_export input[name=attrinfo]').val(JSON.stringify(get_attrinfo()));
-    $('#param_export_csv_referral').val(JSON.stringify($('.narrow_down_referral').val()));
-    $('#form_export input[name=export_style]').val(JSON.stringify(style));
+    MessageBox.clear();
 
-    $('#form_export').submit();
+    $.ajax({
+      type: 'post',
+      url: '/dashboard/advanced_search_export',
+      data: JSON.stringify({
+        'entities': '{{ entities }}'.split(','),
+        'attrinfo': get_attrinfo(),
+        'has_referral': $('.narrow_down_referral').val(),
+        'export_style': style,
+      }),
+      dataType:      'json',
+      contentType:   'application/json;charset=utf-8',
+      scriptCharset: 'utf-8',
+      headers: {
+        'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val(),
+      },
+    }).done(function(data) {
+      console.info(data);
+      MessageBox.success(data.result);
+
+    }).fail(function(data) {
+      MessageBox.error(data.responseText);
+    });
   }
 
   $(".narrow_down_referral").on('keyup', narrow_results_down);

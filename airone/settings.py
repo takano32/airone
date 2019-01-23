@@ -145,7 +145,9 @@ LOGIN_REDIRECT_URL='/dashboard/'
 # global settins for AirOne
 AIRONE = {
     'ENABLE_PROFILE': True,
-    'VERSION': 'unknown'
+    'CONCURRENCY': 1,
+    'VERSION': 'unknown',
+    'FILE_STORE_PATH': '/tmp/airone_app',
 }
 try:
     proc = subprocess.Popen("cd %s && git describe --tags" % BASE_DIR, shell=True,
@@ -157,6 +159,11 @@ try:
         AIRONE['VERSION'] = outs.strip()
     else:
         logging.getLogger(__name__).warning('could not describe airone version from git')
+
+    # create a directory to store temporary file for applications
+    if not os.path.exists(AIRONE['FILE_STORE_PATH']):
+        os.makedirs(AIRONE['FILE_STORE_PATH'])
+
 except FileNotFoundError:
     # do nothing and use 'unknown' as version when git does not exists
     logging.getLogger(__name__).warning('git command not found.')

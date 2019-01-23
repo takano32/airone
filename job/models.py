@@ -1,10 +1,13 @@
 import json
+import pickle
 
 from acl.models import ACLBase
 from datetime import date
 from entity.models import Entity, EntityAttr
 from entry.models import Entry
 
+from django.conf import settings
+from django.core.cache import cache
 from django.db import models
 from user.models import User
 
@@ -29,6 +32,7 @@ class Job(models.Model):
     OP_DELETE = 3
     OP_COPY   = 4
     OP_IMPORT = 5
+    OP_EXPORT = 6
 
     TARGET_UNKNOWN  = 0
     TARGET_ENTRY    = 1
@@ -60,7 +64,7 @@ class Job(models.Model):
         t_type = kls.TARGET_UNKNOWN
         if isinstance(target, Entry):
             t_type = kls.TARGET_ENTRY
-        if isinstance(target, Entity):
+        elif isinstance(target, Entity):
             t_type = kls.TARGET_ENTITY
 
         params = {
@@ -74,6 +78,10 @@ class Job(models.Model):
         }
 
         return kls.objects.create(**params)
+
+    @classmethod
+    def get_job_with_params(kls, user, params):
+        return kls.objects.filter(user=user, params=json.dumps(params, default=_support_time_default)).first()
 
     @classmethod
     def new_create(kls, user, target, text='', params={}):
@@ -94,3 +102,22 @@ class Job(models.Model):
     @classmethod
     def new_import(kls, user, entity, text='', params={}):
         return kls._create_new_job(user, entity, kls.OP_IMPORT, text, json.dumps(params, default=_support_time_default))
+
+    @classmethod
+    def new_export(kls, user, text='', params={}):
+        return kls._create_new_job(user, None, kls.OP_EXPORT, text, json.dumps(params, default=_support_time_default))
+
+    def set_status(self, status):
+        self.status = status
+        self.save(update_fields=['status', 'updated_at'])
+
+    def set_cache(self, value):
+        with open('%s/job_%d' % (settings.AIRONE['FILE_STORE_PATH'], self.id), 'wb') as fp:
+            pickle.dump(value, fp)
+
+    def get_cache(self):
+        value = ''
+        with open('%s/job_%d' % (settings.AIRONE['FILE_STORE_PATH'], self.id), 'rb') as fp:
+            value = pickle.load(fp)
+
+        return value

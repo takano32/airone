@@ -196,7 +196,7 @@ def export_search_result(request, recv_data):
 
     # check whether same job is sent
     job = Job.get_job_with_params(user, recv_data)
-    if job and (job.status != Job.STATUS_DONE or job.status != Job.STATUS_PROCESSING):
+    if job and (job.status == Job.STATUS_PREPARING or job.status == Job.STATUS_PROCESSING):
         return HttpResponse('Same export processing is under execution', status=400)
 
     # create a job to export search result

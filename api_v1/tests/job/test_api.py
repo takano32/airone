@@ -55,6 +55,8 @@ class APITest(AironeViewTest):
             'edit': Job.OP_EDIT,
             'delete': Job.OP_DELETE,
             'copy': Job.OP_COPY,
+            'import': Job.OP_IMPORT,
+            'export': Job.OP_EXPORT,
         })
         self.assertEqual(results['constant']['status'], {
             'processing': Job.STATUS_PROCESSING,

@@ -14,11 +14,13 @@ from django.urls import reverse
 from django.contrib.auth.models import User as DjangoUser
 from group.models import Group
 from io import StringIO
+from job.models import Job
 from datetime import date
 
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
 from entry import tasks as entry_tasks
+from dashboard import tasks as dashboard_tasks
 
 from unittest.mock import patch
 from unittest.mock import Mock
@@ -141,6 +143,8 @@ class ViewTest(AironeViewTest):
         # entity-2 should not be displayed
         self.assertEquals(0, len(list(filter(lambda n: n=="entity-2", entity_names))))
 
+    @patch('dashboard.views.task_export_search_result.delay',
+           Mock(side_effect=dashboard_tasks.export_search_result))
     def test_show_advanced_search_results(self):
         for entity_index in range(0, 2):
             entity = Entity.objects.create(name='entity-%d' % entity_index, created_user=self.admin)
@@ -170,14 +174,25 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
 
         # test to export results of advanced_search
-        resp = self.client.post(reverse('dashboard:export_search_result'), {
-            'entities': json.dumps([x.id for x in Entity.objects.filter(name__regex='^entity-')]),
-            'attrinfo': json.dumps([{'name': 'attr', 'keyword': 'data-5'}]),
-            'export_style': '"csv"',
-        })
+        export_params = {
+            'entities': [x.id for x in Entity.objects.filter(name__regex='^entity-')],
+            'attrinfo': [{'name': 'attr', 'keyword': 'data-5'}],
+            'export_style': 'csv',
+        }
+
+        resp = self.client.post(reverse('dashboard:export_search_result'),
+                                json.dumps(export_params),
+                                'application/json')
         self.assertEqual(resp.status_code, 200)
 
-        csv_contents = [x for x in resp.content.decode('utf-8').splitlines() if x]
+        # check export task is executed
+        job = Job.objects.last()
+        self.assertEqual(job.operation, Job.OP_EXPORT)
+        self.assertEqual(job.status, Job.STATUS_DONE)
+        self.assertEqual(json.loads(job.params), export_params)
+
+        # check result is set at cache
+        csv_contents = [x for x in job.get_cache().splitlines() if x]
         self.assertEqual(len(csv_contents), 3)
         self.assertEqual(csv_contents[0], 'Name,Entity,attr')
         self.assertEqual(sorted(csv_contents[1:]),
@@ -199,6 +214,8 @@ class ViewTest(AironeViewTest):
                          sorted([str(Entity.objects.get(name='entity-%d' % i).id) for i in range(2)]))
         self.assertEqual(resp.context['results']['ret_count'], 20)
 
+    @patch('dashboard.views.task_export_search_result.delay',
+           Mock(side_effect=dashboard_tasks.export_search_result))
     def test_export_advanced_search_result(self):
         user = self.admin
 
@@ -236,15 +253,15 @@ class ViewTest(AironeViewTest):
 
         # send request to export data
         exporting_attr_names = ['str', 'arr_str', 'name', 'arr_name']
-        resp = self.client.post(reverse('dashboard:export_search_result'), {
-            'entities': json.dumps([entity.id]),
-            'attrinfo': json.dumps([{'name': x} for x in ['str', 'arr_str', 'name', 'arr_name']]),
-            'export_style': '"csv"',
-        })
+        resp = self.client.post(reverse('dashboard:export_search_result'), json.dumps({
+            'entities': [entity.id],
+            'attrinfo': [{'name': x} for x in ['str', 'arr_str', 'name', 'arr_name']],
+            'export_style': 'csv',
+        }), 'application/json')
         self.assertEqual(resp.status_code, 200)
 
         # verifying result has referral entry's infomations
-        csv_contents = [x for x in resp.content.decode('utf-8').splitlines() if x]
+        csv_contents = [x for x in Job.objects.last().get_cache().splitlines() if x]
 
         # checks all specified attributes and name are exported
         self.assertEqual(len(csv_contents), entity.attrs.count() + 1)
@@ -252,6 +269,8 @@ class ViewTest(AironeViewTest):
         # checks all data are exported in order of specified sequence
         self.assertEqual(csv_contents[0], 'Name,Entity,%s' % ','.join(exporting_attr_names))
 
+    @patch('dashboard.views.task_export_search_result.delay',
+           Mock(side_effect=dashboard_tasks.export_search_result))
     def test_export_advanced_search_result_with_referral(self):
         user = self.admin
 
@@ -274,32 +293,34 @@ class ViewTest(AironeViewTest):
         entry.attrs.first().add_value(user, ref_entry)
 
         # export with 'has_referral' parameter which has blank value
-        resp = self.client.post(reverse('dashboard:export_search_result'), {
-            'entities': json.dumps([ref_entity.id]),
-            'attrinfo': json.dumps([]),
-            'has_referral': json.dumps(''),
-            'export_style': '"csv"',
-        })
+        resp = self.client.post(reverse('dashboard:export_search_result'), json.dumps({
+            'entities': [ref_entity.id],
+            'attrinfo': [],
+            'has_referral': '',
+            'export_style': 'csv',
+        }), 'application/json')
         self.assertEqual(resp.status_code, 200)
 
         # verifying result has referral entry's infomations
-        csv_contents = [x for x in resp.content.decode('utf-8').splitlines() if x]
+        csv_contents = [x for x in Job.objects.last().get_cache().splitlines() if x]
         self.assertEqual(len(csv_contents), 2)
         self.assertEqual(csv_contents[0], 'Name,Entity,Referral')
         self.assertEqual(csv_contents[1], "ref,Referred Entity,['entry / entity']")
 
         # export with 'has_referral' parameter which has invalid value
-        resp = self.client.post(reverse('dashboard:export_search_result'), {
-            'entities': json.dumps([ref_entity.id]),
-            'attrinfo': json.dumps([]),
-            'has_referral': json.dumps('hogefuga'),
-            'export_style': '"csv"',
-        })
+        resp = self.client.post(reverse('dashboard:export_search_result'), json.dumps({
+            'entities': [ref_entity.id],
+            'attrinfo': [],
+            'has_referral': 'hogefuga',
+            'export_style': 'csv',
+        }), 'application/json')
         self.assertEqual(resp.status_code, 200)
 
-        csv_contents = [x for x in resp.content.decode('utf-8').splitlines() if x]
+        csv_contents = [x for x in Job.objects.last().get_cache().splitlines() if x]
         self.assertEqual(len(csv_contents), 1)
 
+    @patch('dashboard.views.task_export_search_result.delay',
+           Mock(side_effect=dashboard_tasks.export_search_result))
     def test_show_advanced_search_results_csv_escape(self):
         user = self.admin
 
@@ -372,14 +393,14 @@ class ViewTest(AironeViewTest):
 
             test_entry.register_es()
 
-            resp = self.client.post(reverse('dashboard:export_search_result'), {
-                'entities': json.dumps([test_entity.id]),
-                'attrinfo': json.dumps([{'name': test_attr.name, 'keyword': ''}]),
-                'export_style': '"csv"',
-            })
+            resp = self.client.post(reverse('dashboard:export_search_result'), json.dumps({
+                'entities': [test_entity.id],
+                'attrinfo': [{'name': test_attr.name, 'keyword': ''}],
+                'export_style': 'csv',
+            }), 'application/json')
             self.assertEqual(resp.status_code, 200)
 
-            content = resp.content.decode('utf-8')
+            content = Job.objects.last().get_cache()
             header = content.splitlines()[0]
             self.assertEqual(header, 'Name,Entity,"%s,""ATTR"""' % type_name)
 
@@ -387,6 +408,8 @@ class ViewTest(AironeViewTest):
             self.assertEqual(data, '"%s,""ENTRY""",%s,%s' % (type_name, test_entity.name, case[2]))
 
     @patch('entry.views.import_entries.delay', Mock(side_effect=entry_tasks.import_entries))
+    @patch('dashboard.views.task_export_search_result.delay',
+           Mock(side_effect=dashboard_tasks.export_search_result))
     def test_yaml_export(self):
         user = self.admin
 
@@ -439,16 +462,14 @@ class ViewTest(AironeViewTest):
 
             entities.append(entity)
 
-        resp = self.client.post(reverse('dashboard:export_search_result'), {
-            'entities': json.dumps([x.id for x in Entity.objects.filter(name__regex='^Entity-')]),
-            'attrinfo': json.dumps([{'name': x, 'keyword': ''} for x in attr_info.keys()]),
-            'export_style': '"yaml"',
-        })
-
+        resp = self.client.post(reverse('dashboard:export_search_result'), json.dumps({
+            'entities': [x.id for x in Entity.objects.filter(name__regex='^Entity-')],
+            'attrinfo': [{'name': x, 'keyword': ''} for x in attr_info.keys()],
+            'export_style': 'yaml',
+        }), 'application/json')
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp['Content-Disposition'], 'attachment; filename="search_results.yaml"')
 
-        resp_data = yaml.load(resp.content)
+        resp_data = yaml.load(Job.objects.last().get_cache())
         for index in range(2):
             entity = Entity.objects.get(name='Entity-%d' % index)
             e_data = resp_data[entity.name]

@@ -188,6 +188,7 @@ def render(request, template, context={}):
             'DELETE': Job.OP_DELETE,
             'COPY': Job.OP_COPY,
             'IMPORT': Job.OP_IMPORT,
+            'EXPORT': Job.OP_EXPORT,
         }
     }
 

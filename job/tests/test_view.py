@@ -108,3 +108,37 @@ class ViewTest(AironeViewTest):
                                     'application/json')
 
             self.assertEqual(resp.status_code, 200)
+
+    def test_job_download_failure(self):
+        user = self.guest_login()
+        entity = Entity.objects.create(name='entity', created_user=user)
+
+        job = Job.new_create(user, entity, 'hoge')
+
+        # When user send a download request of Job with invalid Job-id, then HTTP 400 is returned
+        resp = self.client.get('/job/download/%d' % (job.id + 1))
+        self.assertEqual(resp.status_code, 400)
+
+        # When user send a download request of non export Job, then HTTP 400 is returned
+        resp = self.client.get('/job/download/%d' % job.id)
+        self.assertEqual(resp.status_code, 400)
+
+        # When user send a download request of export Job by differenct user from creating one,
+        # then HTTP 400 is returned
+        job = Job.new_export(user, 'fuga')
+        user = self.admin_login()
+        resp = self.client.get('/job/download/%d' % job.id)
+        self.assertEqual(resp.status_code, 400)
+
+    def test_job_download(self):
+        user = self.guest_login()
+
+        # initialize an export Job
+        job = Job.new_export(user, 'hoge')
+        job.set_cache('abcd')
+
+        # check job contents could be downloaded
+        resp = self.client.get('/job/download/%d' % job.id)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Disposition'], 'attachment; filename="hoge"')
+        self.assertEqual(resp.content.decode('utf8'), 'abcd')

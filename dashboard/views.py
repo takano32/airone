@@ -7,10 +7,9 @@ import yaml
 import urllib.parse
 
 from airone.lib.http import render
-from airone.lib.http import http_get, http_post_form
+from airone.lib.http import http_get, http_post, http_post_form
 from airone.lib.http import http_file_upload
 from airone.lib.http import HttpResponseSeeOther
-from airone.lib.http import get_download_response
 from airone.lib.profile import airone_profile
 from airone.lib.types import AttrTypeValue
 from django.http import HttpResponse
@@ -20,9 +19,10 @@ from entity.admin import EntityResource, EntityAttrResource
 from entry.admin import EntryResource, AttrResource, AttrValueResource
 from entity.models import Entity, EntityAttr
 from entry.models import Entry, Attribute, AttributeValue
-from natsort import natsorted
+from job.models import Job
 from user.models import User
 from .settings import CONFIG
+from .tasks import export_search_result as task_export_search_result
 
 IMPORT_INFOS = [
     {'model': 'Entity', 'resource': EntityResource},
@@ -179,130 +179,8 @@ def advanced_search_result(request):
         'has_referral': has_referral,
     })
 
-def _csv_export(values, recv_data, has_referral):
-    output = io.StringIO(newline='')
-    writer = csv.writer(output)
-
-    # write first line of CSV
-    if has_referral != False:
-        writer.writerow(['Name'] + ['Entity'] + [x['name'] for x in recv_data['attrinfo']] + ['Referral'])
-    else:
-        writer.writerow(['Name'] + ['Entity'] + [x['name'] for x in recv_data['attrinfo']])
-
-    for entry_info in values:
-        line_data = [entry_info['entry']['name']]
-
-        # Append the data which specifies Entity name to which target Entry belongs
-        line_data.append(entry_info['entity']['name'])
-
-        for attrinfo in recv_data['attrinfo']:
-            # This condition eliminates the possibility that an attribute
-            # which target entry doens't have is specified in attrinfo variable.
-            if attrinfo['name'] not in entry_info['attrs']:
-                line_data.append('')
-                continue
-
-            value = entry_info['attrs'][attrinfo['name']]
-
-            vtype = None
-            if (value is not None) and ('type' in value):
-                vtype = value['type']
-
-            vval = None
-            if (value is not None) and ('value' in value):
-                vval = value['value']
-
-            if not value or 'value' not in value or not value['value']:
-                line_data.append('')
-
-            elif (vtype == AttrTypeValue['string'] or
-                vtype == AttrTypeValue['text'] or
-                vtype == AttrTypeValue['boolean']):
-
-                line_data.append(str(vval))
-
-            elif (vtype == AttrTypeValue['object'] or
-                  vtype == AttrTypeValue['group']):
-
-                line_data.append(str(vval['name']))
-
-            elif vtype == AttrTypeValue['named_object']:
-
-                [(k, v)] = vval.items()
-                line_data.append('%s: %s' % (k, v['name']))
-
-            elif vtype == AttrTypeValue['array_string']:
-
-                line_data.append("\n".join(natsorted(vval)))
-
-            elif vtype == AttrTypeValue['array_object']:
-
-                line_data.append("\n".join(natsorted([x['name'] for x in vval])))
-
-            elif vtype == AttrTypeValue['array_named_object']:
-
-                items = []
-                for vset in vval:
-                    [(k, v)] = vset.items()
-                    items.append('%s: %s' % (k, v['name']))
-
-                line_data.append("\n".join(natsorted(items)))
-
-        if has_referral != False:
-            line_data.append(str(['%s / %s' % (x['name'], x['schema']) for x in entry_info['referrals']]))
-
-        writer.writerow(line_data)
-
-    return (output, 'search_results.csv')
-
-def _yaml_export(values, recv_data, has_referral):
-    output = io.StringIO()
-
-    def _get_attr_value(atype, value):
-        if atype & AttrTypeValue['array']:
-            return [_get_attr_value(atype ^ AttrTypeValue['array'], x) for x in value]
-
-        if atype == AttrTypeValue['named_object']:
-            [(key, val)] = value.items()
-
-            return {key: val['name']}
-
-        elif atype == AttrTypeValue['object'] or atype == AttrTypeValue['group']:
-            return value['name']
-
-        elif atype == AttrTypeValue['boolean']:
-            return True if value == 'True' else False
-
-        else:
-            return value
-
-    resp_data = {}
-    for entry_info in values:
-        data = {
-            'name': entry_info['entry']['name'],
-            'attrs': {},
-        }
-
-        for attrinfo in recv_data['attrinfo']:
-            data['attrs'][attrinfo['name']] = ''
-            if attrinfo['name'] in entry_info['attrs']:
-                _adata = entry_info['attrs'][attrinfo['name']]
-                if 'value' not in _adata:
-                    continue
-
-                data['attrs'][attrinfo['name']] = _get_attr_value(_adata['type'], _adata['value'])
-
-        if entry_info['entity']['name'] in resp_data:
-            resp_data[entry_info['entity']['name']].append(data)
-        else:
-            resp_data[entry_info['entity']['name']] = [data]
-
-    output.write(yaml.dump(resp_data, default_flow_style=False, allow_unicode=True))
-
-    return (output, 'search_results.yaml')
-
 @airone_profile
-@http_post_form([
+@http_post([
     {'name': 'entities', 'type': list,
      'checker': lambda x: all([Entity.objects.filter(id=y) for y in x['entities']])},
     {'name': 'attrinfo', 'type': list},
@@ -310,24 +188,27 @@ def _yaml_export(values, recv_data, has_referral):
     {'name': 'export_style', 'type': str},
 ])
 def export_search_result(request, recv_data):
+    # additional validation
+    if recv_data['export_style'] != 'yaml' and recv_data['export_style'] != 'csv':
+        return HttpResponse('Invalid "export_type" is specified', status=400)
+
     user = User.objects.get(id=request.user.id)
 
-    has_referral = False
-    if 'has_referral' in recv_data:
-        has_referral = recv_data['has_referral']
+    # check whether same job is sent
+    job = Job.get_job_with_params(user, recv_data)
+    if job and (job.status != Job.STATUS_DONE or job.status != Job.STATUS_PROCESSING):
+        return HttpResponse('Same export processing is under execution', status=400)
 
-    resp = Entry.search_entries(user,
-                                recv_data['entities'],
-                                recv_data['attrinfo'],
-                                settings.ES_CONFIG['MAXIMUM_RESULTS_NUM'],
-                                hint_referral=has_referral)
+    # create a job to export search result
+    job = Job.new_export(user, **{
+        'text': 'search_results.%s' % recv_data['export_style'],
+        'params': recv_data,
+    })
 
+    # register task to make export data and cache it
+    task_export_search_result.delay(job.id)
 
-    if recv_data['export_style'] == 'yaml':
-        return get_download_response(*_yaml_export(resp['ret_values'], recv_data, has_referral))
-
-    elif recv_data['export_style'] == 'csv':
-        return get_download_response(*_csv_export(resp['ret_values'], recv_data, has_referral))
-
-    else:
-        return HttpResponse('Invalid "export_type" is specified', status=400)
+    return JsonResponse({
+        'result': 'Succeed in registering export processing. ' +
+                  'Please check Job list.'
+    })

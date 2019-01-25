@@ -533,3 +533,39 @@ class ViewTest(AironeViewTest):
                 self.assertEqual(int(attrv.value), new_group.id)
             elif attr_name == 'date':
                 self.assertEqual(attrv.date, date(1999, 1, 1))
+
+    @patch('dashboard.views.task_export_search_result.delay',
+           Mock(side_effect=dashboard_tasks.export_search_result))
+    def test_duplicate_export(self):
+        user = self.admin
+
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        export_params = {
+            'entities': [entity.id],
+            'attrinfo': [{'name': 'attr', 'keyword': 'data-5'}],
+            'export_style': 'csv',
+        }
+
+        # create a job to export search result
+        job = Job.new_export(user, params=export_params)
+
+        # A request with same parameter which is under execution will be denied
+        resp = self.client.post(reverse('dashboard:export_search_result'),
+                                json.dumps(export_params),
+                                'application/json')
+        self.assertEqual(resp.status_code, 400)
+
+        # A request with another condition will be accepted
+        new_export_params = {**export_params, **{'export_style': 'yaml'}}
+        resp = self.client.post(reverse('dashboard:export_search_result'),
+                                json.dumps(new_export_params),
+                                'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # When the job is finished, the processing is passed.
+        job.status = Job.STATUS_DONE
+        job.save(update_fields=['status'])
+        resp = self.client.post(reverse('dashboard:export_search_result'),
+                                json.dumps(export_params),
+                                'application/json')
+        self.assertEqual(resp.status_code, 200)

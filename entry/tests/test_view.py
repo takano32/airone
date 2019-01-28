@@ -272,7 +272,6 @@ class ViewTest(AironeViewTest):
         self.assertEqual(entry.attrs.count(), 2)
 
         attr_info = entry.get_available_attrs(user)
-        print(attr_info)
         self.assertEqual(len(attr_info), 2)
         self.assertEqual(sorted([x['name'] for x in attr_info]),
                          sorted([x.schema.name for x in entry.attrs.all()]))
@@ -906,6 +905,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(attr.values.first(), attr_value)
         self.assertIsNone(attr.values.last().referral)
 
+    @patch('entry.views.export_entries.delay', Mock(side_effect=tasks.export_entries))
     def test_get_export(self):
         user = self.admin_login()
 
@@ -925,10 +925,16 @@ class ViewTest(AironeViewTest):
 
         resp = self.client.get(reverse('entry:export', args=[entity.id]))
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp['Content-Disposition'], 'attachment; filename="entry_{name}.yaml"'.
-                format(name=urllib.parse.quote(entity.name)))
+        self.assertEqual(resp.json(), {
+            'result': 'Succeed in registering export processing. Please check Job list.'
+        })
 
-        obj = yaml.load(resp.content)
+        job = Job.objects.last()
+        self.assertEqual(job.operation, Job.OP_EXPORT)
+        self.assertEqual(job.status, Job.STATUS_DONE)
+        self.assertEqual(job.text, 'entry_ほげ.yaml')
+
+        obj = yaml.load(job.get_cache())
         self.assertTrue(entity.name in obj)
 
         self.assertEqual(len(obj[entity.name]), 1)
@@ -957,7 +963,7 @@ class ViewTest(AironeViewTest):
 
         resp = self.client.get(reverse('entry:export', args=[entity.id]))
         self.assertEqual(resp.status_code, 200)
-        obj = yaml.load(resp.content)
+        obj = yaml.load(Job.objects.last().get_cache())
 
         # check permitted attributes exist in the result
         self.assertTrue(all([x in obj['ほげ'][0]['attrs'] for x in ['foo', 'bar']]))
@@ -965,6 +971,7 @@ class ViewTest(AironeViewTest):
         # check unpermitted attribute doesn't exist in the result
         self.assertFalse('new_attr' in obj['ほげ'][0]['attrs'])
 
+    @patch('entry.views.export_entries.delay', Mock(side_effect=tasks.export_entries))
     def test_get_export_csv_escape(self):
         user = self.admin_login()
 
@@ -1037,7 +1044,7 @@ class ViewTest(AironeViewTest):
             resp = self.client.get(reverse('entry:export', args=[test_entity.id]), {'format': 'CSV'})
             self.assertEqual(resp.status_code, 200)
 
-            content = resp.content.decode('utf-8')
+            content = Job.objects.last().get_cache()
             header = content.splitlines()[0]
             self.assertEqual(header, 'Name,"%s,""ATTR"""' % type_name)
 

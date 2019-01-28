@@ -1,5 +1,3 @@
-import io
-import csv
 import yaml
 import json
 
@@ -28,7 +26,7 @@ from job.models import Job
 from user.models import User
 from group.models import Group
 from .settings import CONFIG
-from .tasks import create_entry_attrs, edit_entry_attrs, delete_entry, copy_entry, import_entries
+from .tasks import create_entry_attrs, edit_entry_attrs, delete_entry, copy_entry, import_entries, export_entries
 
 
 def _validate_input(recv_data, obj):
@@ -355,47 +353,40 @@ def refer(request, entry_id):
 def export(request, entity_id):
     user = User.objects.get(id=request.user.id)
 
+    job_params = {
+        'export_format': 'yaml',
+        'target_id': entity_id,
+    }
+
     if not Entity.objects.filter(id=entity_id).exists():
         return HttpResponse('Failed to get entity of specified id', status=400)
+
+    if 'format' in request.GET and request.GET.get('format') == 'CSV':
+        job_params['export_format'] = 'csv'
+
+    # check whether same job is sent
+    job_status_not_finished = [Job.STATUS_PREPARING, Job.STATUS_PROCESSING]
+    if Job.get_job_with_params(user, job_params).filter(status__in=job_status_not_finished).exists():
+        return HttpResponse('Same export processing is under execution', status=400)
 
     entity = Entity.objects.get(id=entity_id)
     if not user.has_permission(entity, ACLType.Readable):
         return HttpResponse('Permission denied to export "%s"' % entity.name, status=400)
 
-    exported_data = []
-    for entry in Entry.objects.filter(schema=entity, is_active=True):
-        if user.has_permission(entry, ACLType.Readable):
-            exported_data.append(entry.export(user))
+    # create a job to export search result
+    job = Job.new_export(user, **{
+        'text': 'entry_%s.%s' % (entity.name, job_params['export_format']),
+        'target': entity,
+        'params': job_params,
+    })
 
-    output = None
-    if 'format' in request.GET and request.GET.get('format') == 'CSV':
-        # newline is blank because csv module performs universal newlines
-        # https://docs.python.org/ja/3/library/csv.html#id3
-        output = io.StringIO(newline='')
-        writer = csv.writer(output)
+    # create a job to export search result
+    export_entries.delay(job.id)
 
-        fname = 'entry_%s.csv' % entity.name
-
-        attrs = [x.name for x in entity.attrs.filter(is_active=True)]
-        writer.writerow(['Name', *attrs])
-
-        def data2str(data):
-            if not data:
-                return ''
-            return str(data)
-
-        for data in exported_data:
-            writer.writerow([
-                data['name'],
-                *[data2str(data['attrs'][x]) for x in attrs if x in data['attrs']]
-            ])
-    else:
-        output = io.StringIO()
-        fname = 'entry_%s.yaml' % entity.name
-        output.write(yaml.dump({entity.name: exported_data}, default_flow_style=False, allow_unicode=True))
-
-    return get_download_response(output, fname)
-
+    return JsonResponse({
+        'result': 'Succeed in registering export processing. ' +
+                  'Please check Job list.'
+    })
 
 @http_get
 def import_data(request, entity_id):

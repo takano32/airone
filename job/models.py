@@ -81,7 +81,7 @@ class Job(models.Model):
 
     @classmethod
     def get_job_with_params(kls, user, params):
-        return kls.objects.filter(user=user, params=json.dumps(params, default=_support_time_default)).first()
+        return kls.objects.filter(user=user, params=json.dumps(params, default=_support_time_default))
 
     @classmethod
     def new_create(kls, user, target, text='', params={}):
@@ -104,8 +104,8 @@ class Job(models.Model):
         return kls._create_new_job(user, entity, kls.OP_IMPORT, text, json.dumps(params, default=_support_time_default))
 
     @classmethod
-    def new_export(kls, user, text='', params={}):
-        return kls._create_new_job(user, None, kls.OP_EXPORT, text, json.dumps(params, default=_support_time_default))
+    def new_export(kls, user, target=None, text='', params={}):
+        return kls._create_new_job(user, target, kls.OP_EXPORT, text, json.dumps(params, default=_support_time_default))
 
     def set_status(self, status):
         self.status = status

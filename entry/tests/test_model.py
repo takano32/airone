@@ -1702,6 +1702,27 @@ class ModelTest(AironeTestCase):
         res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=entry.id, ignore=[404])
         self.assertFalse(res['found'])
 
+    def test_unregister_entry_to_elasticsearch(self):
+        user = User.objects.create(username='hoge')
+
+        # initialize Entity and Entry to test
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+
+        # register entry information to the Elasticsearch
+        entry.register_es()
+
+        ret = Entry.search_entries(user, [entity.id], [])
+        self.assertEqual(ret['ret_count'], 1)
+        self.assertEqual([x['entry'] for x in ret['ret_values']], [{'name': entry.name, 'id': entry.id}])
+
+        # unregister entry information from the Elasticsearch
+        entry.unregister_es()
+
+        ret = Entry.search_entries(user, [entity.id], [])
+        self.assertEqual(ret['ret_count'], 0)
+        self.assertEqual(ret['ret_values'], [])
+
     def test_update_elasticsearch_field(self):
         user = User.objects.create(username='hoge')
 

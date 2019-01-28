@@ -1,6 +1,9 @@
-import logging
+import csv
 import custom_view
+import io
 import json
+import logging
+import yaml
 
 from airone.lib.acl import ACLType
 from airone.lib.types import AttrTypeValue
@@ -268,3 +271,50 @@ def import_entries(self, job_id):
         job.status = Job.STATUS_DONE
         job.text = ''
         job.save()
+
+@app.task(bind=True)
+def export_entries(self, job_id):
+    job = Job.objects.get(id=job_id)
+
+    if job.status == Job.STATUS_DONE or job.status == Job.STATUS_PROCESSING:
+        return
+
+    job.set_status(Job.STATUS_PROCESSING)
+
+    user = job.user
+    entity = Entity.objects.get(id=job.target.id)
+    params = json.loads(job.params)
+
+    exported_data = []
+    for entry in Entry.objects.filter(schema=entity, is_active=True):
+        if user.has_permission(entry, ACLType.Readable):
+            exported_data.append(entry.export(user))
+
+    output = None
+    if params['export_format'] == 'csv':
+        # newline is blank because csv module performs universal newlines
+        # https://docs.python.org/ja/3/library/csv.html#id3
+        output = io.StringIO(newline='')
+        writer = csv.writer(output)
+
+        attrs = [x.name for x in entity.attrs.filter(is_active=True)]
+        writer.writerow(['Name', *attrs])
+
+        def data2str(data):
+            if not data:
+                return ''
+            return str(data)
+
+        for data in exported_data:
+            writer.writerow([
+                data['name'],
+                *[data2str(data['attrs'][x]) for x in attrs if x in data['attrs']]
+            ])
+    else:
+        output = io.StringIO()
+        output.write(yaml.dump({entity.name: exported_data}, default_flow_style=False, allow_unicode=True))
+
+    if output:
+        job.set_cache(output.getvalue())
+
+    job.set_status(Job.STATUS_DONE)

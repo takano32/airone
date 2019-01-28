@@ -1000,9 +1000,7 @@ class Entry(ACLBase):
             attr.delete()
 
         if settings.ES_CONFIG:
-            es = ESS()
-            res = es.delete(doc_type='entry', id=self.id, ignore=[404])
-            es.refresh(ignore=[404])
+            self.unregister_es()
 
     def clone(self, user, **extra_params):
         if (not user.has_permission(self, ACLType.Readable) or
@@ -1150,6 +1148,13 @@ class Entry(ACLBase):
         resp = es.index(doc_type='entry', id=self.id, body=self.get_es_document(es))
         if not skip_refresh:
             es.refresh()
+
+    def unregister_es(self, es=None):
+        if not es:
+            es = ESS()
+
+        es.delete(doc_type='entry', id=self.id, ignore=[404])
+        es.refresh(ignore=[404])
 
     def get_value_history(self, user, count=CONFIG.MAX_HISTORY_COUNT, index=0):
         ret_values = []

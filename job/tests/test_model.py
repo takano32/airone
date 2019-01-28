@@ -43,20 +43,21 @@ class ModelTest(AironeTestCase):
         }
 
         # check there is no job
-        self.assertIsNone(Job.get_job_with_params(self.guest, params))
+        self.assertFalse(Job.get_job_with_params(self.guest, params).exists())
 
         # create a new job
-        job = Job.new_export(self.guest, 'hoge', params=params)
+        job = Job.new_export(self.guest, text='hoge', params=params)
         self.assertEqual(job.target_type, Job.TARGET_UNKNOWN)
         self.assertEqual(job.operation, Job.OP_EXPORT)
         self.assertEqual(job.text, 'hoge')
 
         # check created job is got by specified params
-        self.assertEqual(Job.get_job_with_params(self.guest, params), job)
+        self.assertEqual(Job.get_job_with_params(self.guest, params).count(), 1)
+        self.assertEqual(Job.get_job_with_params(self.guest, params).last(), job)
 
         # check the case when different params is specified then it returns None
         params['attrinfo']['name'] = ''
-        self.assertIsNone(Job.get_job_with_params(self.guest, params))
+        self.assertFalse(Job.get_job_with_params(self.guest, params).exists())
 
     def test_set_status(self):
         entity = Entity.objects.create(name='entity', created_user=self.guest)

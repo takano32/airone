@@ -125,7 +125,7 @@ class ViewTest(AironeViewTest):
 
         # When user send a download request of export Job by differenct user from creating one,
         # then HTTP 400 is returned
-        job = Job.new_export(user, 'fuga')
+        job = Job.new_export(user, text='fuga')
         user = self.admin_login()
         resp = self.client.get('/job/download/%d' % job.id)
         self.assertEqual(resp.status_code, 400)
@@ -134,7 +134,7 @@ class ViewTest(AironeViewTest):
         user = self.guest_login()
 
         # initialize an export Job
-        job = Job.new_export(user, 'hoge')
+        job = Job.new_export(user, text='hoge')
         job.set_cache('abcd')
 
         # check job contents could be downloaded

@@ -275,4 +275,7 @@ def update_attr_with_attrv(request, recv_data):
         # append cloned value to Attribute
         attr.values.add(new_attrv)
 
+        # register update to the Elasticsearch
+        attr.parent_entry.register_es()
+
     return HttpResponse('Succeed in updating Attribute "%s"' % attr.schema.name)

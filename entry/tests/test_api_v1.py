@@ -433,6 +433,12 @@ class ViewTest(AironeViewTest):
 
         # initialize Entity and Entry
         entity = Entity.objects.create(name='Entity', created_user=user)
+
+        # First of all, this test set values which is in 'values' of attr_info to each attributes
+        # in order of first and second (e.g. in the case of 'str', this test sets 'foo' at first,
+        # then sets 'bar') manually. After that, this test retrieve first value by calling the
+        # 'update_attr_with_attrv' handler. So finnaly, this test expects first value is stored
+        # in Database and Elasticsearch.
         attr_info = {
             'str': {
                 'type': AttrTypeValue['string'],
@@ -516,6 +522,35 @@ class ViewTest(AironeViewTest):
                                     json.dumps(params), 'application/json')
             self.assertEqual(resp.status_code, 200)
             self.assertEqual(attrv1.get_value(), attr.get_latest_value().get_value())
+
+        resp = Entry.search_entries(user, [entity.id])
+        self.assertEqual(resp['ret_count'], 1)
+        for attr_name, data in resp['ret_values'][0]['attrs'].items():
+            self.assertEqual(data['type'], attr_info[attr_name]['type'])
+
+            value = attr_info[attr_name]['values'][0]
+            if data['type'] == AttrTypeValue['boolean']:
+                self.assertEqual(data['value'], str(value))
+
+            elif data['type'] == AttrTypeValue['group']:
+                self.assertEqual(data['value'], {'name': value.name, 'id': value.id})
+
+            elif data['type'] == AttrTypeValue['object']:
+                self.assertEqual(data['value'], {'name': value.name, 'id': value.id})
+
+            elif data['type'] == AttrTypeValue['array_object']:
+                self.assertEqual(data['value'], [{'name': x.name, 'id': x.id} for x in value])
+
+            elif data['type'] == AttrTypeValue['named_object']:
+                self.assertEqual(data['value'],
+                                 {value['name']: {'name': value['id'].name, 'id': value['id'].id}})
+
+            elif data['type'] == AttrTypeValue['array_named_object']:
+                self.assertEqual(data['value'],
+                                 [{x['name']: {'name': x['id'].name, 'id': x['id'].id}} for x in value])
+
+            else:
+                self.assertEqual(data['value'], value)
 
     def test_update_attr_with_attrv_with_invalid_value(self):
         user = self.guest_login()

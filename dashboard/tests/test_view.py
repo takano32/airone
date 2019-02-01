@@ -2,6 +2,7 @@ import mock
 import re
 import sys
 import json
+import time
 import yaml
 
 from airone.lib.test import AironeViewTest
@@ -548,6 +549,8 @@ class ViewTest(AironeViewTest):
 
         # create a job to export search result
         job = Job.new_export(user, params=export_params)
+
+        time.sleep(1)
 
         # A request with same parameter which is under execution will be denied
         resp = self.client.post(reverse('dashboard:export_search_result'),

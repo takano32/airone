@@ -33,11 +33,19 @@ class ViewTest(TestCase):
         resp = self.client.get(reverse('user:index'))
         self.assertEqual(resp.status_code, 303)
 
-    def test_index_with_user(self):
+    def test_index_with_guest(self):
+        self._guest_login()
+
+        resp = self.client.get(reverse('user:index'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['users'], [self.guest])
+
+    def test_index_with_admin(self):
         self._admin_login()
 
         resp = self.client.get(reverse('user:index'))
         self.assertEqual(resp.status_code, 200)
+        self.assertEqual(list(resp.context['users']), [self.guest, self.admin])
 
         root = ElementTree.fromstring(resp.content.decode('utf-8'))
         self.assertIsNotNone(root.find('.//table'))

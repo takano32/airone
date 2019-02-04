@@ -24,9 +24,14 @@ def index(request):
     if not request.user.is_authenticated():
         return HttpResponseSeeOther('/dashboard/login')
 
-    context = {
-        'users': User.objects.filter(is_active=True),
-    }
+    user = User.objects.get(id=request.user.id)
+
+    context = {'users': [user]}
+    if user.is_superuser:
+        context = {
+            'users': User.objects.filter(is_active=True),
+        }
+
     return render(request, 'list_user.html', context)
 
 @http_get

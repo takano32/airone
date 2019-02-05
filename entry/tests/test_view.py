@@ -6,6 +6,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.core.cache import cache
 from django.conf import settings
+from django.db.models import Q
 from group.models import Group
 from datetime import date
 
@@ -2127,6 +2128,30 @@ class ViewTest(AironeViewTest):
             self.assertEqual(obj.status, Job.STATUS_DONE)
             self.assertNotEqual(obj.created_at, obj.updated_at)
             self.assertTrue((obj.updated_at - obj.created_at).total_seconds() > 0)
+
+    @patch('entry.views.copy_entry.delay', Mock(side_effect=tasks.copy_entry))
+    def test_post_copy_after_job_creating(self):
+        user = self.admin_login()
+        entry = Entry.objects.create(name='entry', created_user=user, schema=self._entity)
+
+        # creating a job to copy entry
+        job = Job.new_copy(user, entry, text='', params='foo')
+        params = {
+            # A job of creating entry 'foo' is already created
+            'entries': 'foo',
+        }
+        resp = self.client.post(reverse('entry:do_copy', args=[entry.id]),
+                                json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        # check that creating foo would be failed
+        results = resp.json()['results']
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['status'], 'fail')
+        self.assertEqual(results[0]['msg'], 'There is another job that targets same name(foo) is existed')
+
+        # check job won't be created by this request
+        self.assertFalse(Job.objects.filter(Q(target=entry) & ~Q(id=job.id)).exists())
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_create_entry_with_group_attr(self):

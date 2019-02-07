@@ -23,6 +23,7 @@ class EntrySearchAPI(APIView):
         user = User.objects.get(id=request.user.id)
 
         hint_entity = request.data.get('entities')
+        hint_entry_name = request.data.get('entry_name', '')
         hint_attr = request.data.get('attrinfo')
         hint_referral = request.data.get('referral')
         entry_limit = request.data.get('entry_limit', CONFIG_ENTRY.MAX_LIST_ENTRIES)
@@ -52,7 +53,10 @@ class EntrySearchAPI(APIView):
                 if entity:
                     hint_entity_ids.append(entity.id)
 
-        resp = Entry.search_entries(user, hint_entity_ids, hint_attr, entry_limit, hint_referral=hint_referral)
+        resp = Entry.search_entries(user, hint_entity_ids, hint_attr, entry_limit, **{
+            'hint_referral': hint_referral,
+            'entry_name': hint_entry_name,
+        })
 
         return Response({'result': resp}, content_type='application/json; charset=UTF-8')
 

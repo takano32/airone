@@ -54,12 +54,13 @@
   <thead>
     <tr>
       <th>
-        <p>Name</p>
+        Name<br/>
+        <input type='text' class='input-sm narrow_down_entries hint_entry_name' attrname='{{ attrname }}'></input>
       </th>
       {% for attrname in attrs %}
       <th>
         {{ attrname }}<br/>
-        <input type='text' class='input-sm narrow_down_entries' attrname='{{ attrname }}'></input>
+        <input type='text' class='input-sm narrow_down_entries hint_attr_value' attrname='{{ attrname }}'></input>
       </th>
       {% endfor %}
 
@@ -287,7 +288,7 @@ $(document).ready(function() {
   var entities = '{{ entities }}';
 
   function get_attrinfo() {
-    ret_value = $('.narrow_down_entries').map(function() {
+    ret_value = $('.hint_attr_value').map(function() {
       return {
         'name': $(this).attr('attrname'),
         'keyword': $(this).val(),
@@ -303,18 +304,19 @@ $(document).ready(function() {
 
       $('#entry_count').text('(...処理中...)');
 
-        request_params = {
-            entities: '{{ entities }}'.split(','),
-            attrinfo: get_attrinfo(),
-        };
+      request_params = {
+          entities: '{{ entities }}'.split(','),
+          entry_name: $('.hint_entry_name').val(),
+          attrinfo: get_attrinfo(),
+      };
 
-        {% if has_referral %}
-        request_params['referral'] = $('.narrow_down_referral').val();
-        {% endif %}
+      {% if has_referral %}
+      request_params['referral'] = $('.narrow_down_referral').val();
+      {% endif %}
 
-        if($('#check_search_all').is(':checked')) {
-          request_params['entry_limit'] = 99999;
-        }
+      if($('#check_search_all').is(':checked')) {
+        request_params['entry_limit'] = 99999;
+      }
 
       $.ajax({
         type: 'POST',
@@ -357,7 +359,6 @@ $(document).ready(function() {
         'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val(),
       },
     }).done(function(data) {
-      console.info(data);
       MessageBox.success(data.result);
 
     }).fail(function(data) {

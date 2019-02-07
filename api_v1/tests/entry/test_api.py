@@ -181,3 +181,33 @@ class APITest(AironeViewTest):
         resp = self.client.post('/api/v1/entry/search', json.dumps(params), 'application/json')
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.content, b'"Sending parameter is too large"')
+
+    def test_search_with_hint_entry_name(self):
+        user = self.guest_login()
+
+        # Initialize Entity and Entries, then register created entries to the Elasticsearch
+        entity = Entity.objects.create(name='entity', created_user=user)
+        for name in ['foo', 'bar', 'baz']:
+            Entry.objects.create(name=name, schema=entity, created_user=user).register_es()
+
+        # send search request with a part of name of entries
+        params = {
+            'entities': ['entity'],
+            'entry_name': 'ba',
+            'attrinfo': []
+        }
+        resp = self.client.post('/api/v1/entry/search', json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['result']['ret_count'], 2)
+        self.assertEqual([x['entry']['name'] for x in resp.json()['result']['ret_values']], ['bar', 'baz'])
+
+        # send search request with non-existed name
+        params = {
+            'entities': ['entity'],
+            'entry_name': 'non-existed-entry',
+            'attrinfo': []
+        }
+        resp = self.client.post('/api/v1/entry/search', json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['result']['ret_count'], 0)
+        self.assertEqual(resp.json()['result']['ret_values'], [])

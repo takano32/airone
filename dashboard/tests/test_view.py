@@ -572,3 +572,22 @@ class ViewTest(AironeViewTest):
                                 json.dumps(export_params),
                                 'application/json')
         self.assertEqual(resp.status_code, 200)
+
+    @patch('dashboard.views.task_export_search_result.delay',
+           Mock(side_effect=dashboard_tasks.export_search_result))
+    def test_export_with_hint_entry_name(self):
+        entity = Entity.objects.create(name='Entity', created_user=self.admin)
+        for name in ['foo', 'bar', 'baz']:
+            Entry.objects.create(name=name, schema=entity, created_user=self.admin).register_es()
+
+        resp = self.client.post(reverse('dashboard:export_search_result'), json.dumps({
+            'entities': [entity.id],
+            'attrinfo': [],
+            'entry_name': 'ba',
+            'export_style': 'yaml',
+        }), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        resp_data = yaml.load(Job.objects.last().get_cache())
+        self.assertEqual(len(resp_data['Entity']), 2)
+        self.assertEqual([x['name'] for x in resp_data['Entity']], ['bar', 'baz'])

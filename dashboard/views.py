@@ -185,6 +185,7 @@ def advanced_search_result(request):
      'checker': lambda x: all([Entity.objects.filter(id=y) for y in x['entities']])},
     {'name': 'attrinfo', 'type': list},
     {'name': 'has_referral', 'type': str, 'omittable': True},
+    {'name': 'entry_name', 'type': str, 'omittable': True},
     {'name': 'export_style', 'type': str},
 ])
 def export_search_result(request, recv_data):

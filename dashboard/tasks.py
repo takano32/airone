@@ -149,11 +149,16 @@ def export_search_result(self, job_id):
     if 'has_referral' in recv_data:
         has_referral = recv_data['has_referral']
 
+    hint_entry_name = ''
+    if 'entry_name' in recv_data and recv_data['entry_name']:
+        hint_entry_name = recv_data['entry_name']
+
     resp = Entry.search_entries(user,
                                 recv_data['entities'],
                                 recv_data['attrinfo'],
                                 settings.ES_CONFIG['MAXIMUM_RESULTS_NUM'],
-                                hint_referral=has_referral)
+                                hint_referral=has_referral,
+                                entry_name=hint_entry_name)
 
     io_stream = None
     if recv_data['export_style'] == 'yaml':

@@ -215,8 +215,13 @@ function append_history_item(container, info) {
   }
 
   // set previous current parameter infomations
-  elem_tr.append(`<td class='curr_updated_user'>${ info.curr.created_user }</td>`);
-  elem_tr.append(`<td class='curr_updated_time'>${ info.curr.created_time }</td>`);
+  elem_tr.append(`
+      <td>
+        <ul class='list-group'>
+          <li class='list-group-item curr_updated_user'>${ info.curr.created_user }</li>
+          <li class='list-group-item curr_updated_time'>${ info.curr.created_time }</li>
+        </ul>
+      </td>`);
 
   // set update button if previous value is existed
   let elem_td = $('<td>');

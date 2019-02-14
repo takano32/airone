@@ -92,6 +92,7 @@ def index(request, entity_id):
         # list ordinal view
         return render(request, 'list_entry.html', context)
 
+@airone_profile
 @http_get
 @check_permission(Entity, ACLType.Writable)
 def create(request, entity_id):
@@ -105,13 +106,6 @@ def create(request, entity_id):
         # show custom view
         return custom_view.call_custom_create_entry_without_context(entity.name, request, user, entity)
 
-    def get_referrals(attr):
-        ret = []
-        for entries in [Entry.objects.filter(schema=x, is_active=True) for x in attr.referral.filter(is_active=True)]:
-            ret += [{'id': x.id, 'name': x.name} for x in entries]
-
-        return ret
-
     context = {
         'entity': entity,
         'form_url': '/entry/do_create/%s/' % entity.id,
@@ -122,7 +116,6 @@ def create(request, entity_id):
             'type': x.type,
             'name': x.name,
             'is_mandatory': x.is_mandatory,
-            'referrals': x.referral.count() and get_referrals(x) or [],
         } for x in entity.attrs.filter(is_active=True).order_by('index') if user.has_permission(x, ACLType.Writable)]
     }
 

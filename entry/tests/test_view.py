@@ -20,7 +20,6 @@ from airone.lib.types import AttrTypeNamedObj, AttrTypeArrNamedObj
 from airone.lib.types import AttrTypeValue
 from airone.lib.test import AironeViewTest
 from airone.lib.acl import ACLType
-from xml.etree import ElementTree
 
 from unittest.mock import patch
 from unittest.mock import Mock
@@ -185,9 +184,7 @@ class ViewTest(AironeViewTest):
         resp = self.client.get(reverse('entry:create', args=[self._entity.id]))
 
         self.assertEqual(resp.status_code, 200)
-
-        root = ElementTree.fromstring(resp.content.decode('utf-8'))
-        self.assertIsNotNone(root.find('.//table/tr/td'))
+        self.assertEqual(resp.context['entity'], self._entity)
 
     def test_post_without_login(self):
         params = {

@@ -175,43 +175,69 @@ var filter_options = function(input_elem) {
     }
   });
 }
-var replace_options = function(input_elem, referrals) {
-  var select_elem = $(input_elem).parent().parent().find('select');
+var replace_options = function(elem_select, referrals) {
+  let elem_not_set = $('<option />').val(0).text('- NOT SET -');
 
-  select_elem.empty();
+  elem_select.empty();
 
-  select_elem.append($('<option />').val(0).text('- NO SET -'));
+  // show 'NOT SET' and selected options regardless of input value
+  elem_select.append(elem_not_set);
+
+  selected_items = [];
+  $(elem_select).closest('div').find('.airone-selected-items').each(function(i, elem) {
+    selected_items.push($(elem).text());
+
+    // The case when '- NOT SET -' is selected.
+    if($(elem).text() == elem_not_set.text()) {
+      elem_not_set.attr('selected', true);
+    }
+  });
+
   for(var ref of referrals) {
-    select_elem.append($('<option />').val(ref.id).text(ref.name));
+    if(selected_items.includes(ref.name)) {
+      elem_select.append($('<option selected/>').val(ref.id).text(ref.name));
+    } else {
+      elem_select.append($('<option />').val(ref.id).text(ref.name));
+    }
   }
 }
 
 var sending_request = false;
+var do_update_option = function(elem_select, attr_id, keyword) {
+  if(! sending_request) {
+    sending_request = true;
+
+    // disable selector until responsed is returned
+    $(elem_select).prop('disabled', true);
+
+    $.ajax({
+      type: 'GET',
+      url: `/entry/api/v1/get_attr_referrals/${ attr_id }/`,
+      data: {
+        keyword: keyword,
+      },
+    }).done(function(data){
+      replace_options(elem_select, data['results']);
+
+      // reset sending flag
+      sending_request = false;
+
+      // clear unfetched flag
+      elem_select.attr('unfetched_value', null);
+
+      elem_select.prop('disabled', false);
+    }).fail(function(data){
+      MessageBox.error(data);
+      elem_select.prop('disabled', false);
+    });
+  }
+}
+
 var update_option = function(input_elem) {
   if($(input_elem).attr('use_api')) {
-    if(! sending_request) {
-      sending_request = true;
-
-      // disable selector until responsed is returned
-      $(input_elem).parent().find('select').prop('disabled', true);
-
-      $.ajax({
-        type: 'GET',
-        url: `/entry/api/v1/get_attr_referrals/${ $(input_elem).attr('attr_id') }/`,
-        data: {
-          keyword: $(input_elem).val(),
-        },
-      }).done(function(data){
-        replace_options(input_elem, data['results']);
-
-        // reset sending flag
-        sending_request = false
-        $(input_elem).parent().find('select').prop('disabled', false);
-      }).fail(function(data){
-        MessageBox.error(data);
-        $(input_elem).parent().find('select').prop('disabled', false);
-      });
-    }
+    do_update_option($(input_elem).closest('div').find('select'),
+                     $(input_elem).attr('attr_id'),
+                     $(input_elem).val());
   } else {
     filter_options(input_elem);
   }
@@ -231,6 +257,13 @@ var narrow_down_handler = {
     if (e.keyCode == 13) {
       update_option(this);
     }
+  },
+  "focus": function(e) {
+    let elem_select = $(this).closest('div').find('select');
+
+    if(elem_select.attr('unfetched_value')) {
+      do_update_option(elem_select, $(this).attr('attr_id'), '');
+    }
   }
 }
 
@@ -246,6 +279,19 @@ var update_selected_item = function() {
   }
 
   $(this).parent().find('li[attr_id="'+ attr_id +'"]').text(text);
+}
+
+var select_value_handler = {
+  'change': update_selected_item,
+  'keydown': function() {
+    // clear danger notification if it's set
+    $(this).parent().removeClass('table-danger');
+  },
+  'focus': function() {
+    if($(this).attr('unfetched_value')) {
+      do_update_option($(this), $(this).attr('attr_id'), '');
+    }
+  }
 }
 
 // Helper function to identify row index for array_named_entry params
@@ -270,7 +316,7 @@ $('button[name=add_attr]').on('click', function() {
   new_column.append($.parseHTML($(this).parent().find('.attr_value_template').html()));
   new_column.find('button[name=del_attr]').on('click', del_column);
   new_column.find('.narrow_down_referral').on(narrow_down_handler);
-  new_column.find(".attr_value").on('change', update_selected_item);
+  new_column.find(".attr_value").on(select_value_handler);
   new_column.find(".attr_value").attr('enabled', 'True');
   new_column.find(".referral_key").attr('enabled', 'True');
 
@@ -307,12 +353,15 @@ $('button[name=add_attr]').on('click', function() {
           {% if value %}
             elem_select.children('option').remove();
 
-            elem_select.append($('<option />').val(0).text('- NO SET -'));
+            elem_select.append($('<option />').val(0).text('- NOT SET -'));
             elem_select.append($('<option />').val({{ value.id }}).text('{{ value.name }}').attr('selected', 'True'));
           {% endif %}
 
           // set flags to specify this value will be registered to server
           elem_select.attr('enabled', 'True');
+
+          // set flag that describes this selector doens't contain values
+          elem_select.attr('unfetched_value', 'true');
 
           // set name of list element to specify selected value
           new_column.find('li').text('{{ value.name|truncatechars:config.entry.MAX_LABEL_STRING }}');
@@ -328,7 +377,7 @@ $('button[name=add_attr]').on('click', function() {
           {% if value.referral %}
             elem_select.children('option').remove();
 
-            elem_select.append($('<option />').val(0).text('- NO SET -'));
+            elem_select.append($('<option />').val(0).text('- NOT SET -'));
             elem_select.append($('<option />').val({{ value.referral.id }}).text('{{ value.referral.name }}').attr('selected', 'True'));
           {% endif %}
 
@@ -352,13 +401,7 @@ $('button[name=add_attr]').on('click', function() {
 $(document).ready(function() {
   $('button[name=del_attr]').on('click', del_column);
   $(".narrow_down_referral").on(narrow_down_handler);
-  $(".attr_value").on({
-    'change': update_selected_item,
-    'keydown': function() {
-      // clear danger notification if it's set
-      $(this).parent().removeClass('table-danger');
-    },
-  });
+  $("select.attr_value").on(select_value_handler);
   $('input[name="entry_name"]').on('keydown', function() {
     // clear danger notification if it's set
     $(this).parent().removeClass('table-danger');

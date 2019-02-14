@@ -409,7 +409,7 @@ class ViewTest(AironeViewTest):
 
         resp_data = resp.json()['results']
         self.assertEqual(len(resp_data), 5)
-        self.assertEqual([x['attr_value'] for x in resp_data],
+        self.assertEqual([x['curr']['value'] for x in resp_data],
                          ['value-%d' % x for x in range(4, -1, -1)])
 
         # check to get part of history data
@@ -420,7 +420,7 @@ class ViewTest(AironeViewTest):
 
         resp_data = resp.json()['results']
         self.assertEqual(len(resp_data), 2)
-        self.assertEqual([x['attr_value'] for x in resp_data],
+        self.assertEqual([x['curr']['value'] for x in resp_data],
                          ['value-%d' % x for x in range(3, 1, -1)])
 
     def test_update_attr_with_attrv(self):

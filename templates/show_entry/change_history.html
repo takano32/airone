@@ -1,102 +1,66 @@
 <div class="row">
   <div class="col">
-    <table class="table table-bordered airone-entry-table-history">
-      <tr>
-        <th>属性</th>
-        <th>設定値</th>
-        <th>ユーザ名</th>
-        <th>更新日時</th>
-        <th></th>
-      </tr>
+    <table class="table table-borderless airone-entry-table-history" id='attribute-history'>
       {% for history in value_history %}
       <tr class='attr_info'>
         <td class='attr_name'>{{ history.attr_name }}</td>
-        <td class='attr_value'>
-        {% if history.attr_type == attr_type.string %}
-          <span class='url_conv'>{{ history.attr_value }}</span>
-
-        {% elif history.attr_type == attr_type.textarea %}
-          <span class='url_conv textarea'>{{ history.attr_value }}</span>
-
-        {% elif history.attr_type == attr_type.entry and history.attr_value %}
-          <a href='/entry/show/{{ history.attr_value.id}}'>{{ history.attr_value.name }}</a>
-
-        {% elif history.attr_type == attr_type.array_string %}
-          <ul class='list-group'>
-          {% for attrv in history.attr_value %}
-            <li class='list-group-item'>{{ attrv }}</li>
-          {% endfor %}
-          </ul>
-
-        {% elif history.attr_type == attr_type.array_entry %}
-          <ul class='list-group'>
-          {% for attrv in history.attr_value %}
-            <li class='list-group-item'>
-              <a href='/entry/show/{{ attrv.id }}'>
-                {{ attrv.name }}
-              </a>
-            </li>
-          {% endfor %}
-          </ul>
-
-        {% elif history.attr_type == attr_type.boolean %}
-          {% if history.attr_value %}
-          <input type="checkbox" disabled='True' checked='True'/>
-          {% else %}
-          <input type="checkbox" disabled='True' />
-          {% endif %}
-
-        {% elif history.attr_type == attr_type.date %}
-          <span>{{ history.attr_value|date:"Y-m-d" }}</span>
-
-        {% elif history.attr_type == attr_type.named_entry %}
-            <div class='row'>
-              <div class='col-3'>
-                {{ history.attr_value.value }}
-              </div>
-              <div class='col-9'>
-                <a href='/entry/show/{{ history.attr_value.referral.id }}'>{{ history.attr_value.referral.name }}</a>
-              </div>
-            </div>
-
-        {% elif history.attr_type == attr_type.array_named_entry %}
-            <ul class='list-group'>
-            {% for attrv in history.attr_value %}
-              <li class='list-group-item'>
-                <div class='row'>
-                  <div class='col-3'>
-                    {{ attrv.value }}
-                  </div>
-                  <div class='col-9'>
-                    <a href='/entry/show/{{ attrv.referral.id }}'>{{ attrv.referral.name }}</a>
+        <td>
+          {% if history.prev %}
+          <div class='container'>
+            <div class='row border'>
+                <div class='col-6 border-right'>
+                  <div class='container'>
+                    <div class='row'>
+                      <div class='col-12 border-bottom'><center>変更前</center></div>
+                      <div class='col-12 attr_val prev_attr_value'>
+                        {% include "show_entry/history_value.html" with a_type=history.attr_type attrv=history.prev %}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </li>
-            {% endfor %}
-            </ul>
-
-        {% elif history.attr_type == attr_type.group %}
-          <a href='/group/edit/{{ history.attr_value.id}}'>{{ history.attr_value.name }}</a>
-        {% endif %}
+                <div class='col-6'>
+                  <div class='container'>
+                    <div class='row'>
+                      <div class='col-12 border-bottom'><center>変更後</center></div>
+                      <div class='col-12 attr_val curr_attr_value'>
+                        {% include "show_entry/history_value.html" with a_type=history.attr_type attrv=history.curr %}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+            </div>
+          </div>
+          {% else %}
+            {% include "show_entry/history_value.html" with a_type=history.attr_type attrv=history.curr %}
+          {% endif %}
         </td>
-        <td class='updated_user'>{{ history.created_user }}</td>
-        <td class='updated_time'>{{ history.created_time }}</td>
+
+        <td>
+          <ul class='list-group'>
+            <li class='list-group-item curr_updated_user'>{{ history.curr.created_user }}</li>
+            <li class='list-group-item curr_updated_time'>{{ history.curr.created_time }}</li>
+          </ul>
+        </td>
         <td>
           <span class='replace_attrv' data-toggle="tooltip">
+            {% if history.prev %}
             <a href='#'><img src='/static/images/update.png' data-toggle="modal" data-target="#renew_checkbox"/></a>
+            {% endif %}
           </span>
         </td>
         <input type='hidden' class='attr_id' value='{{ history.attr_id }}' />
-        <input type='hidden' class='attrv_id' value='{{ history.attrv_id }}' />
+        <input type='hidden' class='prev_attrv_id' value='{{ history.prev.attrv_id }}' />
+        <input type='hidden' class='prev_updated_user' value='{{ history.prev.created_user }}' />
+        <input type='hidden' class='prev_updated_time' value='{{ history.prev.created_time }}' />
       </tr>
       {% endfor %}
     </table>
-    <input type="button" class="btn btn-primary show_old_history"></button>
+    <input type="button" class="btn btn-primary show_old_history"></input>
   </div>
 </div>
 
 <div class="modal fade" id="renew_checkbox" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered" role="document">
+  <div class="modal-lg modal-dialog modal-dialog-centered" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="renew_checkbox_title"></h5>
@@ -105,19 +69,46 @@
         </button>
       </div>
       <div class="modal-body">
-        <table class='table'>
+
+        <!-- Modal contexts are revealed after getting context -->
+        <table class='table airone-entry-table-history'>
           <p class='desc'></p>
           <tr>
-            <th>属性</th>
-            <td class='modal_attr_name'></td>
+            <b><p class='modal_attr_name text-center'></p></b>
           </tr>
+            <th>変更前</th>
+            <td class='modal_prev'>
+              <table class='table table-bordered'>
+                <tr>
+                  <td colspan=2 class='value'></td>
+                </tr>
+                <tr>
+                  <td>更新日時</td>
+                  <td class='time'></td>
+                </tr>
+                <tr>
+                  <td>更新者</td>
+                  <td class='user'></td>
+                </tr>
+              </table>
+            </td>
           <tr>
-            <th>設定値</th>
-            <td class='modal_attr_value'></td>
-          </tr>
-          <tr>
-            <th>更新時刻</th>
-            <td class='modal_updated_time'></td>
+            <th>変更後</th>
+            <td class='modal_curr'>
+              <table class='table table-bordered'>
+                <tr>
+                  <td colspan=2 class='value'></td>
+                </tr>
+                <tr>
+                  <td>更新日時</td>
+                  <td class='time'></td>
+                </tr>
+                <tr>
+                  <td>更新者</td>
+                  <td class='user'></td>
+                </tr>
+              </table>
+            </td>
           </tr>
         </table>
         <input type='hidden' class='modal_attr_id'/>

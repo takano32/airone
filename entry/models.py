@@ -1157,25 +1157,41 @@ class Entry(ACLBase):
         es.refresh(ignore=[404])
 
     def get_value_history(self, user, count=CONFIG.MAX_HISTORY_COUNT, index=0):
-        ret_values = []
-        for attrv in AttributeValue.objects.filter(parent_attr__in=self.attrs.all(),
-                                                   parent_attrv__isnull=True).order_by('-created_time')[index:]:
+        def _get_values(attrv):
+            return {
+                'attrv_id': attrv.id,
+                'value': attrv.format_for_history(),
+                'created_time': attrv.created_time,
+                'created_user': attrv.created_user.username,
+            }
 
+        ret_values = []
+        all_attrv = AttributeValue.objects.filter(parent_attr__in=self.attrs.all(),
+                                                  parent_attrv__isnull=True).order_by('-created_time')[index:]
+
+        for (i, attrv) in enumerate(all_attrv):
             if (len(ret_values) >= count):
                 break
 
-            if (attrv.parent_attr.is_active and
-                attrv.parent_attr.schema.is_active and
-                user.has_permission(attrv.parent_attr, ACLType.Readable)):
+            attr = attrv.parent_attr
+            if (attr.is_active and
+                attr.schema.is_active and
+                user.has_permission(attr, ACLType.Readable) and
+                user.has_permission(attr.schema, ACLType.Readable)):
+
+                # try to get next attrv
+                next_attrv = None
+                for _attrv in all_attrv[(i+1):]:
+                    if _attrv.parent_attr == attr:
+                        next_attrv = _attrv
+                        break
 
                 ret_values.append({
-                    'attr_id': attrv.parent_attr.id,
-                    'attrv_id': attrv.id,
-                    'attr_name': attrv.parent_attr.schema.name,
-                    'attr_type': attrv.parent_attr.schema.type,
-                    'attr_value': attrv.format_for_history(),
-                    'created_time': attrv.created_time,
-                    'created_user': attrv.created_user.username,
+                    'attr_id': attr.id,
+                    'attr_name': attr.schema.name,
+                    'attr_type': attr.schema.type,
+                    'curr': _get_values(attrv),
+                    'prev': _get_values(next_attrv) if next_attrv else None,
                 })
 
         return ret_values

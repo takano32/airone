@@ -26,32 +26,18 @@
             {% if attr.type|bitwise_and:attr_type.entry %}
 
         <ul class='list-group'>
-          <li class='list-group-item list-group-item-info' attr_id='{{ attr.id }}' style="height: 30px; padding: 5px 15px;">
-            {{ attr.last_referral.name }}
-          </li>
+          <li class='list-group-item list-group-item-info airone-selected-items' attr_id='{{ attr.id }}' style="height: 30px; padding: 5px 15px;">{{ attr.last_referral.name }}</li>
         </ul>
         <!-- specify maximum size of list -->
-        {% if attr.referrals|length > 5 %}
-        <select class="attr_value" attr_id="{{ attr.id }}" size=5 style="width: 100%">
-        {% else %}
-        <select class="attr_value" attr_id="{{ attr.id }}" size={{ attr.referrals|length|add:1 }} style="width: 100%">
-        {% endif %}
-
+        <select class="attr_value" attr_id="{{ attr.id }}" size=5 style="width: 100%" unfetched_value='true'>
           {% if not attr.is_mandatory %}
           <option value='0'>- NOT SET -</option>
           {% endif %}
 
           <!-- show selected referral entry on the top of list -->
           {% if attr.last_referral %}
-          <option value="{{ attr.last_referral.id }}" selected='selected'>{{ attr.last_referral.name }}</option>
+            <option value="{{ attr.last_referral.id }}" selected='selected'>{{ attr.last_referral.name }}</option>
           {% endif %}
-
-          <!-- show other referral entries except for selected one -->
-          {% for referral in attr.referrals|slice:":100" %}
-          {% if referral.id != attr.last_referral.id %}
-          <option value="{{ referral.id }}">{{ referral.name }}</option>
-          {% endif %}
-          {% endfor %}
         </select>
 
         <input type="text" class="narrow_down_referral" placeholder="絞り込み" style="width: 100%" use_api="True" attr_id="{{ attr.id }}"/>
@@ -79,17 +65,10 @@
 
         <!-- specify maximum size of list -->
         <ul class='list-group'>
-          <li class='list-group-item list-group-item-info' attr_id='{{ attr.id }}' style="height: 30px; padding: 5px 15px;">
-            {{ attr.last_referral.name }}
-          </li>
+          <li class='list-group-item list-group-item-info airone-selected-items' attr_id='{{ attr.id }}' style="height: 30px; padding: 5px 15px;">{{ attr.last_referral.name }}</li>
         </ul>
 
-        {% if attr.referrals|length > 5 %}
-        <select class="attr_value" attr_id="{{ attr.id }}" enabled="True" index='0' size='5' style="width: 100%">
-        {% else %}
-        <select class="attr_value" attr_id="{{ attr.id }}" enabled="True" index='0' size='{{ attr.referrals|length|add:1 }}' style="width: 100%">
-        {% endif %}
-
+        <select class="attr_value" attr_id="{{ attr.id }}" enabled="True" index='0' size='5' style="width: 100%" unfetched_value='true'>
           {% if not attr.is_mandatory %}
           <option value='0'>- NOT SET -</option>
           {% endif %}
@@ -98,13 +77,6 @@
           {% if attr.last_referral %}
           <option value="{{ attr.last_referral.id }}" selected='selected'>{{ attr.last_referral.name }}</option>
           {% endif %}
-
-          <!-- show other referral entries except for selected one -->
-          {% for referral in attr.referrals|slice:":100" %}
-          {% if referral.id != attr.last_referral.id %}
-          <option value="{{ referral.id }}">{{ referral.name }}</option>
-          {% endif %}
-          {% endfor %}
         </select>
 
         <input type="text" class="narrow_down_referral" placeholder="絞り込み" style="width: 100%" use_api="True" attr_id="{{ attr.id }}"/>

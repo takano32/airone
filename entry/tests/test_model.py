@@ -489,12 +489,19 @@ class ModelTest(AironeTestCase):
         # check to get value history from the rear
         history = entry.get_value_history(self._user, count=2)
         self.assertEqual(len(history), 2)
-        self.assertEqual([x['attr_value'] for x in history], ['value-9', 'value-8'])
+        self.assertEqual([x['curr']['value'] for x in history], ['value-9', 'value-8'])
+        self.assertEqual([x['prev']['value'] for x in history], ['value-8', 'value-7'])
 
         # check to skip history value by specifying index parameter
         history = entry.get_value_history(self._user, count=3, index=3)
         self.assertEqual(len(history), 3)
-        self.assertEqual([x['attr_value'] for x in history], ['value-6', 'value-5', 'value-4'])
+        self.assertEqual([x['curr']['value'] for x in history], ['value-6', 'value-5', 'value-4'])
+
+        # check get the oldest value of history value
+        history = entry.get_value_history(self._user, count=10, index=9)
+        self.assertEqual(len(history), 1)
+        self.assertEqual([x['curr']['value'] for x in history], ['value-0'])
+        self.assertEqual([x['prev'] for x in history], [None])
 
     def test_delete_entry(self):
         entity = Entity.objects.create(name='ReferredEntity', created_user=self._user)

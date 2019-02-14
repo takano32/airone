@@ -55,7 +55,6 @@ body {
  * ------------------------------- */
 .airone-entry-table-history,
 .airone-entry-table-show {
-  table-layout:fixed;
   width:100%;
   border: none;
   margin: 10px 0px;
@@ -86,6 +85,14 @@ body {
 
 .tab-content {
   padding: 10px 0px 0px;
+}
+
+.history_value {
+  width: 100%;
+}
+
+#attribute-history .attr_val {
+  padding: 10px;
 }
 
 /* ---------------------------------------------------- *

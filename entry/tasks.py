@@ -195,14 +195,20 @@ def copy_entry(self, user_id, src_entry_id, job_id):
     job = Job.objects.get(id=job_id)
 
     if job.status != Job.STATUS_DONE:
+        # update job status
+        job.set_status(Job.STATUS_PROCESSING)
+
         user = User.objects.get(id=user_id)
         src_entry = Entry.objects.get(id=src_entry_id)
 
-        name = job.params
-        dest_entry = Entry.objects.filter(schema=src_entry.schema, name=name).first()
+        params = json.loads(job.params)
+        dest_entry = Entry.objects.filter(schema=src_entry.schema, name=params['new_name']).first()
         if not dest_entry:
-            dest_entry = src_entry.clone(user, name=name)
+            dest_entry = src_entry.clone(user, name=params['new_name'])
             dest_entry.register_es()
+
+        if custom_view.is_custom_after_copy_entry(src_entry.schema.name):
+            custom_view.call_custom_after_copy_entry(src_entry.schema.name, user, src_entry, dest_entry, params['post_data'])
 
         job.target = dest_entry
         job.status = Job.STATUS_DONE

@@ -97,7 +97,7 @@ class Job(models.Model):
 
     @classmethod
     def new_copy(kls, user, target, text='', params={}):
-        return kls._create_new_job(user, target, kls.OP_COPY, text, params)
+        return kls._create_new_job(user, target, kls.OP_COPY, text, json.dumps(params))
 
     @classmethod
     def new_import(kls, user, entity, text='', params={}):

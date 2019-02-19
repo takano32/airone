@@ -2132,11 +2132,11 @@ class ViewTest(AironeViewTest):
         entry = Entry.objects.create(name='entry', created_user=user, schema=self._entity)
 
         # creating a job to copy entry
-        job = Job.new_copy(user, entry, text='', params='foo')
         params = {
             # A job of creating entry 'foo' is already created
             'entries': 'foo',
         }
+        job = Job.new_copy(user, entry, text='', params={'new_name': 'foo', 'post_data': params})
         resp = self.client.post(reverse('entry:do_copy', args=[entry.id]),
                                 json.dumps(params), 'application/json')
         self.assertEqual(resp.status_code, 200)

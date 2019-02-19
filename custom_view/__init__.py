@@ -109,6 +109,15 @@ def call_custom_after_edit_entry(entity_name, *args, **kwargs):
     else:
         return HttpResponse("Custom view of after_edit_entry doesn't exist", status=500)
 
+def is_custom_after_copy_entry(entity_name):
+    return _is_view(entity_name, 'after_copy_entry')
+
+def call_custom_after_copy_entry(entity_name, *args, **kwargs):
+    if(_isin_cache(entity_name, 'after_copy_entry') or _is_view(entity_name, 'after_copy_entry')):
+        return CUSTOM_VIEW[entity_name]['after_copy_entry'](*args, **kwargs)
+    else:
+        return HttpResponse("Custom view of after_copy_entry doesn't exist", status=500)
+
 def is_custom_do_create_entry(entity_name):
     return _is_view(entity_name, 'do_create_entry')
 
@@ -135,3 +144,12 @@ def call_custom_do_delete_entry(entity_name, *args, **kwargs):
         return CUSTOM_VIEW[entity_name]['do_delete_entry'](*args, **kwargs)
     else:
         return HttpResponse("Custom view of do_delete_entry doesn't exist", status=500)
+
+def is_custom_copy_entry(entity_name):
+    return _is_view(entity_name, 'copy_entry')
+
+def call_custom_copy_entry(entity_name, *args, **kwargs):
+    if(_isin_cache(entity_name, 'copy_entry') or _is_view(entity_name, 'copy_entry')):
+        return CUSTOM_VIEW[entity_name]['copy_entry'](*args, **kwargs)
+    else:
+        return HttpResponse("Custom view of copy_entry doesn't exist", status=500)

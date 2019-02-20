@@ -467,6 +467,10 @@ def copy(request, entry_id):
         'redirect_url': '/entry/%s' % entry.schema.id,
         'entry': entry,
     }
+
+    if custom_view.is_custom_copy_entry(entry.schema.name):
+        return custom_view.call_custom_copy_entry(entry.schema.name, request, user, entry, context)
+
     return render(request, 'copy_entry.html', context)
 
 @airone_profile
@@ -495,12 +499,17 @@ def do_copy(request, entry_id, recv_data):
             })
             continue
 
+        params = {
+            'new_name': new_name,
+            'post_data': recv_data,
+        }
+
         # Check another COPY job that targets same name entry is under processing
         if Job.objects.filter(
                 operation=Job.OP_COPY,
                 target=entry,
                 status__in=[Job.STATUS_PREPARING, Job.STATUS_PROCESSING],
-                params=new_name):
+                params=json.dumps(params)):
             ret.append({
                 'status': 'fail',
                 'msg': 'There is another job that targets same name(%s) is existed' % new_name,
@@ -508,7 +517,7 @@ def do_copy(request, entry_id, recv_data):
             continue
 
         # make a new job to copy entry
-        copy_entry.delay(user.id, entry_id, Job.new_copy(user, entry, text=new_name, params=new_name).id)
+        copy_entry.delay(user.id, entry_id, Job.new_copy(user, entry, text=new_name, params=params).id)
 
         ret.append({
             'status': 'success',

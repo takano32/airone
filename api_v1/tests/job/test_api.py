@@ -133,7 +133,7 @@ class APITest(AironeViewTest):
         self.assertEqual(entry.attrs.first().get_latest_value().value, 'fuga')
 
         # make and send a job to copy entry
-        job = Job.new_copy(user, entry, params='new_entry')
+        job = Job.new_copy(user, entry, params={'new_name': 'new_entry'})
         resp = self.client.post('/api/v1/job/run/%d' % job.id)
 
         self.assertEqual(resp.status_code, 200)

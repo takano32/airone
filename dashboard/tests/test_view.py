@@ -543,14 +543,12 @@ class ViewTest(AironeViewTest):
         entity = Entity.objects.create(name='Entity', created_user=user)
         export_params = {
             'entities': [entity.id],
-            'attrinfo': [{'name': 'attr', 'keyword': 'data-5'}],
+            'attrinfo': [{'name': 'attr', 'keyword': 'data-10'}],
             'export_style': 'csv',
         }
 
         # create a job to export search result
         job = Job.new_export(user, params=export_params)
-
-        time.sleep(1)
 
         # A request with same parameter which is under execution will be denied
         resp = self.client.post(reverse('dashboard:export_search_result'),

@@ -543,7 +543,7 @@ class ViewTest(AironeViewTest):
         entity = Entity.objects.create(name='Entity', created_user=user)
         export_params = {
             'entities': [entity.id],
-            'attrinfo': [{'name': 'attr', 'keyword': 'data-10'}],
+            'attrinfo': [{'name': 'attr', 'keyword': 'data-5'}],
             'export_style': 'csv',
         }
 
@@ -552,14 +552,14 @@ class ViewTest(AironeViewTest):
 
         # A request with same parameter which is under execution will be denied
         resp = self.client.post(reverse('dashboard:export_search_result'),
-                                json.dumps(export_params),
+                                json.dumps(export_params, sort_keys=True),
                                 'application/json')
         self.assertEqual(resp.status_code, 400)
 
         # A request with another condition will be accepted
         new_export_params = {**export_params, **{'export_style': 'yaml'}}
         resp = self.client.post(reverse('dashboard:export_search_result'),
-                                json.dumps(new_export_params),
+                                json.dumps(new_export_params, sort_keys=True),
                                 'application/json')
         self.assertEqual(resp.status_code, 200)
 
@@ -567,7 +567,7 @@ class ViewTest(AironeViewTest):
         job.status = Job.STATUS_DONE
         job.save(update_fields=['status'])
         resp = self.client.post(reverse('dashboard:export_search_result'),
-                                json.dumps(export_params),
+                                json.dumps(export_params, sort_keys=True),
                                 'application/json')
         self.assertEqual(resp.status_code, 200)
 

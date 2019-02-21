@@ -509,7 +509,7 @@ def do_copy(request, entry_id, recv_data):
                 operation=Job.OP_COPY,
                 target=entry,
                 status__in=[Job.STATUS_PREPARING, Job.STATUS_PROCESSING],
-                params=json.dumps(params)):
+                params=json.dumps(params, sort_keys=True)):
             ret.append({
                 'status': 'fail',
                 'msg': 'There is another job that targets same name(%s) is existed' % new_name,

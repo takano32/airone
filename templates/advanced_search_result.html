@@ -349,6 +349,7 @@ $(document).ready(function() {
       data: JSON.stringify({
         'entities': '{{ entities }}'.split(','),
         'attrinfo': get_attrinfo(),
+        'entry_name': $('.hint_entry_name').val(),
         'has_referral': $('.narrow_down_referral').val(),
         'export_style': style,
       }),

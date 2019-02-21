@@ -81,15 +81,17 @@ class Job(models.Model):
 
     @classmethod
     def get_job_with_params(kls, user, params):
-        return kls.objects.filter(user=user, params=json.dumps(params, default=_support_time_default))
+        return kls.objects.filter(user=user, params=json.dumps(params, default=_support_time_default, sort_keys=True))
 
     @classmethod
     def new_create(kls, user, target, text='', params={}):
-        return kls._create_new_job(user, target, kls.OP_CREATE, text, json.dumps(params, default=_support_time_default))
+        return kls._create_new_job(user, target, kls.OP_CREATE, text,
+                                   json.dumps(params, default=_support_time_default, sort_keys=True))
 
     @classmethod
     def new_edit(kls, user, target, text='', params={}):
-        return kls._create_new_job(user, target, kls.OP_EDIT, text, json.dumps(params, default=_support_time_default))
+        return kls._create_new_job(user, target, kls.OP_EDIT, text,
+                                   json.dumps(params, default=_support_time_default, sort_keys=True))
 
     @classmethod
     def new_delete(kls, user, target, text='', params={}):
@@ -97,15 +99,18 @@ class Job(models.Model):
 
     @classmethod
     def new_copy(kls, user, target, text='', params={}):
-        return kls._create_new_job(user, target, kls.OP_COPY, text, json.dumps(params))
+        return kls._create_new_job(user, target, kls.OP_COPY, text,
+                                   json.dumps(params, sort_keys=True))
 
     @classmethod
     def new_import(kls, user, entity, text='', params={}):
-        return kls._create_new_job(user, entity, kls.OP_IMPORT, text, json.dumps(params, default=_support_time_default))
+        return kls._create_new_job(user, entity, kls.OP_IMPORT, text,
+                                   json.dumps(params, default=_support_time_default, sort_keys=True))
 
     @classmethod
     def new_export(kls, user, target=None, text='', params={}):
-        return kls._create_new_job(user, target, kls.OP_EXPORT, text, json.dumps(params, default=_support_time_default))
+        return kls._create_new_job(user, target, kls.OP_EXPORT, text,
+                                   json.dumps(params, default=_support_time_default, sort_keys=True))
 
     def set_status(self, status):
         self.status = status

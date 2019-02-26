@@ -208,8 +208,7 @@ var update_option = function(select_elem) {
   var input_str = $(select_elem).val();
   $(select_elem).parent().parent().find('select option').each(function(i, elem) {
     if($(elem).val() != 0) {
-      if(($(elem).text().toLowerCase().indexOf(input_str) >= 0) ||
-         ($(elem).text().toUpperCase().indexOf(input_str) >= 0)) {
+      if($(elem).text().toLowerCase().indexOf(input_str.toLowerCase()) >= 0) {
         $(elem).show();
       } else {
         $(elem).hide();

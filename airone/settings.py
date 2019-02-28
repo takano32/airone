@@ -186,3 +186,55 @@ ES_CONFIG = {
     'MAXIMUM_RESULTS_NUM': 500000,
     'TIMEOUT': None
 }
+
+AUTHENTICATION_BACKENDS = (
+    'airone.auth.ldap.LDAPBackend',
+)
+
+AUTH_CONFIG = {
+    'LDAP': {
+        'SERVER_ADDRESS': 'localhost',
+        'BASE_DN': 'dc=dmmtest,dc=local',
+        'SEARCH_FILTER': '(sn={username})'
+    }
+}
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'all': {
+            'format': '\t'.join([
+                "[%(levelname)s]",
+                "asctime:%(asctime)s",
+                "module:%(module)s",
+                "message:%(message)s",
+                "process:%(process)d",
+                "thread:%(thread)d",
+            ])
+        }
+    },
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/django.log'),
+            'formatter': 'all'
+        },
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'all'
+        },
+    },
+    'loggers': {
+        'airone': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': True,
+        }
+    }
+}
+# If log dir is not exists create it.
+if not os.path.exists(os.path.dirname(LOGGING['handlers']['file']['filename'])):
+    os.makedirs(os.path.dirname(LOGGING['handlers']['file']['filename']))

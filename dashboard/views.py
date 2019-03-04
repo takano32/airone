@@ -177,6 +177,7 @@ def advanced_search_result(request):
         'max_num': CONFIG.MAXIMUM_SEARCH_RESULTS,
         'entities': ','.join([str(x) for x in entities]),
         'has_referral': has_referral,
+        'is_all_entities': is_all_entities,
     })
 
 @airone_profile

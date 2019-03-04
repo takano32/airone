@@ -13,6 +13,11 @@ class User(DjangoUser):
     MAXIMUM_TOKEN_LIFETIME = 10 ** 8
     TOKEN_LIFETIME = 86400
 
+    # These constants describe where user data is stored.
+    AUTH_TYPE_LOCAL = 1 << 0
+    AUTH_TYPE_LDAP = 1 << 1
+
+    authenticate_type = models.IntegerField(default=AUTH_TYPE_LOCAL)
     authorized_type = models.IntegerField(default=0)
     token_lifetime = models.IntegerField(default=TOKEN_LIFETIME)
 

@@ -187,9 +187,12 @@ ES_CONFIG = {
     'TIMEOUT': None
 }
 
-AUTHENTICATION_BACKENDS = (
-    'airone.auth.ldap.LDAPBackend',
-)
+#
+# Note: Disable LDAP authentication by default in the mean time.
+#
+#AUTHENTICATION_BACKENDS = (
+#    'airone.auth.ldap.LDAPBackend',
+#)
 
 AUTH_CONFIG = {
     'LDAP': {

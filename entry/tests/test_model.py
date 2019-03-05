@@ -2251,3 +2251,48 @@ class ModelTest(AironeTestCase):
         entry.may_remove_duplicate_attr(orig_attr)
         self.assertEqual(entry.attrs.count(), 1)
         self.assertEqual(entry.attrs.first(), orig_attr)
+
+    def test_restore_entry_in_chain(self):
+        # initilaize referral Entries for checking processing caused by setting 'is_delete_in_chain' flag
+        ref_entity = Entity.objects.create(name='ReferredEntity', created_user=self._user)
+        ref_entries = [Entry.objects.create(name='ref-%d' % i, created_user=self._user, schema=ref_entity) for i in range(3)]
+
+        # initialize EntityAttrs
+        attr_info = {
+            'obj': {'type': AttrTypeValue['object'], 'value': ref_entries[0]},
+            'arr_obj': {'type': AttrTypeValue['array_object'], 'value': ref_entries[1:]},
+        }
+        for attr_name, info in attr_info.items():
+            # create EntityAttr object with is_delete_in_chain object
+            attr = EntityAttr.objects.create(name=attr_name,
+                                             type=info['type'],
+                                             is_delete_in_chain=True,
+                                             created_user=self._user,
+                                             parent_entity=self._entity)
+
+            if info['type'] & AttrTypeValue['object']:
+                attr.referral.add(ref_entity)
+
+            self._entity.attrs.add(attr)
+
+        # initialize target entry
+        entry = Entry.objects.create(name='entry', schema=self._entity, created_user=self._user)
+        entry.complement_attrs(self._user)
+
+        for attr_name, info in attr_info.items():
+            attr = entry.attrs.get(schema__name=attr_name)
+            attr.add_value(self._user, info['value'])
+
+        # delete target entry at first
+        entry.delete()
+
+        self.assertFalse(entry.is_active)
+        self.assertTrue(entry.name.find('_deleted_') > 0)
+        self.assertFalse(any([Entry.objects.get(id=x.id).is_active for x in ref_entries]))
+
+        # restore target entry
+        entry.restore()
+
+        self.assertTrue(entry.is_active)
+        self.assertEqual(entry.name.find('_deleted_'), -1)
+        self.assertTrue(all([Entry.objects.get(id=x.id).is_active for x in ref_entries]))

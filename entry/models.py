@@ -775,6 +775,30 @@ class Attribute(ACLBase):
             else:
                 _may_remove_referral(attrv.referral)
 
+    def restore(self):
+        super(Attribute, self).restore()
+
+        def _may_restore_referral(referral):
+            if not referral:
+                # the case this refers no entry, do nothing
+                return
+
+            entry = Entry.objects.filter(id=referral.id, is_active=False).first()
+            if not entry:
+                # the case referred entry is already restored, do nothing
+                return
+
+            entry.restore()
+
+        # restore referral object that isn't referred from any objects if it's necessary
+        if self.schema.is_delete_in_chain and self.schema.type & AttrTypeValue['object']:
+            attrv = self.get_latest_value()
+
+            if self.schema.type & AttrTypeValue['array']:
+                [_may_restore_referral(x.referral) for x in attrv.data_array.all()]
+            else:
+                _may_restore_referral(attrv.referral)
+
 class Entry(ACLBase):
     # This flag is set just after created or edited, then cleared at completion of the processing
     STATUS_CREATING = 1 << 0
@@ -981,6 +1005,15 @@ class Entry(ACLBase):
 
         if settings.ES_CONFIG:
             self.unregister_es()
+
+    def restore(self):
+        super(Entry, self).restore()
+
+        # also restore each attributes
+        for attr in self.attrs.filter(is_active=False):
+
+            # restore Attribute object
+            attr.restore()
 
     def clone(self, user, **extra_params):
         if (not user.has_permission(self, ACLType.Readable) or

@@ -1,4 +1,5 @@
 import importlib
+import re
 import tablib
 
 from datetime import datetime
@@ -65,6 +66,11 @@ class ACLBase(models.Model):
     def delete(self, *args, **kwargs):
         self.is_active = False
         self.name = "%s_deleted_%s" % (self.name, datetime.now().strftime("%Y%m%d_%H%M%S"))
+        self.save()
+
+    def restore(self, *args, **kwargs):
+        self.is_active = True
+        self.name = re.sub(r'_deleted_[0-9_]*$', '', self.name)
         self.save()
 
     def inherit_acl(self, aclobj):

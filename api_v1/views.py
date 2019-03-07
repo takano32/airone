@@ -82,28 +82,42 @@ class EntryAPI(APIView):
             return Response({'result': 'You have to login AirOne to perform this request'},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        param_entry = request.query_params.get('entry')
-        if not param_entry:
-            return Response({'result': 'Parameter "entity" and "entry" are mandatory'},
+        # The parameter for entry is acceptable both id and name.
+        param_entry_id = request.GET.get('entry_id')
+        param_entry_name = request.GET.get('entry')
+        if not (param_entry_name or param_entry_id):
+            return Response({'result': 'Parameter either "entry" or "entry_id" is mandatory'},
                             status=status.HTTP_400_BAD_REQUEST)
 
         entity = None
-        param_entity = request.query_params.get('entity')
+        param_entity = request.GET.get('entity')
         if param_entity:
             entity = Entity.objects.filter(name=param_entity).first()
             if not entity:
                 return Response({'result': 'Failed to find specified Entity (%s)' % param_entity},
                                 status=status.HTTP_404_NOT_FOUND)
 
+        # This enables to return deleted values
+        is_active = request.GET.get('is_active', True)
+
+        # make a query based on GET parameters
+        query = Q(is_active=is_active)
+        if entity:
+            query = Q(query, schema=entity)
+
+        if param_entry_id:
+            query = Q(query, id=param_entry_id)
+        else:
+            query = Q(query, name=param_entry_name)
+
         retinfo = []
-        query = Q(name=param_entry, schema=entity) if entity else Q(name=param_entry)
         for entry in Entry.objects.filter(query):
             # check permissions for each entry, entity and attrs
             if (not user.has_permission(entry.schema, ACLType.Readable) or
                 not user.has_permission(entry, ACLType.Readable)):
                 continue
 
-            attrs = [x for x in entry.attrs.filter(is_active=True, schema__is_active=True)
+            attrs = [x for x in entry.attrs.filter(is_active=is_active, schema__is_active=True)
                      if (user.has_permission(x.schema, ACLType.Readable) and
                          user.has_permission(x, ACLType.Readable))]
 
@@ -120,7 +134,7 @@ class EntryAPI(APIView):
             })
 
         if not retinfo:
-            return Response({'result': 'Failed to find specified Entry (%s)' % param_entry},
+            return Response({'result': 'Failed to find entry'},
                             status=status.HTTP_404_NOT_FOUND)
 
         return Response(retinfo)

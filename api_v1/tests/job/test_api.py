@@ -165,3 +165,28 @@ class APITest(AironeViewTest):
         resp = self.client.post('/api/v1/job/run/%d' % job.id)
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.content, b'"Job target has already been deleted"')
+
+    def test_get_search_job(self):
+        user = self.guest_login()
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+
+        # make a job
+        job = Job.new_delete(user, entry)
+
+        # send request without any GET parameters
+        resp = self.client.get('/api/v1/job/search')
+        self.assertEqual(resp.status_code, 400)
+
+        # send request with a GET parameter that doesn't match any job
+        resp = self.client.get('/api/v1/job/search', {'operation': Job.OP_COPY})
+        self.assertEqual(resp.status_code, 404)
+
+        # send requests with GET parameter that matches the created job
+        for param in [{'operation': Job.OP_DELETE}, {'target_id': entry.id}]:
+            resp = self.client.get('/api/v1/job/search', param)
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual(len(resp.json()), 1)
+            self.assertEqual(resp.json()['result'][0]['id'], job.id)
+            self.assertEqual(resp.json()['result'][0]['target']['id'], entry.id)

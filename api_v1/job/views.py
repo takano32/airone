@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from django.db.models import Q
 
 from rest_framework import status
 from rest_framework.views import APIView
@@ -6,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.authentication import BasicAuthentication
 from rest_framework.authentication import SessionAuthentication
 
+from airone.lib.acl import ACLType
 from job.models import Job
 from job.settings import CONFIG as JOB_CONFIG
 from user.models import User
@@ -18,6 +20,10 @@ class JobAPI(APIView):
     authentication_classes = (AironeTokenAuth, BasicAuthentication, SessionAuthentication,)
 
     def get(self, request, format=None):
+        """
+        This returns only jobs that are created by the user who sends this request.
+        """
+
         user = User.objects.get(id=request.user.id)
         time_threashold = (datetime.now(timezone.utc) - timedelta(seconds=JOB_CONFIG.RECENT_SECONDS))
 
@@ -42,18 +48,7 @@ class JobAPI(APIView):
             'user': user,
             'created_at__gte': time_threashold,
         }
-        jobs = [{
-            'id': x.id,
-            'target': {
-                'id': x.target.id,
-                'name': x.target.name,
-            } if x.target else {},
-            'text': x.text,
-            'status': x.status,
-            'operation': x.operation,
-            'created_at': x.created_at,
-            'updated_at': x.updated_at,
-        } for x in Job.objects.filter(**query).order_by('-created_at')[:JOB_CONFIG.MAX_LIST_NAV]]
+        jobs = [x.to_json() for x in Job.objects.filter(**query).order_by('-created_at')[:JOB_CONFIG.MAX_LIST_NAV]]
 
         return Response({
             'result': jobs,
@@ -95,3 +90,31 @@ class SpecificJobAPI(APIView):
                             status=status.HTTP_400_BAD_REQUEST)
 
         return Response('Success to run command')
+
+class SearchJob(APIView):
+    authentication_classes = (AironeTokenAuth, BasicAuthentication, SessionAuthentication,)
+
+    def get(self, request):
+        """
+        This returns jobs that are matched to the specified conditions in spite of who makes.
+        """
+        user = User.objects.get(id=request.user.id)
+
+        def _update_query_by_get_param(query, query_key, get_param):
+            param = request.GET.get(get_param)
+            if param:
+                return Q(query, **{query_key: param})
+            else:
+                return query
+
+        query = _update_query_by_get_param(Q(), 'operation', 'operation')
+        query = _update_query_by_get_param(query, 'target__id', 'target_id')
+
+        if not query.children:
+            return Response("You have to specify (at least one) condition to search", status=status.HTTP_400_BAD_REQUEST)
+
+        jobs = Job.objects.filter(query)
+        if not jobs:
+            return Response('There is no job that is matched specified condition', status=status.HTTP_404_NOT_FOUND)
+
+        return Response({'result': [x.to_json() for x in jobs]}, content_type='application/json; charset=UTF-8')

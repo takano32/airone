@@ -45,6 +45,10 @@ $(document).ready(function() {
             case data['constant']['operation']['export']:
               operation = 'エクスポート';
               break;
+            case data['constant']['operation']['restore']:
+              target_name = jobinfo['target']['name'];
+              operation = '復旧';
+              break;
           }
 
           switch(jobinfo['status']) {

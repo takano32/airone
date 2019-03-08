@@ -41,6 +41,7 @@ class JobAPI(APIView):
                 'copy': Job.OP_COPY,
                 'import': Job.OP_IMPORT,
                 'export': Job.OP_EXPORT,
+                'restore': Job.OP_RESTORE,
             }
         }
 
@@ -113,7 +114,7 @@ class SearchJob(APIView):
         if not query.children:
             return Response("You have to specify (at least one) condition to search", status=status.HTTP_400_BAD_REQUEST)
 
-        jobs = Job.objects.filter(query)
+        jobs = Job.objects.filter(query).order_by('-created_at')
         if not jobs:
             return Response('There is no job that is matched specified condition', status=status.HTTP_404_NOT_FOUND)
 

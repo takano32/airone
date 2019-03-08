@@ -925,12 +925,12 @@ class Entry(ACLBase):
             # might be existed. If there were, this would delete new one.
             self.may_remove_duplicate_attr(newattr)
 
-    def get_available_attrs(self, user, permission=ACLType.Readable, get_referral_entries=False):
+    def get_available_attrs(self, user, permission=ACLType.Readable, get_referral_entries=False, is_active=True):
         # To avoid unnecessary DB access for caching referral entries
         ref_entry_map = {}
 
         ret_attrs = []
-        attrs = [x for x in self.attrs.filter(is_active=True, schema__is_active=True) if user.has_permission(x, permission)]
+        attrs = [x for x in self.attrs.filter(is_active=is_active, schema__is_active=True) if user.has_permission(x, permission)]
         for attr in sorted(attrs, key=lambda x:x.schema.index):
             attrinfo = {}
 

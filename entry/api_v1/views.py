@@ -123,14 +123,20 @@ def search_entries(request, entity_ids, recv_data):
 @http_get
 def get_entries(request, entity_ids):
     total_entries = []
-    for entity_id in [x for x in entity_ids.split(',') if x and Entity.objects.filter(id=x, is_active=True).exists()]:
-        keyword = request.GET.get('keyword')
-        if keyword:
-            query_name_regex = Q(name__iregex=keyword)
-        else:
-            query_name_regex = Q()
 
-        total_entries += Entry.objects.order_by('name').filter(Q(schema__id=entity_id, is_active=True), query_name_regex)
+    # parse parameters
+    is_active = request.GET.get('is_active', True)
+    keyword = request.GET.get('keyword')
+    if keyword:
+        query_name_regex = Q(name__iregex=keyword)
+    else:
+        query_name_regex = Q()
+
+    for entity_id in [x for x in entity_ids.split(',')
+            if x and Entity.objects.filter(id=x, is_active=True).exists()]:
+        query = Q(Q(schema__id=entity_id, is_active=is_active), query_name_regex)
+
+        total_entries += Entry.objects.order_by('-updated_time').filter(query)
         if(len(total_entries) > CONFIG.MAX_LIST_ENTRIES):
             break
 
@@ -279,3 +285,25 @@ def update_attr_with_attrv(request, recv_data):
         attr.parent_entry.register_es()
 
     return HttpResponse('Succeed in updating Attribute "%s"' % attr.schema.name)
+
+@http_get
+def get_entry_info(request, entry_id):
+    '''
+    This returns latest attribute values corresponding to specified entry-id
+    '''
+    user = User.objects.get(id=request.user.id)
+    entry = Entry.objects.filter(id=entry_id).first()
+    if not entry:
+        return HttpResponse("There is no entry which is specified by entry_id", status=400)
+
+    return JsonResponse({
+        'id': entry.id,
+        'entity': {
+            'id': entry.schema.id,
+            'name': entry.schema.name,
+        },
+        'attrs': sorted([dict({'name': x.schema.name, 'index': x.schema.index},
+                              **x.get_latest_value().get_value(with_metainfo=True))
+                              for x in entry.attrs.all() if user.has_permission(x, ACLType.Readable)],
+                        key=lambda x:x['index'])
+    })

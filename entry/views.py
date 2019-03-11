@@ -26,7 +26,7 @@ from job.models import Job
 from user.models import User
 from group.models import Group
 from .settings import CONFIG
-from .tasks import create_entry_attrs, edit_entry_attrs, delete_entry, copy_entry, import_entries, export_entries
+from .tasks import create_entry_attrs, edit_entry_attrs, delete_entry, copy_entry, import_entries, export_entries, restore_entry
 
 
 def _validate_input(recv_data, obj):
@@ -477,7 +477,6 @@ def copy(request, entry_id):
 @http_post([
     {'name': 'entries', 'type': str},
 ])
-@http_post([])
 @check_permission(Entry, ACLType.Writable)
 def do_copy(request, entry_id, recv_data):
     user = User.objects.get(id=request.user.id)
@@ -525,3 +524,44 @@ def do_copy(request, entry_id, recv_data):
         })
 
     return JsonResponse({'results': ret})
+
+@airone_profile
+@http_get
+@check_permission(Entity, ACLType.Full)
+def restore(request, entity_id):
+    entity = Entity.objects.filter(id=entity_id, is_active=True).first()
+    if not entity:
+        return HttpResponse('Failed to get entity of specified id', status=400)
+
+    # get all deleted entries that correspond to the entity, the specififcation of
+    # 'status=0' is necessary to prevent getting entries that were under processing.
+    entries = Entry.objects.filter(schema=entity, status=0, is_active=False).order_by('-updated_time')
+
+    total_count = list_count = entries.count()
+    if(len(entries) > CONFIG.MAX_LIST_ENTRIES):
+        entries = entries[:CONFIG.MAX_LIST_ENTRIES]
+        list_count = CONFIG.MAX_LIST_ENTRIES
+
+    return render(request, 'list_deleted_entry.html', {
+        'entity': entity,
+        'entries': entries,
+        'total_count': total_count,
+        'list_count': list_count,
+    })
+
+@airone_profile
+@http_post([])
+@check_permission(Entry, ACLType.Full)
+def do_restore(request, entry_id, recv_data):
+    user = User.objects.get(id=request.user.id)
+    entry = Entry.objects.filter(id=entry_id, is_active=False).first()
+    if not entry:
+        return HttpResponse('Failed to get entry from specified parameter', status=400)
+
+    entry.set_status(Entry.STATUS_CREATING)
+
+    # Create a new job
+    job = Job.new_restore(user, entry)
+    restore_entry.delay(entry.id, job.id)
+
+    return HttpResponse('Success to queue a request to restore an entry')

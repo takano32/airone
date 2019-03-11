@@ -1,4 +1,5 @@
 import importlib
+import re
 import tablib
 
 from datetime import datetime
@@ -37,6 +38,7 @@ class ACLBase(models.Model):
     is_active = models.BooleanField(default=True)
     status = models.IntegerField(default=0)
     default_permission = models.IntegerField(default=ACLType.Nothing.id)
+    updated_time = models.DateTimeField(auto_now=True)
 
     # This fields describes the sub-class of this object
     objtype = models.IntegerField(default=0)
@@ -65,6 +67,11 @@ class ACLBase(models.Model):
     def delete(self, *args, **kwargs):
         self.is_active = False
         self.name = "%s_deleted_%s" % (self.name, datetime.now().strftime("%Y%m%d_%H%M%S"))
+        self.save()
+
+    def restore(self, *args, **kwargs):
+        self.is_active = True
+        self.name = re.sub(r'_deleted_[0-9_]*$', '', self.name)
         self.save()
 
     def inherit_acl(self, aclobj):

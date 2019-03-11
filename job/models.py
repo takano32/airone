@@ -27,12 +27,13 @@ class Job(models.Model):
     """
 
     # Constant to describes status of each jobs
-    OP_CREATE = 1
-    OP_EDIT   = 2
-    OP_DELETE = 3
-    OP_COPY   = 4
-    OP_IMPORT = 5
-    OP_EXPORT = 6
+    OP_CREATE  = 1
+    OP_EDIT    = 2
+    OP_DELETE  = 3
+    OP_COPY    = 4
+    OP_IMPORT  = 5
+    OP_EXPORT  = 6
+    OP_RESTORE = 7
 
     TARGET_UNKNOWN  = 0
     TARGET_ENTRY    = 1
@@ -57,6 +58,22 @@ class Job(models.Model):
 
     # This has serialized parameters to which user sent
     params = models.TextField()
+
+    def to_json(self):
+        return {
+            'id': self.id,
+            'user': self.user.username,
+            'target_type': self.target_type,
+            'target': {
+                'id': self.target.id,
+                'name': self.target.name,
+            } if self.target else {},
+            'text': self.text,
+            'status': self.status,
+            'operation': self.operation,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at,
+        }
 
     @classmethod
     def _create_new_job(kls, user, target, operation, text, params):
@@ -111,6 +128,10 @@ class Job(models.Model):
     def new_export(kls, user, target=None, text='', params={}):
         return kls._create_new_job(user, target, kls.OP_EXPORT, text,
                                    json.dumps(params, default=_support_time_default, sort_keys=True))
+
+    @classmethod
+    def new_restore(kls, user, target, text='', params={}):
+        return kls._create_new_job(user, target, kls.OP_RESTORE, text, params)
 
     def set_status(self, status):
         self.status = status

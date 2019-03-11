@@ -104,6 +104,30 @@ class ViewTest(AironeViewTest):
         self.assertTrue('results' in resp.json())
         self.assertEqual(len(resp.json()['results']), 10)
 
+    def test_get_entries_with_inactive_parameter(self):
+        user = self.guest_login()
+
+        # create entries, then delete them to search inactive entries
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        for name in ['foo', 'bar', 'baz']:
+            entry = Entry.objects.create(name=name, schema=entity, created_user=user)
+            entry.delete()
+
+        # confirms that there is no active entry in this entity
+        resp = self.client.get(reverse('entry:api_v1:get_entries', args=[entity.id]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Type'], 'application/json')
+        self.assertEqual(resp.json()['results'], [])
+
+        # confirms that deleted entries are got when 'is_active=False' is specified
+        resp = self.client.get(reverse('entry:api_v1:get_entries', args=[entity.id]), {
+            'keyword': 'ba',
+            'is_active': False,
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Type'], 'application/json')
+        self.assertEqual(len(resp.json()['results']), 2)
+
     def test_get_referrals(self):
         admin = self.admin_login()
 
@@ -589,3 +613,28 @@ class ViewTest(AironeViewTest):
         attr.schema.save(update_fields=['type'])
 
         self.assertGreater(attr.get_latest_value().id, attrvs[-1].id)
+
+    def test_get_entry_info(self):
+        user = self.guest_login()
+
+        # initialize Entity and Entry
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr',
+            'type': AttrTypeValue['string'],
+            'created_user': user,
+            'parent_entity': entity,
+        }))
+
+        entry = Entry.objects.create(name='Entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+        entry.attrs.first().add_value(user, 'hoge')
+
+        # send request with invalid entry_id
+        resp = self.client.get(reverse('entry:api_v1:get_entry_info', args=[9999]))
+        self.assertEqual(resp.status_code, 400)
+
+        # send request with valid entry_id
+        resp = self.client.get(reverse('entry:api_v1:get_entry_info', args=[entry.id]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['id'], entry.id)

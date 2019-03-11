@@ -20,4 +20,11 @@
       <a class="nav-link" href='/entity/dashboard/config/{{ entity.id }}'>ダッシュボードの設定</a>
     {% endif %}
   </li>
+  <li class="nav-item">
+    {% if tab == 'deleted_list' %}
+      <a class="nav-link active">削除エントリの復旧</a>
+    {% else %}
+      <a class="nav-link" href='/entry/restore/{{ entity.id }}/'>削除エントリの復旧</a>
+    {% endif %}
+  </li>
 </ul>

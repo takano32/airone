@@ -191,6 +191,23 @@ def delete_entry(self, entry_id, job_id):
         job.save()
 
 @app.task(bind=True)
+def restore_entry(self, entry_id, job_id):
+    job = Job.objects.get(id=job_id)
+
+    if job.status != Job.STATUS_DONE and job.status != Job.STATUS_PROCESSING:
+        job.set_status(Job.STATUS_PROCESSING)
+
+        entry = Entry.objects.get(id=entry_id)
+        entry.restore()
+
+        # remove status flag which is set before calling this
+        entry.del_status(Entry.STATUS_CREATING)
+
+        # update job status and save it
+        job.status = Job.STATUS_DONE
+        job.save()
+
+@app.task(bind=True)
 def copy_entry(self, user_id, src_entry_id, job_id):
     job = Job.objects.get(id=job_id)
 

@@ -8,23 +8,14 @@ do
 done
 
 # recreate database of MySQL
+db_host=$(python3 -c "from airone import settings; print(settings.DATABASES['default']['HOST'])")
 db_name=$(python3 -c "from airone import settings; print(settings.DATABASES['default']['NAME'])")
 db_user=$(python3 -c "from airone import settings; print(settings.DATABASES['default']['USER'])")
 db_pass=$(python3 -c "from airone import settings; print(settings.DATABASES['default']['PASSWORD'])")
 
-echo "drop database ${db_name}" | mysql -u${db_user} -p${db_pass}
-echo "create database ${db_name}" | mysql -u${db_user} -p${db_pass}
+echo "drop database ${db_name}" | mysql -u${db_user} -p${db_pass} -h${db_host}
+echo "create database ${db_name}" | mysql -u${db_user} -p${db_pass} -h${db_host}
 
 # re-construct database
 python3 manage.py makemigrations
 python3 manage.py migrate
-
-# create initial user
-cat << END | python3 manage.py shell
-from user.models import User
-
-for name in ['demo', 'racktables']:
-    user = User(username=name, email='%s@example.com' % name, is_superuser=True)
-    user.set_password('demo')
-    user.save()
-END

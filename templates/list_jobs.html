@@ -69,6 +69,8 @@
               インポート
             {% elif job.operation == JOB.OPERATION.EXPORT %}
               エクスポート
+            {% elif job.operation == JOB.OPERATION.RESTORE %}
+              復旧
             {% endif %}
             </td>
 

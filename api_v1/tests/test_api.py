@@ -555,6 +555,12 @@ class APITest(AironeViewTest):
         self.assertEqual([x['id'] for x in results], [x.id for x in Entry.objects.filter(name='entry-0')])
         self.assertEqual([x['entity']['name'] for x in results], ['hoge', 'fuga'])
 
+        # This tests GET handle also returns entry from entry-id.
+        resp = self.client.get('/api/v1/entry', {'entry_id': entry.id})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.json()), 1)
+        self.assertEqual(resp.json()[0]['id'], entry.id)
+
         # switch to the guest user to verify permission checking processing will work
         self.guest_login()
 
@@ -573,6 +579,36 @@ class APITest(AironeViewTest):
         resp = self.client.get('/api/v1/entry', {'entry': 'entry-2'})
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(sorted([x['name'] for x in resp.json()[0]['attrs']]), sorted(['ref', 'no_str']))
+
+    def test_get_deleted_entry(self):
+        user = self.guest_login()
+
+        # Initialize Entity and Entries to use in this test
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(name='attr', type=AttrTypeValue['string'],
+                                                   parent_entity=entity, created_user=user))
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+        entry.attrs.first().add_value(user, 'hoge')
+
+        # Checks that 'is_active' parameter is available
+        resp = self.client.get('/api/v1/entry', {'entry_id': entry.id, 'is_active': True})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.json()), 1)
+        self.assertEqual(resp.json()[0]['id'], entry.id)
+
+        # Sending a GET request with is_active parameter before deleting entry to check that
+        # it returns 404 responce would be returned because there is no inactive entry.
+        resp = self.client.get('/api/v1/entry', {'entry_id': entry.id, 'is_active': False})
+        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(resp.json()['result'], 'Failed to find entry')
+
+        # After deleting entry, this resend same GET request to check that it would return
+        # deleted entry's informations.
+        entry.delete()
+        resp = self.client.get('/api/v1/entry', {'entry_id': entry.id, 'is_active': False})
+        self.assertEqual(resp.status_code, 200)
 
     def test_delete_entry(self):
         # wrapper to send delete request in this test

@@ -10,14 +10,14 @@
 
 {% block content %}
 <div class="container-fluid">
-  {% include 'entity_navigation.html' with tab='list' %}
+  {% include 'entity_navigation.html' with tab='deleted_list' %}
 
   <hr/>
 
-  {% include 'entity_tab.html' with tab='list' %}
+  {% include 'entity_tab.html' with tab='deleted_list' %}
 
   <div class='tab-content'>
-    {% include 'list_entry/content.html' %}
+    {% include 'list_entry/deleted_content.html' %}
   </div>
 </div>
 {% endblock %}
@@ -25,6 +25,6 @@
 {% block script %}
 <script>
   {% include 'list_entry/common.js' %}
-  {% include 'list_entry/list.js'%}
+  {% include 'list_entry/deleted_list.js'%}
 </script>
 {% endblock %}

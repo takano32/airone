@@ -2930,3 +2930,67 @@ class ViewTest(AironeViewTest):
 
         entry.refresh_from_db()
         self.assertEqual(entry.attrs.first().get_latest_value().value, 'fuga')
+
+    def test_index_deleting_entries(self):
+        # initialize entries to test
+        user = self.guest_login()
+        entity = Entity.objects.create(name='entity', created_user=user)
+
+        # to check the view of deleted entries, all entries would be deleted just after creating
+        entries = []
+        for index in range(3):
+            entry = Entry.objects.create(name='e-%d' % index, schema=entity, created_user=user)
+            entry.delete()
+
+            entries.append(entry)
+
+        # to check that entries that are set status would not be listed at restore page
+        entries[1].set_status(Entry.STATUS_CREATING)
+
+        resp = self.client.get(reverse('entry:restore', args=[entity.id]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.context['entries']), 2)
+        self.assertEqual(len(resp.context['entries']), resp.context['list_count'])
+        self.assertEqual(len(resp.context['entries']), resp.context['total_count'])
+
+        # check listing entries are ordered by desc
+        self.assertEqual(resp.context['entries'][0].name.find('e-2'), 0)
+        self.assertEqual(resp.context['entries'][1].name.find('e-0'), 0)
+
+    @patch('entry.views.restore_entry.delay', Mock(side_effect=tasks.restore_entry))
+    def test_restore_entry(self):
+        # initialize entries to test
+        user = self.guest_login()
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr',
+            'type': AttrTypeValue['string'],
+            'created_user': user,
+            'parent_entity': entity,
+        }))
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+
+        # send request with invalid entry-id
+        resp = self.client.post(reverse('entry:do_restore', args=[9999]), json.dumps({}), 'application/json')
+        self.assertEqual(resp.status_code, 400)
+
+        # send request with entry-id which is active
+        resp = self.client.post(reverse('entry:do_restore', args=[entry.id]), json.dumps({}), 'application/json')
+        self.assertEqual(resp.status_code, 400)
+
+        # delete target entry to run restore processing
+        entry.delete()
+
+        entry.refresh_from_db()
+        self.assertTrue(entry.name.find('_deleted_') > 0)
+        self.assertFalse(any([x.is_active for x in entry.attrs.all()]))
+
+        resp = self.client.post(reverse('entry:do_restore', args=[entry.id]), json.dumps({}), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        entry.refresh_from_db()
+        self.assertEqual(entry.name, 'entry')
+        self.assertTrue(entry.is_active)
+        self.assertTrue(all([x.is_active for x in entry.attrs.all()]))

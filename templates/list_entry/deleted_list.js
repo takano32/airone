@@ -212,7 +212,7 @@ function reconstruct_modal_body_for_entry(data) {
       if(attr.value) {
         elem_td.append($(`<input type="checkbox" disabled='True' checked='True'/>`));
       } else {
-        elem_td.append($(`<input type="checkbox" disabled='True'`));
+        elem_td.append($(`<input type="checkbox" disabled='True' />`));
       }
 
     } else if(attr.type == {{ attr_type.group }}) {

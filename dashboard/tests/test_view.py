@@ -27,6 +27,9 @@ from unittest.mock import patch
 from unittest.mock import Mock
 from xml.etree import ElementTree
 
+from dashboard.settings import CONFIG
+
+
 class ViewTest(AironeViewTest):
     def setUp(self):
         super(ViewTest, self).setUp()
@@ -50,9 +53,22 @@ class ViewTest(AironeViewTest):
         self.assertEqual(len(resp.context['results']), Entry.objects.filter(name__icontains=query).count())
 
     def test_search_with_big_query(self):
-        resp = self.client.get(reverse('dashboard:search'), {'query': 'A' * 1024})
+        resp = self.client.get(reverse('dashboard:search'), {'query': 'A' * (CONFIG.MAX_QUERY_SIZE + 1)})
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.content, b'Sending parameter is too large')
+
+        # check boundary value
+        resp = self.client.get(reverse('dashboard:search'), {'query': 'A' * CONFIG.MAX_QUERY_SIZE})
+        self.assertEqual(resp.status_code, 200)
+
+        # When multibyte characters were sent, check the length of byte number
+        resp = self.client.get(reverse('dashboard:search'), {'query': 'あ' * CONFIG.MAX_QUERY_SIZE})
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content, b'Sending parameter is too large')
+
+        # check boundary value with multibyte characters
+        resp = self.client.get(reverse('dashboard:search'), {'query': 'あ' * int(CONFIG.MAX_QUERY_SIZE / len('あ'.encode('utf-8')))})
+        self.assertEqual(resp.status_code, 200)
 
     def test_search_entry_deduped_result(self):
         query = 'srv001'

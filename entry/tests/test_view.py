@@ -2994,3 +2994,9 @@ class ViewTest(AironeViewTest):
         self.assertEqual(entry.name, 'entry')
         self.assertTrue(entry.is_active)
         self.assertTrue(all([x.is_active for x in entry.attrs.all()]))
+
+        # check that index information of restored entry in Elasticsearch is also restored
+        resp = Entry.search_entries(user, [entity.id])
+        self.assertEqual(resp['ret_count'], 1)
+        self.assertEqual(resp['ret_values'][0]['entry']['id'], entry.id)
+        self.assertEqual(resp['ret_values'][0]['entry']['name'], entry.name)

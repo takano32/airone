@@ -203,6 +203,9 @@ def restore_entry(self, entry_id, job_id):
         # remove status flag which is set before calling this
         entry.del_status(Entry.STATUS_CREATING)
 
+        # update entry information to Elasticsearch
+        entry.register_es()
+
         # update job status and save it
         job.status = Job.STATUS_DONE
         job.save()

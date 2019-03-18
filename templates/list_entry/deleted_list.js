@@ -64,10 +64,11 @@ var complete_processing = function(data) {
     var new_elem = $('<tr />');
 
     new_elem.append($(`<td><a class='show_deleted_entry' data-toggle="modal" data-target="#deleted_entry_info" href="#" entry_id="${ entry['id'] }">${entry['name']}</a></td>`));
-    new_elem.append($(`<td><button type="button" class="btn btn-success btn-sm restore-item" url="/entry/do_restore/${ entry['id'] }/">Restore</button></td>`));
+    new_elem.append($(`<td><button type="button" class="btn btn-success btn-sm restore-item" entry_id="${ entry.id }" entry_name="${ entry.name }">Restore</button></td>`));
 
     // set event handlers
     new_elem.find('.restore-item').on('click', restore_entry);
+    new_elem.find('.show_deleted_entry').on('click', show_deleted_entry);
 
     container.append(new_elem);
     counter++;

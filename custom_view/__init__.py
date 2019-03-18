@@ -118,6 +118,15 @@ def call_custom_after_copy_entry(entity_name, *args, **kwargs):
     else:
         return HttpResponse("Custom view of after_copy_entry doesn't exist", status=500)
 
+def is_custom_after_restore_entry(entity_name):
+    return _is_view(entity_name, 'after_restore_entry')
+
+def call_custom_after_restore_entry(entity_name, *args, **kwargs):
+    if(_isin_cache(entity_name, 'after_restore_entry') or _is_view(entity_name, 'after_restore_entry')):
+        return CUSTOM_VIEW[entity_name]['after_restore_entry'](*args, **kwargs)
+    else:
+        return HttpResponse("Custom view of after_restore_entry doesn't exist", status=500)
+
 def is_custom_do_create_entry(entity_name):
     return _is_view(entity_name, 'do_create_entry')
 

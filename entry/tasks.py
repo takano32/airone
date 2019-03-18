@@ -203,6 +203,10 @@ def restore_entry(self, entry_id, job_id):
         # remove status flag which is set before calling this
         entry.del_status(Entry.STATUS_CREATING)
 
+        # calling custom view processing if necessary
+        if custom_view.is_custom_after_restore_entry(entry.schema.name):
+            custom_view.call_custom_after_restore_entry(entry.schema.name, job.user, entry)
+
         # update entry information to Elasticsearch
         entry.register_es()
 

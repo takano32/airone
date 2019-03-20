@@ -565,3 +565,72 @@ def do_restore(request, entry_id, recv_data):
     restore_entry.delay(entry.id, job.id)
 
     return HttpResponse('Success to queue a request to restore an entry')
+
+@airone_profile
+@http_post([
+    {'type': str, 'name': 'attr_id'},
+    {'type': str, 'name': 'attrv_id'}
+])
+def revert_attrv(request, recv_data):
+    user = User.objects.get(id=request.user.id)
+
+    attr = Attribute.objects.filter(id=recv_data['attr_id']).first()
+    if not attr:
+        return HttpResponse('Specified Attribute-id is invalid', status=400)
+
+    if not user.has_permission(attr, ACLType.Writable):
+        return HttpResponse("You don't have permission to update this Attribute", status=400)
+
+    attrv = AttributeValue.objects.filter(id=recv_data['attrv_id']).first()
+    if not attrv or attrv.parent_attr.id != attr.id:
+        return HttpResponse('Specified AttributeValue-id is invalid', status=400)
+
+    # When the AttributeType was changed after settting value, this operation is aborted
+    if attrv.data_type != attr.schema.type:
+        return HttpResponse('Attribute-type was changed after this value was registered.',
+                            status=400)
+
+    latest_value = attr.get_latest_value()
+    if latest_value.get_value() != attrv.get_value():
+        # clear all exsts latest flag
+        attr.unset_latest_flag()
+
+        # copy specified AttributeValue
+        new_attrv = AttributeValue.objects.create(**{
+            'value': attrv.value,
+            'referral': attrv.referral,
+            'status': attrv.status,
+            'boolean': attrv.boolean,
+            'date': attrv.date,
+            'data_type': attrv.data_type,
+            'created_user': user,
+            'parent_attr': attr,
+            'is_latest': True,
+        })
+
+        # This also copies child attribute values and append new one
+        new_attrv.data_array.add(*[AttributeValue.objects.create(**{
+                'value': v.value,
+                'referral': v.referral,
+                'created_user': user,
+                'parent_attr': attr,
+                'status': v.status,
+                'boolean': v.boolean,
+                'date': v.date,
+                'data_type': v.data_type,
+                'is_latest': False,
+                'parent_attrv': new_attrv,
+        }) for v in attrv.data_array.all()])
+
+        # append cloned value to Attribute
+        attr.values.add(new_attrv)
+
+        # register update to the Elasticsearch
+        attr.parent_entry.register_es()
+
+    # call custom-view if it exists
+    if custom_view.is_custom_revert_attrv(attr.parent_entry.schema.name):
+        return custom_view.call_custom_revert_attrv(attr.parent_entry.schema.name,
+                                                    request, user, attr, latest_value, new_attrv)
+
+    return HttpResponse('Succeed in updating Attribute "%s"' % attr.schema.name)

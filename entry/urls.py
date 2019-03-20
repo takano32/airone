@@ -21,5 +21,6 @@ urlpatterns = [
     url(r'^import/(\d+)/$', views.import_data, name='import'),
     url(r'^refer/(\d+)/$', views.refer, name='refer'),
     url(r'^restore/(\d+)/$', views.restore, name='restore'),
+    url(r'^revert_attrv$', views.revert_attrv, name='revert_attrv'),
     url(r'^show/(\d+)/$', views.show, name='show'),
 ]

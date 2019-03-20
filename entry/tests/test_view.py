@@ -3000,3 +3000,176 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp['ret_count'], 1)
         self.assertEqual(resp['ret_values'][0]['entry']['id'], entry.id)
         self.assertEqual(resp['ret_values'][0]['entry']['name'], entry.name)
+
+    def test_revert_attrv(self):
+        user = self.guest_login()
+
+        # initialize referred objects
+        ref_entity = Entity.objects.create(name='RefEntity', created_user=user)
+        ref_entries = [Entry.objects.create(name='r%d' % i, created_user=user, schema=ref_entity) for i in range(3)]
+        groups = [Group.objects.create(name='g%d' % i) for i in range(2)]
+
+        # initialize Entity and Entry
+        entity = Entity.objects.create(name='Entity', created_user=user)
+
+        # First of all, this test set values which is in 'values' of attr_info to each attributes
+        # in order of first and second (e.g. in the case of 'str', this test sets 'foo' at first,
+        # then sets 'bar') manually. After that, this test retrieve first value by calling the
+        # 'revert_attrv' handler. So finnaly, this test expects first value is stored
+        # in Database and Elasticsearch.
+        attr_info = {
+            'str': {
+                'type': AttrTypeValue['string'],
+                'values': ['foo', 'bar']
+            },
+            'obj': {
+                'type': AttrTypeValue['object'],
+                'values': [ref_entries[0], ref_entries[1]]
+            },
+            'grp': {
+                'type': AttrTypeValue['group'],
+                'values': [groups[0], groups[1]]
+            },
+            'name': {
+                'type': AttrTypeValue['named_object'],
+                'values': [
+                    {'name': 'foo', 'id': ref_entries[0]},
+                    {'name': 'bar', 'id': ref_entries[1]},
+                ]
+            },
+            'bool': {
+                'type': AttrTypeValue['boolean'],
+                'values': [False, True]
+            },
+            'date': {
+                'type': AttrTypeValue['date'],
+                'values': ['2018-01-01', '2018-02-01']
+            },
+            'arr1': {
+                'type': AttrTypeValue['array_string'],
+                'values': [
+                    ['foo', 'bar', 'baz'],
+                    ['hoge', 'fuga', 'puyo']
+                ]
+            },
+            'arr2': {
+                'type': AttrTypeValue['array_object'],
+                'values': [
+                    [ref_entries[0], ref_entries[1]],
+                    [ref_entries[2]]
+                ]
+            },
+            'arr3': {
+                'type': AttrTypeValue['array_named_object'],
+                'values': [
+                    [{'name': 'foo', 'id': ref_entries[0]}, {'name': 'bar', 'id': ref_entries[1]}],
+                    [{'name': '', 'id': ref_entries[1]}, {'name': 'fuga', 'id': ref_entries[2]}]
+                ]
+            }
+        }
+        for attr_name, info in attr_info.items():
+            attr = EntityAttr.objects.create(name=attr_name,
+                                             type=info['type'],
+                                             created_user=user,
+                                             parent_entity=entity)
+
+            if info['type'] & AttrTypeValue['object']:
+                attr.referral.add(ref_entity)
+
+            entity.attrs.add(attr)
+
+        # initialize each AttributeValues
+        entry = Entry.objects.create(name='Entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+        for attr_name, info in attr_info.items():
+            attr = entry.attrs.get(schema__name=attr_name)
+            attrv1 = attr.add_value(user, info['values'][0])
+
+            # store first value's attrv
+            info['expected_value'] = attrv1.get_value()
+
+            # update value to second value
+            attrv2 = attr.add_value(user, info['values'][1])
+
+            # check value is actually updated
+            self.assertNotEqual(attrv1.get_value(), attrv2.get_value())
+
+            # reset AttributeValue and latest_value equals with attrv1
+            params = {'attr_id': str(attr.id), 'attrv_id': str(attrv1.id)}
+            resp = self.client.post(reverse('entry:revert_attrv'),
+                                    json.dumps(params), 'application/json')
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual(attrv1.get_value(), attr.get_latest_value().get_value())
+
+        resp = Entry.search_entries(user, [entity.id])
+        self.assertEqual(resp['ret_count'], 1)
+        for attr_name, data in resp['ret_values'][0]['attrs'].items():
+            self.assertEqual(data['type'], attr_info[attr_name]['type'])
+
+            value = attr_info[attr_name]['values'][0]
+            if data['type'] == AttrTypeValue['boolean']:
+                self.assertEqual(data['value'], str(value))
+
+            elif data['type'] == AttrTypeValue['group']:
+                self.assertEqual(data['value'], {'name': value.name, 'id': value.id})
+
+            elif data['type'] == AttrTypeValue['object']:
+                self.assertEqual(data['value'], {'name': value.name, 'id': value.id})
+
+            elif data['type'] == AttrTypeValue['array_object']:
+                self.assertEqual(data['value'], [{'name': x.name, 'id': x.id} for x in value])
+
+            elif data['type'] == AttrTypeValue['named_object']:
+                self.assertEqual(data['value'],
+                                 {value['name']: {'name': value['id'].name, 'id': value['id'].id}})
+
+            elif data['type'] == AttrTypeValue['array_named_object']:
+                self.assertEqual(data['value'],
+                                 [{x['name']: {'name': x['id'].name, 'id': x['id'].id}} for x in value])
+
+            else:
+                self.assertEqual(data['value'], value)
+
+    def test_revert_attrv_with_invalid_value(self):
+        user = self.guest_login()
+
+        # initialize Entity and Entry
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        [entity.attrs.add(EntityAttr.objects.create(**{
+            'name': attr_name,
+            'type': AttrTypeValue['string'],
+            'created_user': user,
+            'parent_entity': entity,
+        })) for attr_name in ['attr1', 'attr2']]
+
+        entry = Entry.objects.create(name='Entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+        attr1 = entry.attrs.first()
+
+        # send request with invalid arguments
+        params = {'attr_id': '0', 'attrv_id': '0'}
+        resp = self.client.post(reverse('entry:revert_attrv'),
+                                json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content, b'Specified Attribute-id is invalid')
+
+        params = {'attr_id': str(attr1.id), 'attrv_id': '0'}
+        resp = self.client.post(reverse('entry:revert_attrv'),
+                                json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content, b'Specified AttributeValue-id is invalid')
+
+        attrvs = [attr1.add_value(user, str(x)) for x in range(2)]
+        self.assertEqual(attr1.get_latest_value(), attrvs[-1])
+
+        # change Attribute type of attr then get latest AttributeValue
+        attr1.schema.type = AttrTypeValue['object']
+        attr1.schema.save(update_fields=['type'])
+
+        self.assertGreater(attr1.get_latest_value().id, attrvs[-1].id)
+
+        # specify attrv_id which refers different parent_attr
+        params = {'attr_id': str(entry.attrs.last().id), 'attrv_id': str(attrvs[0].id)}
+        resp = self.client.post(reverse('entry:revert_attrv'), json.dumps(params), 'application/json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content, b'Specified AttributeValue-id is invalid')

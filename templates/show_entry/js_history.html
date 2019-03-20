@@ -5,7 +5,7 @@ function do_update_attr(e) {
   MessageBox.clear();
 
   $.ajax({ type: 'POST',
-    url: "/entry/api/v1/update_attr_with_attrv",
+    url: "/entry/revert_attrv",
     data: JSON.stringify({
       'attr_id': modal_content.find('.modal_attr_id').val(),
       'attrv_id': modal_content.find('.modal_attrv_id').val(),

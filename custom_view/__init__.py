@@ -162,3 +162,12 @@ def call_custom_copy_entry(entity_name, *args, **kwargs):
         return CUSTOM_VIEW[entity_name]['copy_entry'](*args, **kwargs)
     else:
         return HttpResponse("Custom view of copy_entry doesn't exist", status=500)
+
+def is_custom_revert_attrv(entity_name):
+    return _is_view(entity_name, 'revert_attrv')
+
+def call_custom_revert_attrv(entity_name, *args, **kwargs):
+    if(_isin_cache(entity_name, 'revert_attrv') or _is_view(entity_name, 'revert_attrv')):
+        return CUSTOM_VIEW[entity_name]['revert_attrv'](*args, **kwargs)
+    else:
+        return HttpResponse("Custom view of revert_attrv doesn't exist", status=500)

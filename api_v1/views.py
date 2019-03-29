@@ -9,9 +9,11 @@ from rest_framework.authentication import SessionAuthentication
 
 from api_v1.auth import AironeTokenAuth
 from airone.lib.acl import ACLType
-from user.models import User
 from entity.models import Entity
 from entry.models import Entry
+from entry.tasks import delete_entry
+from job.models import Job
+from user.models import User
 
 from django.db.models import Q
 
@@ -167,6 +169,9 @@ class EntryAPI(APIView):
 
         # Delete the specified entry then return its id, if is active
         if entry.is_active:
-            entry.delete()
+            # create a new Job to delete entry
+            job = Job.new_delete(user, entry)
+
+            delete_entry.delay(entry.id, job.id)
 
         return Response({'id': entry.id})

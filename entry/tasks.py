@@ -263,6 +263,11 @@ def import_entries(self, job_id):
             job.save(update_fields=['text', 'status'])
             return
 
+        # get custom_view method to prevent executing check method in every loop processing
+        custom_view_method = None
+        if custom_view.is_custom_after_import_entry(entity.name):
+            custom_view_method = custom_view.call_custom_after_import_entry
+
         job.status = Job.STATUS_PROCESSING
         job.save(update_fields=['status'])
 
@@ -294,6 +299,10 @@ def import_entries(self, job_id):
                 input_value = attr.convert_value_to_register(value)
                 if user.has_permission(attr.schema, ACLType.Writable) and attr.is_updated(input_value):
                     attr.add_value(user, input_value)
+
+                # call custom-view processing corresponding to import entry
+                if custom_view_method:
+                    custom_view_method(entity.name, user, entry, attr, value)
 
             # register entry to the Elasticsearch
             entry.register_es()

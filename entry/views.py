@@ -403,6 +403,14 @@ def do_import_data(request, entity_id, context):
     if not Entry.is_importable_data(data):
         return HttpResponse("Uploaded file has invalid data structure to import", status=400)
 
+    if custom_view.is_custom_import_entry(entity.name):
+        # import custom view
+        resp = custom_view.call_custom_import_entry(entity.name, user, entity, data)
+
+        # If custom_view returns available response this returns it to user,or continues default processing.
+        if resp:
+            return resp
+
     job = Job.new_import(user, entity, text='Preparing to import data', params=data)
     import_entries.delay(job.id)
 

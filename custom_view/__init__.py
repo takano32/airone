@@ -127,6 +127,15 @@ def call_custom_after_restore_entry(entity_name, *args, **kwargs):
     else:
         return HttpResponse("Custom view of after_restore_entry doesn't exist", status=500)
 
+def is_custom_after_import_entry(entity_name):
+    return _is_view(entity_name, 'after_import_entry')
+
+def call_custom_after_import_entry(entity_name, *args, **kwargs):
+    if(_isin_cache(entity_name, 'after_import_entry') or _is_view(entity_name, 'after_import_entry')):
+        return CUSTOM_VIEW[entity_name]['after_import_entry'](*args, **kwargs)
+    else:
+        return HttpResponse("Custom view of after_import_entry doesn't exist", status=500)
+
 def is_custom_do_create_entry(entity_name):
     return _is_view(entity_name, 'do_create_entry')
 
@@ -171,3 +180,12 @@ def call_custom_revert_attrv(entity_name, *args, **kwargs):
         return CUSTOM_VIEW[entity_name]['revert_attrv'](*args, **kwargs)
     else:
         return HttpResponse("Custom view of revert_attrv doesn't exist", status=500)
+
+def is_custom_import_entry(entity_name):
+    return _is_view(entity_name, 'import_entry')
+
+def call_custom_import_entry(entity_name, *args, **kwargs):
+    if(_isin_cache(entity_name, 'import_entry') or _is_view(entity_name, 'import_entry')):
+        return CUSTOM_VIEW[entity_name]['import_entry'](*args, **kwargs)
+    else:
+        return HttpResponse("Custom view of import_entry doesn't exist", status=500)

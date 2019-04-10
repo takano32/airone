@@ -88,7 +88,7 @@ def set(request, recv_data):
     if not user.has_permission(acl_obj, ACLType.Full):
         return HttpResponse("User(%s) doesn't have permission to change this ACL" % user.username, status=400)
 
-    if not user.may_permitted(ACLType.Full, **{
+    if not user.may_permitted(acl_obj, ACLType.Full, **{
             'is_public': True if 'is_public' in recv_data else False,
             'default_permission': int(recv_data['default_permission']),
             'acl_settings': recv_data['acl']}):

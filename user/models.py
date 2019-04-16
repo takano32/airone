@@ -3,6 +3,7 @@ from importlib import import_module
 from django.db import models
 from django.contrib.auth.models import User as DjangoUser
 from airone.lib.acl import ACLType, ACLTypeBase
+from group.models import Group
 
 from rest_framework.authtoken.models import Token
 
@@ -30,19 +31,22 @@ class User(DjangoUser):
     def token(self):
         return Token.objects.get_or_create(user=self)[0]
 
-    def is_permitted(self, target_obj, permission_level):
-        # check user permission
-        if any([permission_level.id <= x.get_aclid() for x in self.permissions.all() if target_obj.id == x.get_objid()]):
-            return True
+    def _user_has_permission(self, target_obj, permission_level):
+        return any([permission_level.id <= x.get_aclid() \
+                for x in self.permissions.all() if target_obj.id == x.get_objid()])
 
-        # check group permission
-        if any(sum([[permission_level.id <= x.get_aclid() for x in g.permissions.all() if target_obj.id == x.get_objid()] for g in self.groups.all()], [])):
-            return True
+    def _group_has_permission(self, target_obj, permission_level, groups):
+        return any(sum([[permission_level.id <= x.get_aclid() \
+                for x in g.permissions.all() if target_obj.id == x.get_objid()] for g in groups], []))
 
-        # This means user has no permission to access target object
-        return False
+    def is_permitted(self, target_obj, permission_level, groups=[]):
+        if not groups:
+            groups = self.groups.all()
 
-    def may_permitted(self, expected_permission, is_public, default_permission, acl_settings):
+        return (self._user_has_permission(target_obj, permission_level) or
+                self._group_has_permission(target_obj, permission_level, groups))
+
+    def may_permitted(self, target_obj, expected_permission, is_public, default_permission, acl_settings):
         '''
         This checks specified permission settings have expected_permission for this user
 
@@ -71,9 +75,22 @@ class User(DjangoUser):
                   int(acl_data['value']) >= expected_permission):
                 return True
 
+            # get rid of group id for checking permission
+            if int(acl_data['member_id']) in groups:
+                groups.remove(int(acl_data['member_id']))
+
+        # If input won't change current user's permission and user has permission originally,
+        # then this permits to change permissoin
+        args = [target_obj, expected_permission]
+        if not any([int(x['member_id']) == self.id for x in acl_settings]) and self._user_has_permission(*args):
+            return True
+
+        if groups and self._group_has_permission(*(args + [Group.objects.filter(id__in=groups)])):
+            return True
+
         return False
 
-    def has_permission(self, target_obj, permission_level):
+    def has_permission(self, target_obj, permission_level, groups=[]):
         # The case that parent data structure (Entity in Entry, or EntityAttr in Attribute) doesn't permit,
         # access to the children's objects are also not permitted.
         if ((isinstance(target_obj, import_module('entry.models').Entry) or
@@ -99,7 +116,7 @@ class User(DjangoUser):
         if permission_level <= target_obj.default_permission:
             return True
 
-        return self.is_permitted(target_obj, permission_level)
+        return self.is_permitted(target_obj, permission_level, groups)
 
     def get_acls(self, aclobj):
         return self.permissions.filter(codename__regex=(r'^%d\.' % aclobj.id))

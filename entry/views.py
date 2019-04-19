@@ -153,6 +153,9 @@ def do_create(request, entity_id, recv_data):
         if not is_continue:
             return HttpResponse(msg, status=code)
 
+    if custom_view.is_custom_do_create_entry_bulk(entity.name):
+        return custom_view.call_custom_do_create_entry_bulk(entity.name, request, recv_data, user, entity)
+
     # Create a new Entry object
     entry = Entry.objects.create(name=recv_data['entry_name'],
                                  created_user=user,

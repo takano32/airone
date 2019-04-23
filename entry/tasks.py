@@ -86,7 +86,7 @@ def _convert_data_value(attr, info):
             return recv_value
 
 @app.task(bind=True)
-def create_entry_attrs(self, user_id, entry_id, job_id):
+def create_entry_attrs(self, user_id, entry_id, job_id, *args):
     job = Job.objects.get(id=job_id)
 
     if job.status != Job.STATUS_DONE and job.status != Job.STATUS_PROCESSING:
@@ -97,6 +97,11 @@ def create_entry_attrs(self, user_id, entry_id, job_id):
         user = User.objects.get(id=user_id)
         entry = Entry.objects.get(id=entry_id)
         recv_data = json.loads(job.params)
+
+        if custom_view.is_custom_create_entry_attrs(entry.schema.name):
+            custom_view.call_custom_create_entry_attrs(entry.schema.name, recv_data, user, entry, job, args[0], args[1], args[2], args[3])
+            return
+
         # Create new Attributes objects based on the specified value
         for entity_attr in entry.schema.attrs.filter(is_active=True):
             # skip for unpermitted attributes
@@ -131,72 +136,6 @@ def create_entry_attrs(self, user_id, entry_id, job_id):
 
         # clear flag to specify this entry has been completed to ndcreate
         entry.del_status(Entry.STATUS_CREATING)
-
-        # update job status and save it
-        job.status = Job.STATUS_DONE
-        job.save()
-
-@app.task(bind=True)
-def create_entry_attrs_bulk(self, user_id, entry_id_list, job_id, grant_number_list, bulk_flag, duplicate_entry_name):
-    job = Job.objects.get(id=job_id)
-
-    if job.status != Job.STATUS_DONE and job.status != Job.STATUS_PROCESSING:
-        # At the first time, update job status to prevent executing this job duplicately
-        job.status = Job.STATUS_PROCESSING
-        job.save(update_fields=['status'])
-
-        user = User.objects.get(id=user_id)
-
-        for i in range(len(entry_id_list)):
-
-            entry = Entry.objects.get(id=entry_id_list[i])
-            recv_data = json.loads(job.params)
-
-            if bulk_flag:
-                recv_data['entry_name'] += grant_number_list[i]
-
-                for data in recv_data['attrs']:
-                    if data['id'] == '780631' or data['id'] == '780632':
-                        data['value'][0]['data'] += grant_number_list[i]
-
-            # Create new Attributes objects based on the specified value
-            for entity_attr in entry.schema.attrs.filter(is_active=True):
-                # skip for unpermitted attributes
-                if not entity_attr.is_active or not user.has_permission(entity_attr, ACLType.Readable):
-                    continue
-
-                # create Attibute object that contains AttributeValues
-                attr = entry.add_attribute_from_base(entity_attr, user)
-                if not any([int(x['id']) == attr.schema.id for x in recv_data['attrs']]):
-                    continue
-
-                # make an initial AttributeValue object if the initial value is specified
-                attr_data = [x for x in recv_data['attrs'] if int(x['id']) == attr.schema.id][0]
-
-                # register new AttributeValue to the "attr"
-                try:
-                    attr.add_value(user, _convert_data_value(attr, attr_data))
-                except ValueError as e:
-                    Logger.warning('(%s) attr_data: %s' % (e, str(attr_data)))
-
-            # Delete duplicate attrs because this processing may execute concurrently
-            for entity_attr in entry.schema.attrs.filter(is_active=True):
-                if entry.attrs.filter(schema=entity_attr, is_active=True).count() > 1:
-                    query = entry.attrs.filter(schema=entity_attr, is_active=True)
-                    query.exclude(id=query.first().id).delete()
-
-            if custom_view.is_custom_after_create_entry(entry.schema.name):
-                if bulk_flag:
-                    if i + 1 == len(entry_id_list):
-                        custom_view.call_custom_after_create_entry_bulk(entry.schema.name, recv_data, user, entry, entry_id_list)
-                else:
-                    custom_view.call_custom_after_create_entry(entry.schema.name, recv_data, user, entry)
-
-            # register entry information to Elasticsearch
-            entry.register_es()
-
-            # clear flag to specify this entry has been completed to ndcreate
-            entry.del_status(Entry.STATUS_CREATING)
 
         # update job status and save it
         job.status = Job.STATUS_DONE

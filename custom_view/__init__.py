@@ -190,20 +190,11 @@ def call_custom_import_entry(entity_name, *args, **kwargs):
     else:
         return HttpResponse("Custom view of import_entry doesn't exist", status=500)
 
-def is_custom_do_create_entry_bulk(entity_name):
-    return _is_view(entity_name, 'do_create_entry_bulk')
+def is_custom_create_entry_attrs(entity_name):
+    return _is_view(entity_name, 'create_entry_attrs')
 
-def call_custom_do_create_entry_bulk(entity_name, *args, **kwargs):
-    if(_isin_cache(entity_name, 'do_create_entry_bulk') or _is_view(entity_name, 'do_create_entry_bulk')):
-        return CUSTOM_VIEW[entity_name]['do_create_entry_bulk'](*args, **kwargs)
+def call_custom_create_entry_attrs(entity_name, *args, **kwargs):
+    if(_isin_cache(entity_name, 'create_entry_attrs') or _is_view(entity_name, 'create_entry_attrs')):
+        return CUSTOM_VIEW[entity_name]['create_entry_attrs'](*args, **kwargs)
     else:
-        return HttpResponse("Custom view of do_create_entry_bulk doesn't exist", status=500)
-
-def is_custom_after_create_entry_bulk(entity_name):
-    return _is_view(entity_name, 'after_create_entry_bulk')
-
-def call_custom_after_create_entry_bulk(entity_name, *args, **kwargs):
-    if(_isin_cache(entity_name, 'after_create_entry_bulk') or _is_view(entity_name, 'after_create_entry_bulk')):
-        return CUSTOM_VIEW[entity_name]['after_create_entry_bulk'](*args, **kwargs)
-    else:
-        return HttpResponse("Custom view of after_create_entry_bulk doesn't exist", status=500)
+        return HttpResponse("Custom view of create_entry_attrs doesn't exist", status=500)

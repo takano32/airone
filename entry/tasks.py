@@ -86,7 +86,7 @@ def _convert_data_value(attr, info):
             return recv_value
 
 @app.task(bind=True)
-def create_entry_attrs(self, user_id, entry_id, job_id, *args):
+def create_entry_attrs(self, user_id, entry_id, job_id):
     job = Job.objects.get(id=job_id)
 
     if job.status != Job.STATUS_DONE and job.status != Job.STATUS_PROCESSING:
@@ -97,11 +97,6 @@ def create_entry_attrs(self, user_id, entry_id, job_id, *args):
         user = User.objects.get(id=user_id)
         entry = Entry.objects.get(id=entry_id)
         recv_data = json.loads(job.params)
-
-        if custom_view.is_custom_create_entry_attrs(entry.schema.name):
-            custom_view.call_custom_create_entry_attrs(entry.schema.name, recv_data, user, entry, job, args[0], args[1], args[2], args[3])
-            return
-
         # Create new Attributes objects based on the specified value
         for entity_attr in entry.schema.attrs.filter(is_active=True):
             # skip for unpermitted attributes

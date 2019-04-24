@@ -144,6 +144,7 @@ tags
 # ignores customviews
 custom_view/*
 custom_view/__init__.py
+custom_view/background
 templates/custom_view
 
 # ignores db-files for sqlite

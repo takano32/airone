@@ -26,7 +26,7 @@ from unittest.mock import Mock
 from unittest import skip
 from entry import tasks
 from job.models import Job
-
+from django.http.response import JsonResponse
 
 class ViewTest(AironeViewTest):
     def setUp(self):
@@ -3173,3 +3173,42 @@ class ViewTest(AironeViewTest):
         resp = self.client.post(reverse('entry:revert_attrv'), json.dumps(params), 'application/json')
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.content, b'Specified AttributeValue-id is invalid')
+
+    @patch('custom_view.is_custom_do_create_entry', Mock(return_value=True))
+    @patch('custom_view.call_custom_do_create_entry', Mock(return_value=(False, 400, 'test')))
+    def test_call_custom_do_create_entry_return_int(self):
+        user = self.admin_login()
+
+        params = {
+            'entry_name': 'hoge',
+            'attrs': [
+                {'id': str(self._entity_attr.id), 'type': str(AttrTypeArrStr), 'value': [{'data': 'hoge', 'index': '0'}], 'referral_key': []},
+            ],
+        }
+
+        resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+
+    @patch('custom_view.is_custom_do_create_entry', Mock(return_value=True))
+    @patch('custom_view.call_custom_do_create_entry', Mock(return_value=(False, JsonResponse({'entry_id': 1,'entry_name': 'fuga',}), '')))
+    def test_call_custom_do_create_entry_return_json(self):
+        user = self.admin_login()
+
+        params = {
+            'entry_name': 'hoge',
+            'attrs': [
+                {'id': str(self._entity_attr.id), 'type': str(AttrTypeArrStr), 'value': [{'data': 'hoge', 'index': '0'}], 'referral_key': []},
+            ],
+        }
+
+        resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
+                                json.dumps(params),
+                                'application/json')
+
+        data = resp.json()
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(data['entry_id'], 1)
+        self.assertEqual(data['entry_name'], 'fuga')

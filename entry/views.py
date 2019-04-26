@@ -152,7 +152,7 @@ def do_create(request, entity_id, recv_data):
         (is_continue, resp, msg) = custom_view.call_custom_do_create_entry(entity.name, request, recv_data, user, entity)
         if not is_continue:
             if isinstance(resp, int):
-                return HttpResponse(msg, status=code)
+                return HttpResponse(msg, status=resp)
             elif isinstance(resp, JsonResponse):
                 return resp
 

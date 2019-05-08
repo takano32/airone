@@ -104,7 +104,7 @@
               <td></td>
               {% endif %}
             {% else %}
-              <td>{{ job.text }}</td>
+              <td>{{ job.text | linebreaksbr }}</td>
             {% endif %}
 
             <!-- set re-run button if it's under executing -->

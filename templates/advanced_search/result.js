@@ -7,7 +7,7 @@ function make_attr_elem(attr) {
 
     var value_str = '';
     if (ref_value) {
-      value_str = `<a href='/entry/show/${ value.id }'>${ ref_value.name }</a>`;
+      value_str = `<a href='/entry/show/${ ref_value.id }'>${ ref_value.name }</a>`;
     }
 
     return `<div class='row'> \

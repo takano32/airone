@@ -3174,8 +3174,8 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.content, b'Specified AttributeValue-id is invalid')
 
-    @patch('custom_view.is_custom_do_create_entry', Mock(return_value=True))
-    @patch('custom_view.call_custom_do_create_entry', Mock(return_value=(False, 400, 'test')))
+    @patch('custom_view.is_custom', Mock(return_value=True))
+    @patch('custom_view.call_custom', Mock(return_value=(False, 400, 'test')))
     def test_call_custom_do_create_entry_return_int(self):
         user = self.admin_login()
 
@@ -3192,8 +3192,8 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 400)
 
-    @patch('custom_view.is_custom_do_create_entry', Mock(return_value=True))
-    @patch('custom_view.call_custom_do_create_entry', Mock(return_value=(False, JsonResponse({'entry_id': 1,'entry_name': 'fuga',}), '')))
+    @patch('custom_view.is_custom', Mock(return_value=True))
+    @patch('custom_view.call_custom', Mock(return_value=(False, JsonResponse({'entry_id': 1,'entry_name': 'fuga',}), '')))
     def test_call_custom_do_create_entry_return_json(self):
         user = self.admin_login()
 

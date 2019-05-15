@@ -65,9 +65,9 @@ def index(request, entity_id):
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     entity = Entity.objects.get(id=entity_id)
-    if custom_view.is_custom_list_entry_without_context(entity.name):
+    if custom_view.is_custom("list_entry_without_context", entity.name):
         # show custom view without context
-        resp = custom_view.call_custom_list_entry_without_context(entity.name, request, entity)
+        resp = custom_view.call_custom("list_entry_without_context", entity.name, request, entity)
         if resp:
             return resp
 
@@ -85,9 +85,9 @@ def index(request, entity_id):
         'list_count': list_count,
     }
 
-    if custom_view.is_custom_list_entry(entity.name):
+    if custom_view.is_custom("list_entry", entity.name):
         # list custom view
-        return custom_view.call_custom_list_entry(entity.name, request, entity, context)
+        return custom_view.call_custom("list_entry", entity.name, request, entity, context)
     else:
         # list ordinal view
         return render(request, 'list_entry.html', context)
@@ -102,9 +102,9 @@ def create(request, entity_id):
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     entity = Entity.objects.get(id=entity_id)
-    if custom_view.is_custom_create_entry_without_context(entity.name):
+    if custom_view.is_custom("create_entry_without_context", entity.name):
         # show custom view
-        return custom_view.call_custom_create_entry_without_context(entity.name, request, user, entity)
+        return custom_view.call_custom("create_entry_without_context", entity.name, request, user, entity)
 
     context = {
         'entity': entity,
@@ -119,9 +119,9 @@ def create(request, entity_id):
         } for x in entity.attrs.filter(is_active=True).order_by('index') if user.has_permission(x, ACLType.Writable)]
     }
 
-    if custom_view.is_custom_create_entry(entity.name):
+    if custom_view.is_custom("create_entry", entity.name):
         # show custom view
-        return custom_view.call_custom_create_entry(entity.name, request, user, entity, context)
+        return custom_view.call_custom("create_entry", entity.name, request, user, entity, context)
     else:
         return render(request, 'create_entry.html', context)
 
@@ -148,8 +148,8 @@ def do_create(request, entity_id, recv_data):
     if err:
         return err
 
-    if custom_view.is_custom_do_create_entry(entity.name):
-        (is_continue, resp, msg) = custom_view.call_custom_do_create_entry(entity.name, request, recv_data, user, entity)
+    if custom_view.is_custom("do_create_entry", entity.name):
+        (is_continue, resp, msg) = custom_view.call_custom("do_create_entry", entity.name, request, recv_data, user, entity)
         if not is_continue:
             if isinstance(resp, int):
                 return HttpResponse(msg, status=resp)
@@ -201,9 +201,9 @@ def edit(request, entry_id):
         'redirect_url': '/entry/show/%s' % entry.id,
     }
 
-    if custom_view.is_custom_edit_entry(entry.schema.name):
+    if custom_view.is_custom("edit_entry", entry.schema.name):
         # show custom view
-        return custom_view.call_custom_edit_entry(entry.schema.name, request, user, entry, context)
+        return custom_view.call_custom("edit_entry", entry.schema.name, request, user, entry, context)
     else:
         return render(request, 'edit_entry.html', context)
 
@@ -235,10 +235,10 @@ def do_edit(request, entry_id, recv_data):
     if entry.get_status(Entry.STATUS_CREATING):
         return HttpResponse('Target entry is now under processing', status=400)
 
-    if custom_view.is_custom_do_edit_entry(entry.schema.name):
-        (is_continue, code, msg) = custom_view.call_custom_do_edit_entry(entry.schema.name,
-                                                                         request, recv_data,
-                                                                         user, entry)
+    if custom_view.is_custom("do_edit_entry", entry.schema.name):
+        (is_continue, code, msg) = custom_view.call_custom(*[
+            "do_edit_entry", entry.schema.name, request, recv_data, user, entry
+        ])
         if not is_continue:
             return HttpResponse(msg, status=code)
 
@@ -286,9 +286,9 @@ def show(request, entry_id):
         'attributes': entry.get_available_attrs(user),
     }
 
-    if custom_view.is_custom_show_entry(entry.schema.name):
+    if custom_view.is_custom("show_entry", entry.schema.name):
         # show custom view
-        return custom_view.call_custom_show_entry(entry.schema.name, request, user, entry, context)
+        return custom_view.call_custom("show_entry", entry.schema.name, request, user, entry, context)
     else:
         # show ordinal view
         return render(request, 'show_entry.html', context)
@@ -406,9 +406,9 @@ def do_import_data(request, entity_id, context):
     if not Entry.is_importable_data(data):
         return HttpResponse("Uploaded file has invalid data structure to import", status=400)
 
-    if custom_view.is_custom_import_entry(entity.name):
+    if custom_view.is_custom("import_entry", entity.name):
         # import custom view
-        resp = custom_view.call_custom_import_entry(entity.name, user, entity, data)
+        resp = custom_view.call_custom("import_entry", entity.name, user, entity, data)
 
         # If custom_view returns available response this returns it to user,or continues default processing.
         if resp:
@@ -431,9 +431,9 @@ def do_delete(request, entry_id, recv_data):
     # update name of Entry object
     entry = Entry.objects.filter(id=entry_id).get()
 
-    if custom_view.is_custom_do_delete_entry(entry.schema.name):
+    if custom_view.is_custom("do_delete_entry", entry.schema.name):
         # do_delete custom view
-        resp = custom_view.call_custom_do_delete_entry(entry.schema.name, request, user, entry)
+        resp = custom_view.call_custom("do_delete_entry", entry.schema.name, request, user, entry)
 
         # If custom_view returns available response this returns it to user,or continues default processing.
         if resp:
@@ -479,8 +479,8 @@ def copy(request, entry_id):
         'entry': entry,
     }
 
-    if custom_view.is_custom_copy_entry(entry.schema.name):
-        return custom_view.call_custom_copy_entry(entry.schema.name, request, user, entry, context)
+    if custom_view.is_custom("copy_entry", entry.schema.name):
+        return custom_view.call_custom("copy_entry", entry.schema.name, request, user, entry, context)
 
     return render(request, 'copy_entry.html', context)
 
@@ -640,8 +640,9 @@ def revert_attrv(request, recv_data):
         attr.parent_entry.register_es()
 
     # call custom-view if it exists
-    if custom_view.is_custom_revert_attrv(attr.parent_entry.schema.name):
-        return custom_view.call_custom_revert_attrv(attr.parent_entry.schema.name,
-                                                    request, user, attr, latest_value, new_attrv)
+    if custom_view.is_custom("revert_attrv", attr.parent_entry.schema.name):
+        return custom_view.call_custom(*[
+            "revert_attrv", attr.parent_entry.schema.name, request, user, attr, latest_value, new_attrv
+        ])
 
     return HttpResponse('Succeed in updating Attribute "%s"' % attr.schema.name)

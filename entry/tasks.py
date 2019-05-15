@@ -123,8 +123,8 @@ def create_entry_attrs(self, user_id, entry_id, job_id):
                 query = entry.attrs.filter(schema=entity_attr, is_active=True)
                 query.exclude(id=query.first().id).delete()
 
-        if custom_view.is_custom_after_create_entry(entry.schema.name):
-            custom_view.call_custom_after_create_entry(entry.schema.name, recv_data, user, entry)
+        if custom_view.is_custom("after_create_entry", entry.schema.name):
+            custom_view.call_custom("after_create_entry", entry.schema.name, recv_data, user, entry)
 
         # register entry information to Elasticsearch
         entry.register_es()
@@ -165,8 +165,8 @@ def edit_entry_attrs(self, user_id, entry_id, job_id):
             # Add new AttributeValue instance to Attribute instnace
             new_value = attr.add_value(user, converted_value)
 
-        if custom_view.is_custom_after_edit_entry(entry.schema.name):
-            custom_view.call_custom_after_edit_entry(entry.schema.name, recv_data, user, entry)
+        if custom_view.is_custom("after_edit_entry", entry.schema.name):
+            custom_view.call_custom("after_edit_entry", entry.schema.name, recv_data, user, entry)
 
         # update entry information to Elasticsearch
         entry.register_es()
@@ -204,8 +204,8 @@ def restore_entry(self, entry_id, job_id):
         entry.del_status(Entry.STATUS_CREATING)
 
         # calling custom view processing if necessary
-        if custom_view.is_custom_after_restore_entry(entry.schema.name):
-            custom_view.call_custom_after_restore_entry(entry.schema.name, job.user, entry)
+        if custom_view.is_custom("after_restore_entry", entry.schema.name):
+            custom_view.call_custom("after_restore_entry", entry.schema.name, job.user, entry)
 
         # update entry information to Elasticsearch
         entry.register_es()
@@ -231,8 +231,8 @@ def copy_entry(self, user_id, src_entry_id, job_id):
             dest_entry = src_entry.clone(user, name=params['new_name'])
             dest_entry.register_es()
 
-        if custom_view.is_custom_after_copy_entry(src_entry.schema.name):
-            custom_view.call_custom_after_copy_entry(src_entry.schema.name, user, src_entry, dest_entry, params['post_data'])
+        if custom_view.is_custom("after_copy_entry", src_entry.schema.name):
+            custom_view.call_custom("after_copy_entry", src_entry.schema.name, user, src_entry, dest_entry, params['post_data'])
 
         job.target = dest_entry
         job.status = Job.STATUS_DONE
@@ -264,9 +264,9 @@ def import_entries(self, job_id):
             return
 
         # get custom_view method to prevent executing check method in every loop processing
-        custom_view_method = None
-        if custom_view.is_custom_after_import_entry(entity.name):
-            custom_view_method = custom_view.call_custom_after_import_entry
+        custom_view_handler = None
+        if custom_view.is_custom("after_import_entry", entity.name):
+            custom_view_handler = 'after_import_entry'
 
         job.status = Job.STATUS_PROCESSING
         job.save(update_fields=['status'])
@@ -301,8 +301,8 @@ def import_entries(self, job_id):
                     attr.add_value(user, input_value)
 
                 # call custom-view processing corresponding to import entry
-                if custom_view_method:
-                    custom_view_method(entity.name, user, entry, attr, value)
+                if custom_view_handler:
+                    custom_view.call_custom(custom_view_handler, entity.name, user, entry, attr, value)
 
             # register entry to the Elasticsearch
             entry.register_es()

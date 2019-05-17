@@ -2337,3 +2337,49 @@ class ModelTest(AironeTestCase):
         self.assertTrue(entry.is_active)
         self.assertEqual(entry.name.find('_deleted_'), -1)
         self.assertTrue(all([Entry.objects.get(id=x.id).is_active for x in ref_entries]))
+
+    def test_to_dict_entry(self):
+        admin_user = User.objects.create(username='admin', is_superuser=True)
+
+        private_entity = Entity.objects.create(name='private_entity', created_user=admin_user, is_public=False)
+        public_entity = Entity.objects.create(name='public_entity', created_user=admin_user)
+
+        attr_info = [
+            {'name': 'attr1', 'is_public': True},
+            {'name': 'attr2', 'is_public': False},
+        ]
+        for info in attr_info:
+            [e.attrs.add(EntityAttr.objects.create(**{
+                'type': AttrTypeValue['string'],
+                'created_user': self._user,
+                'parent_entity': self._entity,
+                **info,
+            })) for e in [private_entity, public_entity]]
+
+        # Initialize three kind of entries as below
+        entry_info = [
+            {'name': 'e1', 'schema': private_entity, 'is_public': True},
+            {'name': 'e2', 'schema': public_entity, 'is_public': False},
+            {'name': 'e3', 'schema': public_entity, 'is_public': True},
+        ]
+        entries = [Entry.objects.create(created_user=admin_user, **info) for info in entry_info]
+        for entry in entries:
+            entry.complement_attrs(admin_user)
+
+            for attr in entry.attrs.all():
+                attr.add_value(admin_user, 'hoge')
+
+        # Test to_dict method of Entry
+        self.assertIsNone(entries[0].to_dict(self._user))
+        self.assertIsNone(entries[1].to_dict(self._user))
+        self.assertEqual(entries[2].to_dict(self._user), {
+            'id': entries[2].id,
+            'name': entries[2].name,
+            'entity': {
+                'id': public_entity.id,
+                'name': public_entity.name
+            },
+            'attrs': [
+                {'name': 'attr1', 'value': 'hoge'},
+            ]
+        })

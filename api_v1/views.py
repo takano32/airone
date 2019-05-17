@@ -112,34 +112,12 @@ class EntryAPI(APIView):
         else:
             query = Q(query, name=param_entry_name)
 
-        retinfo = []
-        for entry in Entry.objects.filter(query):
-            # check permissions for each entry, entity and attrs
-            if (not user.has_permission(entry.schema, ACLType.Readable) or
-                not user.has_permission(entry, ACLType.Readable)):
-                continue
-
-            attrs = [x for x in entry.attrs.filter(is_active=is_active, schema__is_active=True)
-                     if (user.has_permission(x.schema, ACLType.Readable) and
-                         user.has_permission(x, ACLType.Readable))]
-
-            retinfo.append({
-                'id': entry.id,
-                'entity': {
-                    'id': entry.schema.id,
-                    'name': entry.schema.name,
-                },
-                'attrs': [{
-                    'name': x.schema.name,
-                    'value': x.get_latest_value().get_value()
-                } for x in attrs]
-            })
-
-        if not retinfo:
+        retinfo = [x.to_dict(user) for x in Entry.objects.filter(query)]
+        if not any(retinfo):
             return Response({'result': 'Failed to find entry'},
                             status=status.HTTP_404_NOT_FOUND)
 
-        return Response(retinfo)
+        return Response([x for x in retinfo if x])
 
     def delete(self, request, *args, **kwargs):
         if not request.user.id:

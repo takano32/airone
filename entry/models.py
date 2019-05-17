@@ -95,7 +95,7 @@ class AttributeValue(models.Model):
         This returns registered value according to the type of Attribute
         """
         def get_named_value(attrv):
-            if attrv.referral:
+            if attrv.referral and attrv.referral.is_active:
                 if with_metainfo:
                     return {attrv.value: {'id': attrv.referral.id, 'name': attrv.referral.name}}
                 else:
@@ -104,7 +104,7 @@ class AttributeValue(models.Model):
                 return {attrv.value: None}
 
         def get_object_value(attrv):
-            if attrv.referral:
+            if attrv.referral and attrv.referral.is_active:
                 if with_metainfo:
                     return {'id': attrv.referral.id, 'name': attrv.referral.name}
                 else:

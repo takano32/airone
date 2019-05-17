@@ -994,6 +994,29 @@ class Entry(ACLBase):
 
         return sorted(ret_attrs, key=lambda x: x['index'])
 
+    def to_dict(self, user):
+        # check permissions for each entry, entity and attrs
+        if (not user.has_permission(self.schema, ACLType.Readable) or
+            not user.has_permission(self, ACLType.Readable)):
+            return None
+
+        attrs = [x for x in self.attrs.filter(is_active=True, schema__is_active=True)
+                 if (user.has_permission(x.schema, ACLType.Readable) and
+                     user.has_permission(x, ACLType.Readable))]
+
+        return {
+            'id': self.id,
+            'name': self.name,
+            'entity': {
+                'id': self.schema.id,
+                'name': self.schema.name,
+            },
+            'attrs': [{
+                'name': x.schema.name,
+                'value': x.get_latest_value().get_value()
+            } for x in attrs]
+        }
+
     def delete(self):
         super(Entry, self).delete()
 

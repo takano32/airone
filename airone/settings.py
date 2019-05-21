@@ -152,6 +152,7 @@ AIRONE = {
     'CONCURRENCY': 1,
     'VERSION': 'unknown',
     'FILE_STORE_PATH': '/tmp/airone_app',
+    'AUTO_COMPLEMENT_USER': 'auto_complementer',
 }
 try:
     proc = subprocess.Popen("cd %s && git describe --tags" % BASE_DIR, shell=True,

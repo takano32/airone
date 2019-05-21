@@ -20,6 +20,7 @@ from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
 from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
 from airone.lib.types import AttrTypeValue
 from airone.lib.elasticsearch import ESS
+from airone.lib import auto_complement
 
 from .settings import CONFIG
 
@@ -897,6 +898,10 @@ class Entry(ACLBase):
         """
         This method complements Attributes which are appended after creation of Entity
         """
+
+        # Get auto complement user
+        user = auto_complement.get_auto_complement_user(user)
+
         for attr_id in (set(self.schema.attrs.filter(is_active=True).values_list('id', flat=True)) -
                         set(self.attrs.filter(is_active=True).values_list('schema', flat=True))):
 

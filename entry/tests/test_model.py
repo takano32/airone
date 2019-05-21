@@ -35,6 +35,19 @@ class ModelTest(AironeTestCase):
         # clear all cache before start
         cache.clear()
 
+        self._org_auto_complement_user = settings.AIRONE['AUTO_COMPLEMENT_USER']
+
+        # make auto complement user
+        self._complement_user = User(username=self._org_auto_complement_user, email='hoge@dmm.com', is_superuser=True)
+        self._complement_user.set_password(self._org_auto_complement_user)
+        self._complement_user.save()
+
+    def tearDown(self):
+
+        # settings initialization
+        settings.AIRONE['AUTO_COMPLEMENT'] = True
+        settings.AIRONE['AUTO_COMPLEMENT_USER'] = self._org_auto_complement_user
+
     def make_attr(self, name, attrtype=AttrTypeStr, user=None, entity=None, entry=None):
         entity_attr = EntityAttr(name=name,
                                  type=attrtype,
@@ -302,6 +315,9 @@ class ModelTest(AironeTestCase):
         attr = entry.attrs.get(name='named_ref')
         self.assertTrue(attr.is_updated(ref_entry1.id))
 
+        # Check user id
+        self.assertEqual(attr.created_user_id, self._complement_user.id)
+
         attr.values.add(AttributeValue.objects.create(created_user=self._user,
                                                       parent_attr=attr,
                                                       value='hoge',
@@ -313,6 +329,9 @@ class ModelTest(AironeTestCase):
         self.assertTrue(attr.is_updated({'id': ref_entry1.id, 'name': ''}))
 
     def test_attr_helper_of_attribute_with_array_named_ref(self):
+        # If 'AUTO_COMPLEMENT' in settings is False
+        settings.AIRONE['AUTO_COMPLEMENT'] = False
+
         ref_entity = Entity.objects.create(name='referred_entity', created_user=self._user)
         ref_entry = Entry.objects.create(name='referred_entry', created_user=self._user, schema=ref_entity)
 
@@ -337,6 +356,9 @@ class ModelTest(AironeTestCase):
 
         # checks that this method also accepts Entry
         self.assertTrue(attr.is_updated([{'id': ref_entry}]))
+
+        # Check user id
+        self.assertEqual(attr.created_user_id, self._user.id)
 
         attrv = AttributeValue.objects.create(**{
             'parent_attr': attr,

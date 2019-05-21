@@ -45,7 +45,6 @@ class ModelTest(AironeTestCase):
     def tearDown(self):
 
         # settings initialization
-        settings.AIRONE['AUTO_COMPLEMENT'] = True
         settings.AIRONE['AUTO_COMPLEMENT_USER'] = self._org_auto_complement_user
 
     def make_attr(self, name, attrtype=AttrTypeStr, user=None, entity=None, entry=None):
@@ -329,8 +328,8 @@ class ModelTest(AironeTestCase):
         self.assertTrue(attr.is_updated({'id': ref_entry1.id, 'name': ''}))
 
     def test_attr_helper_of_attribute_with_array_named_ref(self):
-        # If 'AUTO_COMPLEMENT' in settings is False
-        settings.AIRONE['AUTO_COMPLEMENT'] = False
+        # If 'AUTO_COMPLEMENT_USER' in settings is unmatch
+        settings.AIRONE['AUTO_COMPLEMENT_USER'] = self._org_auto_complement_user + '1'
 
         ref_entity = Entity.objects.create(name='referred_entity', created_user=self._user)
         ref_entry = Entry.objects.create(name='referred_entry', created_user=self._user, schema=ref_entity)

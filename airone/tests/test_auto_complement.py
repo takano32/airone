@@ -25,7 +25,6 @@ class LibAutoComplementTest(AironeTestCase):
     def tearDown(self):
 
         # settings initialization
-        settings.AIRONE['AUTO_COMPLEMENT'] = True
         settings.AIRONE['AUTO_COMPLEMENT_USER'] = self.org_auto_complement_user
 
     def test_get_auto_complement_user(self):
@@ -35,39 +34,6 @@ class LibAutoComplementTest(AironeTestCase):
         # Check user id
         self.assertEqual(user.id, self.complement_user.id)
         self.assertEqual(user.username, self.complement_user.username)
-
-    def test_get_auto_complement_user_not_exist_auto_complement(self):
-        # If 'AUTO_COMPLEMENT' in settings does not exist
-        del settings.AIRONE['AUTO_COMPLEMENT']
-
-        # call get_auto_complement_user
-        user = auto_complement.get_auto_complement_user(self.user)
-
-        # Check user id
-        self.assertEqual(user.id, self.user.id)
-        self.assertEqual(user.username, self.user.username)
-
-    def test_get_auto_complement_user_none_auto_complement(self):
-        # If 'AUTO_COMPLEMENT' in settings is None
-        settings.AIRONE['AUTO_COMPLEMENT'] = None
-
-        # call get_auto_complement_user
-        user = auto_complement.get_auto_complement_user(self.user)
-
-        # Check user id
-        self.assertEqual(user.id, self.user.id)
-        self.assertEqual(user.username, self.user.username)
-
-    def test_get_auto_complement_user_false_auto_complement(self):
-        # If 'AUTO_COMPLEMENT' in settings is False
-        settings.AIRONE['AUTO_COMPLEMENT'] = False
-
-        # call get_auto_complement_user
-        user = auto_complement.get_auto_complement_user(self.user)
-
-        # Check user id
-        self.assertEqual(user.id, self.user.id)
-        self.assertEqual(user.username, self.user.username)
 
     def test_get_auto_complement_user_not_exist_complement_user(self):
         # If 'AUTO_COMPLEMENT_USER' in settings does not exist

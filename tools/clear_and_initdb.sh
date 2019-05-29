@@ -19,3 +19,10 @@ echo "create database ${db_name}" | mysql -u${db_user} -p${db_pass} -h${db_host}
 # re-construct database
 python3 manage.py makemigrations
 python3 manage.py migrate
+
+# create an user of auto complementer
+user_auto_complementer=$(python3 -c "from airone import settings; print(settings.AIRONE['AUTO_COMPLEMENT_USER'])")
+cat <<EOS | python3 manage.py shell
+from user.models import User
+User.objects.create(username="${user_auto_complementer}")
+EOS

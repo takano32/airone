@@ -8,7 +8,6 @@ from .job.urls import urlpatterns as job_urlpatterns
 from airone.lib.log import Logger
 
 urlpatterns = [
-    url(r'^entry$', views.EntryAPI.as_view()),
     url(r'^user/access_token$', user_views.AccessTokenAPI.as_view()),
     url(r'^entity/', include(entity_urlpatterns)),
     url(r'^entry/', include(entry_urlpatterns)),
@@ -21,3 +20,9 @@ try:
     urlpatterns.append(url(r'^advanced/', include(custom_patterns)))
 except ImportError:
     Logger.info('advanced API endpoints are unavailable')
+
+try:
+    from custom_view.api_v1 import views as custom_views
+    urlpatterns.append(url(r'^entry$', custom_views.CustomEntryAPI.as_view()))
+except ImportError as e:
+    urlpatterns.append(url(r'^entry$', views.EntryAPI.as_view()))

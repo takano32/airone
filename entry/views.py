@@ -441,6 +441,7 @@ def do_delete(request, entry_id, recv_data):
 
     # set deleted flag in advance because deleting processing taks long time
     entry.is_active = False
+    entry.save(update_fields=['is_active'])
 
     # save deleting Entry name before do it
     ret['name'] = entry.name

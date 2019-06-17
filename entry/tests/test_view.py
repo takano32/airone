@@ -40,8 +40,7 @@ class ViewTest(AironeViewTest):
         user = super(ViewTest, self).admin_login()
 
         # create test entity which is a base of creating entry
-        self._entity = Entity(name='hoge', created_user=user)
-        self._entity.save()
+        self._entity = Entity.objects.create(name='hoge', created_user=user)
 
         # set EntityAttr for the test Entity object
         self._entity_attr = EntityAttr(name='test',
@@ -1053,22 +1052,17 @@ class ViewTest(AironeViewTest):
     def test_post_delete_entry(self):
         user = self.admin_login()
 
-        entry = Entry(name='fuga', schema=self._entity, created_user=user)
-        entry.save()
-
+        entry = Entry.objects.create(name='fuga', schema=self._entity, created_user=user)
         entry.attrs.add(self.make_attr(name='attr-test',
                                        parent_entry=entry,
                                        created_user=user))
 
         entry_count = Entry.objects.count()
 
-        params = {}
-
         resp = self.client.post(reverse('entry:do_delete', args=[entry.id]),
-                                json.dumps(params), 'application/json')
+                                json.dumps({}), 'application/json')
 
         self.assertEqual(resp.status_code, 200)
-
         self.assertEqual(Entry.objects.count(), entry_count)
 
         entry = Entry.objects.last()
@@ -1078,6 +1072,24 @@ class ViewTest(AironeViewTest):
         # Checks Elasticsearch also removes document of removed entry
         res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=entry.id, ignore=[404])
         self.assertFalse(res['found'])
+
+    @patch('entry.views.delete_entry.delay', Mock(return_value=None))
+    def test_post_delete_entry_with_long_delay(self):
+        # This is the case when background processing never be started
+        user = self.guest_login()
+
+        # Create an entry to be deleted
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+
+        # Send a request to delete an entry
+        resp = self.client.post(reverse('entry:do_delete', args=[entry.id]),
+                                json.dumps({}), 'application/json')
+
+        # Check that deleted entry's active flag is down
+        entry.refresh_from_db()
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(entry.is_active)
 
     def test_post_delete_entry_without_permission(self):
         user1 = self.guest_login()

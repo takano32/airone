@@ -1242,6 +1242,12 @@ class Entry(ACLBase):
         def _get_regex_pattern(keyword):
             return '.*%s.*' % ''.join(['[%s%s]' % (x.lower(), x.upper()) if x.isalpha() else x for x in keyword])
 
+        def _get_hint_keyword_val(keyword):
+            if (CONFIG.EMPTY_SEARCH_CHARACTER == keyword
+                or CONFIG.EMPTY_SEARCH_CHARACTER_CODE == keyword):
+                return ''
+            return keyword
+
         results = {
             'ret_count': 0,
             'ret_values': []
@@ -1269,11 +1275,19 @@ class Entry(ACLBase):
 
         # set condition to get results that only have specified entity
         if entry_name:
-            query['query']['bool']['filter'].append({
-                'regexp': {
-                    'name': _get_regex_pattern(entry_name)
-                }
-            })
+            name_val = _get_hint_keyword_val(entry_name)
+            if name_val:
+                query['query']['bool']['filter'].append({
+                    'regexp': {
+                        'name': _get_regex_pattern(name_val)
+                    }
+                })
+            else:
+                query['query']['bool']['filter'].append({
+                    'match': {
+                        'name': ''
+                    }
+                })
 
         # set all attribute to be available
         if hint_attrs:
@@ -1323,15 +1337,23 @@ class Entry(ACLBase):
                 cond_attr.append(date_cond)
 
             else:
-                cond_val = [{'match': {'attr.value': hint['keyword']}}]
-                if 'exact_match' not in hint:
-                    cond_val.append({
-                        'regexp': {
-                            'attr.value': _get_regex_pattern(hint['keyword'])
-                        }
-                    })
+                hint_kyeword_val = _get_hint_keyword_val(hint['keyword'])
+                cond_val = [{'match': {'attr.value': hint_kyeword_val}}]
 
-                cond_attr.append({'bool' : {'should': cond_val}})
+                if hint_kyeword_val:
+                    if 'exact_match' not in hint:
+                        cond_val.append({
+                            'regexp': {
+                                'attr.value': _get_regex_pattern(hint_kyeword_val)
+                            }
+                        })
+
+                    cond_attr.append({'bool' : {'should': cond_val}})
+
+                else:
+                    cond_val_tmp = [{'bool': {'must_not': {'exists': {'field': 'attr.date_value'}}}}]
+                    cond_val_tmp.append({'bool' : {'should': cond_val}})
+                    cond_attr.append({'bool' : {'must': cond_val_tmp}})
 
             adding_cond = {
                 'nested': {
@@ -1365,14 +1387,29 @@ class Entry(ACLBase):
             # If the hint_referral parameter is specified,
             # this filters results that only have specified referral entry.
 
-            filtered_ids = AttributeValue.objects.filter(
-                    Q(parent_attr__parent_entry__name__iregex=hint_referral,
-                      referral__id__in=hit_entry_ids,
-                      is_latest=True) |
-                    Q(parent_attr__parent_entry__name__iregex=hint_referral,
-                      referral__id__in=hit_entry_ids,
-                      parent_attrv__is_latest=True)
-                    ).values_list('referral', flat=True)
+            if (CONFIG.EMPTY_SEARCH_CHARACTER == hint_referral
+                or CONFIG.EMPTY_SEARCH_CHARACTER_CODE == hint_referral):
+
+                hit_entry_ids_num = [int(x) for x in hit_entry_ids]
+                filtered_ids = set(hit_entry_ids_num) - set(AttributeValue.objects.filter(
+                        Q(referral__id__in=hit_entry_ids,
+                          parent_attr__is_active=True,
+                          is_latest=True) |
+                        Q(referral__id__in=hit_entry_ids,
+                          parent_attr__is_active=True,
+                          parent_attrv__is_latest=True)
+                        ).values_list('referral_id', flat=True))
+
+            else:
+
+                filtered_ids = AttributeValue.objects.filter(
+                        Q(parent_attr__parent_entry__name__iregex=hint_referral,
+                          referral__id__in=hit_entry_ids,
+                          is_latest=True) |
+                        Q(parent_attr__parent_entry__name__iregex=hint_referral,
+                          referral__id__in=hit_entry_ids,
+                          parent_attrv__is_latest=True)
+                        ).values_list('referral', flat=True)
 
             hit_entries = Entry.objects.filter(pk__in=filtered_ids, is_active=True)
 

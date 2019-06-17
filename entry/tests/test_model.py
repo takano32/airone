@@ -1557,6 +1557,11 @@ class ModelTest(AironeTestCase):
         ret = Entry.search_entries(user, [ref_entity.id], [], hint_referral='hogefuga')
         self.assertEqual(ret['ret_count'], 0)
 
+        # call search_entries with 'backslash' in the 'hint_referral' parameter as entry of name
+        ret = Entry.search_entries(user, [ref_entity.id], [], hint_referral=CONFIG.EMPTY_SEARCH_CHARACTER)
+        self.assertEqual(ret['ret_count'], 1)
+        self.assertEqual([x['entry']['name'] for x in ret['ret_values']], ['ref2'])
+
     def test_search_entries_with_exclusive_attrs(self):
         user = User.objects.create(username='hoge')
         entity_info = {
@@ -2404,3 +2409,117 @@ class ModelTest(AironeTestCase):
                 {'name': 'attr1', 'value': 'hoge'},
             ]
         })
+
+    def test_search_entries_blank_val(self):
+        user = User.objects.create(username='hoge')
+
+        # create referred Entity and Entries
+        ref_entity = Entity.objects.create(name='Referred Entity', created_user=user)
+        ref_entry = Entry.objects.create(name='referred_entry', schema=ref_entity, created_user=user)
+        ref_group = Group.objects.create(name='group')
+
+        attr_info = {
+            'str': {'type': AttrTypeValue['string'], 'value': 'foo-%d'},
+            'str2': {'type': AttrTypeValue['string'], 'value': 'foo-%d'},
+            'obj': {'type': AttrTypeValue['object'], 'value': str(ref_entry.id)},
+            'name': {'type': AttrTypeValue['named_object'], 'value': {'name': 'bar', 'id': str(ref_entry.id)}},
+            'bool': {'type': AttrTypeValue['boolean'], 'value': False},
+            'group': {'type': AttrTypeValue['group'], 'value': str(ref_group.id)},
+            'date': {'type': AttrTypeValue['date'], 'value': date(2018, 12, 31)},
+            'arr_str': {'type': AttrTypeValue['array_string'], 'value': ['foo', 'bar', 'baz']},
+            'arr_obj': {'type': AttrTypeValue['array_object'],
+                        'value': [str(x.id) for x in Entry.objects.filter(schema=ref_entity)]},
+            'arr_name': {'type': AttrTypeValue['array_named_object'],
+                         'value': [{'name': 'hoge', 'id': str(ref_entry.id)}]},
+        }
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        for attr_name, info in attr_info.items():
+            attr = EntityAttr.objects.create(name=attr_name,
+                                             type=info['type'],
+                                             created_user=user,
+                                             parent_entity=entity)
+
+            if info['type'] & AttrTypeValue['object']:
+                attr.referral.add(ref_entity)
+
+            entity.attrs.add(attr)
+
+        for index in range(0, 11):
+            entry = Entry.objects.create(name='e-%d' % index, schema=entity, created_user=user)
+            entry.complement_attrs(user)
+
+            for attr_name, info in attr_info.items():
+                attr = entry.attrs.get(name=attr_name)
+                if attr_name == 'str':
+                    attr.add_value(user, info['value'] % index)
+                elif attr_name == 'str2':
+                    attr.add_value(user, info['value'] % (index + 100))
+                else:
+                    attr.add_value(user, info['value'])
+
+            entry.register_es()
+
+        # search entries with blank values
+        entry = Entry.objects.create(name='', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+        entry.register_es()
+
+        ref_entry = Entry.objects.create(name=CONFIG.EMPTY_SEARCH_CHARACTER, schema=ref_entity, created_user=user)
+        ref_group = Group.objects.create(name=CONFIG.EMPTY_SEARCH_CHARACTER)
+
+        # search entries with blank values
+        entry = Entry.objects.create(name=CONFIG.EMPTY_SEARCH_CHARACTER, schema=entity, created_user=user)
+        entry.complement_attrs(user)
+
+        # search entries with back slash
+        attr_info = {
+            'str': {'type': AttrTypeValue['string'], 'value': CONFIG.EMPTY_SEARCH_CHARACTER},
+            'str2': {'type': AttrTypeValue['string'], 'value': CONFIG.EMPTY_SEARCH_CHARACTER},
+            'obj': {'type': AttrTypeValue['object'], 'value': str(ref_entry.id)},
+            'name': {'type': AttrTypeValue['named_object'], 'value': {'name': 'bar', 'id': str(ref_entry.id)}},
+            'bool': {'type': AttrTypeValue['boolean'], 'value': False},
+            'group': {'type': AttrTypeValue['group'], 'value': str(ref_group.id)},
+            'date': {'type': AttrTypeValue['date'], 'value': date(2018, 12, 31)},
+            'arr_str': {'type': AttrTypeValue['array_string'], 'value': [CONFIG.EMPTY_SEARCH_CHARACTER]},
+            'arr_obj': {'type': AttrTypeValue['array_object'],
+                        'value': [str(x.id) for x in Entry.objects.filter(schema=ref_entity)]},
+            'arr_name': {'type': AttrTypeValue['array_named_object'],
+                         'value': [{'name': 'hoge', 'id': str(ref_entry.id)}]},
+        }
+
+        for attr_name, info in attr_info.items():
+            attr = entry.attrs.get(name=attr_name)
+            attr.add_value(user, info['value'])
+
+        entry.register_es()
+
+        # search entries with empty_search_character
+        for attr_name, info in attr_info.items():
+            ret = Entry.search_entries(user, [entity.id], [{'name': attr_name, 'keyword': CONFIG.EMPTY_SEARCH_CHARACTER}])
+            if attr_name != 'bool':
+                self.assertEqual(ret['ret_count'], 1)
+            else:
+                self.assertEqual(ret['ret_count'], 0)
+
+        # search entries with double_empty_search_character
+        double_empty_search_character = CONFIG.EMPTY_SEARCH_CHARACTER + CONFIG.EMPTY_SEARCH_CHARACTER
+
+        for attr_name, info in attr_info.items():
+            ret = Entry.search_entries(user, [entity.id], [{'name': attr_name, 'keyword': double_empty_search_character}])
+            if attr_name not in ['bool', 'date']:
+                self.assertEqual(ret['ret_count'], 1)
+            else:
+                self.assertEqual(ret['ret_count'], 0)
+
+        # check functionallity of the 'entry_name' parameter
+        ret = Entry.search_entries(user, [], entry_name=CONFIG.EMPTY_SEARCH_CHARACTER)
+        self.assertEqual(ret['ret_count'], 1)
+
+        ret = Entry.search_entries(user, [], entry_name=double_empty_search_character)
+        self.assertEqual(ret['ret_count'], 1)
+
+        # check combination of 'entry_name' and 'hint_attrs' parameter
+        ret = Entry.search_entries(user, [entity.id],
+             [{'name': 'str', 'keyword': CONFIG.EMPTY_SEARCH_CHARACTER}], entry_name=CONFIG.EMPTY_SEARCH_CHARACTER)
+        self.assertEqual(ret['ret_count'], 1)

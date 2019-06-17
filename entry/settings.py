@@ -8,4 +8,6 @@ CONFIG = Settings({
     },
     'MAX_HISTORY_COUNT': 10,
     'MAX_QUERY_SIZE': 512,
+    'EMPTY_SEARCH_CHARACTER':'\\',
+    'EMPTY_SEARCH_CHARACTER_CODE': chr(165),
 })

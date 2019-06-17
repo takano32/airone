@@ -1276,7 +1276,6 @@ class Entry(ACLBase):
         # set condition to get results that only have specified entity
         if entry_name:
             name_val = _get_hint_keyword_val(entry_name)
-
             if name_val:
                 query['query']['bool']['filter'].append({
                     'regexp': {
@@ -1286,7 +1285,7 @@ class Entry(ACLBase):
             else:
                 query['query']['bool']['filter'].append({
                     'match': {
-                        'name': name_val
+                        'name': ''
                     }
                 })
 

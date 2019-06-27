@@ -829,6 +829,16 @@ class Entry(ACLBase):
         if not isinstance(user, User):
             raise TypeError('Variable "user" is incorrect type')
 
+        # While an Attribute object which corresponding to base EntityAttr has been already
+        # registered, a request to create same Attribute might be here when multiple request
+        # invoked and make requests simultaneously. That request may call this method after
+        # previous processing is finished.
+        # In this case, we have to prevent to create new Attribute object.
+        attr = Attribute.objects.filter(schema=base, parent_entry=self, is_active=True).first()
+        if attr:
+            self.may_append_attr(attr)
+            return
+
         # This processing may avoid to run following more one time from mutiple request
         cache_key = 'add_%d' % base.id
         if self.get_cache(cache_key):
@@ -836,14 +846,6 @@ class Entry(ACLBase):
 
         # set lock status
         self.set_cache(cache_key, 1)
-
-        # While an Attribute object which corresponding to base EntityAttr has been already
-        # registered, a request to create same Attribute might be here when multiple request
-        # invoked and make requests simultaneously. That request may call this method after
-        # previous processing is finished.
-        # In this case, we have to prevent to create new Attribute object.
-        if Attribute.objects.filter(schema=base, parent_entry=self, is_active=True).exists():
-            return
 
         attr = Attribute.objects.create(name=base.name,
                                         schema=base,
@@ -880,6 +882,14 @@ class Entry(ACLBase):
                 ).values_list('parent_attr__parent_entry', flat=True)
 
         return Entry.objects.filter(pk__in=ids, is_active=True)
+
+    def may_append_attr(self, attr):
+        """
+        This appends Attribute object to attributes' array of entry when it's entitled to be there.
+        """
+        if (attr and attr.is_active and attr.parent_entry == self and
+            attr.id not in [x.id for x in self.attrs.filter(is_active=True)]):
+            self.attrs.add(attr)
 
     def may_remove_duplicate_attr(self, attr):
         """

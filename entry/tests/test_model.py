@@ -48,16 +48,15 @@ class ModelTest(AironeTestCase):
         settings.AIRONE['AUTO_COMPLEMENT_USER'] = self._org_auto_complement_user
 
     def make_attr(self, name, attrtype=AttrTypeStr, user=None, entity=None, entry=None):
-        entity_attr = EntityAttr(name=name,
-                                 type=attrtype,
-                                 created_user=(user and user or self._user),
-                                 parent_entity=(entity and entity or self._entity))
-        entity_attr.save()
+        entity_attr = EntityAttr.objects.create(name=name,
+                                                type=attrtype,
+                                                created_user=(user and user or self._user),
+                                                parent_entity=(entity and entity or self._entity))
 
-        return Attribute(name=name,
-                         schema=entity_attr,
-                         created_user=(user and user or self._user),
-                         parent_entry=(entry and entry or self._entry))
+        return Attribute.objects.create(name=name,
+                                        schema=entity_attr,
+                                        created_user=(user and user or self._user),
+                                        parent_entry=(entry and entry or self._entry))
 
     def test_make_attribute_value(self):
         AttributeValue(value='hoge', created_user=self._user, parent_attr=self._attr).save()
@@ -85,8 +84,6 @@ class ModelTest(AironeTestCase):
         entry.save()
 
         attr = self.make_attr('attr', entry=entry)
-        attr.save()
-
         entry.attrs.add(attr)
 
         self.assertEqual(Entry.objects.count(), 2)
@@ -214,8 +211,6 @@ class ModelTest(AironeTestCase):
         entry = Entry.objects.create(name='_E', created_user=self._user, schema=entity)
 
         attr = self.make_attr('attr2', attrtype=AttrTypeObj, entity=entity, entry=entry)
-        attr.save()
-
         attr.values.add(AttributeValue.objects.create(referral=e1, created_user=self._user,
                                                       parent_attr=attr))
 
@@ -231,8 +226,6 @@ class ModelTest(AironeTestCase):
         entry = Entry.objects.create(name='_E', created_user=self._user, schema=entity)
 
         attr = self.make_attr('attr2', attrtype=AttrTypeArrStr, entity=entity, entry=entry)
-        attr.save()
-
         attr_value = AttributeValue.objects.create(created_user=self._user, parent_attr=attr)
         attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
 
@@ -264,8 +257,6 @@ class ModelTest(AironeTestCase):
         entry = Entry.objects.create(name='_E', created_user=self._user, schema=entity)
 
         attr = self.make_attr('attr2', attrtype=AttrTypeArrObj, entity=entity, entry=entry)
-        attr.save()
-
         attr_value = AttributeValue.objects.create(created_user=self._user, parent_attr=attr)
         attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
 
@@ -385,7 +376,6 @@ class ModelTest(AironeTestCase):
 
     def test_for_boolean_attr_and_value(self):
         attr = self.make_attr('attr_bool', AttrTypeValue['boolean'])
-        attr.save()
 
         # Checks get_latest_value returns empty AttributeValue
         # even if target attribute doesn't have any value
@@ -409,7 +399,6 @@ class ModelTest(AironeTestCase):
 
     def test_for_date_attr_and_value(self):
         attr = self.make_attr('attr_date', AttrTypeValue['date'])
-        attr.save()
 
         attr.values.add(AttributeValue.objects.create(**{
             'created_user': self._user,
@@ -452,12 +441,10 @@ class ModelTest(AironeTestCase):
         entry2 = Entry.objects.create(name='r2', created_user=self._user, schema=entity)
 
         attr = self.make_attr('attr_ref', attrtype=AttrTypeValue['object'])
-        attr.save()
 
         # this attribute is needed to check not only get referral from normal object attribute,
         # but also from an attribute that refers array referral objects
         arr_attr = self.make_attr('attr_arr_ref', attrtype=AttrTypeValue['array_object'])
-        arr_attr.save()
 
         # make multiple value that refer 'entry' object
         [attr.values.add(AttributeValue.objects.create(created_user=self._user,
@@ -529,7 +516,6 @@ class ModelTest(AironeTestCase):
         entry = Entry.objects.create(name='entry', created_user=self._user, schema=entity)
 
         attr = self.make_attr('attr_ref', attrtype=AttrTypeObj)
-        attr.save()
 
         self._entry.attrs.add(attr)
 
@@ -694,8 +680,6 @@ class ModelTest(AironeTestCase):
 
     def test_clone_attribute_typed_string(self):
         attr = self.make_attr(name='attr', attrtype=AttrTypeValue['string'])
-        attr.save()
-
         attr.add_value(self._user, 'hoge')
         cloned_attr = attr.clone(self._user)
 
@@ -707,8 +691,6 @@ class ModelTest(AironeTestCase):
 
     def test_clone_attribute_typed_array_string(self):
         attr = self.make_attr(name='attr', attrtype=AttrTypeValue['array_string'])
-        attr.save()
-
         parent_attrv = attr.add_value(self._user, [str(i) for i in range(10)])
 
         cloned_attr = attr.clone(self._user)
@@ -2523,3 +2505,44 @@ class ModelTest(AironeTestCase):
         ret = Entry.search_entries(user, [entity.id],
              [{'name': 'str', 'keyword': CONFIG.EMPTY_SEARCH_CHARACTER}], entry_name=CONFIG.EMPTY_SEARCH_CHARACTER)
         self.assertEqual(ret['ret_count'], 1)
+
+    def test_cache_of_adding_attribute(self):
+        """
+        This test suite confirms that the creating cache not to remaining after
+        creating Attribute instance. This indicates cache operation in the method
+        of add_attribute_from_base has atomicity. It means cache value would not
+        be set before and after calling this method that set cache value.
+        """
+        # initialize Entity an Entry
+        user = User.objects.create(username='hoge')
+        entity = Entity.objects.create(name='entity', created_user=user)
+        attrbase = EntityAttr.objects.create(name='attr',
+                                             created_user=user,
+                                             parent_entity=entity)
+        entity.attrs.add(attrbase)
+
+        # call add_attribute_from_base method more than once
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        for _i in range(2):
+            entry.add_attribute_from_base(attrbase, user)
+
+        self.assertIsNone(entry.get_cache('add_%d' % attrbase.id))
+
+    def test_may_append_attr(self):
+        # initialize Entity an Entry
+        entity = Entity.objects.create(name='entity', created_user=self._user)
+        entry1 = Entry.objects.create(name='entry1', created_user=self._user, schema=entity)
+        entry2 = Entry.objects.create(name='entry2', created_user=self._user, schema=entity)
+
+        attr = self.make_attr('attr', attrtype=AttrTypeArrStr, entity=entity, entry=entry1)
+
+        # Just after creating entries, there is no attribute in attrs member
+        self.assertEqual(entry1.attrs.count(), 0)
+        self.assertEqual(entry2.attrs.count(), 0)
+
+        for entry in [entry1, entry2]:
+            entry.may_append_attr(attr)
+
+        # Attribute object should be set to appropriate entry's attrs member
+        self.assertEqual(entry1.attrs.first(), attr)
+        self.assertEqual(entry2.attrs.count(), 0)

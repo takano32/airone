@@ -1,11 +1,14 @@
 import json
 import pickle
+import pytz
+import time
 
 from acl.models import ACLBase
 from datetime import date
 from entity.models import Entity, EntityAttr
 from entry.models import Entry
 
+from datetime import datetime, timedelta
 from django.conf import settings
 from django.core.cache import cache
 from django.db import models
@@ -25,6 +28,9 @@ class Job(models.Model):
           the chaning history of Schema, while this focus on managing
           the jobs that user operated.
     """
+
+    # This is the time (seconds) of expiry for continuing job. This value could be overwrite by settings
+    DEFAULT_JOB_TIMEOUT = 86400
 
     # Constant to describes status of each jobs
     OP_CREATE  = 1
@@ -59,6 +65,31 @@ class Job(models.Model):
     # This has serialized parameters to which user sent
     params = models.TextField()
 
+    # This describes dependent jobs. Before executing a job processing, this must check this value.
+    # When this has another job, this job have to wait until it would be finished.
+    dependent_job = models.ForeignKey('Job', null=True)
+
+    def wait_dependent_job(self):
+        # When there is dependent job, this waits until that would be finished.
+        if self.dependent_job:
+            while not self.dependent_job.is_finished():
+                time.sleep(.5)
+
+    def is_timeout(self):
+        # Sync updated_at time information with the data which is stored in database
+        self.refresh_from_db(fields=['updated_at'])
+
+        task_expiry = self.updated_at + timedelta(seconds=self._get_job_timeout())
+
+        return datetime.now(pytz.timezone(settings.TIME_ZONE)) > task_expiry
+
+    def is_finished(self):
+        # Sync status flag information with the data which is stored in database
+        self.refresh_from_db(fields=['status'])
+
+        return (self.status in [Job.STATUS_DONE, Job.STATUS_ERROR, Job.STATUS_TIMEOUT] or
+                self.is_timeout())
+
     def to_json(self):
         return {
             'id': self.id,
@@ -77,12 +108,23 @@ class Job(models.Model):
 
     @classmethod
     def _create_new_job(kls, user, target, operation, text, params):
-
         t_type = kls.TARGET_UNKNOWN
         if isinstance(target, Entry):
             t_type = kls.TARGET_ENTRY
         elif isinstance(target, Entity):
             t_type = kls.TARGET_ENTITY
+
+        # set dependent job to prevent running tasks simultaneously which set to target same one.
+        dependent_job = None
+        if target:
+            threshold = (
+                datetime.now(pytz.timezone(settings.TIME_ZONE)) -
+                             timedelta(seconds=kls._get_job_timeout())
+            )
+            dependent_job = (
+                Job.objects.filter(target=target, operation=operation, updated_at__gt=threshold)
+                .order_by('updated_at').last()
+            )
 
         params = {
             'user': user,
@@ -92,6 +134,7 @@ class Job(models.Model):
             'operation': operation,
             'text': text,
             'params': params,
+            'dependent_job': dependent_job,
         }
 
         return kls.objects.create(**params)
@@ -147,3 +190,10 @@ class Job(models.Model):
             value = pickle.load(fp)
 
         return value
+
+    @classmethod
+    def _get_job_timeout(kls):
+        if 'JOB_TIMEOUT' in settings.AIRONE and settings.AIRONE['JOB_TIMEOUT']:
+            return settings.AIRONE['JOB_TIMEOUT']
+        else:
+            return kls.DEFAULT_JOB_TIMEOUT

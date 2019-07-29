@@ -89,6 +89,9 @@ def _convert_data_value(attr, info):
 def create_entry_attrs(self, user_id, entry_id, job_id):
     job = Job.objects.get(id=job_id)
 
+    # wait dependent job is finished
+    job.wait_dependent_job()
+
     if job.status != Job.STATUS_DONE and job.status != Job.STATUS_PROCESSING:
         # At the first time, update job status to prevent executing this job duplicately
         job.status = Job.STATUS_PROCESSING
@@ -140,6 +143,9 @@ def create_entry_attrs(self, user_id, entry_id, job_id):
 def edit_entry_attrs(self, user_id, entry_id, job_id):
     job = Job.objects.get(id=job_id)
 
+    # wait dependent job is finished
+    job.wait_dependent_job()
+
     if job.status != Job.STATUS_DONE and job.status != Job.STATUS_PROCESSING:
         # At the first time, update job status to prevent executing this job duplicately
         job.status = Job.STATUS_PROCESSING
@@ -182,6 +188,9 @@ def edit_entry_attrs(self, user_id, entry_id, job_id):
 def delete_entry(self, entry_id, job_id):
     job = Job.objects.get(id=job_id)
 
+    # wait dependent job is finished
+    job.wait_dependent_job()
+
     if job.status != Job.STATUS_DONE:
         entry = Entry.objects.get(id=entry_id)
         entry.delete()
@@ -193,6 +202,9 @@ def delete_entry(self, entry_id, job_id):
 @app.task(bind=True)
 def restore_entry(self, entry_id, job_id):
     job = Job.objects.get(id=job_id)
+
+    # wait dependent job is finished
+    job.wait_dependent_job()
 
     if job.status != Job.STATUS_DONE and job.status != Job.STATUS_PROCESSING:
         job.set_status(Job.STATUS_PROCESSING)
@@ -217,6 +229,9 @@ def restore_entry(self, entry_id, job_id):
 @app.task(bind=True)
 def copy_entry(self, user_id, src_entry_id, job_id):
     job = Job.objects.get(id=job_id)
+
+    # wait dependent job is finished
+    job.wait_dependent_job()
 
     if job.status != Job.STATUS_DONE:
         # update job status
@@ -243,6 +258,9 @@ def copy_entry(self, user_id, src_entry_id, job_id):
 @app.task(bind=True)
 def import_entries(self, job_id):
     job = Job.objects.get(id=job_id)
+
+    # wait dependent job is finished
+    job.wait_dependent_job()
 
     if (job.status != Job.STATUS_DONE and
         job.status != Job.STATUS_PROCESSING and
@@ -317,6 +335,9 @@ def export_entries(self, job_id):
 
     if job.status == Job.STATUS_DONE or job.status == Job.STATUS_PROCESSING:
         return
+
+    # wait dependent job is finished
+    job.wait_dependent_job()
 
     job.set_status(Job.STATUS_PROCESSING)
 

@@ -73,6 +73,15 @@ class APITest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
 
         ret_data = resp.json()
+
+        # confirms that all resp data would be expected one
+        self.assertEqual(sorted(ret_data.keys()), ['is_created', 'result', 'updated_attrs'])
+        self.assertEqual(sorted(ret_data['updated_attrs'].keys()), sorted(params['attrs'].keys()))
+        for (key, value) in params['attrs'].items():
+            self.assertEqual(ret_data['updated_attrs'][key], value)
+
+        self.assertTrue(ret_data['is_created'])
+
         new_entry = Entry.objects.get(id=ret_data['result'])
         self.assertEqual(new_entry.name, 'entry1')
         self.assertEqual(new_entry.attrs.count(), 10)
@@ -131,6 +140,10 @@ class APITest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
 
         ret_data = resp.json()
+
+        # check target entry would not be created
+        self.assertFalse(ret_data['is_created'])
+
         new_entry = Entry.objects.get(id=ret_data['result'])
         for attr in new_entry.attrs.filter(is_active=True):
             attrv = attr.get_latest_value()
@@ -700,3 +713,30 @@ class APITest(AironeViewTest):
             'HTTP_AUTHORIZATION': 'Token %s' % str(user.token),
         })
         self.assertEqual(resp.status_code, 200)
+
+    def test_edit_entry_with_same_value(self):
+        user = self.guest_login()
+
+        # Initialize Entity and Entries to use in this test
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(name='attr', type=AttrTypeValue['string'],
+                                                   parent_entity=entity, created_user=user))
+
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+        entry.attrs.first().add_value(user, 'hoge')
+
+        # update attribute with same value
+        resp = self.client.post('/api/v1/entry', json.dumps({
+            'name': entry.name,
+            'entity': entity.name,
+            'attrs': {'attr': 'hoge'},
+        }), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        ret_data = resp.json()
+        self.assertFalse(ret_data['is_created'])
+        self.assertEqual(ret_data['result'], entry.id)
+        
+        # updated attributes would be blank because requesting value is same with current one
+        self.assertEqual(ret_data['updated_attrs'], {})

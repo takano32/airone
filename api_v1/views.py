@@ -1,6 +1,8 @@
 from .serializers import PostEntrySerializer
 from .serializers import GetEntrySerializer
 
+from copy import deepcopy
+
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -25,6 +27,9 @@ class EntryAPI(APIView):
         user = User.objects.get(id=request.user.id)
         sel = PostEntrySerializer(data=request.data)
 
+        # This is necessary because request.data might be changed by the processing of serializer
+        raw_request_data = deepcopy(request.data)
+
         if not sel.is_valid():
             ret = {
                 'result': 'Validation Error',
@@ -36,6 +41,12 @@ class EntryAPI(APIView):
         if not user.has_permission(sel.validated_data['entity'], ACLType.Writable):
             return Response({'result': 'Permission denied to create(or update) entry'},
                             status=status.HTTP_400_BAD_REQUEST)
+
+        # set target entry information to response data
+        resp_data = {
+            'updated_attrs': {},  # This describes updated attribute values
+            'is_created': False,  # This sets true when target entry will be created in this processing
+        }
 
         entry_condition = {
             'schema': sel.validated_data['entity'],
@@ -60,6 +71,7 @@ class EntryAPI(APIView):
             entry = Entry.objects.create(created_user=user,
                                          status=Entry.STATUS_CREATING,
                                          **entry_condition)
+            resp_data['is_created'] = True
 
         entry.complement_attrs(user)
         for name, value in sel.validated_data['attrs'].items():
@@ -71,12 +83,15 @@ class EntryAPI(APIView):
             if user.has_permission(attr.schema, ACLType.Writable) and attr.is_updated(value):
                 attr.add_value(user, value)
 
+                # This enables to let user know what attributes are changed in this request
+                resp_data['updated_attrs'][name] = raw_request_data['attrs'][name]
+
         # register target Entry to the Elasticsearch
         entry.register_es()
 
         entry.del_status(Entry.STATUS_CREATING | Entry.STATUS_EDITING)
 
-        return Response({'result': entry.id})
+        return Response({**{'result': entry.id}, **resp_data})
 
     def get(self, request, *args, **kwargs):
         user = User.objects.filter(id=request.user.id).first()

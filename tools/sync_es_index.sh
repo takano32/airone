@@ -32,7 +32,8 @@ EOS
 
   # sync elasticsearch index with specified node's data
   elasticdump --input=http://${ES_HOST}:${ES_PORT}/${ES_INDEX} \
-              --output=http://${ES_HOST_CURR}/${ES_INDEX}
+              --output=http://${ES_HOST_CURR}/${ES_INDEX} \
+              --limit=${ES_DUMP_MAXIMUM_NUMBER_OF_OBJECTS_PER_OPERATION:-500}
 }
 
 main() {

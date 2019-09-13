@@ -2293,7 +2293,7 @@ class ViewTest(AironeViewTest):
             self.assertEqual(resp.status_code, 400)
 
         # import data from test file
-        fp = self.open_fixture_file('import_data.yaml')
+        fp = self.open_fixture_file('import_data01.yaml')
         resp = self.client.post(reverse('entry:do_import', args=[entity.id]), {'file': fp})
 
         # check the import is success
@@ -2335,7 +2335,7 @@ class ViewTest(AironeViewTest):
         entity.save(update_fields=['is_public'])
 
         # check the import is success but job was failed
-        fp = self.open_fixture_file('import_data.yaml')
+        fp = self.open_fixture_file('import_data01.yaml')
         resp = self.client.post(reverse('entry:do_import', args=[entity.id]), {'file': fp})
 
         self.assertEqual(resp.status_code, 303)
@@ -2381,7 +2381,7 @@ class ViewTest(AironeViewTest):
         entity_attr.save()
 
         # import data from test file
-        fp = self.open_fixture_file('import_data.yaml')
+        fp = self.open_fixture_file('import_data01.yaml')
         resp = self.client.post(reverse('entry:do_import', args=[entity.id]), {'file': fp})
 
         # check the import is success
@@ -3224,3 +3224,28 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(data['entry_id'], 1)
         self.assertEqual(data['entry_name'], 'fuga')
+
+    @patch('entry.views.import_entries.delay', Mock(side_effect=tasks.import_entries))
+    def test_import_entry_with_multiple_attr(self):
+        user = self.admin_login()
+
+        # Create a test entry
+        entry = Entry.objects.create(name='entry', schema=self._entity, created_user=user)
+        entry.complement_attrs(user)
+
+        # Add 1 data and update to deleted
+        attr = entry.attrs.get(schema__name='test')
+        attr.add_value(user, 'test_value')
+        attr.is_active = False
+        attr.save(update_fields=['is_active'])
+
+        # Add second data
+        attr.add_value(user, 'test_value2')
+
+        fp = self.open_fixture_file('import_data02.yaml')
+        resp = self.client.post(reverse('entry:do_import', args=[self._entity.id]), {'file': fp})
+        fp.close()
+
+        # Check attribute value
+        self.assertEqual(
+            entry.attrs.get(schema__name='test', is_active=True).get_latest_value().value, 'fuga')

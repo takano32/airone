@@ -3236,8 +3236,7 @@ class ViewTest(AironeViewTest):
         # Add 1 data and update to deleted
         attr = entry.attrs.get(schema__name='test')
         attr.add_value(user, 'test_value')
-        attr.is_active = False
-        attr.save(update_fields=['is_active'])
+        attr.delete()
 
         # Add second data
         attr.add_value(user, 'test_value2')

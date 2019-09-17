@@ -309,7 +309,7 @@ def import_entries(self, job_id):
                     continue
 
                 entity_attr = EntityAttr.objects.get(name=attr_name, parent_entity=entry.schema)
-                attr = entry.attrs.get(schema=entity_attr)
+                attr = entry.attrs.get(schema=entity_attr, is_active=True)
                 if (not user.has_permission(entity_attr, ACLType.Writable) or
                     not user.has_permission(attr, ACLType.Writable)):
                     continue

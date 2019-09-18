@@ -193,7 +193,7 @@ class ViewTest(AironeViewTest):
         entity_attr.referral.add(ref_entity)
         entity.attrs.add(entity_attr)
 
-        for index in range(0, CONFIG.MAX_LIST_REFERRALS + 1):
+        for index in range(CONFIG.MAX_LIST_REFERRALS, -1, -1):
             Entry.objects.create(name='e-%s' % index, schema=ref_entity, created_user=admin)
 
         entry = Entry.objects.create(name='entry', schema=entity, created_user=admin)
@@ -226,6 +226,25 @@ class ViewTest(AironeViewTest):
                                {'keyword': 'hoge'})
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.json()['results']), 0)
+
+        # Add new data
+        for index in [101, 111, 100, 110]:
+            Entry.objects.create(name='e-%s' % index, schema=ref_entity, created_user=admin)
+
+        # Run with 'e-1' as keyword
+        resp = self.client.get(reverse('entry:api_v1:get_attr_referrals', args=[attr.id]),
+                               {'keyword': 'e-1'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Type'], 'application/json')
+        self.assertTrue('results' in resp.json())
+
+        # Check the number of return values
+        self.assertEqual(len(resp.json()['results']), 15)
+
+        # Check if it is sorted in the expected order
+        targets = [1, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 100, 101, 110, 111]
+        for i, res in enumerate(resp.json()['results']):
+            self.assertEqual(res['name'], 'e-%s' % targets[i])
 
     def test_get_attr_referrals_with_entity_attr(self):
         """

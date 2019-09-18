@@ -16,6 +16,7 @@ from entity.models import Entity, EntityAttr
 from entry.settings import CONFIG
 from pytz import timezone
 from user.models import User
+from natsort import natsorted
 
 
 @airone_profile
@@ -185,7 +186,8 @@ def get_attr_referrals(request, attr_id):
         if len(results) > CONFIG.MAX_LIST_REFERRALS:
             break
 
-    return JsonResponse({'results': results[0:CONFIG.MAX_LIST_REFERRALS]})
+    return JsonResponse(
+        {'results': natsorted(results, key=lambda x:x['name'])[0:CONFIG.MAX_LIST_REFERRALS]})
 
 @airone_profile
 @http_get

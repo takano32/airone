@@ -3313,38 +3313,16 @@ class ViewTest(AironeViewTest):
         self.assertFalse(entry.is_active)
         self.assertIn('entry_deleted_', entry.name)
 
+    @patch.object(Job, 'is_canceled', Mock(return_value=True))
     @patch('entry.views.import_entries.delay', Mock(side_effect=tasks.import_entries))
     def test_cancel_importing_entries(self):
+        user = self.admin_login()
 
-        user = self.guest_login()
+        fp = self.open_fixture_file('import_data03.yaml')
+        resp = self.client.post(reverse('entry:do_import', args=[self._entity.id]), {'file': fp})
+        fp.close()
 
-        # prepare to Entity and Entries which importing data refers to
-        ref_entity = Entity.objects.create(name='RefEntity', created_user=user)
-        ref_entry = Entry.objects.create(name='ref', created_user=user, schema=ref_entity)
-        group = Group.objects.create(name='group')
-
-        entity = Entity.objects.create(name='Entity', created_user=user)
-        attr_info = {
-            'str': {'type': AttrTypeValue['string']},
-            'obj': {'type': AttrTypeValue['object']},
-            'grp': {'type': AttrTypeValue['group']},
-            'name': {'type': AttrTypeValue['named_object']},
-            'bool': {'type': AttrTypeValue['boolean']},
-            'date': {'type': AttrTypeValue['date']},
-            'arr1': {'type': AttrTypeValue['array_string']},
-            'arr2': {'type': AttrTypeValue['array_object']},
-            'arr3': {'type': AttrTypeValue['array_named_object']},
-        }
-        for attr_name, info in attr_info.items():
-            attr = EntityAttr.objects.create(name=attr_name,
-                                             type=info['type'],
-                                             created_user=user,
-                                             parent_entity=entity)
-
-            if info['type'] & AttrTypeValue['object']:
-                attr.referral.add(ref_entity)
-
-            entity.attrs.add(attr)
-
-        fp = self.open_fixture_file('import_data.yaml')
-        resp = self.client.post(reverse('entry:do_import', args=[entity.id]), {'file': fp})
+        # check the import is success
+        self.assertEqual(resp.status_code, 303)
+        self.assertEqual(Entry.objects.filter(schema=self._entity).count(), 0)
+        self.assertEqual(Job.objects.last().text, 'Now importing... (progress: [    1/    3])')

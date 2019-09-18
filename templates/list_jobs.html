@@ -36,7 +36,7 @@
             <th>実行時間</th>
             <th>実行日時</th>
             <th>備考</th>
-            <th>再実行</th>
+            <th></th>
           </tr>
         </thead>
         <tbody id='entry_container'>
@@ -85,6 +85,8 @@
             <td class='table-danger'>エラー</td>
             {% elif job.status == JOB.STATUS.TIMEOUT %}
             <td class='table-danger'>タイムアウト</td>
+            {% elif job.status == JOB.STATUS.CANCELED %}
+            <td class='table-success'>キャンセル</td>
             {% else %}
             <td></td>
             {% endif %}
@@ -109,8 +111,12 @@
 
             <!-- set re-run button if it's under executing -->
             <td>
-              {% if job.status != JOB.STATUS.DONE and job.status != JOB.STATUS.PROCESSING %}
-              <button type='button' class='btn btn-info btn-sm rerun-job' value='{{ job.id }}'>Re-run</button>
+              {% if job.status != JOB.STATUS.DONE and job.status != JOB.STATUS.PROCESSING and job.status != JOB.STATUS.CANCELED %}
+              <p><button type='button' class='btn btn-info btn-sm rerun-job' value='{{ job.id }}'>Re-run</button></p>
+              {% endif %}
+
+              {% if job.status != JOB.STATUS.DONE and job.status != JOB.STATUS.CANCELED %}
+              <p><button type='button' class='btn btn-danger btn-sm cancel-job' value='{{ job.id }}'>Cancel</button></p>
               {% endif %}
             </td>
 
@@ -138,6 +144,22 @@ $(document).ready(function() {
     }).fail(function(data) {
       MessageBox.error(data);
     });
+  });
+
+  $('.cancel-job').on('click', function(e) {
+    if(window.confirm('ジョブをキャンセルしますか？')) {
+      $.ajax({
+        type: 'DELETE',
+        url: "/api/v1/job/",
+        data: {
+          job_id: $(this).val()
+        },
+      }).done(function(data) {
+        location.reload();
+      }).fail(function(data) {
+        MessageBox.error(data);
+      });
+    }
   });
 });
 </script>

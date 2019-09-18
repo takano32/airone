@@ -205,7 +205,7 @@ class ViewTest(AironeViewTest):
         # check export task is executed
         job = Job.objects.last()
         self.assertEqual(job.operation, Job.OP_EXPORT)
-        self.assertEqual(job.status, Job.STATUS_DONE)
+        self.assertEqual(job.status, Job.STATUS['DONE'])
         self.assertEqual(json.loads(job.params), export_params)
 
         # check result is set at cache
@@ -214,6 +214,23 @@ class ViewTest(AironeViewTest):
         self.assertEqual(csv_contents[0], 'Name,Entity,attr')
         self.assertEqual(sorted(csv_contents[1:]),
                          sorted(['entry-5,entity-0,data-5', 'entry-5,entity-1,data-5']))
+
+        ###
+        # The case when export processing is canceled after running background processing
+        ###
+        for export_style in ['csv', 'yaml']:
+            export_params['export_style'] = export_style
+            with patch.object(Job, 'is_canceled', return_value=True):
+                resp = self.client.post(reverse('dashboard:export_search_result'),
+                                        json.dumps(export_params),
+                                        'application/json')
+
+            # check export task is executed
+            job = Job.objects.last()
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual(job.operation, Job.OP_EXPORT)
+            with self.assertRaises(FileNotFoundError):
+                job.get_cache()
 
         # test to show advanced_search_result page without mandatory params
         resp = self.client.get(reverse('dashboard:advanced_search_result'), {
@@ -580,7 +597,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
 
         # When the job is finished, the processing is passed.
-        job.status = Job.STATUS_DONE
+        job.status = Job.STATUS['DONE']
         job.save(update_fields=['status'])
         resp = self.client.post(reverse('dashboard:export_search_result'),
                                 json.dumps(export_params, sort_keys=True),

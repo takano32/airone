@@ -247,7 +247,7 @@ class ViewTest(AironeViewTest):
         obj = job.first()
         self.assertEqual(obj.target.id, entry.id)
         self.assertEqual(obj.target_type, Job.TARGET_ENTRY)
-        self.assertEqual(obj.status, Job.STATUS_DONE)
+        self.assertEqual(obj.status, Job.STATUS['DONE'])
         self.assertEqual(obj.operation, Job.OP_CREATE)
 
         # checks specify part of attribute parameter then set AttributeValue which is only specified one
@@ -598,7 +598,7 @@ class ViewTest(AironeViewTest):
         obj = job.first()
         self.assertEqual(obj.target.id, entry.id)
         self.assertEqual(obj.target_type, Job.TARGET_ENTRY)
-        self.assertEqual(obj.status, Job.STATUS_DONE)
+        self.assertEqual(obj.status, Job.STATUS['DONE'])
         self.assertEqual(obj.operation, Job.OP_EDIT)
 
         # checks specify part of attribute parameter then set AttributeValue which is only specified one
@@ -928,7 +928,7 @@ class ViewTest(AironeViewTest):
 
         job = Job.objects.last()
         self.assertEqual(job.operation, Job.OP_EXPORT)
-        self.assertEqual(job.status, Job.STATUS_DONE)
+        self.assertEqual(job.status, Job.STATUS['DONE'])
         self.assertEqual(job.text, 'entry_ほげ.yaml')
 
         obj = yaml.load(job.get_cache())
@@ -967,6 +967,23 @@ class ViewTest(AironeViewTest):
 
         # check unpermitted attribute doesn't exist in the result
         self.assertFalse('new_attr' in obj['ほげ'][0]['attrs'])
+
+        ###
+        # Check the case of canceling job
+        ###
+        with patch.object(Job, 'is_canceled', return_value=True):
+            resp = self.client.get(reverse('entry:export', args=[entity.id]))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json(), {
+            'result': 'Succeed in registering export processing. Please check Job list.'
+        })
+
+        job = Job.objects.last()
+        self.assertEqual(job.operation, Job.OP_EXPORT)
+        self.assertEqual(job.text, 'entry_ほげ.yaml')
+        with self.assertRaises(FileNotFoundError):
+            job.get_cache()
 
     @patch('entry.views.export_entries.delay', Mock(side_effect=tasks.export_entries))
     def test_get_export_csv_escape(self):
@@ -1719,7 +1736,7 @@ class ViewTest(AironeViewTest):
         obj = job.first()
         self.assertEqual(obj.target.id, entry.id)
         self.assertEqual(obj.target_type, Job.TARGET_ENTRY)
-        self.assertEqual(obj.status, Job.STATUS_DONE)
+        self.assertEqual(obj.status, Job.STATUS['DONE'])
 
         # checking for the cases of sending invalid referral parameters
         requests = [
@@ -2134,7 +2151,7 @@ class ViewTest(AironeViewTest):
             self.assertTrue(any([obj.target.name == x for x in ['foo', 'bar', 'baz']]))
             self.assertEqual(obj.text, 'original entry: %s' % entry.name)
             self.assertEqual(obj.target_type, Job.TARGET_ENTRY)
-            self.assertEqual(obj.status, Job.STATUS_DONE)
+            self.assertEqual(obj.status, Job.STATUS['DONE'])
             self.assertNotEqual(obj.created_at, obj.updated_at)
             self.assertTrue((obj.updated_at - obj.created_at).total_seconds() > 0)
 
@@ -2302,7 +2319,7 @@ class ViewTest(AironeViewTest):
 
         # check job status
         job = Job.objects.filter(target=entity).last()
-        self.assertEqual(job.status, Job.STATUS_DONE)
+        self.assertEqual(job.status, Job.STATUS['DONE'])
         self.assertEqual(job.text, '')
 
         entry = Entry.objects.get(name='Entry', schema=entity)
@@ -2340,7 +2357,7 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 303)
         job = Job.objects.filter(target=entity).last()
-        self.assertEqual(job.status, Job.STATUS_ERROR)
+        self.assertEqual(job.status, Job.STATUS['ERROR'])
         self.assertEqual(job.text, 'Permission denied to import. You need Writable permission for "%s"' % entity.name)
 
     @patch('entry.views.import_entries.delay', Mock(side_effect=tasks.import_entries))
@@ -2850,7 +2867,7 @@ class ViewTest(AironeViewTest):
             self.assertEqual(job.user.id, user_id)
             self.assertEqual(job.target.id, entry_id)
             self.assertEqual(job.target_type, Job.TARGET_ENTRY)
-            self.assertEqual(job.status, Job.STATUS_PREPARING)
+            self.assertEqual(job.status, Job.STATUS['PREPARING'])
             self.assertEqual(job.operation, Job.OP_EDIT)
 
         with patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=side_effect)):
@@ -3224,3 +3241,86 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(data['entry_id'], 1)
         self.assertEqual(data['entry_name'], 'fuga')
+
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    @patch.object(Job, 'is_canceled', Mock(return_value=True))
+    def test_cancel_creating_entry(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entity_attr = EntityAttr.objects.create(name='attr',
+                                                type=AttrTypeValue['string'],
+                                                parent_entity=entity,
+                                                created_user=user)
+        entity.attrs.add(entity_attr)
+
+        # creates entry that has a parameter which is typed boolean
+        params = {
+            'entry_name': 'entry',
+            'attrs': [
+                {'id': str(entity_attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+            ],
+        }
+
+        # This task would be canceled because is_canceled method of creating job object returns True.
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                json.dumps(params),
+                                'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        entry = Entry.objects.last()
+        self.assertFalse(entry.is_active)
+        self.assertIn('entry_deleted_', entry.name)
+
+    @patch.object(Job, 'is_canceled', Mock(return_value=True))
+    @patch.object(Job, 'is_ready_to_process', Mock(return_value=False))
+    @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
+    def test_cancel_creating_entry_before_starting_background_processing(self):
+        user = self.admin_login()
+        entity = Entity.objects.create(name='entity', created_user=user)
+
+        # The case that job is canceled before staring background processing
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
+                                json.dumps({'entry_name': 'entry', 'attrs': []}),
+                                'application/json')
+        self.assertEqual(resp.status_code, 200)
+
+        entry = Entry.objects.last()
+        self.assertFalse(entry.is_active)
+        self.assertIn('entry_deleted_', entry.name)
+
+    @patch('entry.views.import_entries.delay', Mock(side_effect=tasks.import_entries))
+    def test_cancel_importing_entries(self):
+
+        user = self.guest_login()
+
+        # prepare to Entity and Entries which importing data refers to
+        ref_entity = Entity.objects.create(name='RefEntity', created_user=user)
+        ref_entry = Entry.objects.create(name='ref', created_user=user, schema=ref_entity)
+        group = Group.objects.create(name='group')
+
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        attr_info = {
+            'str': {'type': AttrTypeValue['string']},
+            'obj': {'type': AttrTypeValue['object']},
+            'grp': {'type': AttrTypeValue['group']},
+            'name': {'type': AttrTypeValue['named_object']},
+            'bool': {'type': AttrTypeValue['boolean']},
+            'date': {'type': AttrTypeValue['date']},
+            'arr1': {'type': AttrTypeValue['array_string']},
+            'arr2': {'type': AttrTypeValue['array_object']},
+            'arr3': {'type': AttrTypeValue['array_named_object']},
+        }
+        for attr_name, info in attr_info.items():
+            attr = EntityAttr.objects.create(name=attr_name,
+                                             type=info['type'],
+                                             created_user=user,
+                                             parent_entity=entity)
+
+            if info['type'] & AttrTypeValue['object']:
+                attr.referral.add(ref_entity)
+
+            entity.attrs.add(attr)
+
+        fp = self.open_fixture_file('import_data.yaml')
+        resp = self.client.post(reverse('entry:do_import', args=[entity.id]), {'file': fp})

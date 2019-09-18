@@ -197,7 +197,7 @@ def export_search_result(request, recv_data):
     user = User.objects.get(id=request.user.id)
 
     # check whether same job is sent
-    job_status_not_finished = [Job.STATUS_PREPARING, Job.STATUS_PROCESSING]
+    job_status_not_finished = [Job.STATUS['PREPARING'], Job.STATUS['PROCESSING']]
     if Job.get_job_with_params(user, recv_data).filter(status__in=job_status_not_finished).exists():
         return HttpResponse('Same export processing is under execution', status=400)
 

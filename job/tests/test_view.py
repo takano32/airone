@@ -95,7 +95,7 @@ class ViewTest(AironeViewTest):
         def side_effect():
             # send re-run request for executing job by calling API
             job = Job.objects.last()
-            self.assertEqual(job.status, Job.STATUS_PROCESSING)
+            self.assertEqual(job.status, Job.STATUS['PROCESSING'])
 
             # check that backend processing never run by calling API
             resp = self.client.post('/api/v1/job/run/%d' % job.id)
@@ -118,10 +118,18 @@ class ViewTest(AironeViewTest):
         # When user send a download request of Job with invalid Job-id, then HTTP 400 is returned
         resp = self.client.get('/job/download/%d' % (job.id + 1))
         self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content.decode(), 'Invalid Job-ID is specified')
 
         # When user send a download request of non export Job, then HTTP 400 is returned
         resp = self.client.get('/job/download/%d' % job.id)
         self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content.decode(), 'Target Job has no value to return')
+
+        # The case user sends a download request for a job which doesn't have a result
+        job = Job.new_export(user, text='fuga')
+        resp = self.client.get('/job/download/%d' % job.id)
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content.decode(), 'This result is no longer available')
 
         # When user send a download request of export Job by differenct user from creating one,
         # then HTTP 400 is returned
@@ -129,6 +137,7 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
         resp = self.client.get('/job/download/%d' % job.id)
         self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content.decode(), 'Target Job is executed by other people')
 
     def test_job_download(self):
         user = self.guest_login()

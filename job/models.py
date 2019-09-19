@@ -29,10 +29,14 @@ class Job(models.Model):
           the jobs that user operated.
     """
 
+    # This constant value indicates the frequency to qeury database for job status
+    STATUS_CHECK_FREQUENCY = 100
+
     # This is the time (seconds) of expiry for continuing job. This value could be overwrite by settings
     DEFAULT_JOB_TIMEOUT = 86400
 
     # Constant to describes status of each jobs
+    # TODO: these constants should be changed as dict value like STATUS for maintainability
     OP_CREATE  = 1
     OP_EDIT    = 2
     OP_DELETE  = 3
@@ -41,15 +45,19 @@ class Job(models.Model):
     OP_EXPORT  = 6
     OP_RESTORE = 7
 
+    # TODO: these constants should be changed as dict value like STATUS for maintainability
     TARGET_UNKNOWN  = 0
     TARGET_ENTRY    = 1
     TARGET_ENTITY   = 2
 
-    STATUS_PREPARING    = 1
-    STATUS_DONE         = 2
-    STATUS_ERROR        = 3
-    STATUS_TIMEOUT      = 4
-    STATUS_PROCESSING   = 5
+    STATUS = {
+        'PREPARING': 1,
+        'DONE': 2,
+        'ERROR': 3,
+        'TIMEOUT': 4,
+        'PROCESSING': 5,
+        'CANCELED': 6,
+    }
 
     user = models.ForeignKey(User)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -87,8 +95,33 @@ class Job(models.Model):
         # Sync status flag information with the data which is stored in database
         self.refresh_from_db(fields=['status'])
 
-        return (self.status in [Job.STATUS_DONE, Job.STATUS_ERROR, Job.STATUS_TIMEOUT] or
-                self.is_timeout())
+        # This value indicates that there is no more processing for a job
+        finished_status = [
+            Job.STATUS['DONE'],
+            Job.STATUS['ERROR'],
+            Job.STATUS['TIMEOUT'],
+            Job.STATUS['CANCELED'],
+        ]
+
+        return (self.status in finished_status or self.is_timeout())
+
+    def is_canceled(self):
+        # Sync status flag information with the data which is stored in database
+        self.refresh_from_db(fields=['status'])
+
+        return self.status == Job.STATUS['CANCELED']
+
+    def is_ready_to_process(self):
+        return (not self.is_finished() and self.status != Job.STATUS['PROCESSING'])
+
+    def set_status(self, new_status):
+        if new_status in Job.STATUS.values():
+            self.status = new_status
+            self.save(update_fields=['status', 'updated_at'])
+
+            return True
+        else:
+            return False
 
     def to_json(self):
         return {
@@ -130,7 +163,7 @@ class Job(models.Model):
             'user': user,
             'target': target,
             'target_type': t_type,
-            'status': kls.STATUS_PREPARING,
+            'status': kls.STATUS['PREPARING'],
             'operation': operation,
             'text': text,
             'params': params,
@@ -175,10 +208,6 @@ class Job(models.Model):
     @classmethod
     def new_restore(kls, user, target, text='', params={}):
         return kls._create_new_job(user, target, kls.OP_RESTORE, text, params)
-
-    def set_status(self, status):
-        self.status = status
-        self.save(update_fields=['status', 'updated_at'])
 
     def set_cache(self, value):
         with open('%s/job_%d' % (settings.AIRONE['FILE_STORE_PATH'], self.id), 'wb') as fp:

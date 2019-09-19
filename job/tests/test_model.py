@@ -34,7 +34,7 @@ class ModelTest(AironeTestCase):
             self.assertEqual(job.user, self.guest)
             self.assertEqual(job.target, entry)
             self.assertEqual(job.target_type, Job.TARGET_ENTRY)
-            self.assertEqual(job.status, Job.STATUS_PREPARING)
+            self.assertEqual(job.status, Job.STATUS['PREPARING'])
             self.assertEqual(job.operation, info['op'])
 
     def test_get_object(self):
@@ -67,12 +67,12 @@ class ModelTest(AironeTestCase):
         job = Job.new_create(self.guest, self.entity)
 
         # check default status
-        self.assertEqual(job.status, Job.STATUS_PREPARING)
+        self.assertEqual(job.status, Job.STATUS['PREPARING'])
 
-        job.set_status(Job.STATUS_DONE)
+        job.set_status(Job.STATUS['DONE'])
 
         # check status is changed by set_status method
-        self.assertEqual(Job.objects.get(id=job.id).status, Job.STATUS_DONE)
+        self.assertEqual(Job.objects.get(id=job.id).status, Job.STATUS['DONE'])
 
     def test_cache(self):
         job = Job.new_create(self.guest, self.entity)
@@ -115,6 +115,50 @@ class ModelTest(AironeTestCase):
 
         self.assertTrue(job.is_timeout())
 
+    def test_is_finished(self):
+        job = Job.new_create(self.guest, self.entity)
+
+        for status in [Job.STATUS['DONE'], Job.STATUS['ERROR'], Job.STATUS['TIMEOUT'], Job.STATUS['CANCELED']]:
+            job.status = status
+            job.save(update_fields=['status'])
+            self.assertTrue(job.is_finished())
+
+    def test_is_canceled(self):
+        job = Job.new_create(self.guest, self.entity)
+
+        self.assertFalse(job.is_canceled())
+
+        # change status of target job
+        job.set_status(Job.STATUS['CANCELED'])
+
+        # confirms that is_canceled would be true by changing job status parameter
+        self.assertTrue(job.is_canceled())
+
+    def test_set_status(self):
+        job = Job.new_create(self.guest, self.entity)
+        self.assertEqual(job.status, Job.STATUS['PREPARING'])
+
+        self.assertTrue(job.set_status(Job.STATUS['DONE']))
+        job.refresh_from_db(fields=['status'])
+        self.assertEqual(job.status, Job.STATUS['DONE'])
+
+        # When an invalid status value is specified, status value won't be changed
+        self.assertFalse(job.set_status(9999))
+        job.refresh_from_db(fields=['status'])
+        self.assertEqual(job.status, Job.STATUS['DONE'])
+
+    def test_is_ready_to_process(self):
+        job = Job.new_create(self.guest, self.entity)
+
+        for status in [Job.STATUS['DONE'], Job.STATUS['ERROR'], Job.STATUS['TIMEOUT'], Job.STATUS['CANCELED'], Job.STATUS['PROCESSING']]:
+            job.status = status
+            job.save(update_fields=['status'])
+            self.assertFalse(job.is_ready_to_process())
+
+        job.status = Job.STATUS['PREPARING']
+        job.save(update_fields=['status'])
+        self.assertTrue(job.is_ready_to_process())
+
     @patch('job.models.time.sleep')
     def test_waiting_job_until_dependent_one_is_finished(self, mock_sleep):
         # create two jobs which have dependency
@@ -124,7 +168,7 @@ class ModelTest(AironeTestCase):
 
         def side_effect(*args, **kwargs):
             job1.text = 'finished manually from side_effect'
-            job1.status = Job.STATUS_DONE
+            job1.status = Job.STATUS['DONE']
             job1.save(update_fields=['status', 'text'])
 
         mock_sleep.side_effect = side_effect

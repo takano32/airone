@@ -33,8 +33,7 @@ def index(request):
             'operation': x.operation,
             'created_at': x.created_at,
             'passed_time': (x.updated_at - x.created_at).seconds 
-                    if x.status == Job.STATUS_DONE else \
-                    (datetime.now(timezone.utc) - x.created_at).seconds,
+                    if x.is_finished() else (datetime.now(timezone.utc) - x.created_at).seconds,
         } for x in Job.objects.filter(user=user).order_by('-created_at')[:limitation] \
                 if (x.operation == Job.OP_EXPORT or (x.operation != Job.OP_EXPORT and x.target.is_active))]
     }
@@ -57,6 +56,9 @@ def download(request, job_id):
 
     # get value associated this Job from cache
     io_stream = io.StringIO()
-    io_stream.write(job.get_cache())
+    try:
+        io_stream.write(job.get_cache())
+    except FileNotFoundError:
+        return HttpResponse("This result is no longer available", status=400)
 
     return get_download_response(io_stream, job.text)

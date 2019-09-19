@@ -11,7 +11,7 @@ from job.models import Job
 from natsort import natsorted
 
 
-def _csv_export(values, recv_data, has_referral):
+def _csv_export(job, values, recv_data, has_referral):
     output = io.StringIO(newline='')
     writer = csv.writer(output)
 
@@ -21,8 +21,12 @@ def _csv_export(values, recv_data, has_referral):
     else:
         writer.writerow(['Name'] + ['Entity'] + [x['name'] for x in recv_data['attrinfo']])
 
-    for entry_info in values:
+    for (index, entry_info) in enumerate(values):
         line_data = [entry_info['entry']['name']]
+
+        # Abort processing when job is canceled
+        if index % Job.STATUS_CHECK_FREQUENCY == 0 and job.is_canceled():
+            return
 
         # Append the data which specifies Entity name to which target Entry belongs
         line_data.append(entry_info['entity']['name'])
@@ -87,7 +91,7 @@ def _csv_export(values, recv_data, has_referral):
 
     return output
 
-def _yaml_export(values, recv_data, has_referral):
+def _yaml_export(job, values, recv_data, has_referral):
     output = io.StringIO()
 
     def _get_attr_value(atype, value):
@@ -109,11 +113,15 @@ def _yaml_export(values, recv_data, has_referral):
             return value
 
     resp_data = {}
-    for entry_info in values:
+    for (index, entry_info) in enumerate(values):
         data = {
             'name': entry_info['entry']['name'],
             'attrs': {},
         }
+
+        # Abort processing when job is canceled
+        if index % Job.STATUS_CHECK_FREQUENCY == 0 and job.is_canceled():
+            return
 
         for attrinfo in recv_data['attrinfo']:
             data['attrs'][attrinfo['name']] = ''
@@ -137,14 +145,14 @@ def _yaml_export(values, recv_data, has_referral):
 def export_search_result(self, job_id):
     job = Job.objects.get(id=job_id)
 
-    if job.status == Job.STATUS_DONE or job.status == Job.STATUS_PROCESSING:
+    if not job.is_ready_to_process():
         return
 
     # wait dependent job is finished
     job.wait_dependent_job()
 
     # set flag to indicate that this job starts processing
-    job.set_status(Job.STATUS_PROCESSING)
+    job.set_status(Job.STATUS['PROCESSING'])
 
     user = job.user
     recv_data = json.loads(job.params)
@@ -166,12 +174,14 @@ def export_search_result(self, job_id):
 
     io_stream = None
     if recv_data['export_style'] == 'yaml':
-        io_stream = _yaml_export(resp['ret_values'], recv_data, has_referral)
+        io_stream = _yaml_export(job, resp['ret_values'], recv_data, has_referral)
 
     elif recv_data['export_style'] == 'csv':
-        io_stream = _csv_export(resp['ret_values'], recv_data, has_referral)
+        io_stream = _csv_export(job, resp['ret_values'], recv_data, has_referral)
 
     if io_stream:
         job.set_cache(io_stream.getvalue())
 
-    job.set_status(Job.STATUS_DONE)
+    # update job status and save it except for the case that target job is canceled.
+    if not job.is_canceled():
+        job.set_status(Job.STATUS['DONE'])

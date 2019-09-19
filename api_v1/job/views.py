@@ -29,10 +29,10 @@ class JobAPI(APIView):
 
         constant = {
             'status': {
-                'processing': Job.STATUS_PROCESSING,
-                'done': Job.STATUS_DONE,
-                'error': Job.STATUS_ERROR,
-                'timeout': Job.STATUS_TIMEOUT,
+                'processing': Job.STATUS['PROCESSING'],
+                'done': Job.STATUS['DONE'],
+                'error': Job.STATUS['ERROR'],
+                'timeout': Job.STATUS['TIMEOUT'],
             },
             'operation': {
                 'create': Job.OP_CREATE,
@@ -56,6 +56,27 @@ class JobAPI(APIView):
             'constant': constant,
         }, content_type='application/json; charset=UTF-8')
 
+    def delete(self, request, format=None):
+        """
+        This cancels a specified Job.
+        """
+        user = User.objects.get(id=request.user.id)
+        job_id = request.data.get('job_id', None)
+        if not job_id:
+            return Response('Parameter job_id is required', status=status.HTTP_400_BAD_REQUEST)
+
+        job = Job.objects.filter(id=job_id).first()
+        if not job:
+            return Response('Failed to find Job(id=%s)' % job_id, status=status.HTTP_400_BAD_REQUEST)
+
+        if job.status == Job.STATUS['DONE']:
+            return Response('Target job has already been done')
+
+        # update job.status to be canceled
+        job.set_status(Job.STATUS['CANCELED'])
+
+        return Response('Success to cancel job')
+
 class SpecificJobAPI(APIView):
     authentication_classes = (AironeTokenAuth, BasicAuthentication, SessionAuthentication,)
 
@@ -65,9 +86,9 @@ class SpecificJobAPI(APIView):
             return Response('Failed to find Job(id=%s)' % job_id, status=status.HTTP_400_BAD_REQUEST)
 
         # check job status before starting processing
-        if job.status == Job.STATUS_DONE:
+        if job.status == Job.STATUS['DONE']:
             return Response('Target job has already been done')
-        elif job.status == Job.STATUS_PROCESSING:
+        elif job.status == Job.STATUS['PROCESSING']:
             return Response('Target job is under processing', status=status.HTTP_400_BAD_REQUEST)
 
         # check job target status

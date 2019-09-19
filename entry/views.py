@@ -361,7 +361,7 @@ def export(request, entity_id):
         job_params['export_format'] = 'csv'
 
     # check whether same job is sent
-    job_status_not_finished = [Job.STATUS_PREPARING, Job.STATUS_PROCESSING]
+    job_status_not_finished = [Job.STATUS['PREPARING'], Job.STATUS['PROCESSING']]
     if Job.get_job_with_params(user, job_params).filter(status__in=job_status_not_finished).exists():
         return HttpResponse('Same export processing is under execution', status=400)
 
@@ -519,7 +519,7 @@ def do_copy(request, entry_id, recv_data):
         if Job.objects.filter(
                 operation=Job.OP_COPY,
                 target=entry,
-                status__in=[Job.STATUS_PREPARING, Job.STATUS_PROCESSING],
+                status__in=[Job.STATUS['PREPARING'], Job.STATUS['PROCESSING']],
                 params=json.dumps(params, sort_keys=True)):
             ret.append({
                 'status': 'fail',

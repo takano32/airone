@@ -175,13 +175,7 @@ def render(request, template, context={}):
 
     # set constracts for job
     context['JOB'] = {
-        'STATUS': {
-            'PROCESSING': Job.STATUS_PROCESSING,
-            'PREPARING': Job.STATUS_PREPARING,
-            'DONE': Job.STATUS_DONE,
-            'ERROR': Job.STATUS_ERROR,
-            'TIMEOUT': Job.STATUS_TIMEOUT,
-        },
+        'STATUS': Job.STATUS,
         'OPERATION': {
             'CREATE': Job.OP_CREATE,
             'EDIT': Job.OP_EDIT,

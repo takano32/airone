@@ -60,10 +60,10 @@ class APITest(AironeViewTest):
             'restore': Job.OP_RESTORE,
         })
         self.assertEqual(results['constant']['status'], {
-            'processing': Job.STATUS_PROCESSING,
-            'done': Job.STATUS_DONE,
-            'error': Job.STATUS_ERROR,
-            'timeout': Job.STATUS_TIMEOUT,
+            'processing': Job.STATUS['PROCESSING'],
+            'done': Job.STATUS['DONE'],
+            'error': Job.STATUS['ERROR'],
+            'timeout': Job.STATUS['TIMEOUT'],
         })
 
         # checks the parameter MAXLIST_NAV is applied
@@ -105,7 +105,7 @@ class APITest(AironeViewTest):
         self.assertEqual(resp.content, b'"Success to run command"')
 
         job = Job.objects.get(id=job.id)
-        self.assertEqual(job.status, Job.STATUS_DONE)
+        self.assertEqual(job.status, Job.STATUS['DONE'])
         self.assertEqual(entry.attrs.count(), 1)
 
         attrv = entry.attrs.first().get_latest_value()
@@ -130,7 +130,7 @@ class APITest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.content, b'"Success to run command"')
-        self.assertEqual(Job.objects.get(id=job.id).status, Job.STATUS_DONE)
+        self.assertEqual(Job.objects.get(id=job.id).status, Job.STATUS['DONE'])
         self.assertEqual(entry.attrs.first().get_latest_value().value, 'fuga')
 
         # make and send a job to copy entry
@@ -139,7 +139,7 @@ class APITest(AironeViewTest):
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.content, b'"Success to run command"')
-        self.assertEqual(Job.objects.get(id=job.id).status, Job.STATUS_DONE)
+        self.assertEqual(Job.objects.get(id=job.id).status, Job.STATUS['DONE'])
 
         # checks it's success to clone entry
         new_entry = Entry.objects.get(name='new_entry', schema=entity)
@@ -191,3 +191,31 @@ class APITest(AironeViewTest):
             self.assertEqual(len(resp.json()), 1)
             self.assertEqual(resp.json()['result'][0]['id'], job.id)
             self.assertEqual(resp.json()['result'][0]['target']['id'], entry.id)
+
+    def test_cancel_job(self):
+        user = self.guest_login()
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+
+        # make a job
+        job = Job.new_delete(user, entry)
+        self.assertEqual(job.status, Job.STATUS['PREPARING'])
+
+        # send request without any parameters
+        resp = self.client.delete('/api/v1/job/', json.dumps({}), 'application/json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content, b'"Parameter job_id is required"')
+
+        # send request with invalid job id
+        resp = self.client.delete('/api/v1/job/', json.dumps({'job_id': 99999}), 'application/json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content, b'"Failed to find Job(id=99999)"')
+
+        # send request with proper parameter
+        resp = self.client.delete('/api/v1/job/', json.dumps({'job_id': job.id}), 'application/json')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.content, b'"Success to cancel job"')
+
+        job.refresh_from_db()
+        self.assertEqual(job.status, Job.STATUS['CANCELED'])

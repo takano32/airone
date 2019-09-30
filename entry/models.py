@@ -1249,19 +1249,25 @@ class Entry(ACLBase):
 
     @classmethod
     def search_entries(kls, user, hint_entity_ids, hint_attrs=[], limit=CONFIG.MAX_LIST_ENTRIES, entry_name=None, or_match=False, hint_referral=False):
-        def _get_regex_pattern(keyword):
-            return '.*%s.*' % ''.join(['[%s%s]' % (x.lower(), x.upper()) if x.isalpha() else x for x in keyword])
-
-        def _get_hint_keyword_val(keyword):
-            if (CONFIG.EMPTY_SEARCH_CHARACTER == keyword
-                or CONFIG.EMPTY_SEARCH_CHARACTER_CODE == keyword):
-                return ''
-            return keyword
+        """
+        The main method called from simple search and advanced search
+        """
 
         results = {
             'ret_count': 0,
             'ret_values': []
         }
+
+        query = kls._create_query(kls, user, hint_entity_ids, hint_attrs, entry_name, or_match)
+
+        res = kls._execute_query(query)
+
+        if 'status' in res and res['status'] == 404:
+            return results
+
+        return kls._create_search_results(user, results, res, hint_attrs, limit, hint_referral)
+
+    def _create_query(kls, user, hint_entity_ids, hint_attrs, entry_name, or_match):
 
         # Making a query to send ElasticSearch by the specified parameters
         query = {
@@ -1283,23 +1289,12 @@ class Entry(ACLBase):
             }
         })
 
-        # set condition to get results that only have specified entity
+        # Included in query if refinement is entered for 'Name' in advanced search
         if entry_name:
-            name_val = _get_hint_keyword_val(entry_name)
-            if name_val:
-                query['query']['bool']['filter'].append({
-                    'regexp': {
-                        'name': _get_regex_pattern(name_val)
-                    }
-                })
-            else:
-                query['query']['bool']['filter'].append({
-                    'match': {
-                        'name': ''
-                    }
-                })
+            query['query']['bool']['filter'].append(kls._create_entry_name(kls, entry_name))
 
-        # set all attribute to be available
+        # Set the attribute name so that all the attributes specified in the attribute,
+        # to be searched can be used
         if hint_attrs:
             query['query']['bool']['filter'].append({
                 'nested': {
@@ -1312,81 +1307,241 @@ class Entry(ACLBase):
                 }
             })
 
+        attr_query = {}
+
         # filter attribute by keywords
         for hint in [x for x in hint_attrs if 'name' in x and 'keyword' in x and x['keyword']]:
-            cond_attr = []
-            cond_attr.append({
-                'term': {'attr.name': hint['name']}
-            })
+            attr_query = kls._parse_or_search(kls, hint, or_match, attr_query)
 
+        # Build queries along keywords
+        if attr_query:
+            query['query']['bool']['filter'].append(
+                kls._build_queries_along_keywords(kls, hint_attrs, attr_query, or_match))
 
-            date_results = kls._is_date(hint['keyword'])
-            if date_results:
-                date_cond = {
-                    'range': {
-                        'attr.date_value': {
-                            'format': 'yyyy-MM-dd'
-                        }
-                    },
-                }
-                for (range_check, date_obj) in date_results:
-                    timestr = date_obj.strftime('%Y-%m-%d')
-                    if range_check == '<':
-                        # search of before date user specified
-                        date_cond['range']['attr.date_value']['lt'] = timestr
+        return query
 
-                    elif range_check == '>':
-                        # search of after date user specified
-                        date_cond['range']['attr.date_value']['gt'] = timestr
+    def _get_regex_pattern(keyword):
+        replace_list = ['(',')','<','"','{','[']
+        keyword = ''.join(['\\' + x if x in replace_list else x for x in [*keyword]])
+        return '.*%s.*' % ''.join(['[%s%s]' % (x.lower(), x.upper()) if x.isalpha() else x for x in keyword])
 
-                    else:
-                        # search of exact day
-                        date_cond['range']['attr.date_value']['gte'] = timestr
-                        date_cond['range']['attr.date_value']['lte'] = timestr
+    def _get_hint_keyword_val(keyword):
+        # For EMPTY_SEARCH_CHARACTER, blank out the keyword
+        if (CONFIG.EMPTY_SEARCH_CHARACTER == keyword
+            or CONFIG.EMPTY_SEARCH_CHARACTER_CODE == keyword):
+            return ''
+        return keyword
 
-                cond_attr.append(date_cond)
+    def _create_entry_name(kls, entry_name):
+        entry_name_or_query = {
+            'bool': {
+                'should': []
+            }
+        }
 
-            else:
-                hint_kyeword_val = _get_hint_keyword_val(hint['keyword'])
-                cond_val = [{'match': {'attr.value': hint_kyeword_val}}]
+        # Split and process keywords with 'or'
+        for keyword_divided_or in entry_name.split(CONFIG.OR_SEARCH_CHARACTER):
 
-                if hint_kyeword_val:
-                    if 'exact_match' not in hint:
-                        cond_val.append({
-                            'regexp': {
-                                'attr.value': _get_regex_pattern(hint_kyeword_val)
-                            }
-                        })
-
-                    cond_attr.append({'bool' : {'should': cond_val}})
-
-                else:
-                    cond_val_tmp = [{'bool': {'must_not': {'exists': {'field': 'attr.date_value'}}}}]
-                    cond_val_tmp.append({'bool' : {'should': cond_val}})
-                    cond_attr.append({'bool' : {'must': cond_val_tmp}})
-
-            adding_cond = {
-                'nested': {
-                    'path': 'attr',
-                    'query': {
-                        'bool': {}
-                    }
+            entry_name_and_query = {
+                'bool': {
+                    'filter': []
                 }
             }
-            if or_match:
-                adding_cond['nested']['query']['bool']['should'] = cond_attr
+
+            # Keyword divided by 'or' is processed by dividing by 'and'
+            for keyword in keyword_divided_or.split(CONFIG.AND_SEARCH_CHARACTER):
+                name_val = kls._get_hint_keyword_val(keyword)
+                if name_val:
+                    # When normal conditions are specified
+                    entry_name_and_query['bool']['filter'].append({
+                        'regexp': {
+                            'name': kls._get_regex_pattern(name_val)
+                        }
+                    })
+                else :
+                    # When blank is specified in the condition
+                    entry_name_and_query['bool']['filter'].append({
+                        'match': {
+                            'name': ''
+                        }
+                    })
+            entry_name_or_query['bool']['should'].append(entry_name_and_query)
+
+        return entry_name_or_query
+
+    def _parse_or_search(kls, hint, or_match, attr_query):
+        duplicate_keys = []
+
+        # Split and process keywords with 'or'
+        for keyword_divided_or in hint['keyword'].split(CONFIG.OR_SEARCH_CHARACTER):
+
+            attr_query = kls._parse_and_search(
+                kls, hint, keyword_divided_or, or_match, attr_query, duplicate_keys)
+
+        return attr_query
+
+    def _parse_and_search(kls, hint, keyword_divided_or, or_match, attr_query, duplicate_keys):
+        # Keyword divided by 'or' is processed by dividing by 'and'
+        for keyword in keyword_divided_or.split(CONFIG.AND_SEARCH_CHARACTER):
+            key = kls._create_dict_key(hint, keyword, or_match)
+
+            # Skip if keywords overlap
+            if key in duplicate_keys:
+                continue
             else:
-                adding_cond['nested']['query']['bool']['filter'] = cond_attr
+                duplicate_keys.append(key)
 
-            query['query']['bool']['filter'].append(adding_cond)
+            if or_match:
+                if key not in attr_query:
+                    # Add keyword if temporary variable doesn't contain keyword
+                    attr_query[key] = {'bool': {'should': []}}
 
+                attr_query[key]['bool']['should'].append(
+                    kls._create_an_attribute_filter(kls, hint, keyword, or_match))
+            else:
+                attr_query[key] = kls._create_an_attribute_filter(
+                    kls, hint, keyword, or_match)
+
+        return attr_query
+
+    def _create_dict_key(hint, keyword, or_match):
+        # Create a key for each keyword.
+        # For simple search, the keyword is used as a key.
+        # In case of advanced search, attribute name is given to judge for each attribute.
+        return keyword if or_match else keyword + '_' + hint['name']
+
+    def _build_queries_along_keywords(kls, hint_attrs, attr_query, or_match):
+
+        # Get the keyword.
+        # In case of simple search, get the first one.
+        # In the case of advanced search, multiple records are acquired for each attribute value.
+        hints = [x for x in hint_attrs if x['keyword']] if not or_match else [hint_attrs[0]]
+        res_query = {}
+
+        for hint in hints:
+            and_query = {}
+            or_query = {}
+
+            # Split keyword by 'or'
+            for keyword_divided_or in hint['keyword'].split(CONFIG.OR_SEARCH_CHARACTER):
+                if CONFIG.AND_SEARCH_CHARACTER in keyword_divided_or:
+
+                    # When 'and' is included in the keyword divided by 'or', it is linked with 'filter'
+                    for keyword in keyword_divided_or.split(CONFIG.AND_SEARCH_CHARACTER):
+                        if keyword_divided_or not in and_query:
+                            and_query[keyword_divided_or] = {'bool': {'filter': []}}
+
+                        and_query[keyword_divided_or]['bool']['filter'].append(
+                            attr_query[kls._create_dict_key(hint, keyword, or_match)])
+
+                else:
+                    and_query[keyword_divided_or] = attr_query[kls._create_dict_key(
+                                                        hint, keyword_divided_or, or_match)]
+
+                if CONFIG.OR_SEARCH_CHARACTER in hint['keyword']:
+
+                    # If the keyword contains 'or', concatenate with 'should'
+                    if not or_query:
+                        or_query = {'bool': {'should': []}}
+
+                    or_query['bool']['should'].append(and_query[keyword_divided_or])
+
+                else:
+                    or_query = and_query[keyword_divided_or]
+
+            if len(hints) > 1:
+                # If conditions are specified for multiple attributes in advanced search,
+                # connect with 'filter'
+                if not res_query:
+                    res_query = {'bool': {'filter': []}}
+
+                res_query['bool']['filter'].append(or_query)
+
+            else:
+                res_query = or_query
+
+        return res_query
+
+    def _create_an_attribute_filter(kls, hint, keyword, or_match):
+        """
+        This method creates an attribute filter from keywords
+        """
+
+        cond_attr = []
+        cond_attr.append({
+            'term': {'attr.name': hint['name']}
+        })
+
+        date_results = kls._is_date(keyword)
+        if date_results:
+            date_cond = {
+                'range': {
+                    'attr.date_value': {
+                        'format': 'yyyy-MM-dd'
+                    }
+                },
+            }
+            for (range_check, date_obj) in date_results:
+                timestr = date_obj.strftime('%Y-%m-%d')
+                if range_check == '<':
+                    # search of before date user specified
+                    date_cond['range']['attr.date_value']['lt'] = timestr
+
+                elif range_check == '>':
+                    # search of after date user specified
+                    date_cond['range']['attr.date_value']['gt'] = timestr
+
+                else:
+                    # search of exact day
+                    date_cond['range']['attr.date_value']['gte'] = timestr
+                    date_cond['range']['attr.date_value']['lte'] = timestr
+
+            cond_attr.append(date_cond)
+
+        else:
+            hint_kyeword_val = kls._get_hint_keyword_val(keyword)
+            cond_val = [{'match': {'attr.value': hint_kyeword_val}}]
+
+            if hint_kyeword_val:
+                if 'exact_match' not in hint:
+                    cond_val.append({
+                        'regexp': {
+                            'attr.value': kls._get_regex_pattern(hint_kyeword_val)
+                        }
+                    })
+
+                cond_attr.append({'bool' : {'should': cond_val}})
+
+            else:
+                cond_val_tmp = [{'bool': {'must_not': {'exists': {'field': 'attr.date_value'}}}}]
+                cond_val_tmp.append({'bool' : {'should': cond_val}})
+                cond_attr.append({'bool' : {'must': cond_val_tmp}})
+
+        adding_cond = {
+            'nested': {
+                'path': 'attr',
+                'query': {
+                    'bool': {}
+                }
+            }
+        }
+        adding_cond['nested']['query']['bool']['filter'] = cond_attr
+
+        return adding_cond
+
+    def _execute_query(query):
         try:
             res = ESS().search(body=query, ignore=[404], sort=['name.keyword:asc'])
         except Exception as e:
             raise(e)
 
-        if 'status' in res and res['status'] == 404:
-            return results
+        return res
+
+    def _create_search_results(user, results, res, hint_attrs, limit, hint_referral):
+        """
+        When the condition of reference entry is specified, the entry to reference is acquired.
+        Also, get the attribute name and attribute value that matched the condition.
+        """
 
         # set numbers of found entries
         results['ret_count'] = res['hits']['total']

@@ -1249,25 +1249,70 @@ class Entry(ACLBase):
 
     @classmethod
     def search_entries(kls, user, hint_entity_ids, hint_attrs=[], limit=CONFIG.MAX_LIST_ENTRIES, entry_name=None, or_match=False, hint_referral=False):
-        """
-        The main method called from simple search and advanced search
-        """
+        """Main method called from simple search and advanced search.
 
+        Do the following:
+        1. Create a query for Elasticsearch search. (_make_query)
+        2. Execute the created query. (_execute_query)
+        3. Search the reference entry,
+           process the search results, and return. (_make_search_results)
+
+        Args:
+            user (:obj:`str`, optional): User who executed the process
+            hint_entity_ids (list(str)): Entity ID specified in the search condition input
+            hint_attrs (list(dict[str, str])): Defaults to Empty list.
+                A list of search strings and attribute sets
+            limit (int): Defaults to 100.
+                Maximum number of search results to return
+            entry_name (str): Search string for entry name
+            or_match (bool): Defaults to False.
+                Flag to determine whether the simple search or advanced search is called
+            hint_referral (str): Defaults to False.
+                Input value used to refine the reference entry.
+                Use only for advanced searches.
+
+        Returns:
+            dict[str, str]: As a result of the search,
+                the acquired entry and the attribute value of the entry are returned.
+
+        """
         results = {
             'ret_count': 0,
             'ret_values': []
         }
 
-        query = kls._create_query(kls, user, hint_entity_ids, hint_attrs, entry_name, or_match)
+        query = kls._make_query(kls, user, hint_entity_ids, hint_attrs, entry_name, or_match)
 
         res = kls._execute_query(query)
 
         if 'status' in res and res['status'] == 404:
             return results
 
-        return kls._create_search_results(user, results, res, hint_attrs, limit, hint_referral)
+        return kls._make_search_results(user, results, res, hint_attrs, limit, hint_referral)
 
-    def _create_query(kls, user, hint_entity_ids, hint_attrs, entry_name, or_match):
+    def _make_query(kls, user, hint_entity_ids, hint_attrs, entry_name, or_match):
+        """Create a search query for Elasticsearch.
+
+        Do the following:
+        1. Initialize variables.
+        2. Add the entity to the filtering condition.
+        3. Add the entry name to the filtering condition.
+        4. Add the attribute name to be searched.
+        5. Analyzes the keyword entered for each attribute.
+        6. Build queries along keywords.
+
+        Args:
+            user (:obj:`str`, optional): User who executed the process
+            hint_entity_ids (list(str)): Entity ID specified in the search condition input
+            hint_attrs (list(dict[str, str])): A list of search strings and attribute sets
+            entry_name (str): Search string for entry name
+            or_match (bool): Flag to determine whether the simple search or
+                advanced search is called
+
+        Returns:
+            dict[str, str]: The created search query is returned.
+
+        """
 
         # Making a query to send ElasticSearch by the specified parameters
         query = {
@@ -1291,7 +1336,7 @@ class Entry(ACLBase):
 
         # Included in query if refinement is entered for 'Name' in advanced search
         if entry_name:
-            query['query']['bool']['filter'].append(kls._create_entry_name(kls, entry_name))
+            query['query']['bool']['filter'].append(kls._make_entry_name_query(kls, entry_name))
 
         # Set the attribute name so that all the attributes specified in the attribute,
         # to be searched can be used
@@ -1311,7 +1356,7 @@ class Entry(ACLBase):
 
         # filter attribute by keywords
         for hint in [x for x in hint_attrs if 'name' in x and 'keyword' in x and x['keyword']]:
-            attr_query = kls._parse_or_search(kls, hint, or_match, attr_query)
+            kls._parse_or_search(kls, hint, or_match, attr_query)
 
         # Build queries along keywords
         if attr_query:
@@ -1321,18 +1366,56 @@ class Entry(ACLBase):
         return query
 
     def _get_regex_pattern(keyword):
+        """Create a regex pattern pattern.
+
+        Create a regular expression pattern of the string received as an argument.
+        If the following characters are included, an escape character is added.
+            `(`,`)`,`<`,`"`,`{`,`[`
+
+        Args:
+            keyword (str): A string for which a regular expression pattern is created
+
+        Returns:
+            str: Regular expression pattern of argument
+
+        """
         replace_list = ['(',')','<','"','{','[']
         keyword = ''.join(['\\' + x if x in replace_list else x for x in [*keyword]])
-        return '.*%s.*' % ''.join(['[%s%s]' % (x.lower(), x.upper()) if x.isalpha() else x for x in keyword])
+        return '.*%s.*' % ''.join(['[%s%s]' % (
+                                  x.lower(), x.upper()) if x.isalpha() else x for x in keyword])
 
     def _get_hint_keyword_val(keyword):
-        # For EMPTY_SEARCH_CHARACTER, blank out the keyword
+        """Null character conversion processing.
+
+        Args:
+            keyword (str): String to search for
+
+        Returns:
+            str: If a character corresponding to the empty string specified by CONFIG is entered,
+                the empty character is returned.
+                Otherwise, the input value is returned.
+
+        """
         if (CONFIG.EMPTY_SEARCH_CHARACTER == keyword
             or CONFIG.EMPTY_SEARCH_CHARACTER_CODE == keyword):
             return ''
         return keyword
 
-    def _create_entry_name(kls, entry_name):
+    def _make_entry_name_query(kls, entry_name):
+        """Create a search query for the entry name.
+
+        Divides the search string with OR.
+        Divide the divided character string with AND.
+        Create a regular expression pattern query with the smallest unit string.
+        If the string corresponds to a null character, specify the null character.
+
+        Args:
+            entry_name (str): Search string for entry name
+
+        Returns:
+            dict[str, str]: Entry name search query
+
+        """
         entry_name_or_query = {
             'bool': {
                 'should': []
@@ -1370,20 +1453,69 @@ class Entry(ACLBase):
         return entry_name_or_query
 
     def _parse_or_search(kls, hint, or_match, attr_query):
+        """Performs keyword analysis processing.
+
+        The search keyword is separated by OR and passed to the next process.
+
+        Args:
+            hint (dict[str, str]): Dictionary of attribute names and search keywords to be processed
+            or_match (bool): Flag to determine whether the simple search or
+                advanced search is called
+            attr_query (dict[str, str]): Search query being created
+
+        Returns:
+            dict[str, str]: Add the analysis result to 'attr_query' for the keywords separated
+                by 'OR' and return.
+
+        """
         duplicate_keys = []
 
         # Split and process keywords with 'or'
         for keyword_divided_or in hint['keyword'].split(CONFIG.OR_SEARCH_CHARACTER):
 
-            attr_query = kls._parse_and_search(
+            kls._parse_and_search(
                 kls, hint, keyword_divided_or, or_match, attr_query, duplicate_keys)
 
         return attr_query
 
     def _parse_and_search(kls, hint, keyword_divided_or, or_match, attr_query, duplicate_keys):
+        """Analyze the keywords separated by `OR`
+
+        Keywords separated by OR are separated by AND.
+        Create a block that summarizes all attribute filters for each smallest keyword.
+
+        If the plan has already been processed, skip it.
+        If not, add it to the list.
+
+        If called from simple search, add to the query below.
+        If called from advanced search, add it directly under keyword.
+            {
+                keyword: {
+                    'bool': {
+                        'should': []
+                    }
+                }
+            }
+
+        Args:
+            hint (dict[str, str]): Dictionary of attribute names and search keywords to be processed
+            keyword_divided_or (str): Character string with search keywords separated by OR
+            or_match (bool): Flag to determine whether the simple search or
+                advanced search is called
+            attr_query (dict[str, str]): Search query being created
+            duplicate_keys (list(str)): Holds a list of the smallest character strings
+                that separate search keywords with AND and OR.
+                If the target string is already included in the list, processing is skipped.
+
+        Returns:
+            dict[str, str]: The analysis result is added to 'attr_query' for the keywords separated
+                by 'AND' and returned.
+
+        """
+
         # Keyword divided by 'or' is processed by dividing by 'and'
         for keyword in keyword_divided_or.split(CONFIG.AND_SEARCH_CHARACTER):
-            key = kls._create_dict_key(hint, keyword, or_match)
+            key = kls._make_key_for_each_block_of_keywords(hint, keyword, or_match)
 
             # Skip if keywords overlap
             if key in duplicate_keys:
@@ -1397,24 +1529,67 @@ class Entry(ACLBase):
                     attr_query[key] = {'bool': {'should': []}}
 
                 attr_query[key]['bool']['should'].append(
-                    kls._create_an_attribute_filter(kls, hint, keyword, or_match))
+                    kls._make_an_attribute_filter(kls, hint, keyword, or_match))
             else:
-                attr_query[key] = kls._create_an_attribute_filter(
+                attr_query[key] = kls._make_an_attribute_filter(
                     kls, hint, keyword, or_match)
 
         return attr_query
 
-    def _create_dict_key(hint, keyword, or_match):
-        # Create a key for each keyword.
-        # For simple search, the keyword is used as a key.
-        # In case of advanced search, attribute name is given to judge for each attribute.
+    def _make_key_for_each_block_of_keywords(hint, keyword, or_match):
+        """Create a key for each block of minimal keywords.
+
+        Create a key for each block of keywords.
+        For simple search, the keyword is used as a key.
+        In case of advanced search, attribute name is given to judge for each attribute.
+
+        Args:
+            hint (dict[str, str]): Dictionary of attribute names and search keywords to be processed
+            keyword (str): String of the smallest unit in which search keyword is
+                separated by AND and OR
+            or_match (bool): Flag to determine whether the simple search or
+                advanced search is called
+
+        Returns:
+            dict[str, str]: For simple search, the keyword of the argument is returned.
+                In the case of advanced search,
+                the attribute name is assigned to the argument keyword and returned.
+
+        """
         return keyword if or_match else keyword + '_' + hint['name']
 
     def _build_queries_along_keywords(kls, hint_attrs, attr_query, or_match):
+        """Build queries along search terms.
+
+        Do the following:
+        1. Get the keyword.
+           In case of simple search, get the first search keyword.
+           For advanced searches, retrieve multiple records for each attribute value.
+        2. Process for each keyword acquired in 1.
+        3. The search keyword is processed for each character string of the
+           smallest unit separated by `AND` and `OR`.
+        4. If `AND` is included in the string separated by `OR`, concatenate them with a filter.
+           If it is not included, use it as is.
+        5. If the search keyword contains OR, connect with should.
+           If it is not included, use it as is.
+        6. When conditions are specified with multiple attributes in advanced search,
+           they are combined with filter.
+        7. The query will be returned when the processing
+           for the retrieved search keywords is completed.
+
+        Args:
+            hint_attrs (list(dict[str, str])): A list of search strings and attribute sets
+            attr_query (dict[str, str]): A query that summarizes attributes
+                by the smallest unit of a search keyword
+            or_match (bool): Flag to determine whether the simple search or
+                advanced search is called
+
+        Returns:
+            dict[str, str]: Assemble and return the attribute value part of the search query.
+
+        """
 
         # Get the keyword.
-        # In case of simple search, get the first one.
-        # In the case of advanced search, multiple records are acquired for each attribute value.
         hints = [x for x in hint_attrs if x['keyword']] if not or_match else [hint_attrs[0]]
         res_query = {}
 
@@ -1426,17 +1601,18 @@ class Entry(ACLBase):
             for keyword_divided_or in hint['keyword'].split(CONFIG.OR_SEARCH_CHARACTER):
                 if CONFIG.AND_SEARCH_CHARACTER in keyword_divided_or:
 
-                    # When 'and' is included in the keyword divided by 'or', it is linked with 'filter'
+                    # If 'AND' is included in the keyword divided by 'OR', add it to 'filter'
                     for keyword in keyword_divided_or.split(CONFIG.AND_SEARCH_CHARACTER):
                         if keyword_divided_or not in and_query:
                             and_query[keyword_divided_or] = {'bool': {'filter': []}}
 
                         and_query[keyword_divided_or]['bool']['filter'].append(
-                            attr_query[kls._create_dict_key(hint, keyword, or_match)])
+                            attr_query[kls._make_key_for_each_block_of_keywords(
+                                               hint, keyword, or_match)])
 
                 else:
-                    and_query[keyword_divided_or] = attr_query[kls._create_dict_key(
-                                                        hint, keyword_divided_or, or_match)]
+                    and_query[keyword_divided_or] = attr_query[kls.
+                        _make_key_for_each_block_of_keywords(hint, keyword_divided_or, or_match)]
 
                 if CONFIG.OR_SEARCH_CHARACTER in hint['keyword']:
 
@@ -1462,11 +1638,37 @@ class Entry(ACLBase):
 
         return res_query
 
-    def _create_an_attribute_filter(kls, hint, keyword, or_match):
-        """
-        This method creates an attribute filter from keywords
-        """
+    def _make_an_attribute_filter(kls, hint, keyword, or_match):
+        """creates an attribute filter from keywords.
 
+        For the attribute set in the name of hint, create a filter for filtering search keywords.
+        If the search keyword is a date, the following processing is performed.
+        1. Create a format for date fields.
+        2. If the search keyword is a date, the following processing is performed.
+           If `< date`, search below the specified date.
+           If `> date`, search for dates after the specified date.
+           If `<>` is not included,
+               the search will be made before the specified date and after the specified date.
+        3. If the search keyword is not a date, do the following:
+           If a character corresponding to a null character is specified,
+               it is converted to a null character.
+           Create a 'match' query with the conversion results.
+           If the conversion result is not empty, create a 'regexp' query.
+           If the conversion result is an empty string, search for data
+               with an empty attribute value
+        4. After the above process, create a 'nested' query and return it.
+
+        Args:
+            hint (dict[str, str]): Dictionary of attribute names and search keywords to be processed
+            keyword (str): String to search for
+                String of the smallest unit in which search keyword is separated by `AND` and `OR`
+            or_match (bool): Flag to determine whether the simple search or
+                advanced search is called
+
+        Returns:
+            dict[str, str]: Created attribute filter
+
+        """
         cond_attr = []
         cond_attr.append({
             'term': {'attr.name': hint['name']}
@@ -1530,6 +1732,18 @@ class Entry(ACLBase):
         return adding_cond
 
     def _execute_query(query):
+        """Run a search query.
+
+        Args:
+            query (dict[str, str]): Search query
+
+        Raises:
+            Exception: If query execution fails, output error details.
+
+        Returns:
+            dict[str, str]: Search execution result
+
+        """
         try:
             res = ESS().search(body=query, ignore=[404], sort=['name.keyword:asc'])
         except Exception as e:
@@ -1537,12 +1751,45 @@ class Entry(ACLBase):
 
         return res
 
-    def _create_search_results(user, results, res, hint_attrs, limit, hint_referral):
-        """
+    def _make_search_results(user, results, res, hint_attrs, limit, hint_referral):
+        """Acquires and returns the attribute values held by each search result
+
         When the condition of reference entry is specified, the entry to reference is acquired.
         Also, get the attribute name and attribute value that matched the condition.
-        """
 
+        Do the following:
+        1. Keep a list of IDs of all entries that have been found in Elasticsearch.
+        2. If the reference entry filtering conditions have been entered,
+           the following processing is performed.
+           If not entered, get entry object from search result of Elasticsearch.
+
+           2-1. If blank characters are entered in the filtering condition of the reference entry,
+                only entries that are not referenced by other entries are filtered.
+           2-2. In cases other than the above, only entries whose filtering condition is
+                included in the entry name being referred to are acquired.
+           2-3. Get the entry object from the entry ID obtained above.
+
+        3. Get attributes for each entry for the maximum number of displayed items
+           from the Elasticsearch search results.
+        4. For the attribute of the acquired entry,
+           the attribute value is acquired according to the attribute type.
+        5. When all entries have been processed, the search results are returned.
+
+        Args:
+            user (:obj:`str`, optional): User who executed the process
+            results (dict[str, str]): Variable for final search result storage
+            res (`str`, optional): Search results for Elasticsearch
+            hint_entity_ids (list(str)): Entity ID specified in the search condition input
+            hint_attrs (list(dict[str, str])): A list of search strings and attribute sets
+            limit (int): Maximum number of search results to return
+            hint_referral (str): Input value used to refine the reference entry.
+                Use only for advanced searches.
+
+        Returns:
+            dict[str, str]: A set of attributes and attribute values associated with the entry
+                that was hit in the search
+
+        """
         # set numbers of found entries
         results['ret_count'] = res['hits']['total']
 

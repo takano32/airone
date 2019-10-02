@@ -2546,3 +2546,183 @@ class ModelTest(AironeTestCase):
         # Attribute object should be set to appropriate entry's attrs member
         self.assertEqual(entry1.attrs.first(), attr)
         self.assertEqual(entry2.attrs.count(), 0)
+
+    def test_search_entries_includes_and_or(self):
+        user = User.objects.create(username='hoge')
+
+        attr_info = []
+        """
+        testdata1 str1:foo str2:blank str3:blank arr_str:['hoge']
+        testdata2 str1:foo str2:bar str3:blank arr_str:['hoge', 'fuga']
+        testdata3 str1:foo str2:bar str3:baz arr_str:['hoge', 'fuga', 'piyo']
+        """
+        attr_info.append({
+            'str1': {'type': AttrTypeValue['string'], 'value': 'foo'},
+            'str2': {'type': AttrTypeValue['string'], 'value': ''},
+            'str3': {'type': AttrTypeValue['string'], 'value': ''},
+            'arr_str': {'type': AttrTypeValue['array_string'], 'value': ['hoge']},
+        })
+        attr_info.append({
+            'str1': {'type': AttrTypeValue['string'], 'value': 'foo'},
+            'str2': {'type': AttrTypeValue['string'], 'value': 'bar'},
+            'str3': {'type': AttrTypeValue['string'], 'value': ''},
+            'arr_str': {'type': AttrTypeValue['array_string'], 'value': ['hoge', 'fuga']},
+        })
+        attr_info.append({
+            'str1': {'type': AttrTypeValue['string'], 'value': 'foo'},
+            'str2': {'type': AttrTypeValue['string'], 'value': 'bar'},
+            'str3': {'type': AttrTypeValue['string'], 'value': 'baz'},
+            'arr_str': {'type': AttrTypeValue['array_string'], 'value': ['hoge', 'fuga', 'piyo']},
+        })
+
+        entity = Entity.objects.create(name='entity', created_user=user)
+        for attr_name, info in attr_info[0].items():
+            attr = EntityAttr.objects.create(name=attr_name,
+                                             type=info['type'],
+                                             created_user=user,
+                                             parent_entity=entity)
+            entity.attrs.add(attr)
+
+        for i, x in enumerate(attr_info):
+            entry = Entry.objects.create(name='e-%s' % i , schema=entity, created_user=user)
+            entry.complement_attrs(user)
+
+            for attr_name, info in x.items():
+
+                attr = entry.attrs.get(name=attr_name)
+                attr.add_value(user, info['value'])
+
+            entry.register_es()
+
+        """
+        Test case that contains only 'and'
+        """
+        test_suites = []
+        test_suites.append([
+            {'or_match': True, 'ret_cnt': 3, 'search_word': [
+                {'name': 'str1', 'keyword': 'foo'}]},
+            {'or_match': True, 'ret_cnt': 2, 'search_word': [
+                {'name': 'str1', 'keyword': 'foo&bar'},
+                {'name': 'str2', 'keyword': 'foo&bar'}]},
+            {'or_match': True, 'ret_cnt': 1, 'search_word': [
+                {'name': 'str1', 'keyword': 'foo&bar&baz'},
+                {'name': 'str2', 'keyword': 'foo&bar&baz'},
+                {'name': 'str3', 'keyword': 'foo&bar&baz'}]},
+            {'or_match': True, 'ret_cnt': 3, 'search_word': [
+                {'name': 'arr_str', 'keyword': 'hoge'}],},
+            {'or_match': True, 'ret_cnt': 2, 'search_word': [
+                {'name': 'arr_str', 'keyword': 'hoge&fuga'}]},
+            {'or_match': True, 'ret_cnt': 1, 'search_word': [
+                {'name': 'arr_str', 'keyword': 'hoge&fuga&piyo'}]},
+            {'or_match': False, 'ret_cnt': 3, 'search_word': [
+                {'name': 'str1', 'keyword': 'foo'},
+                {'name': 'arr_str', 'keyword': 'hoge'}]},
+            {'or_match': False, 'ret_cnt': 2, 'search_word': [
+                {'name': 'str1', 'keyword': 'foo'},
+                {'name': 'str2', 'keyword': 'bar'},
+                {'name': 'arr_str', 'keyword': 'hoge&fuga'}]},
+            {'or_match': False, 'ret_cnt': 1, 'search_word': [
+                {'name': 'str1', 'keyword': 'foo'},
+                {'name': 'str2', 'keyword': 'bar'},
+                {'name': 'arr_str', 'keyword': 'hoge&fuga&piyo'}]},
+        ])
+
+        """
+        Test case that contains only 'or'
+        """
+        test_suites.append([
+            {'or_match': True, 'ret_cnt': 3, 'search_word': [
+                {'name': 'str1', 'keyword': 'foo|bar'}]},
+            {'or_match': True, 'ret_cnt': 2, 'search_word': [
+                {'name': 'str2', 'keyword': 'bar|baz'},
+                {'name': 'str3', 'keyword': 'bar|baz'}]},
+            {'or_match': True, 'ret_cnt': 3, 'search_word': [
+                {'name': 'str1', 'keyword': 'foo|bar|baz'},
+                {'name': 'str2', 'keyword': 'foo|bar|baz'},
+                {'name': 'str3', 'keyword': 'foo|bar|baz'}]},
+            {'or_match': True, 'ret_cnt': 3, 'search_word': [
+                {'name': 'arr_str', 'keyword': 'hoge|fuga'}]},
+            {'or_match': True, 'ret_cnt': 2, 'search_word': [
+                {'name': 'arr_str', 'keyword': 'fuga|piyo'}]},
+            {'or_match': True, 'ret_cnt': 3, 'search_word': [
+                {'name': 'arr_str', 'keyword': 'hoge|fuga|piyo'}]},
+            {'or_match': False, 'ret_cnt': 2, 'search_word': [
+                {'name': 'str2', 'keyword': 'foo|bar'},
+                {'name': 'arr_str', 'keyword': 'hoge'}]},
+            {'or_match': False, 'ret_cnt': 1, 'search_word': [
+                {'name': 'str2', 'keyword': 'foo|bar'},
+                {'name': 'str3', 'keyword': 'bar|baz'},
+                {'name': 'arr_str', 'keyword': 'hoge|fuga'}]},
+            {'or_match': False, 'ret_cnt': 1, 'search_word': [
+                {'name': 'str3', 'keyword': 'foo|baz'},
+                {'name': 'arr_str', 'keyword': 'hoge|fuga|piyo'}]},
+        ])
+
+        """
+        Test cases that contain 'and' and 'or'
+        """
+        test_suites.append([
+            {'or_match': True, 'ret_cnt': 3, 'search_word': [
+                {'name': 'str1', 'keyword': 'foo|bar'}]},
+            {'or_match': True, 'ret_cnt': 2, 'search_word': [
+                {'name': 'str1', 'keyword': 'foo&baz|bar'},
+                {'name': 'str2', 'keyword': 'foo&baz|bar'},
+                {'name': 'str3', 'keyword': 'foo&baz|bar'}]},
+            {'or_match': True, 'ret_cnt': 3, 'search_word': [
+                {'name': 'str1', 'keyword': 'foo|bar&baz'},
+                {'name': 'str2', 'keyword': 'foo|bar&baz'},
+                {'name': 'str3', 'keyword': 'foo|bar&baz'}]},
+            {'or_match': True, 'ret_cnt': 2, 'search_word': [
+                {'name': 'arr_str', 'keyword': 'hoge&piyo|fuga'}]},
+            {'or_match': True, 'ret_cnt': 2, 'search_word': [
+                {'name': 'arr_str', 'keyword': 'piyo|hoge&fuga'}]},
+            {'or_match': False, 'ret_cnt': 2, 'search_word': [
+                {'name': 'str1', 'keyword': 'foo'},
+                {'name': 'str2', 'keyword': 'bar|baz'},
+                {'name': 'arr_str', 'keyword': 'hoge&piyo|fuga'}]},
+        ])
+
+        for x in test_suites:
+            for test_suite in x:
+                ret = Entry.search_entries(user, [], test_suite['search_word'],
+                          or_match=test_suite['or_match'])
+                self.assertEqual(ret['ret_count'], test_suite['ret_cnt'])
+
+    def test_search_entries_entry_name(self):
+        user = User.objects.create(username='hoge')
+        entity = Entity.objects.create(name='entity', created_user=user)
+
+        """
+        testdata1 entry_name:'foo'
+        testdata2 entry_name:'bar'
+        testdata3 entry_name:'barbaz'
+        """
+        for entry_name in ['foo', 'bar', 'barbaz']:
+            entry = Entry.objects.create(name=entry_name, schema=entity, created_user=user)
+            entry.register_es()
+
+        search_words = {'foo': 1, 'bar&baz': 1, 'foo|bar': 3, 'foo|bar&baz': 2}
+        for word, count in search_words.items():
+            ret = Entry.search_entries(user, [], entry_name=word)
+            self.assertEqual(ret['ret_count'], count)
+
+    def test_search_entries_get_regex_pattern(self):
+        user = User.objects.create(username='hoge')
+        entity = Entity.objects.create(name='entity', created_user=user)
+
+        """
+        testdata1 entry_name:'(e-1)'
+        testdata2 entry_name:'{e-2}'
+        testdata3 entry_name:'<e-3>'
+        testdata4 entry_name:'"e-4"'
+        testdata5 entry_name:'[e-5]'
+        """
+        for entry_name in ['(e-1)', '{e-2}', '<e-3>', '"e-4"', '[e-5]']:
+            entry = Entry.objects.create(name=entry_name, schema=entity, created_user=user)
+            entry.register_es()
+
+        search_words = ['(e-1', 'e-1)', '(e-1)', '{e-2', 'e-2}', '{e-2}', '<e-3', 'e-3>', '<e-3>',
+                        '"e-4', 'e-4"', '"e-4"', '[e-5', 'e-5]', '[e-5]']
+        for search_word in search_words:
+            ret = Entry.search_entries(user, [], entry_name=search_word)
+            self.assertEqual(ret['ret_count'], 1)

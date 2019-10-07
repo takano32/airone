@@ -854,6 +854,15 @@ class ModelTest(AironeTestCase):
             if 'invalid_values' in info:
                 [self.assertEqual(attr.add_value(user, x).value, str(x)) for x in info['invalid_values']]
 
+        # null-check of is_updated method for each type of Attributes
+        for (attr_name, info) in attr_info.items():
+            attr = entry.attrs.get(name=attr_name)
+
+            if info['type'] == AttrTypeValue['boolean']:
+                self.assertFalse(attr.is_updated(None))
+            else:
+                self.assertTrue(attr.is_updated(None))
+
         # check update attr-value with specifying entry directly
         new_ref = Entry.objects.get(schema=ref_entity, name='r-1')
         entry.attrs.get(name='obj').add_value(user, new_ref)
@@ -905,6 +914,18 @@ class ModelTest(AironeTestCase):
         # test add_value date as string
         entry.attrs.get(name='date').add_value(user, '2020-01-01')
         self.assertEqual(entry.attrs.get(name='date').get_latest_value().date, date(2020, 1, 1))
+
+        # test update each Attribute's values of array by specifying None
+        attr_name_arrays = [k for (k, v) in attr_info.items() if v['type'] & AttrTypeValue['array']]
+
+        self.assertEqual(len(attr_name_arrays), 3)
+        for attr_name in attr_name_arrays:
+            attr = entry.attrs.get(name=attr_name)
+            attr_value = attr.add_value(user, None)
+
+            self.assertEqual(attr.get_latest_value(), attr_value)
+            self.assertTrue(attr_value.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT))
+            self.assertEqual(attr_value.data_array.count(), 0)
 
     def test_set_attrvalue_to_entry_attr_without_availabe_value(self):
         user = User.objects.create(username='hoge')

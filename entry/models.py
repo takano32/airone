@@ -237,9 +237,13 @@ class Attribute(ACLBase):
                 return recv_value
 
         last_value = self.values.last()
-        if ((self.schema.type == AttrTypeStr or self.schema.type == AttrTypeText) and
-            last_value.value != recv_value):
-            return True
+        if self.schema.type == AttrTypeStr or self.schema.type == AttrTypeText:
+            # the case that specified value is empty or invalid
+            if not recv_value:
+                # Value would be changed as empty when there is valid value in the latest AttributeValue
+                return last_value.value
+            else:
+                return last_value.value != recv_value
 
         elif self.schema.type == AttrTypeObj:
             # formalize recv_value type
@@ -258,6 +262,11 @@ class Attribute(ACLBase):
                 return True
 
         elif self.schema.type == AttrTypeArrStr:
+            # the case that specified value is empty or invalid
+            if not recv_value:
+                # Value would be changed as empty when there are any values in the latest AttributeValue
+                return last_value.data_array.count() > 0
+
             # the case of changing value
             if last_value.data_array.count() != len(recv_value):
                 return True
@@ -267,6 +276,11 @@ class Attribute(ACLBase):
                     return True
 
         elif self.schema.type == AttrTypeArrObj:
+            # the case that specified value is empty or invalid
+            if not recv_value:
+                # Value would be changed as empty when there are any values in the latest AttributeValue
+                return last_value.data_array.count() > 0
+
             # the case of changing value
             if last_value.data_array.count() != len(recv_value):
                 return True
@@ -281,7 +295,7 @@ class Attribute(ACLBase):
                     return True
 
         elif self.schema.type == AttrTypeValue['boolean']:
-            return last_value.boolean != recv_value
+            return last_value.boolean != bool(recv_value)
 
         elif self.schema.type == AttrTypeValue['group']:
             return last_value.value != recv_value
@@ -290,6 +304,11 @@ class Attribute(ACLBase):
             return last_value.date != recv_value
 
         elif self.schema.type == AttrTypeValue['named_object']:
+            # the case that specified value is empty or invalid
+            if not recv_value:
+                # Value would be changed as empty when there is valid value in the latest AttributeValue
+                return last_value.value or (last_value.referral and last_value.referral.is_active)
+
             if last_value.value != recv_value['name']:
                 return True
 
@@ -312,6 +331,11 @@ class Attribute(ACLBase):
                     return int(value)
                 else:
                     return value
+
+            # the case that specified value is empty or invalid
+            if not recv_value:
+                # Value would be changed as empty when there are any values in the latest AttributeValue
+                return last_value.data_array.count() > 0
 
             cmp_curr = []
             for co_attrv in last_value.data_array.all():
@@ -446,6 +470,9 @@ class Attribute(ACLBase):
 
     def _validate_value(self, value):
         if self.schema.type & AttrTypeValue['array']:
+            if value is None:
+                return True
+
             if(self.schema.type & AttrTypeValue['named']):
                 return all([x for x in value if isinstance(x, dict) or isinstance(x, type({}.values()))])
 
@@ -547,58 +574,61 @@ class Attribute(ACLBase):
 
         elif self.schema.type & AttrTypeValue['array']:
             attr_value.boolean = boolean
+
             # set status of parent data_array
             attr_value.set_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)
-            co_attrv_params = {
-                'created_user': user,
-                'parent_attr': self,
-                'data_type': self.schema.type,
-                'parent_attrv': attr_value,
-                'is_latest': False,
-                'boolean': boolean,
-            }
 
-            # create and append updated values
-            attrv_bulk = []
-            if self.schema.type == AttrTypeValue['array_string']:
-                attrv_bulk = [AttributeValue(value=v, **co_attrv_params) for v in value if v]
+            if value:
+                co_attrv_params = {
+                    'created_user': user,
+                    'parent_attr': self,
+                    'data_type': self.schema.type,
+                    'parent_attrv': attr_value,
+                    'is_latest': False,
+                    'boolean': boolean,
+                }
 
-            elif self.schema.type == AttrTypeValue['array_object']:
-                for v in value:
-                    if isinstance(v, Entry):
-                        attrv_bulk.append(AttributeValue(referral=v, **co_attrv_params))
-                    elif Entry.objects.filter(id=v).exists():
-                        attrv_bulk.append(AttributeValue(referral=Entry.objects.get(id=v),
+                # create and append updated values
+                attrv_bulk = []
+                if self.schema.type == AttrTypeValue['array_string']:
+                    attrv_bulk = [AttributeValue(value=v, **co_attrv_params) for v in value if v]
+
+                elif self.schema.type == AttrTypeValue['array_object']:
+                    for v in value:
+                        if isinstance(v, Entry):
+                            attrv_bulk.append(AttributeValue(referral=v, **co_attrv_params))
+                        elif Entry.objects.filter(id=v).exists():
+                            attrv_bulk.append(AttributeValue(referral=Entry.objects.get(id=v),
+                                                             **co_attrv_params))
+
+                elif self.schema.type == AttrTypeValue['array_named_object']:
+                    for data in value:
+
+                        referral = None
+                        if 'id' not in data or not data['id']:
+                            pass
+                        elif isinstance(data['id'], Entry):
+                            referral = data['id']
+                        elif Entry.objects.filter(id=data['id']).exists():
+                            referral = Entry.objects.get(id=data['id'])
+
+                        if not referral and ('name' in data and not data['name']):
+                            continue
+
+                        # update boolean parameter if data has its value
+                        if 'boolean' in data:
+                            co_attrv_params['boolean'] = data['boolean']
+
+                        attrv_bulk.append(AttributeValue(referral=referral,
+                                                         value=data['name'] if 'name' in data else '',
                                                          **co_attrv_params))
 
-            elif self.schema.type == AttrTypeValue['array_named_object']:
-                for data in value:
+                # Create each leaf AttributeValue in bulk. This processing send only one query to the DB
+                # for making all AttributeValue objects.
+                AttributeValue.objects.bulk_create(attrv_bulk)
 
-                    referral = None
-                    if 'id' not in data or not data['id']:
-                        pass
-                    elif isinstance(data['id'], Entry):
-                        referral = data['id']
-                    elif Entry.objects.filter(id=data['id']).exists():
-                        referral = Entry.objects.get(id=data['id'])
-
-                    if not referral and ('name' in data and not data['name']):
-                        continue
-
-                    # update boolean parameter if data has its value
-                    if 'boolean' in data:
-                        co_attrv_params['boolean'] = data['boolean']
-
-                    attrv_bulk.append(AttributeValue(referral=referral,
-                                                     value=data['name'] if 'name' in data else '',
-                                                     **co_attrv_params))
-
-            # Create each leaf AttributeValue in bulk. This processing send only one query to the DB
-            # for making all AttributeValue objects.
-            AttributeValue.objects.bulk_create(attrv_bulk)
-
-            # set created leaf AttribueValues to the data_array parameter of parent AttributeValue
-            attr_value.data_array.add(*AttributeValue.objects.filter(parent_attrv=attr_value))
+                # set created leaf AttribueValues to the data_array parameter of parent AttributeValue
+                attr_value.data_array.add(*AttributeValue.objects.filter(parent_attrv=attr_value))
 
         attr_value.save()
 

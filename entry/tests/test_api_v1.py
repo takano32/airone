@@ -59,6 +59,31 @@ class ViewTest(AironeViewTest):
         self.assertEqual(len(resp.json()['results']), 1)
         self.assertTrue(resp.json()['results'][0]['name'], 'e-0')
 
+        """
+        Check for cases with special characters
+        """
+        add_chars = ['!', '"', '#', '$', '%', '\'' ,'(', ')', '-', '=', '^', '~', '@', '`',
+                     '[', ']', '{', '}', ';', '+', ':', '*', ',', '<', '>', '.', '/', '?', '_', ' '
+                     '&', '|']
+        test_suites = []
+        for i, add_char in enumerate(add_chars):
+            entry_name = 'test%s%s' % (i, add_char)
+            entry = Entry.objects.create(name=entry_name, schema=entity, created_user=admin)
+            entry.register_es()
+
+            test_suites.append({
+                'search_word': add_char, 'ret_cnt': 1, 'ret_entry_name': entry_name
+            })
+
+        for test_suite in test_suites:
+            resp = self.client.get(reverse('entry:api_v1:get_entries', args=[entity.id]),
+                {'keyword': test_suite['search_word']})
+            ret_cnt = test_suite['ret_cnt'] if test_suite[
+                'search_word'] != '-' else CONFIG.MAX_LIST_ENTRIES
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual(len(resp.json()['results']), ret_cnt)
+            self.assertEqual(resp.json()['results'][0]['name'], test_suite['ret_entry_name'])
+
     def test_get_entries_with_multiple_ids(self):
         admin = self.admin_login()
 

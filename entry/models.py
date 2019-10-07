@@ -1288,7 +1288,7 @@ class Entry(ACLBase):
         if 'status' in res and res['status'] == 404:
             return results
 
-        return kls._make_search_results(user, results, res, hint_attrs, limit, hint_referral)
+        return kls._make_search_results(kls, user, results, res, hint_attrs, limit, hint_referral)
 
     def _make_query(kls, user, hint_entity_ids, hint_attrs, entry_name, or_match):
         """Create a search query for Elasticsearch.
@@ -1365,12 +1365,10 @@ class Entry(ACLBase):
 
         return query
 
-    def _get_regex_pattern(keyword):
+    def _get_regex_pattern(kls, keyword):
         """Create a regex pattern pattern.
 
         Create a regular expression pattern of the string received as an argument.
-        If the following characters are included, an escape character is added.
-            `(`,`)`,`<`,`"`,`{`,`[`
 
         Args:
             keyword (str): A string for which a regular expression pattern is created
@@ -1379,10 +1377,25 @@ class Entry(ACLBase):
             str: Regular expression pattern of argument
 
         """
-        replace_list = ['(',')','<','"','{','[']
-        keyword = ''.join(['\\' + x if x in replace_list else x for x in [*keyword]])
         return '.*%s.*' % ''.join(['[%s%s]' % (
-                                  x.lower(), x.upper()) if x.isalpha() else x for x in keyword])
+            x.lower(), x.upper()) if x.isalpha() else x for x in kls.prepend_escape_character(
+            CONFIG.ESCAPE_CHARACTERS, keyword)])
+
+    def prepend_escape_character(escape_character_list, keyword):
+        """Add escape character.
+
+        If the argument 'keyword' contains the characters specified in 'escape_character_list',
+        an escape character is added to the target character.
+
+        Args:
+            escape_character_list (list(str)): Give escape characters to the characters in this list
+            keyword (str): String to be converted
+
+        Returns:
+            str: Returns 'keyword' after conversion.
+
+        """
+        return ''.join(['\\' + x if x in escape_character_list else x for x in [*keyword]])
 
     def _get_hint_keyword_val(keyword):
         """Null character conversion processing.
@@ -1438,7 +1451,7 @@ class Entry(ACLBase):
                     # When normal conditions are specified
                     entry_name_and_query['bool']['filter'].append({
                         'regexp': {
-                            'name': kls._get_regex_pattern(name_val)
+                            'name': kls._get_regex_pattern(kls, name_val)
                         }
                     })
                 else :
@@ -1708,7 +1721,7 @@ class Entry(ACLBase):
                 if 'exact_match' not in hint:
                     cond_val.append({
                         'regexp': {
-                            'attr.value': kls._get_regex_pattern(hint_kyeword_val)
+                            'attr.value': kls._get_regex_pattern(kls, hint_kyeword_val)
                         }
                     })
 
@@ -1751,7 +1764,7 @@ class Entry(ACLBase):
 
         return res
 
-    def _make_search_results(user, results, res, hint_attrs, limit, hint_referral):
+    def _make_search_results(kls, user, results, res, hint_attrs, limit, hint_referral):
         """Acquires and returns the attribute values held by each search result
 
         When the condition of reference entry is specified, the entry to reference is acquired.
@@ -1815,10 +1828,12 @@ class Entry(ACLBase):
             else:
 
                 filtered_ids = AttributeValue.objects.filter(
-                        Q(parent_attr__parent_entry__name__iregex=hint_referral,
+                        Q(parent_attr__parent_entry__name__iregex=kls.prepend_escape_character(
+                            CONFIG.ESCAPE_CHARACTERS_REFERRALS_ENTRY, hint_referral),
                           referral__id__in=hit_entry_ids,
                           is_latest=True) |
-                        Q(parent_attr__parent_entry__name__iregex=hint_referral,
+                        Q(parent_attr__parent_entry__name__iregex=kls.prepend_escape_character(
+                            CONFIG.ESCAPE_CHARACTERS_REFERRALS_ENTRY, hint_referral),
                           referral__id__in=hit_entry_ids,
                           parent_attrv__is_latest=True)
                         ).values_list('referral', flat=True)

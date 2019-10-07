@@ -129,7 +129,8 @@ def get_entries(request, entity_ids):
     is_active = request.GET.get('is_active', True)
     keyword = request.GET.get('keyword')
     if keyword:
-        query_name_regex = Q(name__iregex=keyword)
+        query_name_regex = Q(name__iregex=Entry.prepend_escape_character(
+            CONFIG.ESCAPE_CHARACTERS_ENTRY_LIST, keyword))
     else:
         query_name_regex = Q()
 

@@ -95,14 +95,14 @@ body {
   padding: 10px;
 }
 
-/* ---------------------------------------------------- *
- * Configuration for Job dropdown menu in top navigator
- * ---------------------------------------------------- */
-.jobinfo img {
+/* ------------------------------------------------------------ *
+ * Configuration for Job menu items (e.g. Job) in top navigator
+ * ------------------------------------------------------------ */
+.nav_menu_item img {
   opacity: 0.5;
 }
 
-.jobinfo img:hover {
+.nav_menu_item img:hover {
   opacity: 1;
 }
 

@@ -18,7 +18,7 @@ def _is_view(entity_name, method_name):
     if _isin_cache(entity_name, method_name):
         return True
 
-    filepath = '%s/%s.py' % (BASE_DIR, entity_name)
+    filepath = '%s/views/%s.py' % (BASE_DIR, entity_name)
     if not Path(filepath).is_file():
         return False
 

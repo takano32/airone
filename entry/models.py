@@ -1311,16 +1311,17 @@ class Entry(ACLBase):
             'ret_values': []
         }
 
-        query = kls._make_query(kls, user, hint_entity_ids, hint_attrs, entry_name, or_match)
+        query = kls._make_query(hint_entity_ids, hint_attrs, entry_name, or_match)
 
         res = kls._execute_query(query)
 
         if 'status' in res and res['status'] == 404:
             return results
 
-        return kls._make_search_results(kls, user, results, res, hint_attrs, limit, hint_referral)
+        return kls._make_search_results(results, res, hint_attrs, limit, hint_referral)
 
-    def _make_query(kls, user, hint_entity_ids, hint_attrs, entry_name, or_match):
+    @classmethod
+    def _make_query(kls, hint_entity_ids, hint_attrs, entry_name, or_match):
         """Create a search query for Elasticsearch.
 
         Do the following:
@@ -1332,7 +1333,6 @@ class Entry(ACLBase):
         6. Build queries along keywords.
 
         Args:
-            user (:obj:`str`, optional): User who executed the process
             hint_entity_ids (list(str)): Entity ID specified in the search condition input
             hint_attrs (list(dict[str, str])): A list of search strings and attribute sets
             entry_name (str): Search string for entry name
@@ -1366,7 +1366,7 @@ class Entry(ACLBase):
 
         # Included in query if refinement is entered for 'Name' in advanced search
         if entry_name:
-            query['query']['bool']['filter'].append(kls._make_entry_name_query(kls, entry_name))
+            query['query']['bool']['filter'].append(kls._make_entry_name_query(entry_name))
 
         # Set the attribute name so that all the attributes specified in the attribute,
         # to be searched can be used
@@ -1386,15 +1386,16 @@ class Entry(ACLBase):
 
         # filter attribute by keywords
         for hint in [x for x in hint_attrs if 'name' in x and 'keyword' in x and x['keyword']]:
-            kls._parse_or_search(kls, hint, or_match, attr_query)
+            kls._parse_or_search(hint, or_match, attr_query)
 
         # Build queries along keywords
         if attr_query:
             query['query']['bool']['filter'].append(
-                kls._build_queries_along_keywords(kls, hint_attrs, attr_query, or_match))
+                kls._build_queries_along_keywords(hint_attrs, attr_query, or_match))
 
         return query
 
+    @classmethod
     def _get_regex_pattern(kls, keyword):
         """Create a regex pattern pattern.
 
@@ -1411,7 +1412,8 @@ class Entry(ACLBase):
             x.lower(), x.upper()) if x.isalpha() else x for x in kls.prepend_escape_character(
             CONFIG.ESCAPE_CHARACTERS, keyword)])
 
-    def prepend_escape_character(escape_character_list, keyword):
+    @classmethod
+    def prepend_escape_character(kls, escape_character_list, keyword):
         """Add escape character.
 
         If the argument 'keyword' contains the characters specified in 'escape_character_list',
@@ -1427,7 +1429,8 @@ class Entry(ACLBase):
         """
         return ''.join(['\\' + x if x in escape_character_list else x for x in [*keyword]])
 
-    def _get_hint_keyword_val(keyword):
+    @classmethod
+    def _get_hint_keyword_val(kls, keyword):
         """Null character conversion processing.
 
         Args:
@@ -1439,11 +1442,12 @@ class Entry(ACLBase):
                 Otherwise, the input value is returned.
 
         """
-        if (CONFIG.EMPTY_SEARCH_CHARACTER == keyword
-            or CONFIG.EMPTY_SEARCH_CHARACTER_CODE == keyword):
+        if (CONFIG.EMPTY_SEARCH_CHARACTER == keyword or
+                CONFIG.EMPTY_SEARCH_CHARACTER_CODE == keyword):
             return ''
         return keyword
 
+    @classmethod
     def _make_entry_name_query(kls, entry_name):
         """Create a search query for the entry name.
 
@@ -1481,10 +1485,10 @@ class Entry(ACLBase):
                     # When normal conditions are specified
                     entry_name_and_query['bool']['filter'].append({
                         'regexp': {
-                            'name': kls._get_regex_pattern(kls, name_val)
+                            'name': kls._get_regex_pattern(name_val)
                         }
                     })
-                else :
+                else:
                     # When blank is specified in the condition
                     entry_name_and_query['bool']['filter'].append({
                         'match': {
@@ -1495,6 +1499,7 @@ class Entry(ACLBase):
 
         return entry_name_or_query
 
+    @classmethod
     def _parse_or_search(kls, hint, or_match, attr_query):
         """Performs keyword analysis processing.
 
@@ -1516,11 +1521,11 @@ class Entry(ACLBase):
         # Split and process keywords with 'or'
         for keyword_divided_or in hint['keyword'].split(CONFIG.OR_SEARCH_CHARACTER):
 
-            kls._parse_and_search(
-                kls, hint, keyword_divided_or, or_match, attr_query, duplicate_keys)
+            kls._parse_and_search(hint, keyword_divided_or, or_match, attr_query, duplicate_keys)
 
         return attr_query
 
+    @classmethod
     def _parse_and_search(kls, hint, keyword_divided_or, or_match, attr_query, duplicate_keys):
         """Analyze the keywords separated by `OR`
 
@@ -1572,14 +1577,14 @@ class Entry(ACLBase):
                     attr_query[key] = {'bool': {'should': []}}
 
                 attr_query[key]['bool']['should'].append(
-                    kls._make_an_attribute_filter(kls, hint, keyword, or_match))
+                    kls._make_an_attribute_filter(hint, keyword))
             else:
-                attr_query[key] = kls._make_an_attribute_filter(
-                    kls, hint, keyword, or_match)
+                attr_query[key] = kls._make_an_attribute_filter(hint, keyword)
 
         return attr_query
 
-    def _make_key_for_each_block_of_keywords(hint, keyword, or_match):
+    @classmethod
+    def _make_key_for_each_block_of_keywords(kls, hint, keyword, or_match):
         """Create a key for each block of minimal keywords.
 
         Create a key for each block of keywords.
@@ -1601,6 +1606,7 @@ class Entry(ACLBase):
         """
         return keyword if or_match else keyword + '_' + hint['name']
 
+    @classmethod
     def _build_queries_along_keywords(kls, hint_attrs, attr_query, or_match):
         """Build queries along search terms.
 
@@ -1654,8 +1660,9 @@ class Entry(ACLBase):
                                                hint, keyword, or_match)])
 
                 else:
-                    and_query[keyword_divided_or] = attr_query[kls.
-                        _make_key_for_each_block_of_keywords(hint, keyword_divided_or, or_match)]
+                    and_query[keyword_divided_or] = attr_query[
+                        kls._make_key_for_each_block_of_keywords(hint, keyword_divided_or, or_match)
+                    ]
 
                 if CONFIG.OR_SEARCH_CHARACTER in hint['keyword']:
 
@@ -1681,7 +1688,8 @@ class Entry(ACLBase):
 
         return res_query
 
-    def _make_an_attribute_filter(kls, hint, keyword, or_match):
+    @classmethod
+    def _make_an_attribute_filter(kls, hint, keyword):
         """creates an attribute filter from keywords.
 
         For the attribute set in the name of hint, create a filter for filtering search keywords.
@@ -1705,8 +1713,6 @@ class Entry(ACLBase):
             hint (dict[str, str]): Dictionary of attribute names and search keywords to be processed
             keyword (str): String to search for
                 String of the smallest unit in which search keyword is separated by `AND` and `OR`
-            or_match (bool): Flag to determine whether the simple search or
-                advanced search is called
 
         Returns:
             dict[str, str]: Created attribute filter
@@ -1751,16 +1757,16 @@ class Entry(ACLBase):
                 if 'exact_match' not in hint:
                     cond_val.append({
                         'regexp': {
-                            'attr.value': kls._get_regex_pattern(kls, hint_kyeword_val)
+                            'attr.value': kls._get_regex_pattern(hint_kyeword_val)
                         }
                     })
 
-                cond_attr.append({'bool' : {'should': cond_val}})
+                cond_attr.append({'bool': {'should': cond_val}})
 
             else:
                 cond_val_tmp = [{'bool': {'must_not': {'exists': {'field': 'attr.date_value'}}}}]
-                cond_val_tmp.append({'bool' : {'should': cond_val}})
-                cond_attr.append({'bool' : {'must': cond_val_tmp}})
+                cond_val_tmp.append({'bool': {'should': cond_val}})
+                cond_attr.append({'bool': {'must': cond_val_tmp}})
 
         adding_cond = {
             'nested': {
@@ -1774,7 +1780,8 @@ class Entry(ACLBase):
 
         return adding_cond
 
-    def _execute_query(query):
+    @classmethod
+    def _execute_query(kls, query):
         """Run a search query.
 
         Args:
@@ -1794,7 +1801,8 @@ class Entry(ACLBase):
 
         return res
 
-    def _make_search_results(kls, user, results, res, hint_attrs, limit, hint_referral):
+    @classmethod
+    def _make_search_results(kls, results, res, hint_attrs, limit, hint_referral):
         """Acquires and returns the attribute values held by each search result
 
         When the condition of reference entry is specified, the entry to reference is acquired.
@@ -1819,7 +1827,6 @@ class Entry(ACLBase):
         5. When all entries have been processed, the search results are returned.
 
         Args:
-            user (:obj:`str`, optional): User who executed the process
             results (dict[str, str]): Variable for final search result storage
             res (`str`, optional): Search results for Elasticsearch
             hint_entity_ids (list(str)): Entity ID specified in the search condition input
@@ -1842,8 +1849,8 @@ class Entry(ACLBase):
             # If the hint_referral parameter is specified,
             # this filters results that only have specified referral entry.
 
-            if (CONFIG.EMPTY_SEARCH_CHARACTER == hint_referral
-                or CONFIG.EMPTY_SEARCH_CHARACTER_CODE == hint_referral):
+            if (CONFIG.EMPTY_SEARCH_CHARACTER == hint_referral or
+                    CONFIG.EMPTY_SEARCH_CHARACTER_CODE == hint_referral):
 
                 hit_entry_ids_num = [int(x) for x in hit_entry_ids]
                 filtered_ids = set(hit_entry_ids_num) - set(AttributeValue.objects.filter(
@@ -1882,15 +1889,15 @@ class Entry(ACLBase):
 
             hit_infos[entry] = [x['_source']['attr'] for x in res['hits']['hits'] if int(x['_id']) == entry.id][0]
 
-        for (entry, hit_attrs) in sorted(hit_infos.items(), key=lambda x:x[0].name):
+        for (entry, hit_attrs) in sorted(hit_infos.items(), key=lambda x: x[0].name):
             # If 'keyword' parameter is specified and hited entry doesn't have value at the targt
             # attribute, that entry should be removed from result. This processing may be worth to
             # do before refering entry from DB for saving time of server-side processing.
             for hint in hint_attrs:
                 if ('keyword' in hint and hint['keyword'] and
-                    # This checks hitted entry has specified attribute
-                    not [x for x in hit_attrs if x['name'] == hint['name']]):
-                        continue
+                        # This checks hitted entry has specified attribute
+                        not [x for x in hit_attrs if x['name'] == hint['name']]):
+                    continue
 
             ret_info = {
                 'entity': {'id': entry.schema.id, 'name': entry.schema.name},
@@ -1899,7 +1906,7 @@ class Entry(ACLBase):
             }
 
             # When 'hint_referral' parameter is specifed, return referred entries for each results
-            if hint_referral != False:
+            if hint_referral:
                 ret_info['referrals'] = [{
                     'id': x.id,
                     'name': x.name,
@@ -1922,7 +1929,7 @@ class Entry(ACLBase):
 
                 ret_attrinfo['type'] = attrinfo['type']
                 if (attrinfo['type'] == AttrTypeValue['string'] or
-                    attrinfo['type'] == AttrTypeValue['text']):
+                        attrinfo['type'] == AttrTypeValue['text']):
 
                     if attrinfo['value']:
                         ret_attrinfo['value'] = attrinfo['value']

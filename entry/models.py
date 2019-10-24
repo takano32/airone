@@ -1906,7 +1906,7 @@ class Entry(ACLBase):
             }
 
             # When 'hint_referral' parameter is specifed, return referred entries for each results
-            if hint_referral:
+            if hint_referral != False:
                 ret_info['referrals'] = [{
                     'id': x.id,
                     'name': x.name,

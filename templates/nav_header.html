@@ -7,7 +7,7 @@
   <div>
     <ul class="navbar-nav">
       {% if user.is_authenticated %}
-      <li class="navbar"><a href="/dashboard/logout" class="nav-link">({{ user.username }}) ログアウト</a></li>
+      <li class='navbar'>{% include 'nav_user.html' %}</li>
       {% else %}
       <li class="navbar"><a href="/dashboard/login" class="nav-link">ログイン</a></li>
       {% endif %}

@@ -101,7 +101,19 @@ DATABASES = {
         'HOST':'localhost',
     }
 }
+DATABASE_ROUTERS = ['airone.db_router.DBRouter']
 
+if 'test' in sys.argv:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'airone',
+            'USER':'root',
+            'PASSWORD':'',
+            'HOST':'localhost',
+        }
+    }
+    DATABASE_ROUTERS = []
 
 # Password validation
 # https://docs.djangoproject.com/en/1.11/ref/settings/#auth-password-validators
@@ -153,6 +165,8 @@ AIRONE = {
     'VERSION': 'unknown',
     'FILE_STORE_PATH': '/tmp/airone_app',
     'AUTO_COMPLEMENT_USER': 'auto_complementer',
+    'DB_SLAVES': ['default'],
+    'DB_MASTER': 'default',
 }
 try:
     proc = subprocess.Popen("cd %s && git describe --tags" % BASE_DIR, shell=True,

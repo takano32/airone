@@ -2731,19 +2731,19 @@ class ModelTest(AironeTestCase):
         user = User.objects.create(username='hoge')
         entity = Entity.objects.create(name='entity', created_user=user)
 
-        """
-        testdata1 entry_name:'(e-1)'
-        testdata2 entry_name:'{e-2}'
-        testdata3 entry_name:'<e-3>'
-        testdata4 entry_name:'"e-4"'
-        testdata5 entry_name:'[e-5]'
-        """
-        for entry_name in ['(e-1)', '{e-2}', '<e-3>', '"e-4"', '[e-5]']:
+        add_chars = ['!', '"', '#', '$', '%', '\'' ,'(', ')', '-', '=', '^', '~', '@', '`',
+                     '[', ']', '{', '}', ';', '+', ':', '*', ',', '<', '>', '.', '/', '?', '_', ' ']
+        test_suites = []
+        for i, add_char in enumerate(add_chars):
+            entry_name = 'test%s%s' % (i, add_char)
             entry = Entry.objects.create(name=entry_name, schema=entity, created_user=user)
             entry.register_es()
 
-        search_words = ['(e-1', 'e-1)', '(e-1)', '{e-2', 'e-2}', '{e-2}', '<e-3', 'e-3>', '<e-3>',
-                        '"e-4', 'e-4"', '"e-4"', '[e-5', 'e-5]', '[e-5]']
-        for search_word in search_words:
-            ret = Entry.search_entries(user, [], entry_name=search_word)
-            self.assertEqual(ret['ret_count'], 1)
+            test_suites.append({
+                'search_word': add_char, 'ret_cnt': 1, 'ret_entry_name': entry_name
+            })
+
+        for test_suite in test_suites:
+            ret = Entry.search_entries(user, [], entry_name=test_suite['search_word'])
+            self.assertEqual(ret['ret_count'], test_suite['ret_cnt'])
+            self.assertEqual(ret['ret_values'][0]['entry']['name'], test_suite['ret_entry_name'])

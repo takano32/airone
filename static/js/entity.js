@@ -227,10 +227,9 @@ var narrow_down_handler = {
     update_option(this);
   },
   "keyup": function(e) {
-    var inp = String.fromCharCode(e.keyCode);
     var is_BS = (e.keyCode == 8);
 
-    if (!(!enable_key_handling || !(/[a-zA-Z0-9-_ ]/.test(inp) || is_BS))) {
+    if (!(!enable_key_handling || !(/[a-zA-Z0-9 -/:-@\[-~]/.test($(this).val) || is_BS))) {
       update_option(this);
     }
   }

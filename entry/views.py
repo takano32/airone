@@ -516,11 +516,11 @@ def do_copy(request, entry_id, recv_data):
         }
 
         if custom_view.is_custom("do_copy_entry", entry.schema.name):
-            (is_continue, resp, msg) = custom_view.call_custom(
+            (is_continue, resp, status, msg) = custom_view.call_custom(
                 "do_copy_entry", entry.schema.name, params)
             if not is_continue:
                 ret.append({
-                    'status': 'fail',
+                    'status': status,
                     'msg': msg,
                 })
                 continue

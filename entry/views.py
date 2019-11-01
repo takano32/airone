@@ -510,20 +510,20 @@ def do_copy(request, entry_id, recv_data):
             })
             continue
 
-        params = {
-            'new_name': new_name,
-            'post_data': recv_data,
-        }
-
         if custom_view.is_custom("do_copy_entry", entry.schema.name):
             (is_continue, status, msg) = custom_view.call_custom(
-                "do_copy_entry", entry.schema.name, params)
+                "do_copy_entry", entry.schema.name, request, user, new_name)
             if not is_continue:
                 ret.append({
                     'status': status,
                     'msg': msg,
                 })
                 continue
+
+        params = {
+            'new_name': new_name,
+            'post_data': recv_data,
+        }
 
         # Check another COPY job that targets same name entry is under processing
         if Job.objects.filter(

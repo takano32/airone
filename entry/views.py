@@ -515,7 +515,7 @@ def do_copy(request, entry_id, recv_data):
                 "do_copy_entry", entry.schema.name, request, user, new_name)
             if not is_continue:
                 ret.append({
-                    'status': status,
+                    'status': 'success' if status else 'fail',
                     'msg': msg,
                 })
                 continue

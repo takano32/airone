@@ -2,7 +2,7 @@ from importlib import import_module
 
 from django.db import models
 from django.contrib.auth.models import User as DjangoUser
-from airone.lib.acl import ACLType, ACLTypeBase
+from airone.lib.acl import ACLTypeBase
 from group.models import Group
 
 from rest_framework.authtoken.models import Token
@@ -32,12 +32,13 @@ class User(DjangoUser):
         return Token.objects.get_or_create(user=self)[0]
 
     def _user_has_permission(self, target_obj, permission_level):
-        return any([permission_level.id <= x.get_aclid() \
-                for x in self.permissions.all() if target_obj.id == x.get_objid()])
+        return any([permission_level.id <= x.get_aclid()
+                   for x in self.permissions.all() if target_obj.id == x.get_objid()])
 
     def _group_has_permission(self, target_obj, permission_level, groups):
-        return any(sum([[permission_level.id <= x.get_aclid() \
-                for x in g.permissions.all() if target_obj.id == x.get_objid()] for g in groups], []))
+        return any(sum([[permission_level.id <= x.get_aclid()
+                   for x in g.permissions.all() if target_obj.id == x.get_objid()] for g in groups],
+                   []))
 
     def is_permitted(self, target_obj, permission_level, groups=[]):
         if not groups:
@@ -46,7 +47,8 @@ class User(DjangoUser):
         return (self._user_has_permission(target_obj, permission_level) or
                 self._group_has_permission(target_obj, permission_level, groups))
 
-    def may_permitted(self, target_obj, expected_permission, is_public, default_permission, acl_settings):
+    def may_permitted(self, target_obj, expected_permission, is_public, default_permission,
+                      acl_settings):
         '''
         This checks specified permission settings have expected_permission for this user
 
@@ -66,8 +68,8 @@ class User(DjangoUser):
         groups = [g.id for g in self.groups.all()]
         for acl_data in [x for x in acl_settings if x['value']]:
             if (acl_data['member_type'] == 'user' and
-                int(acl_data['member_id']) == self.id and
-                int(acl_data['value']) >= expected_permission):
+                    int(acl_data['member_id']) == self.id and
+                    int(acl_data['value']) >= expected_permission):
                 return True
 
             elif (acl_data['member_type'] == 'group' and
@@ -82,7 +84,9 @@ class User(DjangoUser):
         # If input won't change current user's permission and user has permission originally,
         # then this permits to change permissoin
         args = [target_obj, expected_permission]
-        if not any([int(x['member_id']) == self.id for x in acl_settings]) and self._user_has_permission(*args):
+        if not any(
+                [int(x['member_id']) == self.id for x in acl_settings]
+                ) and self._user_has_permission(*args):
             return True
 
         if groups and self._group_has_permission(*(args + [Group.objects.filter(id__in=groups)])):
@@ -91,13 +95,13 @@ class User(DjangoUser):
         return False
 
     def has_permission(self, target_obj, permission_level, groups=[]):
-        # The case that parent data structure (Entity in Entry, or EntityAttr in Attribute) doesn't permit,
-        # access to the children's objects are also not permitted.
+        # The case that parent data structure (Entity in Entry, or EntityAttr in Attribute)
+        # doesn't permit, access to the children's objects are also not permitted.
         if ((isinstance(target_obj, import_module('entry.models').Entry) or
              isinstance(target_obj, import_module('entry.models').Attribute)) and
             (not self.is_permitted(target_obj, permission_level) and
              not self.has_permission(target_obj.schema, permission_level))):
-             return False
+            return False
 
         # A bypass processing to rapidly return.
         # This condition is effective when the public objects are majority.
@@ -133,12 +137,16 @@ class User(DjangoUser):
     # operations for registering History
     def seth_entity_add(self, target):
         return History.register(self, target, History.ADD_ENTITY)
+
     def seth_entity_mod(self, target):
         return History.register(self, target, History.MOD_ENTITY)
+
     def seth_entity_del(self, target):
         return History.register(self, target, History.DEL_ENTITY)
+
     def seth_entry_del(self, target):
         return History.register(self, target, History.DEL_ENTRY)
+
 
 class History(models.Model):
     """
@@ -160,13 +168,13 @@ class History(models.Model):
     TARGET_ATTR = 1 << 4
     TARGET_ENTRY = 1 << 5
 
-    ADD_ENTITY  = OP_ADD + TARGET_ENTITY
-    ADD_ATTR    = OP_ADD + TARGET_ATTR
-    MOD_ENTITY  = OP_MOD + TARGET_ENTITY
-    MOD_ATTR    = OP_MOD + TARGET_ATTR
-    DEL_ENTITY  = OP_DEL + TARGET_ENTITY
-    DEL_ATTR    = OP_DEL + TARGET_ATTR
-    DEL_ENTRY   = OP_DEL + TARGET_ENTRY
+    ADD_ENTITY = OP_ADD + TARGET_ENTITY
+    ADD_ATTR = OP_ADD + TARGET_ATTR
+    MOD_ENTITY = OP_MOD + TARGET_ENTITY
+    MOD_ATTR = OP_MOD + TARGET_ATTR
+    DEL_ENTITY = OP_DEL + TARGET_ENTITY
+    DEL_ATTR = OP_DEL + TARGET_ATTR
+    DEL_ENTRY = OP_DEL + TARGET_ENTRY
 
     target_obj = models.ForeignKey(import_module('acl.models').ACLBase,
                                    related_name='referred_target_obj')
@@ -224,9 +232,12 @@ class History(models.Model):
 
     @classmethod
     def _type_check(kls, target, operation):
-        if ((operation & kls.TARGET_ENTITY and isinstance(target, import_module('entity.models').Entity) or
-            (operation & kls.TARGET_ATTR and isinstance(target, import_module('entity.models').EntityAttr)) or
-            (operation & kls.TARGET_ENTRY and isinstance(target, import_module('entry.models').Entry)))):
+        if ((operation & kls.TARGET_ENTITY and
+             isinstance(target, import_module('entity.models').Entity) or
+            (operation & kls.TARGET_ATTR and
+                 isinstance(target, import_module('entity.models').EntityAttr)) or
+            (operation & kls.TARGET_ENTRY and
+                 isinstance(target, import_module('entry.models').Entry)))):
             return True
         else:
             return False

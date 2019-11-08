@@ -1,5 +1,4 @@
 import json
-import re
 
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -28,7 +27,7 @@ class ViewTest(TestCase):
 
     def _get_active_user_count(self):
         return User.objects.filter(is_active=True).count()
-        
+
     def test_index_without_login(self):
         resp = self.client.get(reverse('user:index'))
         self.assertEqual(resp.status_code, 303)
@@ -66,7 +65,7 @@ class ViewTest(TestCase):
 
     def test_create_post_without_login(self):
         count = User.objects.count()
-        
+
         params = {
             'name': 'hoge',
             'email': 'hoge@fuga.com',
@@ -76,7 +75,7 @@ class ViewTest(TestCase):
                                 json.dumps(params),
                                 'application/json')
         self.assertEqual(resp.status_code, 401)
-        self.assertEqual(User.objects.count(), count) # user should not be created
+        self.assertEqual(User.objects.count(), count)  # user should not be created
 
     def test_create_post_with_login(self):
         count = User.objects.count()
@@ -92,7 +91,7 @@ class ViewTest(TestCase):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(User.objects.count(), count+1) # user should be created
+        self.assertEqual(User.objects.count(), count+1)  # user should be created
         self.assertEqual(User.objects.last().username, 'hoge')
         self.assertNotEqual(User.objects.last().password, 'puyo')
         self.assertFalse(User.objects.last().is_superuser)
@@ -110,7 +109,7 @@ class ViewTest(TestCase):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 400)
-        self.assertEqual(User.objects.count(), count) # user should not be created
+        self.assertEqual(User.objects.count(), count)  # user should not be created
 
     def test_create_user_with_empty_param(self):
         count = User.objects.count()
@@ -126,7 +125,7 @@ class ViewTest(TestCase):
                                 'application/json')
 
         self.assertEqual(resp.status_code, 400)
-        self.assertEqual(User.objects.count(), count) # user should be created
+        self.assertEqual(User.objects.count(), count)  # user should be created
 
     def test_edit_get_without_login(self):
         resp = self.client.get(reverse('user:edit', args=[0]))
@@ -162,11 +161,11 @@ class ViewTest(TestCase):
         user = User.objects.create(username='test', email='test@local')
 
         params = {
-            'name':  'hoge', # update guest => hoge
+            'name':  'hoge',  # update guest => hoge
             'email': 'hoge@hoge.com',
             'is_superuser': True,
         }
-        resp = self.client.post(reverse('user:do_edit',args=[user.id]),
+        resp = self.client.post(reverse('user:do_edit', args=[user.id]),
                                 json.dumps(params), 'application/json')
         self.assertEqual(resp.status_code, 401)
 
@@ -176,15 +175,15 @@ class ViewTest(TestCase):
         count = User.objects.count()
 
         params = {
-            'name':  'hoge', # update guest => hoge
+            'name':  'hoge',  # update guest => hoge
             'email': 'hoge@hoge.com',
             'is_superuser': True,
         }
-        resp = self.client.post(reverse('user:do_edit',args=[user.id]),
-                                json.dumps(params),'application/json')
+        resp = self.client.post(reverse('user:do_edit', args=[user.id]),
+                                json.dumps(params), 'application/json')
         user.refresh_from_db()
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(User.objects.count(), count) # user should be updated
+        self.assertEqual(User.objects.count(), count)  # user should be updated
         self.assertEqual(user.username, params['name'])
         self.assertEqual(user.email, params['email'])
         self.assertTrue(user.is_superuser)
@@ -195,13 +194,13 @@ class ViewTest(TestCase):
 
         params = {
             'name': 'admin',          # duplicated
-            'email':'guest@guest.com',
+            'email': 'guest@guest.com',
         }
-        resp = self.client.post(reverse('user:do_edit',args=[user.id]),
-                                json.dumps(params),'application/json')
+        resp = self.client.post(reverse('user:do_edit', args=[user.id]),
+                                json.dumps(params), 'application/json')
         user.refresh_from_db()
         self.assertEqual(resp.status_code, 400)
-        self.assertEqual(user.username, 'guest') # Not updated
+        self.assertEqual(user.username, 'guest')  # Not updated
 
     def test_edit_user_with_duplicated_email(self):
         self._admin_login()
@@ -212,10 +211,10 @@ class ViewTest(TestCase):
 
         params = {
             'name': 'guest',
-            'email':'hoge@hoge.com', # duplicated
+            'email': 'hoge@hoge.com',  # duplicated
         }
-        resp = self.client.post(reverse('user:do_edit',args=[user.id]),
-                                json.dumps(params),'application/json')
+        resp = self.client.post(reverse('user:do_edit', args=[user.id]),
+                                json.dumps(params), 'application/json')
         user.refresh_from_db()
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(user.username, params['name'])
@@ -229,11 +228,11 @@ class ViewTest(TestCase):
 
         params = {
             'name': 'hoge',
-            'email':'hoge@hoge.com',
-            'is_superuser':True,
+            'email': 'hoge@hoge.com',
+            'is_superuser': True,
         }
-        resp = self.client.post(reverse('user:do_edit',args=[user.id]),
-                                json.dumps(params),'application/json')
+        resp = self.client.post(reverse('user:do_edit', args=[user.id]),
+                                json.dumps(params), 'application/json')
         user.refresh_from_db()
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(user.username, params['name'])
@@ -248,11 +247,11 @@ class ViewTest(TestCase):
 
         params = {
             'name': 'hoge',
-            'email':'hoge@hoge.com',
+            'email': 'hoge@hoge.com',
             # If is_superuser doesn't exist, it becomes False
         }
-        resp = self.client.post(reverse('user:do_edit',args=[user.id]),
-                                json.dumps(params),'application/json')
+        resp = self.client.post(reverse('user:do_edit', args=[user.id]),
+                                json.dumps(params), 'application/json')
         user.refresh_from_db()
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(user.username, params['name'])
@@ -265,10 +264,10 @@ class ViewTest(TestCase):
         user = User.objects.get(username='guest')
         params = {
             'name': 'hoge',
-            'email':'hoge@hoge.com',
+            'email': 'hoge@hoge.com',
         }
-        resp = self.client.post(reverse('user:do_edit',args=[user.id]),
-                                json.dumps(params),'application/json')
+        resp = self.client.post(reverse('user:do_edit', args=[user.id]),
+                                json.dumps(params), 'application/json')
         user.refresh_from_db()
         self.assertEqual(resp.status_code, 200)
         self.assertNotEqual(user.username, params['name'])
@@ -282,11 +281,11 @@ class ViewTest(TestCase):
         for invalid_value in ['abcd', '-1', str(User.MAXIMUM_TOKEN_LIFETIME + 1), '']:
             params = {
                 'name': 'hoge',
-                'email':'hoge@hoge.com',
+                'email': 'hoge@hoge.com',
                 'token_lifetime': invalid_value,
             }
-            resp = self.client.post(reverse('user:do_edit',args=[user.id]),
-                                    json.dumps(params),'application/json')
+            resp = self.client.post(reverse('user:do_edit', args=[user.id]),
+                                    json.dumps(params), 'application/json')
             user.refresh_from_db()
             self.assertEqual(resp.status_code, 400)
 
@@ -296,11 +295,11 @@ class ViewTest(TestCase):
         user = User.objects.get(username='guest')
         params = {
             'name': 'hoge',
-            'email':'hoge@hoge.com',
+            'email': 'hoge@hoge.com',
             'token_lifetime': '10',
         }
-        resp = self.client.post(reverse('user:do_edit',args=[user.id]),
-                                json.dumps(params),'application/json')
+        resp = self.client.post(reverse('user:do_edit', args=[user.id]),
+                                json.dumps(params), 'application/json')
         user.refresh_from_db()
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(user.token_lifetime, 10)
@@ -333,11 +332,11 @@ class ViewTest(TestCase):
 
         params = {
             'id': self.guest.id,
-            'old_passwd':'guest',
-            'new_passwd':'hoge',
-            'chk_passwd':'hoge',
+            'old_passwd': 'guest',
+            'new_passwd': 'hoge',
+            'chk_passwd': 'hoge',
         }
-        resp = self.client.post(reverse('user:do_edit_passwd',args=[params['id']]),
+        resp = self.client.post(reverse('user:do_edit_passwd', args=[params['id']]),
                                 json.dumps(params), 'application/json')
         self.assertEqual(resp.status_code, 401)
 
@@ -347,15 +346,15 @@ class ViewTest(TestCase):
 
         params = {
             'id': self.guest.id,
-            'old_passwd':'guest',
-            'new_passwd':'hoge',
-            'chk_passwd':'hoge',
+            'old_passwd': 'guest',
+            'new_passwd': 'hoge',
+            'chk_passwd': 'hoge',
         }
-        resp = self.client.post(reverse('user:do_edit_passwd',args=[params['id']]),
-                                json.dumps(params),'application/json')
+        resp = self.client.post(reverse('user:do_edit_passwd', args=[params['id']]),
+                                json.dumps(params), 'application/json')
         user = User.objects.get(id=params['id'])
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(User.objects.count(), count) # user should be updated
+        self.assertEqual(User.objects.count(), count)  # user should be updated
         self.assertTrue(user.check_password(params['new_passwd']))
 
     def test_edit_passwd_post_with_admin_login(self):
@@ -364,14 +363,14 @@ class ViewTest(TestCase):
 
         params = {
             'id': self.guest.id,
-            'new_passwd':'hoge',
-            'chk_passwd':'hoge',
+            'new_passwd': 'hoge',
+            'chk_passwd': 'hoge',
         }
-        resp = self.client.post(reverse('user:do_su_edit_passwd',args=[params['id']]),
-                                json.dumps(params),'application/json')
+        resp = self.client.post(reverse('user:do_su_edit_passwd', args=[params['id']]),
+                                json.dumps(params), 'application/json')
         user = User.objects.get(id=params['id'])
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(User.objects.count(), count) # user should be updated
+        self.assertEqual(User.objects.count(), count)  # user should be updated
         self.assertTrue(user.check_password(params['new_passwd']))
 
     def test_edit_passwd_with_guest_login_and_empty_pass(self):
@@ -379,57 +378,56 @@ class ViewTest(TestCase):
 
         params = {
             'id': self.guest.id,
-            'old_passwd':'guest',
-            'new_passwd':'',
-            'chk_passwd':'hoge',
+            'old_passwd': 'guest',
+            'new_passwd': '',
+            'chk_passwd': 'hoge',
         }
-        resp = self.client.post(reverse('user:do_edit_passwd',args=[params['id']]),
-                                json.dumps(params),'application/json')
+        resp = self.client.post(reverse('user:do_edit_passwd', args=[params['id']]),
+                                json.dumps(params), 'application/json')
         user = User.objects.get(id=params['id'])
         self.assertEqual(resp.status_code, 400)
-        self.assertTrue(user.check_password('guest')) # Not updated
+        self.assertTrue(user.check_password('guest'))  # Not updated
 
     def test_edit_passwd_with_admin_login_and_empty_pass(self):
         self._admin_login()
 
         params = {
             'id': self.guest.id,
-            'new_passwd':'',
-            'chk_passwd':'hoge',
+            'new_passwd': '',
+            'chk_passwd': 'hoge',
         }
-        resp = self.client.post(reverse('user:do_su_edit_passwd',args=[params['id']]),
-                                json.dumps(params),'application/json')
+        resp = self.client.post(reverse('user:do_su_edit_passwd', args=[params['id']]),
+                                json.dumps(params), 'application/json')
         user = User.objects.get(id=params['id'])
         self.assertEqual(resp.status_code, 400)
-        self.assertTrue(user.check_password('guest')) # Not updated
+        self.assertTrue(user.check_password('guest'))  # Not updated
 
     def test_edit_passwd_with_wrong_old_pass(self):
         self._guest_login()
 
         params = {
             'id': self.guest.id,
-            'old_passwd':'hoge',
-            'new_passwd':'hoge',
-            'chk_passwd':'hoge',
+            'old_passwd': 'hoge',
+            'new_passwd': 'hoge',
+            'chk_passwd': 'hoge',
         }
-        resp = self.client.post(reverse('user:do_edit_passwd',args=[params['id']]),
-                                json.dumps(params),'application/json')
+        resp = self.client.post(reverse('user:do_edit_passwd', args=[params['id']]),
+                                json.dumps(params), 'application/json')
         user = User.objects.get(id=params['id'])
         self.assertEqual(resp.status_code, 400)
-        self.assertTrue(user.check_password('guest')) # Not updated
+        self.assertTrue(user.check_password('guest'))  # Not updated
 
     def test_edit_passwd_with_guest_login_and_old_new_pass_duplicated(self):
         self._guest_login()
 
         params = {
             'id': self.guest.id,
-            'old_passwd':'guest',
-            'new_passwd':'guest',
-            'chk_passwd':'guest',
+            'old_passwd': 'guest',
+            'new_passwd': 'guest',
+            'chk_passwd': 'guest',
         }
-        resp = self.client.post(reverse('user:do_edit_passwd',args=[params['id']]),
-                                json.dumps(params),'application/json')
-        user = User.objects.get(id=params['id'])
+        resp = self.client.post(reverse('user:do_edit_passwd', args=[params['id']]),
+                                json.dumps(params), 'application/json')
         self.assertEqual(resp.status_code, 400)
 
     def test_edit_passwd_with_guest_login_and_new_chk_pass_not_equal(self):
@@ -437,29 +435,29 @@ class ViewTest(TestCase):
 
         params = {
             'id': self.guest.id,
-            'old_passwd':'guest',
-            'new_passwd':'hoge',
-            'chk_passwd':'fuga',
+            'old_passwd': 'guest',
+            'new_passwd': 'hoge',
+            'chk_passwd': 'fuga',
         }
-        resp = self.client.post(reverse('user:do_edit_passwd',args=[params['id']]),
-                                json.dumps(params),'application/json')
+        resp = self.client.post(reverse('user:do_edit_passwd', args=[params['id']]),
+                                json.dumps(params), 'application/json')
         user = User.objects.get(id=params['id'])
         self.assertEqual(resp.status_code, 400)
-        self.assertTrue(user.check_password('guest')) # Not updated
+        self.assertTrue(user.check_password('guest'))  # Not updated
 
     def test_edit_passwd_with_admin_login_and_new_chk_pass_not_equal(self):
         self._admin_login()
 
         params = {
             'id': self.guest.id,
-            'new_passwd':'hoge',
-            'chk_passwd':'fuga',
+            'new_passwd': 'hoge',
+            'chk_passwd': 'fuga',
         }
-        resp = self.client.post(reverse('user:do_su_edit_passwd',args=[params['id']]),
-                                json.dumps(params),'application/json')
+        resp = self.client.post(reverse('user:do_su_edit_passwd', args=[params['id']]),
+                                json.dumps(params), 'application/json')
         user = User.objects.get(id=params['id'])
         self.assertEqual(resp.status_code, 400)
-        self.assertTrue(user.check_password('guest')) # Not updated
+        self.assertTrue(user.check_password('guest'))  # Not updated
 
     def test_delete_post(self):
         name = "someuser"
@@ -518,8 +516,6 @@ class ViewTest(TestCase):
         self._guest_login()
 
         user = self._create_user('testuser')
-        user_count = User.objects.count()
-        active_user_count = self._get_active_user_count()
 
         resp = self.client.post(reverse('user:do_delete', args=[user.id]),
                                 json.dumps({}),

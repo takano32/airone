@@ -1,12 +1,9 @@
-import json
 import re
 
-from datetime import datetime,timedelta
+from datetime import timedelta
 
-from django.template import loader
 from django.http import HttpResponse
 from django.http.response import JsonResponse
-from django.db import utils
 
 from airone.lib.http import HttpResponseSeeOther
 from airone.lib.http import http_get, http_post
@@ -14,7 +11,6 @@ from airone.lib.http import render
 from airone.lib.http import check_superuser
 
 from rest_framework.authtoken.models import Token
-from datetime import datetime,timedelta
 
 from .models import User
 
@@ -34,9 +30,11 @@ def index(request):
 
     return render(request, 'list_user.html', context)
 
+
 @http_get
 def create(request):
     return render(request, 'create_user.html')
+
 
 @http_post([
     {'name': 'name', 'type': str, 'checker': lambda x: (
@@ -63,6 +61,7 @@ def do_create(request, recv_data):
 
     return JsonResponse({})
 
+
 @http_get
 def edit(request, user_id):
     current_user = User.objects.get(id=request.user.id)
@@ -84,6 +83,7 @@ def edit(request, user_id):
 
     return render(request, 'edit_user.html', context)
 
+
 @http_post([
     {'name': 'name', 'type': str, 'checker': lambda x: x['name']},
     {'name': 'email', 'type': str, 'checker': lambda x: x['email']},
@@ -97,8 +97,8 @@ def do_edit(request, user_id, recv_data):
 
         # Validate specified token_lifetime
         if (not re.match(r'^[0-9]+$', recv_data['token_lifetime']) or
-            int(recv_data['token_lifetime']) < 0 or
-            int(recv_data['token_lifetime']) > User.MAXIMUM_TOKEN_LIFETIME):
+                int(recv_data['token_lifetime']) < 0 or
+                int(recv_data['token_lifetime']) > User.MAXIMUM_TOKEN_LIFETIME):
             return HttpResponse("Invalid token lifetime is specified", status=400)
 
         target_user.token_lifetime = int(recv_data['token_lifetime'])
@@ -108,12 +108,12 @@ def do_edit(request, user_id, recv_data):
 
         # validate duplication of username
         if (target_user.username != recv_data['name'] and
-            User.objects.filter(username=recv_data['name']).exists()):
+                User.objects.filter(username=recv_data['name']).exists()):
             return HttpResponse("username is duplicated", status=400)
 
         # validate duplication of email
         if (target_user.email != recv_data['email'] and
-            User.objects.filter(email=recv_data['email']).exists()):
+                User.objects.filter(email=recv_data['email']).exists()):
             return HttpResponse("email is duplicated", status=400)
 
         # update each params
@@ -125,9 +125,10 @@ def do_edit(request, user_id, recv_data):
         else:
             target_user.is_superuser = False
 
-    target_user.save(update_fields=['username','email','is_superuser', 'token_lifetime'])
+    target_user.save(update_fields=['username', 'email', 'is_superuser', 'token_lifetime'])
 
     return JsonResponse({})
+
 
 @http_get
 def edit_passwd(request, user_id):
@@ -149,6 +150,7 @@ def edit_passwd(request, user_id):
     }
 
     return render(request, 'edit_passwd.html', context)
+
 
 @http_post([
     {'name': 'old_passwd', 'type': str, 'checker': lambda x: x['old_passwd']},
@@ -180,6 +182,7 @@ def do_edit_passwd(request, user_id, recv_data):
 
     return JsonResponse({})
 
+
 @http_post([
     {'name': 'new_passwd', 'type': str, 'checker': lambda x: x['new_passwd']},
     {'name': 'chk_passwd', 'type': str, 'checker': lambda x: x['chk_passwd']},
@@ -198,6 +201,7 @@ def do_su_edit_passwd(request, user_id, recv_data):
     user.save(update_fields=['password'])
 
     return JsonResponse({})
+
 
 @http_post([])
 @check_superuser

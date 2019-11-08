@@ -48,7 +48,8 @@ class ModelTest(TestCase):
 
     def test_set_history_with_detail(self):
         entity = Entity.objects.create(name='test-entity', created_user=self.user)
-        attr = EntityAttr.objects.create(name='test-attr', created_user=self.user, parent_entity=entity)
+        attr = EntityAttr.objects.create(name='test-attr',
+                                         created_user=self.user, parent_entity=entity)
 
         history = self.user.seth_entity_add(entity)
 
@@ -76,7 +77,7 @@ class ModelTest(TestCase):
         class InvalidType(object):
             pass
 
-        entity = Entity.objects.create(name='test-entity', created_user=self.user)
+        Entity.objects.create(name='test-entity', created_user=self.user)
         invalid_obj = InvalidType()
 
         with self.assertRaises(TypeError):

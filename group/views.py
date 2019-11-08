@@ -1,8 +1,6 @@
 import io
-import json
 import yaml
 
-from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 from django.http.response import JsonResponse
 
@@ -16,6 +14,7 @@ from airone.lib.http import check_superuser
 
 from user.models import User
 
+
 @http_get
 def index(request):
     context = {}
@@ -26,6 +25,7 @@ def index(request):
     } for x in Group.objects.filter(is_active=True)]
 
     return render(request, 'list_group.html', context)
+
 
 @http_get
 @check_superuser
@@ -59,6 +59,7 @@ def edit(request, group_id):
     })
 
     return render(request, 'edit_group.html', context)
+
 
 @http_post([
     {'name': 'name', 'type': str, 'checker': lambda x: x['name']},
@@ -98,6 +99,7 @@ def do_edit(request, group_id, recv_data):
         'msg': 'Success to update Group "%s"' % group.name,
     })
 
+
 @http_get
 @check_superuser
 def create(request):
@@ -122,6 +124,7 @@ def create(request):
 
     return render(request, 'edit_group.html', context)
 
+
 @http_post([
     {'name': 'name', 'type': str, 'checker': lambda x: (
         x['name'] and not Group.objects.filter(name=x['name']).exists()
@@ -142,6 +145,7 @@ def do_create(request, recv_data):
         'msg': 'Success to create a new Group "%s"' % new_group.name,
     })
 
+
 @http_post()
 @check_superuser
 def do_delete(request, group_id, recv_data):
@@ -159,6 +163,7 @@ def do_delete(request, group_id, recv_data):
     group.delete()
 
     return JsonResponse(ret)
+
 
 @http_get
 def export(request):
@@ -180,7 +185,8 @@ def export(request):
     for user in User.objects.filter(is_active=True):
         data["User"].append({
             "email": user.email,
-            "groups": ",".join(list(map(lambda x: x.name, user.groups.filter(group__is_active=True)))),
+            "groups": ",".join(
+                list(map(lambda x: x.name, user.groups.filter(group__is_active=True)))),
             "id": user.id,
             "username": user.username,
         })
@@ -188,9 +194,11 @@ def export(request):
     output.write(yaml.dump(data, default_flow_style=False, allow_unicode=True))
     return get_download_response(output, 'user_group.yaml')
 
+
 @http_get
 def import_user_and_group(request):
     return render(request, 'import_user_and_group.html', {})
+
 
 @http_file_upload
 @check_superuser
@@ -223,7 +231,8 @@ def do_import_user_and_group(request, context):
                                     (group_data['id'], group_data['name']), status=400)
 
             # check new name is not used
-            if (group.name != group_data['name']) and (Group.objects.filter(name=group_data['name']).count() > 0):
+            if ((group.name != group_data['name'])
+                    and (Group.objects.filter(name=group_data['name']).count() > 0)):
                 return HttpResponse("New group name is already used(id:%s, group:%s->%s)" %
                                     (group_data['id'], group.name, group_data['name']), status=400)
 
@@ -250,9 +259,11 @@ def do_import_user_and_group(request, context):
             if not user:
                 return HttpResponse("Specified id user does not exist(id:%s, user:%s)" %
                                     (user_data['id'], user_data['username']), status=400)
-            if (user.username != user_data['username']) and (User.objects.filter(username=user_data['username']).count() > 0):
+            if ((user.username != user_data['username'])
+                    and (User.objects.filter(username=user_data['username']).count() > 0)):
                 return HttpResponse("New username is already used(id:%s, user:%s->%s)" %
-                                    (user_data['id'], user.username, user_data['username']), status=400)
+                                    (user_data['id'], user.username, user_data['username']),
+                                    status=400)
         else:
             # update user by username
             user = User.objects.filter(username=user_data['username']).first()
@@ -276,6 +287,5 @@ def do_import_user_and_group(request, context):
 
         user.groups = new_groups
         user.save()
-
 
     return HttpResponseSeeOther('/group/')

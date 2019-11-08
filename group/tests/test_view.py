@@ -1,6 +1,6 @@
-import json, yaml
+import json
+import yaml
 
-from django.test import TestCase, Client
 from django.urls import reverse
 from group.models import Group
 
@@ -174,7 +174,6 @@ class ViewTest(AironeViewTest):
                                 json.dumps({}),
                                 'application/json')
 
-
         user1 = User.objects.get(username="user1")
         user2 = User.objects.get(username="user2")
 
@@ -238,7 +237,6 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(len(obj['User']), self._get_active_user_count())
         self.assertEqual(len(obj['Group']), 2)
-
 
     def test_create_group_by_guest_user(self):
         user = self.guest_login()
@@ -313,11 +311,11 @@ class ViewTest(AironeViewTest):
         self.assertFalse(user1.groups.filter(id=group.id).exists())
 
     def test_post_edit_to_duplicate_name(self):
-        user = self.admin_login()
+        self.admin_login()
 
         # initialize group and user
         group1 = self._create_group('testg1')
-        group2 = self._create_group('testg2')
+        self._create_group('testg2')
 
         params = {
             'name': 'testg2',  # This is same with group2, so it may cause an error.
@@ -333,7 +331,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(Group.objects.get(id=group1.id).name, group1.name)
 
     def test_post_edit_with_invalid_group_id(self):
-        user = self.admin_login()
+        self.admin_login()
 
         params = {
             'name': 'testg',
@@ -347,7 +345,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 400)
 
     def test_post_edit_by_guest(self):
-        user = self.guest_login()
+        self.guest_login()
 
         # initialize group to update
         group = self._create_group('testg')
@@ -362,7 +360,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 400)
 
     def test_import_user_and_group(self):
-        user = self.admin_login()
+        self.admin_login()
 
         fp = self.open_fixture_file('import_user_and_group.yaml')
         resp = self.client.post(reverse('group:do_import_user_and_group'), {'file': fp})

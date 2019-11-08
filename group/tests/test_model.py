@@ -1,8 +1,9 @@
 
 from django.test import TestCase
-from entity.models import Entity, EntityAttr
+from entity.models import Entity
 from group.models import Group
 from user.models import User
+
 
 class ModelTest(TestCase):
     def test_create_group(self):
@@ -41,7 +42,7 @@ class ModelTest(TestCase):
 
         self.assertFalse(group.is_active)
         self.assertEqual(group.name.find('group_deleted_'), 0)
-        
+
     def _create_user(self, name):
         user = User(username=name)
         user.save()

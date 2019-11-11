@@ -2,7 +2,6 @@ import json
 
 from group.models import Group
 from django.urls import reverse
-from django.core import exceptions
 
 from user.models import User
 from acl.models import ACLBase
@@ -239,7 +238,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 400)
 
     def test_post_acl_set_without_acl_params(self):
-        user = self.admin_login()
+        self.admin_login()
         params = {
             'object_id': str(self._aclobj.id)
         }
@@ -301,8 +300,8 @@ class ViewTest(AironeViewTest):
 
         entity = Entity.objects.create(name='hoge', created_user=user)
         attrbase = EntityAttr.objects.create(name='attr1',
-                                                created_user=user,
-                                                parent_entity=entity)
+                                             created_user=user,
+                                             parent_entity=entity)
 
         entry = Entry.objects.create(name='fuga', created_user=user, schema=entity)
         attr = entry.add_attribute_from_base(attrbase, user)
@@ -328,8 +327,8 @@ class ViewTest(AironeViewTest):
         user = self.guest_login()
         obj = ACLBase.objects.create(name='obj', created_user=user, is_public=False)
 
-        # When normal user access to the ACL setting page of object which user doens't have ACLType.Full,
-        # AirOne returns http-staus 400.
+        # When normal user access to the ACL setting page of object which user doens't
+        # have ACLType.Full, AirOne returns http-staus 400.
         resp = self.client.get(reverse('acl:index', args=[obj.id]))
         self.assertEqual(resp.status_code, 400)
 

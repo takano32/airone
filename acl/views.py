@@ -1,9 +1,7 @@
-import json
 import logging
 
 from django.http import HttpResponse
 from django.http.response import JsonResponse
-from django.contrib.auth.models import Permission
 
 from airone.lib.acl import ACLType, ACLObjType
 from airone.lib.http import http_get, http_post, render
@@ -49,7 +47,7 @@ def index(request, obj_id):
     context = {
         'object': target_obj,
         'parent': parent_obj,
-        'acltypes': [{'id':x.id, 'name':x.label} for x in ACLType.all()],
+        'acltypes': [{'id': x.id, 'name': x.label} for x in ACLType.all()],
         'members': [{'id': x.id,
                      'name': x.username,
                      'current_permission': get_current_permission(x),
@@ -60,6 +58,7 @@ def index(request, obj_id):
                      'type': 'group'} for x in Group.objects.filter(is_active=True)]
     }
     return render(request, 'edit_acl.html', context)
+
 
 @airone_profile
 @http_post([
@@ -83,16 +82,19 @@ def index(request, obj_id):
 ])
 def set(request, recv_data):
     user = User.objects.get(id=request.user.id)
-    acl_obj = getattr(_get_acl_model(recv_data['object_type']), 'objects').get(id=recv_data['object_id'])
+    acl_obj = getattr(_get_acl_model(recv_data['object_type']),
+                      'objects').get(id=recv_data['object_id'])
 
     if not user.has_permission(acl_obj, ACLType.Full):
-        return HttpResponse("User(%s) doesn't have permission to change this ACL" % user.username, status=400)
+        return HttpResponse(
+            "User(%s) doesn't have permission to change this ACL" % user.username, status=400)
 
     if not user.may_permitted(acl_obj, ACLType.Full, **{
             'is_public': True if 'is_public' in recv_data else False,
             'default_permission': int(recv_data['default_permission']),
             'acl_settings': recv_data['acl']}):
-        return HttpResponse("Inadmissible setting. By this change you will never change this ACL", status=400)
+        return HttpResponse(
+            "Inadmissible setting. By this change you will never change this ACL", status=400)
 
     acl_obj.is_public = False
     if 'is_public' in recv_data:
@@ -129,6 +131,7 @@ def set(request, recv_data):
         'msg': 'Success to update ACL of "%s"' % acl_obj.name,
     })
 
+
 def _get_acl_model(object_id):
     if int(object_id) == ACLObjType.Entity:
         return Entity
@@ -140,6 +143,7 @@ def _get_acl_model(object_id):
         return Attribute
     else:
         return ACLBase
+
 
 def _set_permission(member, acl_obj, acl_type):
     # clear unset permissions of target ACLbased object

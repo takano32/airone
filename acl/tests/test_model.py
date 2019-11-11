@@ -256,12 +256,12 @@ class ModelTest(TestCase):
         param['default_permission'] = acl_bases['acl4']['default_permission']
 
         # checks permitted cases with indivisual permissions
-        param['acl_settings'] = acl['user_readable']['acl_settings']
-        self.assertTrue(non_admin_user.may_permitted(aclobj, ACLType.Readable, **param))
-        param['acl_settings'] = acl['user_full']['acl_settings']
-        self.assertTrue(non_admin_user.may_permitted(aclobj, ACLType.Full, **param))
-        param['acl_settings'] = acl['group_full']['acl_settings']
-        self.assertTrue(non_admin_user.may_permitted(aclobj, ACLType.Full, **param))
+        self.assertTrue(non_admin_user.may_permitted(
+            aclobj, ACLType.Readable, **dict(acl['user_readable'], **acl_bases['acl4'])))
+        self.assertTrue(non_admin_user.may_permitted(
+            aclobj, ACLType.Full, **dict(acl['user_full'], **acl_bases['acl4'])))
+        self.assertTrue(non_admin_user.may_permitted(
+            aclobj, ACLType.Full, **dict(acl['group_full'], **acl_bases['acl4'])))
 
         # checks unpermitted cases
         self.assertFalse(non_admin_user.may_permitted(aclobj, ACLType.Full, acl_settings=[],
@@ -270,28 +270,29 @@ class ModelTest(TestCase):
                                                       **acl_bases['acl4']))
 
         # checks unpermitted cases with indivisual permissions
-        param['acl_settings'] = acl['user_readable']['acl_settings']
-        self.assertFalse(non_admin_user.may_permitted(aclobj, ACLType.Full, **param))
+        self.assertFalse(non_admin_user.may_permitted(
+            aclobj, ACLType.Full, **dict(acl['user_readable'], **acl_bases['acl4'])))
 
         # checks permitted cases with empty acl_settings parameters when user has permission
-        param['acl_settings'] = acl['nothing']['acl_settings']
-        self.assertFalse(non_admin_user.may_permitted(aclobj, ACLType.Full, **param))
+        self.assertFalse(non_admin_user.may_permitted(
+            aclobj, ACLType.Full, **dict(acl['nothing'], **acl_bases['acl4'])))
         non_admin_user.permissions.add(aclobj.full)
-        self.assertTrue(non_admin_user.may_permitted(aclobj, ACLType.Full, **param))
+        self.assertTrue(non_admin_user.may_permitted(
+            aclobj, ACLType.Full, **dict(acl['nothing'], **acl_bases['acl4'])))
 
         # While user has full permission of object,
         # this returns false when unpermitted input was specified
-        param['acl_settings'] = acl['user_readable']['acl_settings']
-        self.assertFalse(non_admin_user.may_permitted(aclobj, ACLType.Full, **param))
+        self.assertFalse(non_admin_user.may_permitted(
+            aclobj, ACLType.Full, **dict(acl['user_readable'], **acl_bases['acl4'])))
 
         # checks permitted cases with empty acl_settings parameters when group has permission
         non_admin_user.permissions.remove(aclobj.full)
         group.permissions.add(aclobj.full)
-        param['acl_settings'] = acl['nothing']['acl_settings']
-        self.assertTrue(non_admin_user.may_permitted(aclobj, ACLType.Full, **param))
+        self.assertTrue(non_admin_user.may_permitted(
+            aclobj, ACLType.Full, **dict(acl['nothing'], **acl_bases['acl4'])))
 
         # While user has full permission of object,
         # this returns false when unpermitted input was specified
-        param['acl_settings'] = acl['group_readable']['acl_settings']
-        self.assertFalse(non_admin_user.may_permitted(aclobj, ACLType.Full, **param))
+        self.assertFalse(non_admin_user.may_permitted(
+            aclobj, ACLType.Full, **dict(acl['group_readable'], **acl_bases['acl4'])))
         non_admin_user.permissions.remove(aclobj.full)

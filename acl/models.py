@@ -1,15 +1,11 @@
 import importlib
 import re
-import tablib
 
 from datetime import datetime
 
 from django.db import models
-from django.db.models.signals import post_save
-from django.db.models.signals import pre_save
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth.models import Permission
-from django.dispatch import receiver
 
 from user.models import User
 
@@ -21,15 +17,19 @@ def _get_acltype(permission):
     if not any([permission.name == x.name for x in ACLType.all()]):
         return 0
     return int(permission.codename.split('.')[-1])
+
+
 def _get_objid(permission):
     if not any([permission.name == x.name for x in ACLType.all()]):
         return 0
     return int(permission.codename.split('.')[0])
 
+
 Permission.get_aclid = lambda self: _get_acltype(self)
 Permission.get_objid = lambda self: _get_objid(self)
 Permission.__le__ = lambda self, comp: _get_acltype(self) <= _get_acltype(comp)
 Permission.__ge__ = lambda self, comp: _get_acltype(self) >= _get_acltype(comp)
+
 
 class ACLBase(models.Model):
     name = models.CharField(max_length=200)

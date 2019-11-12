@@ -6,7 +6,7 @@ import yaml
 from airone.celery import app
 from airone.lib.types import AttrTypeValue
 from django.conf import settings
-from entry.models import Entry, Attribute, AttributeValue
+from entry.models import Entry
 from job.models import Job
 from natsort import natsorted
 
@@ -16,8 +16,9 @@ def _csv_export(job, values, recv_data, has_referral):
     writer = csv.writer(output)
 
     # write first line of CSV
-    if has_referral != False:
-        writer.writerow(['Name'] + ['Entity'] + [x['name'] for x in recv_data['attrinfo']] + ['Referral'])
+    if has_referral is not False:
+        writer.writerow(
+            ['Name'] + ['Entity'] + [x['name'] for x in recv_data['attrinfo']] + ['Referral'])
     else:
         writer.writerow(['Name'] + ['Entity'] + [x['name'] for x in recv_data['attrinfo']])
 
@@ -52,8 +53,8 @@ def _csv_export(job, values, recv_data, has_referral):
                 line_data.append('')
 
             elif (vtype == AttrTypeValue['string'] or
-                vtype == AttrTypeValue['text'] or
-                vtype == AttrTypeValue['boolean']):
+                  vtype == AttrTypeValue['text'] or
+                  vtype == AttrTypeValue['boolean']):
 
                 line_data.append(str(vval))
 
@@ -84,12 +85,14 @@ def _csv_export(job, values, recv_data, has_referral):
 
                 line_data.append("\n".join(natsorted(items)))
 
-        if has_referral != False:
-            line_data.append(str(['%s / %s' % (x['name'], x['schema']) for x in entry_info['referrals']]))
+        if has_referral is not False:
+            line_data.append(
+                str(['%s / %s' % (x['name'], x['schema']) for x in entry_info['referrals']]))
 
         writer.writerow(line_data)
 
     return output
+
 
 def _yaml_export(job, values, recv_data, has_referral):
     output = io.StringIO()
@@ -140,6 +143,7 @@ def _yaml_export(job, values, recv_data, has_referral):
     output.write(yaml.dump(resp_data, default_flow_style=False, allow_unicode=True))
 
     return output
+
 
 @app.task(bind=True)
 def export_search_result(self, job_id):

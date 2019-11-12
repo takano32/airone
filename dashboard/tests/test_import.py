@@ -3,7 +3,6 @@ import re
 
 from airone.lib.test import AironeViewTest
 from airone.lib import types as atype
-from datetime import datetime
 from django.urls import reverse
 from django.conf import settings
 from entity.models import Entity, EntityAttr
@@ -13,7 +12,7 @@ from user.models import User
 
 class ImportTest(AironeViewTest):
     def test_import_entity(self):
-        user = self.admin_login()
+        self.admin_login()
 
         fp = self.open_fixture_file('entity.yaml')
         resp = self.client.post(reverse('dashboard:do_import'), {'file': fp})
@@ -47,7 +46,7 @@ class ImportTest(AironeViewTest):
         self.assertTrue(entity.attrs.get(name='attr-obj').is_mandatory)
 
     def test_import_entity_with_unnecessary_param(self):
-        user = self.admin_login()
+        self.admin_login()
         warning_messages = []
 
         fp = self.open_fixture_file('entity_with_unnecessary_param.yaml')
@@ -73,7 +72,7 @@ class ImportTest(AironeViewTest):
 
     @mock.patch('import_export.resources.logging')
     def test_import_entity_without_mandatory_param(self, mock_logger):
-        user = self.admin_login()
+        self.admin_login()
         warning_messages = []
 
         fp = self.open_fixture_file('entity_without_mandatory_param.yaml')
@@ -103,14 +102,14 @@ class ImportTest(AironeViewTest):
         self.assertEqual(EntityAttr.objects.filter(name='attr-arr-obj').count(), 0)
 
     def test_import_entity_with_spoofing_user(self):
-        admin = self.admin_login()
+        self.admin_login()
         warning_messages = []
 
         # A user who creates original mock object
         user = User.objects.create(username='test-user')
 
         Entity.objects.create(id=3, name='baz-original', created_user=user)
-        
+
         fp = self.open_fixture_file('entity.yaml')
         with mock.patch('import_export.resources.logging') as lg_mock:
             def side_effect(message):
@@ -136,7 +135,7 @@ class ImportTest(AironeViewTest):
         self.assertEqual(EntityAttr.objects.filter(name='attr-str').count(), 0)
 
     def test_import_entry(self):
-        user = self.admin_login()
+        self.admin_login()
 
         fp = self.open_fixture_file('entry.yaml')
         resp = self.client.post(reverse('dashboard:do_import'), {'file': fp})
@@ -164,16 +163,18 @@ class ImportTest(AironeViewTest):
         # checks that attr has corrected referral
         self.assertEqual(Attribute.objects.get(name='attr-str').schema.referral.count(), 0)
         self.assertEqual(Attribute.objects.get(name='attr-obj').schema.referral.count(), 1)
-        self.assertEqual(Attribute.objects.get(name='attr-obj').schema.referral.last().name, 'Entity1')
+        self.assertEqual(Attribute.objects.get(name='attr-obj').schema.referral.last().name,
+                         'Entity1')
         self.assertEqual(Attribute.objects.get(name='attr-arr-str').schema.referral.count(), 0)
         self.assertEqual(Attribute.objects.get(name='attr-arr-obj').schema.referral.count(), 1)
-        self.assertEqual(Attribute.objects.get(name='attr-arr-obj').schema.referral.last().name, 'Entity2')
+        self.assertEqual(Attribute.objects.get(name='attr-arr-obj').schema.referral.last().name,
+                         'Entity2')
 
         # checks for the Array String attributes
         attr_value = Attribute.objects.get(name='attr-arr-str').get_latest_value()
         self.assertTrue(attr_value.status & AttributeValue.STATUS_DATA_ARRAY_PARENT)
         self.assertEqual(attr_value.data_array.count(), 2)
-        #self.assertTrue(all([x.parent_attrv == attr_value for x in attr_value.data_array.all()]))
+        # self.assertTrue(all([x.parent_attrv == attr_value for x in attr_value.data_array.all()]))
 
         # checks for the Array Object attributes
         attr_value = Attribute.objects.get(name='attr-arr-obj').get_latest_value()
@@ -194,7 +195,7 @@ class ImportTest(AironeViewTest):
         self.assertEqual(res['_all']['total']['segments']['count'], Entry.objects.count())
 
     def test_import_entry_without_mandatory_values(self):
-        user = self.admin_login()
+        self.admin_login()
         warns = []
 
         fp = self.open_fixture_file('entry_without_mandatory_values.yaml')
@@ -217,7 +218,7 @@ class ImportTest(AironeViewTest):
         self.assertEqual(Entry.objects.count(), 1)
 
     def test_import_entity_with_duplicate_entity(self):
-        user = self.admin_login()
+        self.admin_login()
         warning_messages = []
 
         fp = self.open_fixture_file('entity_with_duplication.yaml')
@@ -241,7 +242,7 @@ class ImportTest(AironeViewTest):
         self.assertTrue("There is a duplicate entity object (entity)" == warning_messages[0])
 
     def test_import_entry_with_duplicate_entry(self):
-        user = self.admin_login()
+        self.admin_login()
         warning_messages = []
 
         fp = self.open_fixture_file('entry_with_duplication.yaml')
@@ -266,7 +267,7 @@ class ImportTest(AironeViewTest):
         self.assertTrue("There is a duplicate entry object" == warning_messages[0])
 
     def test_import_entry_referring_invalid_schema(self):
-        user = self.admin_login()
+        self.admin_login()
         warning_messages = []
 
         fp = self.open_fixture_file('entry_with_invalid_schema.yaml')
@@ -286,7 +287,7 @@ class ImportTest(AironeViewTest):
         self.assertTrue("Specified entity(invalid_schema) doesn't exist" == warning_messages[0])
 
     def test_import_entity_with_max_file_size(self):
-        user = self.admin_login()
+        self.admin_login()
 
         fp = self.open_fixture_file('entity_with_max_file_size.yaml')
 
@@ -296,7 +297,7 @@ class ImportTest(AironeViewTest):
         fp.close()
 
     def test_import_entry_lack_of_attrvalues(self):
-        user = self.admin_login()
+        self.admin_login()
 
         fp = self.open_fixture_file('entry_lack_of_attrvalues.yaml')
         resp = self.client.post(reverse('dashboard:do_import'), {'file': fp})

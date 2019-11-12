@@ -1,13 +1,8 @@
-import json
-
 from airone.lib.test import AironeViewTest
-from airone.lib.types import AttrTypeValue
 
 from django.urls import reverse
 
-from entity.models import Entity, EntityAttr
-from entry.models import Entry, Attribute, AttributeValue
-from entry.settings import CONFIG
+from entity.models import Entity
 
 
 class ViewTest(AironeViewTest):

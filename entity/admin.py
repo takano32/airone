@@ -38,6 +38,7 @@ class EntityResource(AironeModelResource):
 
         super(EntityResource, self).import_obj(instance, data, dry_run)
 
+
 class EntityAttrResource(AironeModelResource):
     _IMPORT_INFO = {
         'header':               ['id', 'name', 'type', 'refer', 'entity',

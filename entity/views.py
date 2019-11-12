@@ -5,23 +5,17 @@ import yaml
 
 from django.http import HttpResponse
 from django.http.response import JsonResponse
-from django.db.models import Q
-from django.core.exceptions import PermissionDenied
-from django.shortcuts import redirect
 
 from .models import Entity
 from .models import EntityAttr
 from user.models import User, History
-from entry.models import Entry, Attribute, AttributeValue
+from entry.models import Entry, AttributeValue
 
 from airone.lib.types import AttrTypes, AttrTypeValue
-from airone.lib.http import HttpResponseSeeOther
 from airone.lib.http import http_get, http_post
 from airone.lib.http import check_permission
 from airone.lib.http import render
 from airone.lib.http import get_download_response
-from airone.lib.http import http_file_upload
-from airone.lib.http import check_superuser
 from airone.lib.acl import get_permitted_objects
 from airone.lib.acl import ACLType
 from airone.lib.profile import airone_profile
@@ -42,16 +36,18 @@ def index(request):
     }
     return render(request, 'list_entities.html', context)
 
+
 @http_get
 def create(request):
     user = User.objects.get(id=request.user.id)
 
     context = {
         'entities': [x for x in Entity.objects.filter(is_active=True)
-            if user.has_permission(x, ACLType.Readable)],
+                     if user.has_permission(x, ACLType.Readable)],
         'attr_types': AttrTypes
     }
     return render(request, 'create_entity.html', context)
+
 
 @airone_profile
 @http_get
@@ -80,9 +76,11 @@ def edit(request, entity_id):
             'is_mandatory': x.is_mandatory,
             'is_delete_in_chain': x.is_delete_in_chain,
             'referrals': x.referral.all()
-        } for x in entity.attrs.filter(is_active=True).order_by('index') if user.has_permission(x, ACLType.Writable)],
+        } for x in entity.attrs.filter(is_active=True).order_by('index')
+            if user.has_permission(x, ACLType.Writable)],
     }
     return render(request, 'edit_entity.html', context)
+
 
 @airone_profile
 @http_post([
@@ -144,9 +142,6 @@ def do_edit(request, entity_id, recv_data):
 
     # update processing for each attrs
     for attr in recv_data['attrs']:
-        # This is the variable to describe update detail of EntityAttr to register the History
-        detail_attr = []
-
         if 'deleted' in attr:
             # In case of deleting attribute which has been already existed
             attr_obj = EntityAttr.objects.get(id=attr['id'])
@@ -222,6 +217,7 @@ def do_edit(request, entity_id, recv_data):
         'msg': 'Success to update Entity "%s"' % entity.name,
     })
 
+
 @http_post([
     {'name': 'name', 'type': str, 'checker': lambda x: (
         x['name'] and not Entity.objects.filter(name=x['name']).exists()
@@ -295,6 +291,7 @@ def do_create(request, recv_data):
         'msg': 'Success to create Entity "%s"' % entity.name,
     })
 
+
 @http_get
 def export(request):
     user = User.objects.get(id=request.user.id)
@@ -316,7 +313,6 @@ def export(request):
             "status": entity.status,
         })
 
-
     attrs = get_permitted_objects(user, EntityAttr, ACLType.Readable)
     for attr in attrs:
         data["EntityAttr"].append({
@@ -332,6 +328,7 @@ def export(request):
     output.write(yaml.dump(data, default_flow_style=False, allow_unicode=True))
     return get_download_response(output, 'entity.yaml')
 
+
 @http_post([])
 @check_permission(Entity, ACLType.Full)
 def do_delete(request, entity_id, recv_data):
@@ -346,8 +343,9 @@ def do_delete(request, entity_id, recv_data):
     # save deleting target name before do it
     ret['name'] = entity.name
 
-    if Entry.objects.filter(schema=entity,is_active=True).exists():
-        return HttpResponse('cannot delete Entity because one or more Entries are not deleted', status=400)
+    if Entry.objects.filter(schema=entity, is_active=True).exists():
+        return HttpResponse('cannot delete Entity because one or more Entries are not deleted',
+                            status=400)
 
     entity.delete()
     history = user.seth_entity_del(entity)
@@ -359,10 +357,9 @@ def do_delete(request, entity_id, recv_data):
 
     return JsonResponse(ret)
 
+
 @http_get
 def history(request, entity_id):
-    user = User.objects.get(id=request.user.id)
-
     if not Entity.objects.filter(id=entity_id).exists():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
@@ -376,10 +373,9 @@ def history(request, entity_id):
 
     return render(request, 'history_entity.html', context)
 
+
 @http_get
 def dashboard(request, entity_id):
-    user = User.objects.get(id=request.user.id)
-
     if not Entity.objects.filter(id=entity_id).exists():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
@@ -403,15 +399,15 @@ def dashboard(request, entity_id):
 
         # filter elements which count is 0
         summarized_data[attr]['referral_count'] = \
-                [x for x in summarized_data[attr]['referral_count'] if x['count'] > 0]
+            [x for x in summarized_data[attr]['referral_count'] if x['count'] > 0]
 
         # set count of entries which doesn't have referral
         summarized_data[attr]['no_referral_count'] = \
-                Entry.objects.filter(schema=entity, is_active=True).count() - \
-                sum([x['count'] for x in summarized_data[attr]['referral_count']])
+            Entry.objects.filter(schema=entity, is_active=True).count() - \
+            sum([x['count'] for x in summarized_data[attr]['referral_count']])
 
         summarized_data[attr]['no_referral_ratio'] = '%2.1f' % \
-                ((100 * summarized_data[attr]['no_referral_count']) / total_entry_count)
+            ((100 * summarized_data[attr]['no_referral_count']) / total_entry_count)
 
         # sort by referral counts
         summarized_data[attr]['referral_count'] = sorted(summarized_data[attr]['referral_count'],
@@ -420,10 +416,15 @@ def dashboard(request, entity_id):
 
         # summarize results to prevent overflowing results by a lot of tiny elements
         if len(summarized_data[attr]['referral_count']) > CONFIG.DASHBOARD_NUM_ITEMS:
-            rest_counts = sum([x['count'] for x
-                in summarized_data[attr]['referral_count'][CONFIG.DASHBOARD_NUM_ITEMS:]])
+            rest_counts = sum(
+                [
+                    x['count'] for x in
+                    summarized_data[attr]['referral_count'][CONFIG.DASHBOARD_NUM_ITEMS:]
+                ]
+            )
 
-            summarized_data[attr]['referral_count'] = summarized_data[attr]['referral_count'][:CONFIG.DASHBOARD_NUM_ITEMS]
+            summarized_data[attr]['referral_count'] = \
+                summarized_data[attr]['referral_count'][:CONFIG.DASHBOARD_NUM_ITEMS]
             summarized_data[attr]['referral_count'].append({
                 'referral': '(Others)',
                 'count': rest_counts,
@@ -441,10 +442,9 @@ def dashboard(request, entity_id):
     }
     return render(request, 'dashboard_entity.html', context)
 
+
 @http_get
 def conf_dashboard(request, entity_id):
-    user = User.objects.get(id=request.user.id)
-
     if not Entity.objects.filter(id=entity_id).exists():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
@@ -453,18 +453,18 @@ def conf_dashboard(request, entity_id):
 
     context = {
         'entity': entity,
-        'ref_attrs': EntityAttr.objects.filter(parent_entity=entity, type=AttrTypeValue['object'], is_active=True),
+        'ref_attrs': EntityAttr.objects.filter(parent_entity=entity, type=AttrTypeValue['object'],
+                                               is_active=True),
         'redirect_url': '/entity/dashboard/config/register/%s' % entity_id,
     }
     return render(request, 'conf_dashboard_entity.html', context)
+
 
 @http_post([
     {'name': 'attrs', 'type': list,
      'checker': lambda x: all([EntityAttr.objects.filter(id=v).exists() for v in x['attrs']])}
 ])
 def do_conf_dashboard(request, entity_id, recv_data):
-    user = User.objects.get(id=request.user.id)
-
     if not Entity.objects.filter(id=entity_id).exists():
         return HttpResponse('Failed to get entity of specified id', status=400)
 

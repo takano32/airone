@@ -1,5 +1,4 @@
 from django.db import models
-from django.contrib.contenttypes.models import ContentType
 from airone.lib.acl import ACLObjType
 from acl.models import ACLBase
 
@@ -28,11 +27,11 @@ class EntityAttr(ACLBase):
     def is_updated(self, name, type, is_mandatory, is_delete_in_chain, index, refs):
         # checks each parameters that are different between current object parameters
         if (self.name != name or
-            self.type != int(type) or
-            self.is_mandatory != is_mandatory or
-            self.is_delete_in_chain != is_delete_in_chain or
-            self.index != int(index) or
-            sorted([x.id for x in self.referral.all()]) != sorted(refs)):
+                self.type != int(type) or
+                self.is_mandatory != is_mandatory or
+                self.is_delete_in_chain != is_delete_in_chain or
+                self.index != int(index) or
+                sorted([x.id for x in self.referral.all()]) != sorted(refs)):
 
             return True
 
@@ -43,6 +42,7 @@ class EntityAttr(ACLBase):
         from entry.models import AttributeValue
         AttributeValue.objects.filter(parent_attr__schema=self,
                                       is_latest=True).update(is_latest=False)
+
 
 class Entity(ACLBase):
     STATUS_TOP_LEVEL = 1 << 0

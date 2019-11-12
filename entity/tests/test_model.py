@@ -27,7 +27,7 @@ class ModelTest(TestCase):
     def test_make_entity(self):
         entity = Entity(name='test01', created_user=self._test_user)
         entity.save()
-        
+
         self.assertEqual(entity.name, 'test01')
         self.assertEqual(list(entity.attrs.all()), [])
         self.assertTrue(entity.is_active)
@@ -146,7 +146,7 @@ class ModelTest(TestCase):
         params = {
             'name': attr.name,
             'type': attr.type,
-            'refs': [ entity.id ],
+            'refs': [entity.id],
             'index': attr.index,
             'is_mandatory': attr.is_mandatory,
             'is_delete_in_chain': attr.is_delete_in_chain,

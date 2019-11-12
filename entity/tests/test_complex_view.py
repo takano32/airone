@@ -2,14 +2,14 @@ import json
 
 from airone.lib.acl import ACLType
 from airone.lib.test import AironeViewTest
-from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
+from airone.lib.types import AttrTypeStr
 from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
 from airone.lib.types import AttrTypeValue
 
 from django.urls import reverse
 
 from entity.models import Entity, EntityAttr
-from entry.models import Entry, Attribute, AttributeValue
+from entry.models import Entry, AttributeValue
 from entry import tasks
 
 from unittest.mock import patch
@@ -43,7 +43,8 @@ class ComplexViewTest(AironeViewTest):
             'note': '',
             'is_toplevel': False,
             'attrs': [
-                {'name': 'attr', 'type': str(AttrTypeStr), 'is_delete_in_chain': True, 'is_mandatory': False, 'row_index': '1'},
+                {'name': 'attr', 'type': str(AttrTypeStr), 'is_delete_in_chain': True,
+                 'is_mandatory': False, 'row_index': '1'},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -59,7 +60,8 @@ class ComplexViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(attr.id), 'type':str(AttrTypeStr), 'value': [{'data': 'attr-value', 'index': 0}], 'referral_key': []},
+                {'id': str(attr.id), 'type': str(AttrTypeStr),
+                 'value': [{'data': 'attr-value', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -84,15 +86,13 @@ class ComplexViewTest(AironeViewTest):
                 'is_mandatory': attr.is_mandatory,
                 'is_delete_in_chain': False,
                 'row_index': '1',
-            },
-            {
+            }, {
                 'name': 'arr-str',
                 'type': str(AttrTypeArrStr),
                 'is_mandatory': True,
                 'is_delete_in_chain': False,
                 'row_index': '2',
-            },
-            {
+            }, {
                 'name': 'arr-obj',
                 'type': str(AttrTypeArrObj),
                 'ref_ids': [refer_entity.id],
@@ -172,7 +172,6 @@ class ComplexViewTest(AironeViewTest):
         value_arr_obj = attr_arr_obj.values.last()
         self.assertEqual(value_arr_obj.data_array.count(), 1)
 
-
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_inherite_attribute_acl(self):
         """
@@ -229,7 +228,8 @@ class ComplexViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry1',
             'attrs': [
-                {'id': str(entityattr.id), 'type': str(entityattr.objtype), 'value': [{'data': 'attr-value', 'index': 0}], 'referral_key': []},
+                {'id': str(entityattr.id), 'type': str(entityattr.objtype),
+                 'value': [{'data': 'attr-value', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -241,12 +241,13 @@ class ComplexViewTest(AironeViewTest):
         self.assertEqual(Entry.objects.get(name='entry1').attrs.count(), 1)
 
         # switch to guest user
-        guest = self.guest_login()
+        self.guest_login()
         entity = Entity.objects.get(name='entity')
         params = {
             'entry_name': 'entry2',
             'attrs': [
-                {'id': str(entityattr.id), 'type': str(entityattr.objtype), 'value': [{'data': 'attr-value', 'index': 0}], 'referral_key': []},
+                {'id': str(entityattr.id), 'type': str(entityattr.objtype),
+                 'value': [{'data': 'attr-value', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -298,7 +299,7 @@ class ComplexViewTest(AironeViewTest):
                 'ref_ids': [ref_entity.id],
                 'deleted': True,
                 'row_index': '1'
-            }], # delete EntityAttr 'ref'
+            }],  # delete EntityAttr 'ref'
         }
         resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
                                 json.dumps(params),
@@ -348,7 +349,7 @@ class ComplexViewTest(AironeViewTest):
                 'is_mandatory': entity_attr.is_mandatory,
                 'is_delete_in_chain': False,
                 'row_index': '1'
-            }], # delete EntityAttr 'ref'
+            }],  # delete EntityAttr 'ref'
         }
         resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
                                 json.dumps(params),

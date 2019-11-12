@@ -1,9 +1,6 @@
 import json
 import yaml
-import mock
-import re
 
-from django.test import TestCase, Client
 from django.urls import reverse
 from entity.models import Entity, EntityAttr
 from entity.settings import CONFIG
@@ -14,7 +11,6 @@ from airone.lib.test import AironeViewTest
 from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
 from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
 from airone.lib.types import AttrTypeValue
-from airone.lib.acl import ACLType
 from django.contrib.auth.models import Permission
 
 
@@ -53,7 +49,7 @@ class ViewTest(AironeViewTest):
         user = User.objects.create(username='admin', is_superuser=True)
 
         entity_public = Entity.objects.create(name='public', created_user=user)
-        entity_private = Entity.objects.create(name='private', created_user=user, is_public=False)
+        Entity.objects.create(name='private', created_user=user, is_public=False)
 
         self.guest_login()
 
@@ -79,12 +75,18 @@ class ViewTest(AironeViewTest):
             'note': 'fuga',
             'is_toplevel': True,
             'attrs': [
-                {'name': 'foo', 'type': str(AttrTypeStr), 'is_delete_in_chain': False, 'is_mandatory': True, 'row_index': '1'},
-                {'name': 'bar', 'type': str(AttrTypeText), 'is_delete_in_chain': False, 'is_mandatory': True, 'row_index': '2'},
-                {'name': 'baz', 'type': str(AttrTypeArrStr), 'is_delete_in_chain': False, 'is_mandatory': False, 'row_index': '3'},
-                {'name': 'attr_bool', 'type': str(AttrTypeValue['boolean']), 'is_delete_in_chain': False, 'is_mandatory': False, 'row_index': '4'},
-                {'name': 'attr_group', 'type': str(AttrTypeValue['group']), 'is_delete_in_chain': False, 'is_mandatory': False, 'row_index': '5'},
-                {'name': 'attr_date', 'type': str(AttrTypeValue['date']), 'is_delete_in_chain': False, 'is_mandatory': False, 'row_index': '6'},
+                {'name': 'foo', 'type': str(AttrTypeStr), 'is_delete_in_chain': False,
+                 'is_mandatory': True, 'row_index': '1'},
+                {'name': 'bar', 'type': str(AttrTypeText), 'is_delete_in_chain': False,
+                 'is_mandatory': True, 'row_index': '2'},
+                {'name': 'baz', 'type': str(AttrTypeArrStr), 'is_delete_in_chain': False,
+                 'is_mandatory': False, 'row_index': '3'},
+                {'name': 'attr_bool', 'type': str(AttrTypeValue['boolean']),
+                 'is_delete_in_chain': False, 'is_mandatory': False, 'row_index': '4'},
+                {'name': 'attr_group', 'type': str(AttrTypeValue['group']),
+                 'is_delete_in_chain': False, 'is_mandatory': False, 'row_index': '5'},
+                {'name': 'attr_date', 'type': str(AttrTypeValue['date']),
+                 'is_delete_in_chain': False, 'is_mandatory': False, 'row_index': '6'},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -113,8 +115,10 @@ class ViewTest(AironeViewTest):
             'note': 'fuga',
             'is_toplevel': False,
             'attrs': [
-                {'name': 'foo', 'type': str(AttrTypeStr), 'is_delete_in_chain': False, 'is_mandatory': True, 'row_index': '1'},
-                {'name': 'bar', 'type': str(AttrTypeStr), 'is_delete_in_chain': False, 'is_mandatory': False, 'row_index': '2'},
+                {'name': 'foo', 'type': str(AttrTypeStr), 'is_delete_in_chain': False,
+                 'is_mandatory': True, 'row_index': '1'},
+                {'name': 'bar', 'type': str(AttrTypeStr), 'is_delete_in_chain': False,
+                 'is_mandatory': False, 'row_index': '2'},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -132,7 +136,8 @@ class ViewTest(AironeViewTest):
             'note': 'fuga',
             'is_toplevel': False,
             'attrs': [
-                {'name': '', 'type': str(AttrTypeStr), 'is_delete_in_chain': False, 'is_mandatory': True, 'row_index': '1'},
+                {'name': '', 'type': str(AttrTypeStr), 'is_delete_in_chain': False,
+                 'is_mandatory': True, 'row_index': '1'},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -146,7 +151,8 @@ class ViewTest(AironeViewTest):
             'note': 'fuga',
             'is_toplevel': False,
             'attrs': [
-                {'name': 'foo', 'type': str(AttrTypeStr), 'is_delete_in_chain': False, 'is_mandatory': True, 'row_index': 'abcd'},
+                {'name': 'foo', 'type': str(AttrTypeStr), 'is_delete_in_chain': False,
+                 'is_mandatory': True, 'row_index': 'abcd'},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -204,7 +210,8 @@ class ViewTest(AironeViewTest):
             'note': 'fuga',
             'is_toplevel': False,
             'attrs': [
-                {'name': 'foo', 'type': str(AttrTypeStr), 'is_delete_in_chain': False, 'is_mandatory': True, 'row_index': '1'},
+                {'name': 'foo', 'type': str(AttrTypeStr), 'is_delete_in_chain': False,
+                 'is_mandatory': True, 'row_index': '1'},
             ],
         }
         resp = self.client.post(reverse('entity:do_edit', args=[999]),
@@ -228,8 +235,10 @@ class ViewTest(AironeViewTest):
             'note': 'bar',
             'is_toplevel': True,
             'attrs': [
-                {'name': 'foo', 'type': str(AttrTypeStr), 'is_delete_in_chain': False, 'is_mandatory': False, 'id': attr.id, 'row_index': '1'},
-                {'name': 'bar', 'type': str(AttrTypeStr), 'is_delete_in_chain': False, 'is_mandatory': True, 'row_index': '2'},
+                {'name': 'foo', 'type': str(AttrTypeStr), 'is_delete_in_chain': False,
+                 'is_mandatory': False, 'id': attr.id, 'row_index': '1'},
+                {'name': 'bar', 'type': str(AttrTypeStr), 'is_delete_in_chain': False,
+                 'is_mandatory': True, 'row_index': '2'},
             ],
         }
         resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
@@ -268,8 +277,10 @@ class ViewTest(AironeViewTest):
             'note': 'bar',
             'is_toplevel': False,
             'attrs': [
-                {'name': 'foo', 'type': str(AttrTypeStr), 'is_delete_in_chain': False, 'is_mandatory': True, 'id': attrbase.id, 'row_index': '1'},
-                {'name': 'bar', 'type': str(AttrTypeStr), 'is_delete_in_chain': False, 'is_mandatory': True, 'row_index': '2'},
+                {'name': 'foo', 'type': str(AttrTypeStr), 'is_delete_in_chain': False,
+                 'is_mandatory': True, 'id': attrbase.id, 'row_index': '1'},
+                {'name': 'bar', 'type': str(AttrTypeStr), 'is_delete_in_chain': False,
+                 'is_mandatory': True, 'row_index': '2'},
             ],
         }
         resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
@@ -361,9 +372,9 @@ class ViewTest(AironeViewTest):
 
         entity = Entity.objects.create(name='hoge', note='fuga', created_user=user)
         attr = EntityAttr.objects.create(name='puyo',
-                                            type=AttrTypeStr,
-                                            created_user=user,
-                                            parent_entity=entity)
+                                         type=AttrTypeStr,
+                                         created_user=user,
+                                         parent_entity=entity)
         entity.attrs.add(attr)
 
         params = {
@@ -397,7 +408,8 @@ class ViewTest(AironeViewTest):
             'note': 'fuga',
             'is_toplevel': False,
             'attrs': [
-                {'name': 'a', 'type': str(AttrTypeObj), 'is_delete_in_chain': False, 'is_mandatory': False, 'row_index': '1'},
+                {'name': 'a', 'type': str(AttrTypeObj), 'is_delete_in_chain': False,
+                 'is_mandatory': False, 'row_index': '1'},
             ],
         }
         resp = self.client.post(reverse('entity:do_create'),
@@ -431,7 +443,7 @@ class ViewTest(AironeViewTest):
 
         created_entity = Entity.objects.get(name='hoge')
         self.assertEqual(created_entity.attrs.count(), 2)
-        self.assertEqual([x.name for x in  created_entity.attrs.all()], ['a', 'b'])
+        self.assertEqual([x.name for x in created_entity.attrs.all()], ['a', 'b'])
         self.assertFalse(any([x.is_mandatory for x in created_entity.attrs.all()]))
         self.assertTrue(all([x.is_delete_in_chain for x in created_entity.attrs.all()]))
 
@@ -457,7 +469,8 @@ class ViewTest(AironeViewTest):
                 {'name': 'foo', 'type': str(AttrTypeStr), 'id': entity.attrs.first().id,
                  'is_delete_in_chain': True, 'is_mandatory': False, 'row_index': '1'},
                 {'name': 'bar', 'type': str(AttrTypeStr), 'id': entity.attrs.last().id,
-                 'is_delete_in_chain': True, 'is_mandatory': False, 'deleted': True, 'row_index': '2'},
+                 'is_delete_in_chain': True, 'is_mandatory': False, 'deleted': True,
+                 'row_index': '2'},
             ],
         }
         resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
@@ -606,7 +619,7 @@ class ViewTest(AironeViewTest):
             self.assertFalse(attr.is_active)
 
     def test_post_delete_without_permission(self):
-        user1 = self.guest_login()
+        self.guest_login()
         user2 = User.objects.create(username='mokeke')
 
         entity1 = Entity.objects.create(name='entity1', created_user=user2)
@@ -736,10 +749,12 @@ class ViewTest(AironeViewTest):
             'attrs': [
                 # change attribute name and mandatory parameter
                 {'name': 'new', 'type': str(attr1.type), 'id': attr1.id,
-                 'is_delete_in_chain': True, 'is_mandatory': not attr1.is_mandatory, 'row_index': '1'},
+                 'is_delete_in_chain': True, 'is_mandatory': not attr1.is_mandatory,
+                 'row_index': '1'},
                 # change only attribute type
                 {'name': attr2.name, 'type': str(AttrTypeValue['object']), 'id': attr2.id,
-                 'is_delete_in_chain': True, 'is_mandatory': attr2.is_mandatory, 'row_index': '2', 'ref_ids': [ref_entity.id]}
+                 'is_delete_in_chain': True, 'is_mandatory': attr2.is_mandatory, 'row_index': '2',
+                 'ref_ids': [ref_entity.id]}
             ]
         }
         resp = self.client.post(reverse('entity:do_edit', args=[entity.id]),
@@ -767,10 +782,14 @@ class ViewTest(AironeViewTest):
         resp = self.client.get(reverse('entity:dashboard', args=[entity.id]))
         self.assertEqual(resp.status_code, 200)
 
-        # To test dashboard view with correct settings, make entities/entries associated with "entity"
+        # To test dashboard view with correct settings,
+        # make entities/entries associated with "entity"
         ref_entity = Entity.objects.create(name='ref_entity', created_user=user)
-        ref_entries = [Entry.objects.create(name='ref_entry-%d' % i, schema=ref_entity, created_user=user)
-                for i in range(0, CONFIG.DASHBOARD_NUM_ITEMS + 3)]
+        ref_entries = [
+            Entry.objects.create(
+                name='ref_entry-%d' % i, schema=ref_entity, created_user=user
+            ) for i in range(0, CONFIG.DASHBOARD_NUM_ITEMS + 3)
+        ]
 
         attr = EntityAttr.objects.create(name='attr', created_user=user, is_summarized=True,
                                          parent_entity=entity, type=AttrTypeValue['object'])
@@ -797,16 +816,18 @@ class ViewTest(AironeViewTest):
             self.assertEqual(ret_attr.id, attr.id)
             self.assertEqual(len(ret_info['referral_count']), CONFIG.DASHBOARD_NUM_ITEMS + 1)
             self.assertEqual(ret_info['no_referral_count'], 1)
-            self.assertEqual(ret_info['no_referral_ratio'], '%2.1f' % (100 / resp.context['total_entry_count']))
+            self.assertEqual(ret_info['no_referral_ratio'],
+                             '%2.1f' % (100 / resp.context['total_entry_count']))
             self.assertTrue(any([x['referral'] == '(Others)' and x['count'] == 1
-                for x in ret_info['referral_count']]))
+                            for x in ret_info['referral_count']]))
 
         # checks statistics information would show correcting value, even if an entry was deleted.
         for i in range(0, 2):
             Entry.objects.get(name='entry-%d' % i, schema=entity).delete()
 
         # delete no referral entry
-        Entry.objects.get(name='entry-%d' % (CONFIG.DASHBOARD_NUM_ITEMS + 1), schema=entity).delete()
+        Entry.objects.get(name='entry-%d' % (CONFIG.DASHBOARD_NUM_ITEMS + 1),
+                          schema=entity).delete()
 
         resp = self.client.get(reverse('entity:dashboard', args=[entity.id]))
         self.assertEqual(resp.status_code, 200)
@@ -816,7 +837,8 @@ class ViewTest(AironeViewTest):
             self.assertEqual(ret_info['no_referral_count'], 0)
 
             for no_referral in ['ref_entry-%d' % i for i in range(0, 2)]:
-                self.assertFalse(any([x['referral'] == no_referral for x in ret_info['referral_count']]))
+                self.assertFalse(
+                    any([x['referral'] == no_referral for x in ret_info['referral_count']]))
 
     def test_show_dashboard_config(self):
         user = self.admin_login()
@@ -857,4 +879,5 @@ class ViewTest(AironeViewTest):
         resp = self.client.post(reverse('entity:do_conf_dashboard', args=[entity.id]),
                                 json.dumps({'attrs': []}), 'application/json')
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(EntityAttr.objects.filter(parent_entity=entity, is_summarized=True).count(), 0)
+        self.assertEqual(EntityAttr.objects.filter(parent_entity=entity,
+                                                   is_summarized=True).count(), 0)

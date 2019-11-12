@@ -1,24 +1,17 @@
-import io
 import logging
-import re
-import csv
 import yaml
 
-import urllib.parse
-
 from airone.lib.http import render
-from airone.lib.http import http_get, http_post, http_post_form
+from airone.lib.http import http_get, http_post
 from airone.lib.http import http_file_upload
 from airone.lib.http import HttpResponseSeeOther
 from airone.lib.profile import airone_profile
-from airone.lib.types import AttrTypeValue
 from django.http import HttpResponse
 from django.http.response import JsonResponse
-from django.conf import settings
 from entity.admin import EntityResource, EntityAttrResource
 from entry.admin import EntryResource, AttrResource, AttrValueResource
 from entity.models import Entity, EntityAttr
-from entry.models import Entry, Attribute, AttributeValue
+from entry.models import Entry, AttributeValue
 from job.models import Job
 from user.models import User
 from .settings import CONFIG
@@ -39,10 +32,9 @@ Logger = logging.getLogger(__name__)
 def index(request):
     context = {}
     if request.user.is_authenticated() and User.objects.filter(id=request.user.id).exists():
-        user = User.objects.get(id=request.user.id)
-
         history = []
-        for attr_value in AttributeValue.objects.order_by('created_time').reverse()[:CONFIG.LAST_ENTRY_HISTORY]:
+        for attr_value in AttributeValue.objects.order_by(
+                'created_time').reverse()[:CONFIG.LAST_ENTRY_HISTORY]:
             parent_attr = attr_value.parent_attr
             parent_entry = parent_attr.parent_entry
 
@@ -58,9 +50,11 @@ def index(request):
 
     return render(request, 'dashboard_user_top.html', context)
 
+
 @http_get
 def import_data(request):
     return render(request, 'import.html', {})
+
 
 @http_file_upload
 def do_import_data(request, context):
@@ -92,6 +86,7 @@ def do_import_data(request, context):
             _do_import(info['resource'], data[info['model']])
 
     return HttpResponseSeeOther('/dashboard/')
+
 
 @http_get
 def search(request):
@@ -134,6 +129,7 @@ def search(request):
         'results': results
     })
 
+
 @http_get
 def advanced_search(request):
     entities = [x for x in Entity.objects.filter(is_active=True).order_by('name')
@@ -142,6 +138,7 @@ def advanced_search(request):
     return render(request, 'advanced_search.html', {
         'entities': entities,
     })
+
 
 @http_get
 @airone_profile
@@ -158,11 +155,13 @@ def advanced_search_result(request):
     elif is_all_entities and not recv_attr:
         return HttpResponse("The attr[] parameters are required", status=400)
 
-    if not is_all_entities and not all([Entity.objects.filter(id=x, is_active=True).exists() for x in recv_entity]):
+    if not is_all_entities and not all(
+            [Entity.objects.filter(id=x, is_active=True).exists() for x in recv_entity]):
         return HttpResponse("Invalid entity ID is specified", status=400)
 
     if is_all_entities:
-        attrs = sum([list(EntityAttr.objects.filter(name=x, is_active=True)) for x in recv_attr], [])
+        attrs = sum(
+            [list(EntityAttr.objects.filter(name=x, is_active=True)) for x in recv_attr], [])
         entities = list(set([x.parent_entity.id for x in attrs if x]))
     else:
         entities = recv_entity
@@ -179,6 +178,7 @@ def advanced_search_result(request):
         'has_referral': has_referral,
         'is_all_entities': is_all_entities,
     })
+
 
 @airone_profile
 @http_post([

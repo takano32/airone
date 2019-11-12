@@ -2,15 +2,14 @@ import mock
 import re
 import sys
 import json
-import time
 import yaml
+import errno
 
 from airone.lib.test import AironeViewTest
 from airone.lib.types import AttrTypeStr, AttrTypeObj, AttrTypeText
 from airone.lib.types import AttrTypeArrStr, AttrTypeArrObj
 from airone.lib.types import AttrTypeNamedObj, AttrTypeArrNamedObj
 from airone.lib.types import AttrTypeValue
-from django.conf import settings
 from django.urls import reverse
 from django.contrib.auth.models import User as DjangoUser
 from group.models import Group
@@ -25,7 +24,6 @@ from dashboard import tasks as dashboard_tasks
 
 from unittest.mock import patch
 from unittest.mock import Mock
-from xml.etree import ElementTree
 
 from dashboard.settings import CONFIG
 
@@ -38,7 +36,7 @@ class ViewTest(AironeViewTest):
 
         # preparing test Entity/Entry objects
         fp = self.open_fixture_file('entry.yaml')
-        resp = self.client.post(reverse('dashboard:do_import'), {'file': fp})
+        self.client.post(reverse('dashboard:do_import'), {'file': fp})
 
     def test_search_without_query(self):
         resp = self.client.get(reverse('dashboard:search'))
@@ -50,10 +48,12 @@ class ViewTest(AironeViewTest):
         resp = self.client.get(reverse('dashboard:search'), {'query': query})
         self.assertEqual(resp.status_code, 200)
 
-        self.assertEqual(len(resp.context['results']), Entry.objects.filter(name__icontains=query).count())
+        self.assertEqual(len(resp.context['results']),
+                         Entry.objects.filter(name__icontains=query).count())
 
     def test_search_with_big_query(self):
-        resp = self.client.get(reverse('dashboard:search'), {'query': 'A' * (CONFIG.MAX_QUERY_SIZE + 1)})
+        resp = self.client.get(reverse('dashboard:search'),
+                               {'query': 'A' * (CONFIG.MAX_QUERY_SIZE + 1)})
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.content, b'Sending parameter is too large')
 
@@ -67,7 +67,9 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.content, b'Sending parameter is too large')
 
         # check boundary value with multibyte characters
-        resp = self.client.get(reverse('dashboard:search'), {'query': 'あ' * int(CONFIG.MAX_QUERY_SIZE / len('あ'.encode('utf-8')))})
+        resp = self.client.get(
+            reverse('dashboard:search'),
+            {'query': 'あ' * int(CONFIG.MAX_QUERY_SIZE / len('あ'.encode('utf-8')))})
         self.assertEqual(resp.status_code, 200)
 
     def test_search_entry_deduped_result(self):
@@ -80,7 +82,6 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
 
         self.assertEqual(len(resp.context['results']), 1)
-
 
     def test_search_entry_from_value(self):
         resp = self.client.get(reverse('dashboard:search'), {'query': 'hoge'})
@@ -129,7 +130,7 @@ class ViewTest(AironeViewTest):
 
             resp = self.client.get(reverse('dashboard:index'))
             self.assertEqual(resp.status_code, 200)
-            self.assertTrue(re.match("^\[Profiling result\] \(([0-9\.]*)\) .*$",
+            self.assertTrue(re.match(r"^\[Profiling result\] \(([0-9\.]*)\) .*$",
                                      sys.stdout.getvalue()))
 
         # reset stdout setting
@@ -156,9 +157,9 @@ class ViewTest(AironeViewTest):
         entity_names = map(lambda e: e.name, resp.context['entities'])
 
         # entity-1 should be displayed
-        self.assertEquals(1, len(list(filter(lambda n: n=="entity-1", entity_names))))
+        self.assertEquals(1, len(list(filter(lambda n: n == "entity-1", entity_names))))
         # entity-2 should not be displayed
-        self.assertEquals(0, len(list(filter(lambda n: n=="entity-2", entity_names))))
+        self.assertEquals(0, len(list(filter(lambda n: n == "entity-2", entity_names))))
 
     @patch('dashboard.views.task_export_search_result.delay',
            Mock(side_effect=dashboard_tasks.export_search_result))
@@ -229,7 +230,10 @@ class ViewTest(AironeViewTest):
             job = Job.objects.last()
             self.assertEqual(resp.status_code, 200)
             self.assertEqual(job.operation, Job.OP_EXPORT)
-            with self.assertRaises(FileNotFoundError):
+            with self.assertRaises(OSError) as e:
+                raise OSError
+
+            if e.exception.errno == errno.ENOENT:
                 job.get_cache()
 
         # test to show advanced_search_result page without mandatory params
@@ -245,7 +249,8 @@ class ViewTest(AironeViewTest):
         })
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(sorted(resp.context['entities'].split(',')),
-                         sorted([str(Entity.objects.get(name='entity-%d' % i).id) for i in range(2)]))
+                         sorted([str(Entity.objects.get(name='entity-%d' % i).id)
+                                 for i in range(2)]))
         self.assertEqual(resp.context['results']['ret_count'], 20)
 
     @patch('dashboard.views.task_export_search_result.delay',
@@ -257,14 +262,16 @@ class ViewTest(AironeViewTest):
         ref_entry = Entry.objects.create(name='ref_entry', schema=ref_entity, created_user=user)
         attr_info = {
             'str': {'type': AttrTypeValue['string'], 'value': 'foo'},
-            'name': {'type': AttrTypeValue['named_object'], 'value': {'name': 'bar', 'id': ref_entry}},
+            'name': {'type': AttrTypeValue['named_object'],
+                     'value': {'name': 'bar', 'id': ref_entry}},
             'arr_str': {'type': AttrTypeValue['array_string'], 'value': ['foo', 'bar', 'baz']},
-            'arr_name': {'type': AttrTypeValue['array_named_object'],
-                         'value': [
-                             {'name': 'hoge', 'id': ref_entry.id},
-                             {'name': 'fuga', 'id': ref_entry.id}
-                          ]
-                        }
+            'arr_name': {
+                'type': AttrTypeValue['array_named_object'],
+                'value': [
+                    {'name': 'hoge', 'id': ref_entry.id},
+                    {'name': 'fuga', 'id': ref_entry.id}
+                ]
+            }
         }
 
         entity = Entity.objects.create(name='Entity', created_user=user)
@@ -374,7 +381,7 @@ class ViewTest(AironeViewTest):
 
         for case in CASES:
             # setup data
-            type_name = case[0].__name__ # AttrTypeStr -> 'AttrTypeStr'
+            type_name = case[0].__name__  # AttrTypeStr -> 'AttrTypeStr'
             attr_name = type_name + ',"ATTR"'
 
             test_entity = Entity.objects.create(name="TestEntity_" + type_name, created_user=user)
@@ -385,7 +392,8 @@ class ViewTest(AironeViewTest):
             test_entity.attrs.add(test_entity_attr)
             test_entity.save()
 
-            test_entry = Entry.objects.create(name=type_name + ',"ENTRY"', schema=test_entity, created_user=user)
+            test_entry = Entry.objects.create(name=type_name + ',"ENTRY"', schema=test_entity,
+                                              created_user=user)
             test_entry.save()
 
             test_attr = Attribute.objects.create(
@@ -397,7 +405,7 @@ class ViewTest(AironeViewTest):
 
             test_val = None
 
-            if case[0].TYPE & AttrTypeValue['array'] ==0:
+            if case[0].TYPE & AttrTypeValue['array'] == 0:
                 if case[0] == AttrTypeStr:
                     test_val = AttributeValue.create(user=user, attr=test_attr, value=case[1])
                 elif case[0] == AttrTypeObj:
@@ -413,12 +421,15 @@ class ViewTest(AironeViewTest):
                 for child in case[1]:
                     test_val_child = None
                     if case[0] == AttrTypeArrStr:
-                        test_val_child = AttributeValue.create(user=user, attr=test_attr, value=child)
+                        test_val_child = AttributeValue.create(user=user, attr=test_attr,
+                                                               value=child)
                     elif case[0] == AttrTypeArrObj:
-                        test_val_child = AttributeValue.create(user=user, attr=test_attr, referral=child)
+                        test_val_child = AttributeValue.create(user=user, attr=test_attr,
+                                                               referral=child)
                     elif case[0] == AttrTypeArrNamedObj:
                         [(k, v)] = child.items()
-                        test_val_child = AttributeValue.create(user=user, attr=test_attr, value=k, referral=v)
+                        test_val_child = AttributeValue.create(user=user, attr=test_attr, value=k,
+                                                               referral=v)
                     test_val.data_array.add(test_val_child)
 
             test_val.save()
@@ -464,9 +475,10 @@ class ViewTest(AironeViewTest):
             'arr_name': {'type': AttrTypeValue['array_named_object'],
                          'value': [
                              {'name': 'hoge', 'id': str(entry_ref.id)},
-                             {'name': 'fuga', 'boolean': False}, # specify boolean parameter
+                             {'name': 'fuga', 'boolean': False},  # specify boolean parameter
                           ]},
-            'group': {'type': AttrTypeValue['group'], 'value': str(Group.objects.create(name='group').id)},
+            'group': {'type': AttrTypeValue['group'],
+                      'value': str(Group.objects.create(name='group').id)},
             'date': {'type': AttrTypeValue['date'], 'value': date(2020, 1, 1)}
         }
         entities = []
@@ -485,7 +497,8 @@ class ViewTest(AironeViewTest):
 
             # create an entry of Entity
             for e_index in range(2):
-                entry = Entry.objects.create(name='e-%d' % e_index, schema=entity, created_user=user)
+                entry = Entry.objects.create(name='e-%d' % e_index, schema=entity,
+                                             created_user=user)
                 entry.complement_attrs(user)
 
                 for attr_name, info in attr_info.items():
@@ -508,13 +521,15 @@ class ViewTest(AironeViewTest):
             entity = Entity.objects.get(name='Entity-%d' % index)
             e_data = resp_data[entity.name]
 
-            self.assertEqual(len(resp_data[entity.name]), Entry.objects.filter(schema=entity).count())
+            self.assertEqual(len(resp_data[entity.name]),
+                             Entry.objects.filter(schema=entity).count())
             for e_data in resp_data[entity.name]:
                 self.assertTrue(e_data['name'] in ['e-0', 'e-1'])
                 self.assertTrue(all([x in attr_info.keys() for x in e_data['attrs']]))
 
         # Checked to be able to import exported data
-        entry_another_ref = Entry.objects.create(name='another_ref', schema=entity_ref, created_user=user)
+        entry_another_ref = Entry.objects.create(name='another_ref', schema=entity_ref,
+                                                 created_user=user)
         new_group = Group.objects.create(name='new_group')
         new_attr_values = {
             'str': 'bar',
@@ -532,7 +547,8 @@ class ViewTest(AironeViewTest):
         mockio = mock.mock_open(read_data=yaml.dump(resp_data))
         with mock.patch('builtins.open', mockio):
             with open('hogefuga.yaml') as fp:
-                resp = self.client.post(reverse('entry:do_import', args=[entities[1].id]), {'file': fp})
+                resp = self.client.post(reverse('entry:do_import', args=[entities[1].id]),
+                                        {'file': fp})
                 self.assertEqual(resp.status_code, 303)
 
         self.assertEqual(entry_another_ref.get_referred_objects().count(), 1)
@@ -590,7 +606,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 400)
 
         # A request with another condition will be accepted
-        new_export_params = {**export_params, **{'export_style': 'yaml'}}
+        new_export_params = dict(export_params, **{'export_style': 'yaml'})
         resp = self.client.post(reverse('dashboard:export_search_result'),
                                 json.dumps(new_export_params, sort_keys=True),
                                 'application/json')

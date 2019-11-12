@@ -2,18 +2,11 @@ import json
 
 from airone.lib.test import AironeViewTest
 from airone.lib.types import AttrTypeValue
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from job.models import Job
-from user.models import User
-from entry import tasks
 from entry.models import Entry
 from entity.models import Entity, EntityAttr
-from django.contrib.auth.models import User as DjangoUser
-from django.urls import reverse
-
-from unittest.mock import patch
-from unittest.mock import Mock
 
 from job.settings import CONFIG
 
@@ -73,7 +66,6 @@ class APITest(AironeViewTest):
         # After cheeting created_at time back to CONFIG.RECENT_SECONDS or more,
         # this checks that nothing result will be returned.
         for job in jobs:
-            before_time = job.created_at
             job.created_at = (job.created_at - timedelta(seconds=(CONFIG.RECENT_SECONDS + 1)))
             job.save(update_fields=['created_at'])
 
@@ -123,7 +115,8 @@ class APITest(AironeViewTest):
         # make and send a job to update entry
         job = Job.new_edit(user, entry, params={
             'attrs': [
-                {'id': str(entry.attrs.first().id), 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []}
+                {'id': str(entry.attrs.first().id), 'value': [{'data': 'fuga', 'index': 0}],
+                 'referral_key': []}
             ]
         })
         resp = self.client.post('/api/v1/job/run/%d' % job.id)
@@ -213,7 +206,8 @@ class APITest(AironeViewTest):
         self.assertEqual(resp.content, b'"Failed to find Job(id=99999)"')
 
         # send request with proper parameter
-        resp = self.client.delete('/api/v1/job/', json.dumps({'job_id': job.id}), 'application/json')
+        resp = self.client.delete('/api/v1/job/', json.dumps({'job_id': job.id}),
+                                  'application/json')
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.content, b'"Success to cancel job"')
 

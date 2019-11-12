@@ -3,8 +3,6 @@ import json
 from airone.lib.test import AironeViewTest
 from airone.lib.types import AttrTypeValue
 
-from user.models import User
-
 from entity.models import Entity, EntityAttr
 from entry.models import Entry
 
@@ -14,7 +12,8 @@ class APITest(AironeViewTest):
         user = self.admin_login()
 
         ref_entity = Entity.objects.create(name='Referred Entity', created_user=user)
-        ref_entry = Entry.objects.create(name='referred_entry', schema=ref_entity, created_user=user)
+        ref_entry = Entry.objects.create(name='referred_entry', schema=ref_entity,
+                                         created_user=user)
         ref_entry.register_es()
 
         for entity_index in range(0, 2):
@@ -126,16 +125,19 @@ class APITest(AironeViewTest):
             entity.attrs.add(attr)
 
         # create referred entries
-        refs = [Entry.objects.create(name='r%d' % i, schema=entity_ref, created_user=user) for i in range(0, 5)]
+        refs = [
+            Entry.objects.create(
+                name='r%d' % i, schema=entity_ref, created_user=user) for i in range(0, 5)
+        ]
 
         # create referring entries and set values for each Attribute
         entry = Entry.objects.create(name='e', schema=entity, created_user=user)
         entry.complement_attrs(user)
 
         entry.attrs.get(name='r0').add_value(user, refs[0])
-        entry.attrs.get(name='r1').add_value(user, {'name':'foo', 'id':refs[1]})
+        entry.attrs.get(name='r1').add_value(user, {'name': 'foo', 'id': refs[1]})
         entry.attrs.get(name='r2').add_value(user, [refs[2]])
-        entry.attrs.get(name='r3').add_value(user, [{'name':'bar', 'id':refs[3]}])
+        entry.attrs.get(name='r3').add_value(user, [{'name': 'bar', 'id': refs[3]}])
 
         # send request without entry parameter
         resp = self.client.get('/api/v1/entry/referral')
@@ -172,7 +174,7 @@ class APITest(AironeViewTest):
 
     def test_search_with_large_size_parameter(self):
         LARGE_DATA = 'A' * 2048
-        user = self.admin_login()
+        self.admin_login()
 
         params = {
             'entities': ['entity-1'],
@@ -199,7 +201,8 @@ class APITest(AironeViewTest):
         resp = self.client.post('/api/v1/entry/search', json.dumps(params), 'application/json')
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()['result']['ret_count'], 2)
-        self.assertEqual([x['entry']['name'] for x in resp.json()['result']['ret_values']], ['bar', 'baz'])
+        self.assertEqual([x['entry']['name'] for x in resp.json()['result']['ret_values']],
+                         ['bar', 'baz'])
 
         # send search request with non-existed name
         params = {

@@ -1,5 +1,3 @@
-import json
-
 from functools import reduce
 
 from rest_framework import status
@@ -20,10 +18,11 @@ class EntityAttrsAPI(APIView):
     def get(self, request, entity_ids, format=None):
         user = User.objects.get(id=request.user.id)
 
-        entities = [Entity.objects.filter(id=x, is_active=True).first() for x in entity_ids.split(',') if x]
+        entities = [Entity.objects.filter(id=x, is_active=True).first()
+                    for x in entity_ids.split(',') if x]
 
         def get_attrs_of_specific_entities():
-            return reduce(lambda x,y: set(x) & set(y),
+            return reduce(lambda x, y: set(x) & set(y),
                           [[a.name for a in e.attrs.filter(is_active=True)
                               if user.has_permission(a, ACLType.Readable)] for e in entities])
 

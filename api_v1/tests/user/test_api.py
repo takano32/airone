@@ -1,5 +1,4 @@
 from airone.lib.test import AironeViewTest
-from datetime import datetime, timedelta
 
 from rest_framework.authtoken.models import Token
 

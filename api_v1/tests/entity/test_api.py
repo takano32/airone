@@ -1,17 +1,12 @@
-import json
-
 from airone.lib.test import AironeViewTest
 from airone.lib.types import AttrTypeValue
 
-from user.models import User
-
 from entity.models import Entity, EntityAttr
-from entry.models import Entry
 
 
 class APITest(AironeViewTest):
     def test_get_entity_attrs_with_invalid_entity_id(self):
-        user = self.admin_login()
+        self.admin_login()
 
         resp = self.client.get('/api/v1/entity/attrs/9999')
         self.assertEqual(resp.status_code, 400)

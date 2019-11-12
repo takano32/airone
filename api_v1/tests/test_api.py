@@ -1,9 +1,6 @@
-import re
 import json
-import yaml
 import pytz
 
-from django.test import Client
 from django.conf import settings
 
 from airone.lib.test import AironeViewTest
@@ -15,8 +12,9 @@ from entry import tasks
 from group.models import Group
 from user.models import User
 
-from unittest import skip, mock
+from unittest import mock
 from datetime import date, datetime, timedelta
+
 
 class APITest(AironeViewTest):
     def test_post_entry(self):
@@ -26,7 +24,8 @@ class APITest(AironeViewTest):
         ref_entity = Entity.objects.create(name='Referred Entity', created_user=admin)
         ref_e = []
         for index in range(0, 10):
-            ref_e.append(Entry.objects.create(name='r-%d' % index, schema=ref_entity, created_user=admin))
+            ref_e.append(Entry.objects.create(name='r-%d' % index, schema=ref_entity,
+                                              created_user=admin))
 
         entity = Entity.objects.create(name='Entity', created_user=admin)
         attr_params = [
@@ -97,12 +96,13 @@ class APITest(AironeViewTest):
             {'name': 'name', 'check': lambda v: self.assertEqual(v.value, 'hoge')},
             {'name': 'name', 'check': lambda v: self.assertEqual(v.referral.id, ref_e[1].id)},
             {'name': 'bool', 'check': lambda v: self.assertEqual(v.boolean, False)},
-            {'name': 'date', 'check': lambda v: self.assertEqual(v.date, date(2018,12,31))},
-            {'name': 'group', 'check': lambda v: self.assertEqual(v.value,
-                str(Group.objects.get(name='new_group').id))},
+            {'name': 'date', 'check': lambda v: self.assertEqual(v.date, date(2018, 12, 31))},
+            {'name': 'group', 'check': lambda v: self.assertEqual(
+                v.value, str(Group.objects.get(name='new_group').id))},
             {'name': 'text', 'check': lambda v: self.assertEqual(v.value, 'fuga')},
             {'name': 'vals', 'check': lambda v: self.assertEqual(v.data_array.count(), 2)},
-            {'name': 'vals', 'check': lambda v: self.assertEqual(v.data_array.first().value, 'foo')},
+            {'name': 'vals', 'check': lambda v: self.assertEqual(
+                v.data_array.first().value, 'foo')},
             {'name': 'vals', 'check': lambda v: self.assertEqual(v.data_array.last().value, 'bar')},
             {'name': 'refs', 'check': lambda v: self.assertEqual(v.data_array.count(), 2)},
             {'name': 'refs', 'check': lambda v: self.assertEqual(v.data_array.first().referral.id,
@@ -111,11 +111,13 @@ class APITest(AironeViewTest):
                                                                  ref_e[3].id)},
             {'name': 'names', 'check': lambda v: self.assertEqual(v.data_array.count(), 2)},
             {'name': 'names', 'check': lambda v: self.assertEqual(v.data_array.first().referral.id,
-                                                                 ref_e[4].id)},
-            {'name': 'names', 'check': lambda v: self.assertEqual(v.data_array.first().value, 'foo')},
+                                                                  ref_e[4].id)},
+            {'name': 'names', 'check': lambda v: self.assertEqual(v.data_array.first().value,
+                                                                  'foo')},
             {'name': 'names', 'check': lambda v: self.assertEqual(v.data_array.last().referral.id,
-                                                                 ref_e[5].id)},
-            {'name': 'names', 'check': lambda v: self.assertEqual(v.data_array.last().value, 'bar')},
+                                                                  ref_e[5].id)},
+            {'name': 'names', 'check': lambda v: self.assertEqual(v.data_array.last().value,
+                                                                  'bar')},
         ]
         for info in checklist:
             attr = new_entry.attrs.get(name=info['name'])
@@ -179,7 +181,10 @@ class APITest(AironeViewTest):
         }))
 
         entry_ref = Entry.objects.create(name='r1', schema=entity_ref, created_user=user)
-        entries = [Entry.objects.create(name='e-%d' % i, schema=entity, created_user=user) for i in range(0, 2)]
+        entries = [
+            Entry.objects.create(
+                name='e-%d' % i, schema=entity, created_user=user) for i in range(0, 2)
+        ]
 
         # checks that entry will be updated with same name
         entry = entries[1]
@@ -235,7 +240,7 @@ class APITest(AironeViewTest):
             self.assertTrue(entry.get_status(Entry.STATUS_CREATING))
 
         with mock.patch.object(Entry, 'register_es', side_effect=side_effect):
-            resp = self.client.post('/api/v1/entry', json.dumps(params), 'application/json', **{
+            self.client.post('/api/v1/entry', json.dumps(params), 'application/json', **{
                 'HTTP_AUTHORIZATION': 'Token %s' % str(admin.token),
             })
 
@@ -254,7 +259,8 @@ class APITest(AironeViewTest):
         ref_entity = Entity.objects.create(name='Referred Entity', created_user=admin)
         ref_e = []
         for index in range(0, 10):
-            ref_e.append(Entry.objects.create(name='r-%d' % index, schema=ref_entity, created_user=admin))
+            ref_e.append(Entry.objects.create(name='r-%d' % index, schema=ref_entity,
+                                              created_user=admin))
 
         entity = Entity.objects.create(name='Entity', created_user=admin)
         attr_params = [
@@ -480,9 +486,9 @@ class APITest(AironeViewTest):
         self.assertEqual(AttributeValue.objects.count(), attr_value_count)
 
     def test_refresh_token(self):
-        admin = self.admin_login()
+        self.admin_login()
 
-        resp = self.client.post('/api/v1/user/refresh_token', json.dumps({}), 'application/json')
+        self.client.post('/api/v1/user/refresh_token', json.dumps({}), 'application/json')
 
     def test_failed_to_get_entry(self):
         # send request without login
@@ -500,7 +506,7 @@ class APITest(AironeViewTest):
         self.assertEqual(resp.status_code, 404)
 
         # send request with invalid name of Entry
-        entity = Entity.objects.create(name='foo', created_user=user)
+        Entity.objects.create(name='foo', created_user=user)
         resp = self.client.get('/api/v1/entry', {'entity': 'foo', 'entry': 'bar'})
         self.assertEqual(resp.status_code, 404)
 
@@ -514,7 +520,8 @@ class APITest(AironeViewTest):
             entity = Entity.objects.create(name=entity_name, created_user=user)
             attr_info = {
                 'str': {'type': AttrTypeValue['string'], 'value': 'foo'},
-                'ref': {'type': AttrTypeValue['object'], 'value': ref_entry, 'referral': ref_entity},
+                'ref': {'type': AttrTypeValue['object'], 'value': ref_entry,
+                        'referral': ref_entity},
                 'no_str': {'type': AttrTypeValue['string']},
             }
             for (name, info) in attr_info.items():
@@ -566,7 +573,8 @@ class APITest(AironeViewTest):
 
         results = resp.json()
         self.assertEqual(len(results), 2)
-        self.assertEqual([x['id'] for x in results], [x.id for x in Entry.objects.filter(name='entry-0')])
+        self.assertEqual([x['id'] for x in results],
+                         [x.id for x in Entry.objects.filter(name='entry-0')])
         self.assertEqual([x['entity']['name'] for x in results], ['hoge', 'fuga'])
 
         # This tests GET handle also returns entry from entry-id.
@@ -587,12 +595,14 @@ class APITest(AironeViewTest):
 
         results = resp.json()
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]['id'], Entry.objects.get(name='entry-1', schema__name='hoge').id)
+        self.assertEqual(results[0]['id'],
+                         Entry.objects.get(name='entry-1', schema__name='hoge').id)
         self.assertEqual([x['name'] for x in results[0]['attrs']], ['no_str'])
 
         resp = self.client.get('/api/v1/entry', {'entry': 'entry-2'})
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(sorted([x['name'] for x in resp.json()[0]['attrs']]), sorted(['ref', 'no_str']))
+        self.assertEqual(sorted([x['name'] for x in resp.json()[0]['attrs']]),
+                         sorted(['ref', 'no_str']))
 
     def test_get_deleted_entry(self):
         user = self.guest_login()
@@ -635,14 +645,18 @@ class APITest(AironeViewTest):
         entity1 = Entity.objects.create(name='Entity1', created_user=admin)
         entity2 = Entity.objects.create(name='Entity2', created_user=admin, is_public=False)
 
-        # The 'entry1' will be deleted from API request for testing. And 'entry2' is also used for this test,
-        # but this is not public one so it couldn't be deleted by the user who doesn't have priviledged level.
+        """
+        The 'entry1' will be deleted from API request for testing.
+        And 'entry2' is also used for this test,
+        but this is not public one so it couldn't be deleted by the user who doesn't have
+        priviledged level.
+        """
         entry11 = Entry.objects.create(name='entry11', schema=entity1, created_user=admin)
-        entry12 = Entry.objects.create(name='entry12', schema=entity1, created_user=admin, is_public=False)
-        entry21 = Entry.objects.create(name='entry21', schema=entity2, created_user=admin)
+        Entry.objects.create(name='entry12', schema=entity1, created_user=admin, is_public=False)
+        Entry.objects.create(name='entry21', schema=entity2, created_user=admin)
 
         # re-login for checking entries permission
-        user = self.guest_login()
+        self.guest_login()
 
         # The case of no specifying mandatory parameter
         resp = send_request({})
@@ -687,7 +701,7 @@ class APITest(AironeViewTest):
         user = User.objects.create(username='testuser')
 
         entity = Entity.objects.create(name='E1', created_user=user)
-        entry = Entry.objects.create(name='e1', schema=entity, created_user=user,)
+        Entry.objects.create(name='e1', schema=entity, created_user=user,)
 
         # Fixed value of datetime.now() for 100-seconds future
         dt_mock.now = mock.Mock(return_value=datetime.now(tz=pytz.UTC) + timedelta(seconds=100))
@@ -737,6 +751,6 @@ class APITest(AironeViewTest):
         ret_data = resp.json()
         self.assertFalse(ret_data['is_created'])
         self.assertEqual(ret_data['result'], entry.id)
-        
+
         # updated attributes would be blank because requesting value is same with current one
         self.assertEqual(ret_data['updated_attrs'], {})

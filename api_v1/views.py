@@ -1,5 +1,4 @@
 from .serializers import PostEntrySerializer
-from .serializers import GetEntrySerializer
 
 from copy import deepcopy
 
@@ -33,7 +32,7 @@ class EntryAPI(APIView):
         if not sel.is_valid():
             ret = {
                 'result': 'Validation Error',
-                'details': ['(%s) %s' % (k, ','.join(e)) for k,e in sel._errors.items()],
+                'details': ['(%s) %s' % (k, ','.join(e)) for k, e in sel._errors.items()],
             }
             return Response(ret, status=status.HTTP_400_BAD_REQUEST)
 
@@ -45,7 +44,8 @@ class EntryAPI(APIView):
         # set target entry information to response data
         resp_data = {
             'updated_attrs': {},  # This describes updated attribute values
-            'is_created': False,  # This sets true when target entry will be created in this processing
+            'is_created': False,  # This sets true when target entry will be created in this
+                                  # processing
         }
 
         entry_condition = {
@@ -55,9 +55,11 @@ class EntryAPI(APIView):
         }
         if 'id' in sel.validated_data:
             # prevent to register duplicate entry-name with other entry
-            if Entry.objects.filter(Q(**entry_condition) & ~Q(id=sel.validated_data['id'])).exists():
-                return Response({'result': '"%s" is duplicate name with other Entry' % entry_condition['name']},
-                                status=status.HTTP_400_BAD_REQUEST)
+            if Entry.objects.filter(
+                    Q(**entry_condition) & ~Q(id=sel.validated_data['id'])).exists():
+                return Response(
+                    {'result': '"%s" is duplicate name with other Entry' % entry_condition['name']},
+                    status=status.HTTP_400_BAD_REQUEST)
 
             entry = Entry.objects.get(id=sel.validated_data['id'])
             entry.name = sel.validated_data['name']
@@ -91,7 +93,7 @@ class EntryAPI(APIView):
 
         entry.del_status(Entry.STATUS_CREATING | Entry.STATUS_EDITING)
 
-        return Response({**{'result': entry.id}, **resp_data})
+        return Response(dict({'result': entry.id}, **resp_data))
 
     def get(self, request, *args, **kwargs):
         user = User.objects.filter(id=request.user.id).first()
@@ -157,7 +159,7 @@ class EntryAPI(APIView):
         # permission check
         user = User.objects.get(id=request.user.id)
         if (not user.has_permission(entry, ACLType.Full) or
-            not user.has_permission(entity, ACLType.Readable)):
+                not user.has_permission(entity, ACLType.Readable)):
             return Response('Permission denied to operate', status=status.HTTP_400_BAD_REQUEST)
 
         # Delete the specified entry then return its id, if is active

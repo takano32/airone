@@ -1,5 +1,3 @@
-import json
-
 from api_v1.auth import AironeTokenAuth
 from airone.lib.profile import airone_profile
 
@@ -29,9 +27,10 @@ class EntrySearchAPI(APIView):
         entry_limit = request.data.get('entry_limit', CONFIG_ENTRY.MAX_LIST_ENTRIES)
 
         if (not isinstance(hint_entity, list) or
-            not isinstance(hint_attr, list) or
-            not isinstance(entry_limit, int)):
-            return Response('The type of parameter is incorrect', status=status.HTTP_400_BAD_REQUEST)
+                not isinstance(hint_attr, list) or
+                not isinstance(entry_limit, int)):
+            return Response('The type of parameter is incorrect',
+                            status=status.HTTP_400_BAD_REQUEST)
 
         # forbid to input large size request
         if any([len(str(x)) > CONFIG_ENTRY.MAX_QUERY_SIZE * 2 for x in hint_attr]):
@@ -60,13 +59,12 @@ class EntrySearchAPI(APIView):
 
         return Response({'result': resp}, content_type='application/json; charset=UTF-8')
 
+
 class EntryReferredAPI(APIView):
     authentication_classes = (AironeTokenAuth, BasicAuthentication, SessionAuthentication,)
 
     @airone_profile
     def get(self, request):
-        user = User.objects.get(id=request.user.id)
-
         param_entry = request.query_params.get('entry')
         if not param_entry:
             return Response({'result': 'Parameter "entry" is mandatory'},

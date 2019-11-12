@@ -5,12 +5,11 @@ import time
 
 from acl.models import ACLBase
 from datetime import date
-from entity.models import Entity, EntityAttr
+from entity.models import Entity
 from entry.models import Entry
 
 from datetime import datetime, timedelta
 from django.conf import settings
-from django.core.cache import cache
 from django.db import models
 from user.models import User
 
@@ -19,6 +18,7 @@ def _support_time_default(o):
     if isinstance(o, date):
         return o.isoformat()
     raise TypeError(repr(o) + " is not JSON serializable")
+
 
 class Job(models.Model):
     """
@@ -32,23 +32,24 @@ class Job(models.Model):
     # This constant value indicates the frequency to qeury database for job status
     STATUS_CHECK_FREQUENCY = 100
 
-    # This is the time (seconds) of expiry for continuing job. This value could be overwrite by settings
+    # This is the time (seconds) of expiry for continuing job.
+    # This value could be overwrite by settings
     DEFAULT_JOB_TIMEOUT = 86400
 
     # Constant to describes status of each jobs
     # TODO: these constants should be changed as dict value like STATUS for maintainability
-    OP_CREATE  = 1
-    OP_EDIT    = 2
-    OP_DELETE  = 3
-    OP_COPY    = 4
-    OP_IMPORT  = 5
-    OP_EXPORT  = 6
+    OP_CREATE = 1
+    OP_EDIT = 2
+    OP_DELETE = 3
+    OP_COPY = 4
+    OP_IMPORT = 5
+    OP_EXPORT = 6
     OP_RESTORE = 7
 
     # TODO: these constants should be changed as dict value like STATUS for maintainability
-    TARGET_UNKNOWN  = 0
-    TARGET_ENTRY    = 1
-    TARGET_ENTITY   = 2
+    TARGET_UNKNOWN = 0
+    TARGET_ENTRY = 1
+    TARGET_ENTITY = 2
 
     STATUS = {
         'PREPARING': 1,
@@ -150,10 +151,8 @@ class Job(models.Model):
         # set dependent job to prevent running tasks simultaneously which set to target same one.
         dependent_job = None
         if target:
-            threshold = (
-                datetime.now(pytz.timezone(settings.TIME_ZONE)) -
-                             timedelta(seconds=kls._get_job_timeout())
-            )
+            threshold = (datetime.now(pytz.timezone(settings.TIME_ZONE)) -
+                         timedelta(seconds=kls._get_job_timeout()))
             dependent_job = (
                 Job.objects.filter(target=target, operation=operation, updated_at__gt=threshold)
                 .order_by('updated_at').last()
@@ -174,17 +173,20 @@ class Job(models.Model):
 
     @classmethod
     def get_job_with_params(kls, user, params):
-        return kls.objects.filter(user=user, params=json.dumps(params, default=_support_time_default, sort_keys=True))
+        return kls.objects.filter(
+            user=user, params=json.dumps(params, default=_support_time_default, sort_keys=True))
 
     @classmethod
     def new_create(kls, user, target, text='', params={}):
         return kls._create_new_job(user, target, kls.OP_CREATE, text,
-                                   json.dumps(params, default=_support_time_default, sort_keys=True))
+                                   json.dumps(params, default=_support_time_default,
+                                              sort_keys=True))
 
     @classmethod
     def new_edit(kls, user, target, text='', params={}):
         return kls._create_new_job(user, target, kls.OP_EDIT, text,
-                                   json.dumps(params, default=_support_time_default, sort_keys=True))
+                                   json.dumps(params, default=_support_time_default,
+                                              sort_keys=True))
 
     @classmethod
     def new_delete(kls, user, target, text='', params={}):
@@ -198,12 +200,14 @@ class Job(models.Model):
     @classmethod
     def new_import(kls, user, entity, text='', params={}):
         return kls._create_new_job(user, entity, kls.OP_IMPORT, text,
-                                   json.dumps(params, default=_support_time_default, sort_keys=True))
+                                   json.dumps(params, default=_support_time_default,
+                                              sort_keys=True))
 
     @classmethod
     def new_export(kls, user, target=None, text='', params={}):
         return kls._create_new_job(user, target, kls.OP_EXPORT, text,
-                                   json.dumps(params, default=_support_time_default, sort_keys=True))
+                                   json.dumps(params, default=_support_time_default,
+                                              sort_keys=True))
 
     @classmethod
     def new_restore(kls, user, target, text='', params={}):

@@ -1,8 +1,8 @@
 import io
+import errno
 
 from datetime import datetime, timezone
 from django.http import HttpResponse
-from django.shortcuts import render
 
 # libraries of AirOne
 from airone.lib.http import get_download_response
@@ -32,13 +32,16 @@ def index(request):
             'status': x.status,
             'operation': x.operation,
             'created_at': x.created_at,
-            'passed_time': (x.updated_at - x.created_at).seconds 
-                    if x.is_finished() else (datetime.now(timezone.utc) - x.created_at).seconds,
-        } for x in Job.objects.filter(user=user).order_by('-created_at')[:limitation] \
-                if (x.operation == Job.OP_EXPORT or (x.operation != Job.OP_EXPORT and x.target.is_active))]
+            'passed_time': (
+                x.updated_at - x.created_at
+            ).seconds if x.is_finished() else (datetime.now(timezone.utc) - x.created_at).seconds,
+        } for x in Job.objects.filter(user=user).order_by('-created_at')[:limitation]
+            if (x.operation == Job.OP_EXPORT or
+                (x.operation != Job.OP_EXPORT and x.target.is_active))]
     }
 
     return render(request, 'list_jobs.html', context)
+
 
 @http_get
 def download(request, job_id):
@@ -58,7 +61,9 @@ def download(request, job_id):
     io_stream = io.StringIO()
     try:
         io_stream.write(job.get_cache())
-    except FileNotFoundError:
-        return HttpResponse("This result is no longer available", status=400)
+    except OSError as e:
+        # errno.ENOENT is the errno of FileNotFoundError
+        if e.errno == errno.ENOENT:
+            return HttpResponse("This result is no longer available", status=400)
 
     return get_download_response(io_stream, job.text)

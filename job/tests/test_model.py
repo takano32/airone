@@ -24,7 +24,7 @@ class ModelTest(AironeTestCase):
 
         jobinfos = [
             {'method': 'new_create', 'op': Job.OP_CREATE},
-            {'method': 'new_edit','op': Job.OP_EDIT},
+            {'method': 'new_edit', 'op': Job.OP_EDIT},
             {'method': 'new_delete', 'op': Job.OP_DELETE},
             {'method': 'new_copy', 'op': Job.OP_COPY},
         ]
@@ -38,7 +38,7 @@ class ModelTest(AironeTestCase):
             self.assertEqual(job.operation, info['op'])
 
     def test_get_object(self):
-        entry = Entry.objects.create(name='entry', created_user=self.guest, schema=self.entity)
+        Entry.objects.create(name='entry', created_user=self.guest, schema=self.entity)
 
         params = {
             'entities': self.entity.id,
@@ -63,17 +63,6 @@ class ModelTest(AironeTestCase):
         params['attrinfo']['name'] = ''
         self.assertFalse(Job.get_job_with_params(self.guest, params).exists())
 
-    def test_set_status(self):
-        job = Job.new_create(self.guest, self.entity)
-
-        # check default status
-        self.assertEqual(job.status, Job.STATUS['PREPARING'])
-
-        job.set_status(Job.STATUS['DONE'])
-
-        # check status is changed by set_status method
-        self.assertEqual(Job.objects.get(id=job.id).status, Job.STATUS['DONE'])
-
     def test_cache(self):
         job = Job.new_create(self.guest, self.entity)
 
@@ -97,14 +86,14 @@ class ModelTest(AironeTestCase):
         # When a job don't has target parameter, dependent_job is not set because
         # there is no problem when these tasks are run simultaneouslly.
         jobs = [Job.new_export(self.guest) for x in range(2)]
-        self.assertTrue(all([j.dependent_job == None for j in jobs]))
+        self.assertTrue(all([j.dependent_job is None for j in jobs]))
 
         # overwrite timeout timeout value for testing
         settings.AIRONE['JOB_TIMEOUT'] = -1
 
         # Because jobs[1] is created after the expiry of jobs[0]
         jobs = [Job.new_edit(self.guest, entry) for x in range(2)]
-        self.assertTrue(all([j.dependent_job == None for j in jobs]))
+        self.assertTrue(all([j.dependent_job is None for j in jobs]))
 
     def test_job_is_timeout(self):
         job = Job.new_create(self.guest, self.entity)
@@ -118,7 +107,8 @@ class ModelTest(AironeTestCase):
     def test_is_finished(self):
         job = Job.new_create(self.guest, self.entity)
 
-        for status in [Job.STATUS['DONE'], Job.STATUS['ERROR'], Job.STATUS['TIMEOUT'], Job.STATUS['CANCELED']]:
+        for status in [Job.STATUS['DONE'], Job.STATUS['ERROR'], Job.STATUS['TIMEOUT'],
+                       Job.STATUS['CANCELED']]:
             job.status = status
             job.save(update_fields=['status'])
             self.assertTrue(job.is_finished())
@@ -150,7 +140,8 @@ class ModelTest(AironeTestCase):
     def test_is_ready_to_process(self):
         job = Job.new_create(self.guest, self.entity)
 
-        for status in [Job.STATUS['DONE'], Job.STATUS['ERROR'], Job.STATUS['TIMEOUT'], Job.STATUS['CANCELED'], Job.STATUS['PROCESSING']]:
+        for status in [Job.STATUS['DONE'], Job.STATUS['ERROR'], Job.STATUS['TIMEOUT'],
+                       Job.STATUS['CANCELED'], Job.STATUS['PROCESSING']]:
             job.status = status
             job.save(update_fields=['status'])
             self.assertFalse(job.is_ready_to_process())

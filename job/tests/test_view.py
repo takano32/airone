@@ -1,14 +1,11 @@
 import json
 
 from airone.lib.test import AironeViewTest
-from datetime import datetime, timedelta
 
 from job.models import Job
-from user.models import User
 from entry import tasks
 from entry.models import Entry
 from entity.models import Entity
-from django.contrib.auth.models import User as DjangoUser
 from django.urls import reverse
 
 from unittest.mock import patch
@@ -42,7 +39,7 @@ class ViewTest(AironeViewTest):
         entry = Entry.objects.create(name='entry', created_user=user, schema=entity)
 
         # create three jobs
-        jobs = [Job.new_create(user, entry) for _ in range(0, _TEST_MAX_LIST_VIEW + 1)]
+        [Job.new_create(user, entry) for _ in range(0, _TEST_MAX_LIST_VIEW + 1)]
         self.assertEqual(Job.objects.filter(user=user).count(), _TEST_MAX_LIST_VIEW + 1)
 
         # checks number of the returned objects are as expected
@@ -67,7 +64,7 @@ class ViewTest(AironeViewTest):
 
         entity = Entity.objects.create(name='entity', created_user=user)
         entry = Entry.objects.create(name='entry', created_user=user, schema=entity)
-        job = Job.new_create(user, entry)
+        Job.new_create(user, entry)
 
         resp = self.client.get('/job/')
         self.assertEqual(resp.status_code, 200)

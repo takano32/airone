@@ -4,10 +4,12 @@ from entry.models import Entry
 from group.models import Group
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
-from datetime import datetime, date
+from datetime import datetime
+
 
 class GetEntrySerializer(serializers.ModelSerializer):
     attrs = serializers.SerializerMethodField()
+
     class Meta:
         model = Entry
         fields = ('id', 'name', 'attrs')
@@ -22,37 +24,37 @@ class GetEntrySerializer(serializers.ModelSerializer):
             if attr.schema.type & AttrTypeValue['array']:
                 if attr.schema.type & AttrTypeValue['string']:
                     return [x.value for x in attrv.data_array.all()]
-    
+
                 elif attr.schema.type & AttrTypeValue['named']:
                     return [{
                         'name': x.value,
                         'ref_id': x.referral.id if x.referral else None,
                         'ref_name': x.referral.name if x.referral else '',
                     } for x in attrv.data_array.all()]
-    
+
                 elif attr.schema.type & AttrTypeValue['object']:
                     return [{
                         'id': x.referral.id if x.referral else None,
                         'name': x.referral.name if x.referral else '',
                     } for x in attrv.data_array.all()]
-    
+
             elif (attr.schema.type & AttrTypeValue['string'] or
                   attr.schema.type & AttrTypeValue['text']):
                 return attrv.value
-    
+
             elif attr.schema.type & AttrTypeValue['named']:
                 return {
                     'name': attrv.value,
                     'ref_id': attrv.referral.id if attrv.referral else None,
                     'ref_name': attrv.referral.name if attrv.referral else '',
                 }
-    
+
             elif attr.schema.type & AttrTypeValue['object']:
                 return {
                     'id': attrv.referral.id if attrv.referral else None,
                     'name': attrv.referral.name if attrv.referral else '',
                 }
-    
+
             elif attr.schema.type & AttrTypeValue['boolean']:
                 return attrv.boolean
 
@@ -70,6 +72,7 @@ class GetEntrySerializer(serializers.ModelSerializer):
             'name': x.schema.name,
             'value': get_attr_value(x),
         } for x in obj.attrs.filter(is_active=True)]
+
 
 class PostEntrySerializer(serializers.Serializer):
     id = serializers.IntegerField(required=False)
@@ -94,8 +97,8 @@ class PostEntrySerializer(serializers.Serializer):
             if 'id' not in value or not value['id']:
                 value['id'] = None
             else:
-                entryset = [get_entry(r, value['id'])
-                    for r in attr.referral.all() if is_entry(r, value['id'])]
+                entryset = [get_entry(
+                    r, value['id']) for r in attr.referral.all() if is_entry(r, value['id'])]
 
                 # It means that there is no entry which is matched specified referrence
                 if not any(entryset):
@@ -121,9 +124,8 @@ class PostEntrySerializer(serializers.Serializer):
                 return [x for x in [validate_named_attr(v) for v in value] if x]
 
             elif attr.type & AttrTypeValue['object']:
-                return sum([[get_entry(r, v)
-                    for r in attr.referral.all() if is_entry(r, v)]
-                    for v in value], [])
+                return sum([[get_entry(r, v) for r in attr.referral.all() if is_entry(r, v)]
+                            for v in value], [])
 
         elif attr.type & AttrTypeValue['string'] or attr.type & AttrTypeValue['text']:
             if not isinstance(value, str):
@@ -142,8 +144,8 @@ class PostEntrySerializer(serializers.Serializer):
                 return 0
 
             if isinstance(value, str):
-                entryset = [get_entry(x, value)
-                    for x in attr.referral.all() if is_entry(x, value)]
+                entryset = [
+                    get_entry(x, value) for x in attr.referral.all() if is_entry(x, value)]
                 if any(entryset):
                     return entryset[0]
 
@@ -158,10 +160,10 @@ class PostEntrySerializer(serializers.Serializer):
         elif attr.type & AttrTypeValue['date']:
             if isinstance(value, str):
                 try:
-                    datetime.strptime(value,'%Y-%m-%d')
+                    datetime.strptime(value, '%Y-%m-%d')
                 except ValueError:
                     raise ValueError("Incorrect data format, should be YYYY-MM-DD")
-                return datetime.strptime(value,'%Y-%m-%d')
+                return datetime.strptime(value, '%Y-%m-%d')
             else:
                 return None
 
@@ -195,13 +197,13 @@ class PostEntrySerializer(serializers.Serializer):
             raise ValidationError('Invalid Entry-ID is specified (%d)' % data['id'])
 
         # checks mandatory keys are specified when a new Entry will be created
-        if not entry and not all([False for x
-            in entity.attrs.filter(is_active=True, is_mandatory=True)
-            if x.name not in data['attrs'].keys()]):
+        if not entry and not all(
+                [False for x in entity.attrs.filter(is_active=True, is_mandatory=True)
+                 if x.name not in data['attrs'].keys()]):
             raise ValidationError('Some mandatory attrs are not specified')
 
         # checks specified attr values are valid
-        for attr_name, attr_value  in data['attrs'].items():
+        for attr_name, attr_value in data['attrs'].items():
             if not entity.attrs.filter(is_active=True, name=attr_name).exists():
                 raise ValidationError("Target entity doesn't specified attr(%s)" % (attr_name))
 

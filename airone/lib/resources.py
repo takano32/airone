@@ -1,7 +1,6 @@
 import importlib
 import tablib
 
-from django.db.models import fields
 from import_export.resources import ModelResource
 from acl.models import ACLBase
 from airone.lib.acl import ACLType
@@ -70,7 +69,7 @@ class AironeModelResource(ModelResource):
 
         # check that mandatory values is set
         if ('mandatory_values' in self._IMPORT_INFO and
-            any(not data[x] for x in self._IMPORT_INFO['mandatory_values'])):
+                any(not data[x] for x in self._IMPORT_INFO['mandatory_values'])):
             raise RuntimeError("The value of '%s' is needed" %
                                str(self._IMPORT_INFO['mandatory_values']))
 

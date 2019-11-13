@@ -1,5 +1,3 @@
-import atexit
-
 from django.conf import settings
 from django.http.request import HttpRequest
 from time import time
@@ -15,11 +13,12 @@ class SimpleProfiler(object):
 
     def _is_enable(self):
         if (hasattr(settings, 'AIRONE') and
-            'ENABLE_PROFILE' in settings.AIRONE and
-            settings.AIRONE['ENABLE_PROFILE']):
+                'ENABLE_PROFILE' in settings.AIRONE and
+                settings.AIRONE['ENABLE_PROFILE']):
             return True
 
         return False
+
 
 def airone_profile(func):
     def wrapper(*args, **kwargs):

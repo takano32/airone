@@ -21,7 +21,6 @@ class ConcurrentExec(object):
         jobs = []
         ret_container = {}
         lock = multiprocessing.Lock()
-        data_len = len(data_all)
         ccount = 0
 
         # write new-linke
@@ -32,14 +31,15 @@ class ConcurrentExec(object):
                 for pinfo in jobs:
                     if not pinfo['process'].is_alive():
                         jobs.remove(pinfo)
-                        ret_container = {**ret_container, **pinfo['ret']}
+                        ret_container = dict(ret_container)
+                        ret_container.update(pinfo['ret'])
                         ccount += 1
 
             # reset db connection
             connections.close_all()
 
             if isinstance(data, tuple):
-                args = (proc_info['ret'], lock, *data)
+                args = (proc_info['ret'], lock) + data
             else:
                 args = (proc_info['ret'], lock, data)
 
@@ -49,7 +49,8 @@ class ConcurrentExec(object):
 
         for pinfo in jobs:
             pinfo['process'].join()
-            ret_container = {**ret_container, **pinfo['ret']}
+            ret_container = dict(ret_container)
+            ret_container.update(pinfo['ret'])
             ccount += 1
 
         return ret_container

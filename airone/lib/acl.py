@@ -2,9 +2,11 @@ from six import with_metaclass
 
 __all__ = ['ACLType', 'ACLObjType']
 
+
 class Iteratable(object):
     def __iter__(self):
         return self._types.__iter__()
+
 
 class ACLObjType(Iteratable):
     Entity = (1 << 0)
@@ -14,6 +16,7 @@ class ACLObjType(Iteratable):
 
     def __init__(self):
         self._types = [self.Entity, self.Entry, self.EntityAttr, self.EntryAttr]
+
 
 class MetaACLType(type):
     def __eq__(cls, comp):
@@ -37,14 +40,16 @@ class MetaACLType(type):
         else:
             return False
 
+
 class ACLTypeBase(with_metaclass(MetaACLType)):
     pass
+
 
 class ACLType(Iteratable):
     Nothing = type('ACLTypeNone', (ACLTypeBase,),
                    {'id': (1 << 0), 'name': 'nothing', 'label': 'Nothing'})
     Readable = type('ACLTypeReadable', (ACLTypeBase,),
-                    {'id': (1 << 1), 'name': 'readable','label': 'Readable'})
+                    {'id': (1 << 1), 'name': 'readable', 'label': 'Readable'})
     Writable = type('ACLTypeWritable', (ACLTypeBase,),
                     {'id': (1 << 2), 'name': 'writable', 'label': 'Writable'})
     Full = type('ACLTypeFull', (ACLTypeBase,),
@@ -58,7 +63,8 @@ class ACLType(Iteratable):
     def availables(cls):
         return [cls.Readable, cls.Writable, cls.Full]
 
+
 def get_permitted_objects(user, model, permission_level):
     # This method assumes that model is a subclass of ACLBase
     return [x for x in model.objects.all()
-                if user.has_permission(x, permission_level) and x.is_active]
+            if user.has_permission(x, permission_level) and x.is_active]

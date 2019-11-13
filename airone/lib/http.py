@@ -18,8 +18,10 @@ from airone.lib.types import AttrTypes, AttrTypeValue
 from airone.lib.acl import ACLObjType, ACLType
 from django.conf import settings
 
+
 class HttpResponseSeeOther(HttpResponseRedirect):
     status_code = 303
+
 
 def http_get(func):
     def wrapper(*args, **kwargs):
@@ -33,6 +35,7 @@ def http_get(func):
         return func(*args, **kwargs)
     return wrapper
 
+
 def check_permission(model, permission_level):
     def _decorator(func):
         def permission_checker(*args, **kwargs):
@@ -45,7 +48,8 @@ def check_permission(model, permission_level):
             user = User.objects.get(id=request.user.id)
             target_obj = model.objects.get(id=object_id)
             if not isinstance(target_obj, ACLBase):
-                return HttpResponse('[InternalError] "%s" has no permisison' % target_obj, status=500)
+                return HttpResponse('[InternalError] "%s" has no permisison' % target_obj,
+                                    status=500)
 
             if user.has_permission(target_obj, permission_level):
                 # only requests that have correct permission are executed
@@ -54,6 +58,7 @@ def check_permission(model, permission_level):
             return HttpResponse('You don\'t have permission to access this object', status=400)
         return permission_checker
     return _decorator
+
 
 def check_superuser(func):
     def wrapper(*args, **kwargs):
@@ -67,6 +72,7 @@ def check_superuser(func):
 
         return func(*args, **kwargs)
     return wrapper
+
 
 def http_post(validator=[]):
     def _decorator(func):
@@ -90,6 +96,7 @@ def http_post(validator=[]):
             return func(*args, **kwargs)
         return http_post_handler
     return _decorator
+
 
 def http_post_form(validator=[]):
     def _decorator(func):
@@ -117,6 +124,7 @@ def http_post_form(validator=[]):
         return http_post_handler
     return _decorator
 
+
 def http_file_upload(func):
     def get_uploaded_file_content(request):
         """This returns uploaded file context whatever encoding type"""
@@ -129,7 +137,7 @@ def http_file_upload(func):
             except UnicodeDecodeError:
                 fp.seek(0)
 
-            except Exception as e:
+            except Exception:
                 return None
 
     def wrapper(*args, **kwargs):
@@ -145,6 +153,7 @@ def http_file_upload(func):
         return func(*args, **kwargs)
 
     return wrapper
+
 
 def render(request, template, context={}):
     if User.objects.filter(id=request.user.id).exists():
@@ -212,11 +221,14 @@ def render(request, template, context={}):
 
     return django_render(request, template, context)
 
+
 def get_download_response(io_stream, fname):
     response = HttpResponse(io_stream.getvalue(),
                             content_type="application/force-download")
-    response["Content-Disposition"] = 'attachment; filename="{fn}"'.format(fn=urllib.parse.quote(smart_str(fname)))
+    response["Content-Disposition"] = 'attachment; filename="{fn}"'.format(
+        fn=urllib.parse.quote(smart_str(fname)))
     return response
+
 
 def _is_valid(params, meta_info):
     if not isinstance(params, dict):
@@ -225,7 +237,8 @@ def _is_valid(params, meta_info):
     if not all([x['name'] in params for x in meta_info if 'omittable' not in x]):
         return False
     # These are type checks of each parameters
-    if not all([isinstance(params[x['name']], x['type']) for x in meta_info if 'omittable' not in x]):
+    if not all([isinstance(params[x['name']], x['type'])
+                for x in meta_info if 'omittable' not in x]):
         return False
     # These are value checks of each parameters
     for _meta in meta_info:
@@ -239,7 +252,7 @@ def _is_valid(params, meta_info):
                 return False
 
             if ('meta' in _meta and
-                not all([_is_valid(x , _meta['meta']) for x in params[_meta['name']]])):
+                    not all([_is_valid(x, _meta['meta']) for x in params[_meta['name']]])):
                 return False
 
     return True

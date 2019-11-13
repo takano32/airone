@@ -28,7 +28,8 @@ class UpdateESDocuemntlTest(AironeTestCase):
         # create entry
         self.entries = []
         for index in range(3):
-            entry = Entry.objects.create(name='entry-%d' % index, created_user=self.user, schema=self.entity)
+            entry = Entry.objects.create(name='entry-%d' % index, created_user=self.user,
+                                         schema=self.entity)
 
             entry.complement_attrs(self.user)
             entry.attrs.first().add_value(self.user, 'value-%d' % index)
@@ -45,7 +46,8 @@ class UpdateESDocuemntlTest(AironeTestCase):
         ret = Entry.search_entries(self.user, [self.entity.id])
         self.assertEqual(ret['ret_count'], 3)
         self.assertTrue(all([x['entity']['id'] == self.entity.id for x in ret['ret_values']]))
-        self.assertTrue(all([x['entry']['id'] in [y.id for y in self.entries] for x in ret['ret_values']]))
+        self.assertTrue(
+            all([x['entry']['id'] in [y.id for y in self.entries] for x in ret['ret_values']]))
 
     def test_update_entry(self):
         register_documents(self._es, self._es._index)

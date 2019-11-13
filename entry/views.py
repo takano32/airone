@@ -10,23 +10,20 @@ from django.core.exceptions import ObjectDoesNotExist
 from datetime import datetime
 
 from airone.lib.http import http_get, http_post, check_permission, render
-from airone.lib.http import get_download_response
 from airone.lib.http import http_file_upload
 from airone.lib.http import HttpResponseSeeOther
 from airone.lib.types import AttrTypeValue
-from airone.lib.acl import get_permitted_objects
 from airone.lib.acl import ACLType
 from airone.lib.profile import airone_profile
 
-from entity.models import Entity, EntityAttr
-from entity.admin import EntityResource
+from entity.models import Entity
 from entry.models import Entry, Attribute, AttributeValue
-from entry.admin import EntryResource, AttrResource, AttrValueResource
 from job.models import Job
 from user.models import User
 from group.models import Group
 from .settings import CONFIG
-from .tasks import create_entry_attrs, edit_entry_attrs, delete_entry, copy_entry, import_entries, export_entries, restore_entry
+from .tasks import (create_entry_attrs, edit_entry_attrs, delete_entry, copy_entry, import_entries,
+                    export_entries, restore_entry)
 
 
 def _validate_input(recv_data, obj):
@@ -41,21 +38,25 @@ def _validate_input(recv_data, obj):
         if attr.is_mandatory:
             is_valid = any([not (x['data'] == '' or x['data'] is None) for x in attr_data['value']])
             if attr.type & AttrTypeValue['named']:
-                is_valid |= any([not (x['data'] == '' or x['data'] is None) for x in attr_data['referral_key']])
+                is_valid |= any([not (x['data'] == '' or x['data'] is None)
+                                 for x in attr_data['referral_key']])
 
             if not is_valid:
                 return HttpResponse('You have to specify value at mandatory parameters', status=400)
 
         # Checks specified value exceeds the limit of AttributeValue
-        if any([len(str(y['data']).encode('utf-8')) > AttributeValue.MAXIMUM_VALUE_SIZE for y in attr_data['value']]):
+        if any([len(str(y['data']).encode('utf-8')) > AttributeValue.MAXIMUM_VALUE_SIZE
+                for y in attr_data['value']]):
             return HttpResponse('Passed value is exceeded the limit', status=400)
 
         # Check date value format
         if (attr.type & AttrTypeValue['date']):
             try:
-                [datetime.strptime(str(i['data']),'%Y-%m-%d') for i in attr_data['value'] if i['data']]
-            except:
+                [datetime.strptime(str(i['data']), '%Y-%m-%d')
+                    for i in attr_data['value'] if i['data']]
+            except ValueError:
                 return HttpResponse('Incorrect data format in date', status=400)
+
 
 @airone_profile
 @http_get
@@ -92,6 +93,7 @@ def index(request, entity_id):
         # list ordinal view
         return render(request, 'list_entry.html', context)
 
+
 @airone_profile
 @http_get
 @check_permission(Entity, ACLType.Writable)
@@ -104,7 +106,8 @@ def create(request, entity_id):
     entity = Entity.objects.get(id=entity_id)
     if custom_view.is_custom("create_entry_without_context", entity.name):
         # show custom view
-        return custom_view.call_custom("create_entry_without_context", entity.name, request, user, entity)
+        return custom_view.call_custom("create_entry_without_context", entity.name, request, user,
+                                       entity)
 
     context = {
         'entity': entity,
@@ -116,7 +119,8 @@ def create(request, entity_id):
             'type': x.type,
             'name': x.name,
             'is_mandatory': x.is_mandatory,
-        } for x in entity.attrs.filter(is_active=True).order_by('index') if user.has_permission(x, ACLType.Writable)]
+        } for x in entity.attrs.filter(is_active=True).order_by('index')
+            if user.has_permission(x, ACLType.Writable)]
     }
 
     if custom_view.is_custom("create_entry", entity.name):
@@ -124,6 +128,7 @@ def create(request, entity_id):
         return custom_view.call_custom("create_entry", entity.name, request, user, entity, context)
     else:
         return render(request, 'create_entry.html', context)
+
 
 @airone_profile
 @http_post([
@@ -149,7 +154,8 @@ def do_create(request, entity_id, recv_data):
         return err
 
     if custom_view.is_custom("do_create_entry", entity.name):
-        (is_continue, resp, msg) = custom_view.call_custom("do_create_entry", entity.name, request, recv_data, user, entity)
+        (is_continue, resp, msg) = custom_view.call_custom(
+            "do_create_entry", entity.name, request, recv_data, user, entity)
         if not is_continue:
             if isinstance(resp, int):
                 return HttpResponse(msg, status=resp)
@@ -172,6 +178,7 @@ def do_create(request, entity_id, recv_data):
         'entry_id': entry.id,
         'entry_name': entry.name,
     })
+
 
 @airone_profile
 @http_get
@@ -203,9 +210,11 @@ def edit(request, entry_id):
 
     if custom_view.is_custom("edit_entry", entry.schema.name):
         # show custom view
-        return custom_view.call_custom("edit_entry", entry.schema.name, request, user, entry, context)
+        return custom_view.call_custom("edit_entry", entry.schema.name, request, user, entry,
+                                       context)
     else:
         return render(request, 'edit_entry.html', context)
+
 
 @airone_profile
 @http_post([
@@ -261,6 +270,7 @@ def do_edit(request, entry_id, recv_data):
         'entry_name': entry.name,
     })
 
+
 @airone_profile
 @http_get
 @check_permission(Entry, ACLType.Readable)
@@ -268,7 +278,8 @@ def show(request, entry_id):
     user = User.objects.get(id=request.user.id)
 
     try:
-        entry = Entry.objects.extra(where=['status & %d = 0' % Entry.STATUS_CREATING]).get(id=entry_id)
+        entry = Entry.objects.extra(
+            where=['status & %d = 0' % Entry.STATUS_CREATING]).get(id=entry_id)
     except ObjectDoesNotExist:
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
@@ -288,10 +299,12 @@ def show(request, entry_id):
 
     if custom_view.is_custom("show_entry", entry.schema.name):
         # show custom view
-        return custom_view.call_custom("show_entry", entry.schema.name, request, user, entry, context)
+        return custom_view.call_custom("show_entry", entry.schema.name, request, user, entry,
+                                       context)
     else:
         # show ordinal view
         return render(request, 'show_entry.html', context)
+
 
 @airone_profile
 @http_get
@@ -300,7 +313,8 @@ def history(request, entry_id):
     user = User.objects.get(id=request.user.id)
 
     try:
-        entry = Entry.objects.extra(where=['status & %d = 0' % Entry.STATUS_CREATING]).get(id=entry_id)
+        entry = Entry.objects.extra(
+            where=['status & %d = 0' % Entry.STATUS_CREATING]).get(id=entry_id)
     except ObjectDoesNotExist:
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
@@ -318,14 +332,14 @@ def history(request, entry_id):
 
     return render(request, 'show_entry_history.html', context)
 
+
 @airone_profile
 @http_get
 @check_permission(Entry, ACLType.Readable)
 def refer(request, entry_id):
-    user = User.objects.get(id=request.user.id)
-
     try:
-        entry = Entry.objects.extra(where=['status & %d = 0' % Entry.STATUS_CREATING]).get(id=entry_id)
+        entry = Entry.objects.extra(
+            where=['status & %d = 0' % Entry.STATUS_CREATING]).get(id=entry_id)
     except ObjectDoesNotExist:
         return HttpResponse('Failed to get an Entry object of specified id', status=400)
 
@@ -345,6 +359,7 @@ def refer(request, entry_id):
     }
     return render(request, 'show_entry_refer.html', context)
 
+
 @http_get
 def export(request, entity_id):
     user = User.objects.get(id=request.user.id)
@@ -362,7 +377,8 @@ def export(request, entity_id):
 
     # check whether same job is sent
     job_status_not_finished = [Job.STATUS['PREPARING'], Job.STATUS['PROCESSING']]
-    if Job.get_job_with_params(user, job_params).filter(status__in=job_status_not_finished).exists():
+    if Job.get_job_with_params(
+            user, job_params).filter(status__in=job_status_not_finished).exists():
         return HttpResponse('Same export processing is under execution', status=400)
 
     entity = Entity.objects.get(id=entity_id)
@@ -384,12 +400,14 @@ def export(request, entity_id):
                   'Please check Job list.'
     })
 
+
 @http_get
 def import_data(request, entity_id):
     if not Entity.objects.filter(id=entity_id, is_active=True).exists():
         return HttpResponse('Failed to get entity of specified id', status=400)
 
     return render(request, 'import_entry.html', {'entity': Entity.objects.get(id=entity_id)})
+
 
 @http_file_upload
 def do_import_data(request, entity_id, context):
@@ -410,7 +428,8 @@ def do_import_data(request, entity_id, context):
         # import custom view
         resp = custom_view.call_custom("import_entry", entity.name, user, entity, data)
 
-        # If custom_view returns available response this returns it to user,or continues default processing.
+        # If custom_view returns available response this returns it to user,
+        # or continues default processing.
         if resp:
             return resp
 
@@ -419,7 +438,8 @@ def do_import_data(request, entity_id, context):
 
     return HttpResponseSeeOther('/entry/%s/' % entity_id)
 
-@http_post([]) # check only that request is POST, id will be given by url
+
+@http_post([])  # check only that request is POST, id will be given by url
 @check_permission(Entry, ACLType.Full)
 def do_delete(request, entry_id, recv_data):
     user = User.objects.get(id=request.user.id)
@@ -435,7 +455,8 @@ def do_delete(request, entry_id, recv_data):
         # do_delete custom view
         resp = custom_view.call_custom("do_delete_entry", entry.schema.name, request, user, entry)
 
-        # If custom_view returns available response this returns it to user,or continues default processing.
+        # If custom_view returns available response this returns it to user,
+        # or continues default processing.
         if resp:
             return resp
 
@@ -456,6 +477,7 @@ def do_delete(request, entry_id, recv_data):
 
     return JsonResponse(ret)
 
+
 @airone_profile
 @http_get
 @check_permission(Entry, ACLType.Writable)
@@ -468,7 +490,7 @@ def copy(request, entry_id):
     entry = Entry.objects.get(id=entry_id)
 
     # prevent to show edit page under the creating processing
-    if entry.get_status(Entry.STATUS_CREATING) or  entry.get_status(Entry.STATUS_EDITING):
+    if entry.get_status(Entry.STATUS_CREATING) or entry.get_status(Entry.STATUS_EDITING):
         return HttpResponse('Target entry is now under processing', status=400)
 
     if not entry.is_active:
@@ -481,9 +503,11 @@ def copy(request, entry_id):
     }
 
     if custom_view.is_custom("copy_entry", entry.schema.name):
-        return custom_view.call_custom("copy_entry", entry.schema.name, request, user, entry, context)
+        return custom_view.call_custom("copy_entry", entry.schema.name, request, user, entry,
+                                       context)
 
     return render(request, 'copy_entry.html', context)
+
 
 @airone_profile
 @http_post([
@@ -538,7 +562,8 @@ def do_copy(request, entry_id, recv_data):
             continue
 
         # make a new job to copy entry
-        copy_entry.delay(user.id, entry_id, Job.new_copy(user, entry, text=new_name, params=params).id)
+        copy_entry.delay(user.id, entry_id,
+                         Job.new_copy(user, entry, text=new_name, params=params).id)
 
         ret.append({
             'status': 'success',
@@ -546,6 +571,7 @@ def do_copy(request, entry_id, recv_data):
         })
 
     return JsonResponse({'results': ret})
+
 
 @airone_profile
 @http_get
@@ -557,7 +583,8 @@ def restore(request, entity_id):
 
     # get all deleted entries that correspond to the entity, the specififcation of
     # 'status=0' is necessary to prevent getting entries that were under processing.
-    entries = Entry.objects.filter(schema=entity, status=0, is_active=False).order_by('-updated_time')
+    entries = Entry.objects.filter(schema=entity, status=0,
+                                   is_active=False).order_by('-updated_time')
 
     total_count = list_count = entries.count()
     if(len(entries) > CONFIG.MAX_LIST_ENTRIES):
@@ -570,6 +597,7 @@ def restore(request, entity_id):
         'total_count': total_count,
         'list_count': list_count,
     })
+
 
 @airone_profile
 @http_post([])
@@ -587,6 +615,7 @@ def do_restore(request, entry_id, recv_data):
     restore_entry.delay(entry.id, job.id)
 
     return HttpResponse('Success to queue a request to restore an entry')
+
 
 @airone_profile
 @http_post([
@@ -653,7 +682,8 @@ def revert_attrv(request, recv_data):
     # call custom-view if it exists
     if custom_view.is_custom("revert_attrv", attr.parent_entry.schema.name):
         return custom_view.call_custom(*[
-            "revert_attrv", attr.parent_entry.schema.name, request, user, attr, latest_value, new_attrv
+            "revert_attrv", attr.parent_entry.schema.name, request, user, attr, latest_value,
+            new_attrv
         ])
 
     return HttpResponse('Succeed in updating Attribute "%s"' % attr.schema.name)

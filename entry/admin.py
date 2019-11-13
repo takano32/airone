@@ -9,7 +9,6 @@ from .models import Entry
 from .models import Attribute, AttributeValue
 from acl.models import ACLBase
 from entity.models import Entity, EntityAttr
-from entry.models import Entry
 
 admin.site.register(Entry)
 admin.site.register(Attribute)
@@ -68,7 +67,8 @@ class AttrValueResource(AironeModelResource):
             elif (attr.schema.type & AttrTypeValue['array'] and
                   not instance.get_status(AttributeValue.STATUS_DATA_ARRAY_PARENT)):
 
-                # For a leaf AttributeValue, 'is_latest' flag will not be set. Instaed, these objects have
+                # For a leaf AttributeValue, 'is_latest' flag will not be set.
+                # Instaed, these objects have
                 # parent_attrv parameter to identify parent AttributeValue.
                 instance.is_latest = False
                 instance.parent_attrv = attr.get_latest_value()
@@ -80,15 +80,16 @@ class AttrValueResource(AironeModelResource):
     def after_import_completion(self, results):
         # make relation between the array of AttributeValue
         for data in [x['data'] for x in results
-                if x['data']['status'] & AttributeValue.STATUS_DATA_ARRAY_PARENT]:
+                     if x['data']['status'] & AttributeValue.STATUS_DATA_ARRAY_PARENT]:
 
             attr_value = AttributeValue.objects.get(id=data['id'])
-            for child_id in [int(x) for x in  data['data_arr'].split(',')]:
+            for child_id in [int(x) for x in data['data_arr'].split(',')]:
                 if (AttributeValue.objects.filter(id=child_id).exists() and
-                    not attr_value.data_array.filter(id=child_id).exists()):
+                        not attr_value.data_array.filter(id=child_id).exists()):
 
                     # append related AttributeValue if it's not existed
                     attr_value.data_array.add(AttributeValue.objects.get(id=child_id))
+
 
 class AttrResource(AironeModelResource):
     _IMPORT_INFO = {
@@ -103,7 +104,7 @@ class AttrResource(AironeModelResource):
     entry = fields.Field(column_name='entry_id', attribute='parent_entry',
                          widget=widgets.ForeignKeyWidget(model=Entry, field='id'))
     schema = fields.Field(column_name='schema_id', attribute='schema',
-                         widget=widgets.ForeignKeyWidget(model=EntityAttr, field='id'))
+                          widget=widgets.ForeignKeyWidget(model=EntityAttr, field='id'))
     user = fields.Field(column_name='created_user', attribute='created_user',
                         widget=widgets.ForeignKeyWidget(User, 'username'))
 
@@ -121,6 +122,7 @@ class AttrResource(AironeModelResource):
 
             if not entry.attrs.filter(id=instance.id).exists():
                 entry.attrs.add(instance)
+
 
 class EntryResource(AironeModelResource):
     _IMPORT_INFO = {
@@ -162,13 +164,16 @@ class EntryResource(AironeModelResource):
             # register imported entry to the Elasticsearch
             instance.register_es()
 
+
 class EntryAdmin(ImportExportModelAdmin):
     resource_class = EntryResource
     skip_admin_log = True
 
+
 class AttrAdmin(ImportExportModelAdmin):
     resource_class = AttrResource
     skip_admin_log = True
+
 
 class AttrValueAdmin(ImportExportModelAdmin):
     resource_class = AttrValueResource

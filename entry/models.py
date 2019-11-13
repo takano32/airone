@@ -1,8 +1,4 @@
-import json
-import re
-
-from copy import deepcopy
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 
 from django.db import models
 from django.db.models import Q
@@ -114,7 +110,7 @@ class AttributeValue(models.Model):
 
         value = None
         if (self.parent_attr.schema.type == AttrTypeValue['string'] or
-            self.parent_attr.schema.type == AttrTypeValue['text']):
+                self.parent_attr.schema.type == AttrTypeValue['text']):
             value = self.value
 
         elif self.parent_attr.schema.type == AttrTypeValue['boolean']:
@@ -215,6 +211,7 @@ class AttributeValue(models.Model):
                                   data_type=attr.schema.type,
                                   **params)
 
+
 class Attribute(ACLBase):
     values = models.ManyToManyField(AttributeValue)
 
@@ -241,7 +238,8 @@ class Attribute(ACLBase):
         if self.schema.type == AttrTypeStr or self.schema.type == AttrTypeText:
             # the case that specified value is empty or invalid
             if not recv_value:
-                # Value would be changed as empty when there is valid value in the latest AttributeValue
+                # Value would be changed as empty when there is valid value
+                # in the latest AttributeValue
                 return last_value.value
             else:
                 return last_value.value != recv_value
@@ -265,7 +263,8 @@ class Attribute(ACLBase):
         elif self.schema.type == AttrTypeArrStr:
             # the case that specified value is empty or invalid
             if not recv_value:
-                # Value would be changed as empty when there are any values in the latest AttributeValue
+                # Value would be changed as empty when there are any values
+                # in the latest AttributeValue
                 return last_value.data_array.count() > 0
 
             # the case of changing value
@@ -279,7 +278,8 @@ class Attribute(ACLBase):
         elif self.schema.type == AttrTypeArrObj:
             # the case that specified value is empty or invalid
             if not recv_value:
-                # Value would be changed as empty when there are any values in the latest AttributeValue
+                # Value would be changed as empty when there are any values
+                # in the latest AttributeValue
                 return last_value.data_array.count() > 0
 
             # the case of changing value
@@ -307,7 +307,8 @@ class Attribute(ACLBase):
         elif self.schema.type == AttrTypeValue['named_object']:
             # the case that specified value is empty or invalid
             if not recv_value:
-                # Value would be changed as empty when there is valid value in the latest AttributeValue
+                # Value would be changed as empty when there is valid value
+                # in the latest AttributeValue
                 return last_value.value or (last_value.referral and last_value.referral.is_active)
 
             if last_value.value != recv_value['name']:
@@ -321,7 +322,7 @@ class Attribute(ACLBase):
                 return True
 
             if (last_value.referral and recv_value['id'] and
-                last_value.referral.id != int(recv_value['id'])):
+                    last_value.referral.id != int(recv_value['id'])):
                 return True
 
         elif self.schema.type == AttrTypeValue['array_named_object']:
@@ -335,7 +336,8 @@ class Attribute(ACLBase):
 
             # the case that specified value is empty or invalid
             if not recv_value:
-                # Value would be changed as empty when there are any values in the latest AttributeValue
+                # Value would be changed as empty
+                # when there are any values in the latest AttributeValue
                 return last_value.data_array.count() > 0
 
             cmp_curr = []
@@ -438,7 +440,7 @@ class Attribute(ACLBase):
 
     def clone(self, user, **extra_params):
         if (not user.has_permission(self, ACLType.Readable) or
-            not user.has_permission(self.schema, ACLType.Readable)):
+                not user.has_permission(self.schema, ACLType.Readable)):
             return None
 
         # We can't clone an instance by the way (.pk=None and save) like AttributeValue,
@@ -448,8 +450,8 @@ class Attribute(ACLBase):
             'created_user': user,
             'schema': self.schema,
             'parent_entry': self.parent_entry,
-            **extra_params,
         }
+        params.update(extra_params)
         cloned_attr = Attribute.objects.create(**params)
 
         attrv = self.get_latest_value()
@@ -475,10 +477,12 @@ class Attribute(ACLBase):
                 return True
 
             if(self.schema.type & AttrTypeValue['named']):
-                return all([x for x in value if isinstance(x, dict) or isinstance(x, type({}.values()))])
+                return all([x for x in value if isinstance(x, dict) or
+                            isinstance(x, type({}.values()))])
 
             if(self.schema.type & AttrTypeValue['object']):
-                return all([isinstance(x, str) or isinstance(x, int) or isinstance(x, Entry) or x is None for x in value])
+                return all([isinstance(x, str) or isinstance(x, int) or isinstance(x, Entry) or
+                            x is None for x in value])
 
             if self.schema.type & AttrTypeValue['string']:
                 return True
@@ -490,7 +494,8 @@ class Attribute(ACLBase):
             return True
 
         if(self.schema.type & AttrTypeValue['object']):
-            return isinstance(value, str) or isinstance(value, int) or isinstance(value, Entry) or value is None
+            return (isinstance(value, str) or isinstance(value, int) or isinstance(value, Entry) or
+                    value is None)
 
         if(self.schema.type & AttrTypeValue['boolean']):
             return isinstance(value, bool)
@@ -498,7 +503,8 @@ class Attribute(ACLBase):
         if(self.schema.type & AttrTypeValue['date']):
             try:
                 return (isinstance(value, date) or
-                        (isinstance(value, str) and isinstance(datetime.strptime(value, '%Y-%m-%d'), date)) or
+                        (isinstance(value, str) and
+                        isinstance(datetime.strptime(value, '%Y-%m-%d'), date)) or
                         value is None)
             except ValueError:
                 return False
@@ -513,7 +519,8 @@ class Attribute(ACLBase):
 
         # checks the type of specified value is acceptable for this Attribute object
         if not self._validate_value(value):
-            raise TypeError('[%s] "%s" is not acceptable [attr_type:%d]' % (self.schema.name, str(value), self.schema.type))
+            raise TypeError('[%s] "%s" is not acceptable [attr_type:%d]' % (
+                self.schema.name, str(value), self.schema.type))
 
         # Clear the flag that means target AttrValues are latet from the Values
         # that are already created.
@@ -620,15 +627,17 @@ class Attribute(ACLBase):
                         if 'boolean' in data:
                             co_attrv_params['boolean'] = data['boolean']
 
-                        attrv_bulk.append(AttributeValue(referral=referral,
-                                                         value=data['name'] if 'name' in data else '',
-                                                         **co_attrv_params))
+                        attrv_bulk.append(AttributeValue(
+                            referral=referral, value=data['name'] if 'name' in data else '',
+                            **co_attrv_params))
 
-                # Create each leaf AttributeValue in bulk. This processing send only one query to the DB
+                # Create each leaf AttributeValue in bulk.
+                # This processing send only one query to the DB
                 # for making all AttributeValue objects.
                 AttributeValue.objects.bulk_create(attrv_bulk)
 
-                # set created leaf AttribueValues to the data_array parameter of parent AttributeValue
+                # set created leaf AttribueValues to the data_array parameter of
+                # parent AttributeValue
                 attr_value.data_array.add(*AttributeValue.objects.filter(parent_attrv=attr_value))
 
         attr_value.save()
@@ -658,7 +667,7 @@ class Attribute(ACLBase):
 
             elif isinstance(value, str):
                 entryset = [get_entry(r, value)
-                    for r in self.schema.referral.all() if is_entry(r, value)]
+                            for r in self.schema.referral.all() if is_entry(r, value)]
 
                 if any(entryset):
                     ret_value['id'] = entryset[0]
@@ -668,7 +677,7 @@ class Attribute(ACLBase):
             return ret_value
 
         if (self.schema.type == AttrTypeValue['string'] or
-            self.schema.type == AttrTypeValue['text']):
+                self.schema.type == AttrTypeValue['text']):
             return value
 
         elif self.schema.type == AttrTypeValue['object']:
@@ -676,7 +685,7 @@ class Attribute(ACLBase):
                 return value
             elif isinstance(value, str):
                 entryset = [get_entry(r, value)
-                    for r in self.schema.referral.all() if is_entry(r, value)]
+                            for r in self.schema.referral.all() if is_entry(r, value)]
 
                 if any(entryset):
                     return entryset[0]
@@ -708,8 +717,8 @@ class Attribute(ACLBase):
 
             elif self.schema.type == AttrTypeValue['array_object']:
                 return sum([[get_entry(r, v)
-                    for r in self.schema.referral.all() if is_entry(r, v)]
-                    for v in value], [])
+                           for r in self.schema.referral.all() if is_entry(r, v)]
+                           for v in value], [])
 
             elif self.schema.type == AttrTypeValue['array_named_object']:
                 if not all([isinstance(x, dict) for x in value]):
@@ -737,7 +746,7 @@ class Attribute(ACLBase):
                     return
 
                 updated_data = [x.referral.id for x in attrv.data_array.all()
-                        if x.referral and  x.referral.id != referral.id]
+                                if x.referral and x.referral.id != referral.id]
 
             elif self.schema.type == AttrTypeValue['array_named_object']:
                 if referral is None:
@@ -831,6 +840,7 @@ class Attribute(ACLBase):
             else:
                 _may_restore_referral(attrv.referral)
 
+
 class Entry(ACLBase):
     # This flag is set just after created or edited, then cleared at completion of the processing
     STATUS_CREATING = 1 << 0
@@ -919,7 +929,7 @@ class Entry(ACLBase):
         This appends Attribute object to attributes' array of entry when it's entitled to be there.
         """
         if (attr and attr.is_active and attr.parent_entry == self and
-            attr.id not in [x.id for x in self.attrs.filter(is_active=True)]):
+                attr.id not in [x.id for x in self.attrs.filter(is_active=True)]):
             self.attrs.add(attr)
 
     def may_remove_duplicate_attr(self, attr):
@@ -971,13 +981,13 @@ class Entry(ACLBase):
             # might be existed. If there were, this would delete new one.
             self.may_remove_duplicate_attr(newattr)
 
-    def get_available_attrs(self, user, permission=ACLType.Readable, get_referral_entries=False, is_active=True):
+    def get_available_attrs(self, user, permission=ACLType.Readable, get_referral_entries=False,
+                            is_active=True):
         # To avoid unnecessary DB access for caching referral entries
-        ref_entry_map = {}
-
         ret_attrs = []
-        attrs = [x for x in self.attrs.filter(is_active=is_active, schema__is_active=True) if user.has_permission(x, permission)]
-        for attr in sorted(attrs, key=lambda x:x.schema.index):
+        attrs = [x for x in self.attrs.filter(is_active=is_active, schema__is_active=True)
+                 if user.has_permission(x, permission)]
+        for attr in sorted(attrs, key=lambda x: x.schema.index):
             attrinfo = {}
 
             attrinfo['id'] = attr.id
@@ -999,7 +1009,8 @@ class Entry(ACLBase):
                 if last_value.data_type == AttrTypeStr or last_value.data_type == AttrTypeText:
                     attrinfo['last_value'] = last_value.value
 
-                elif (last_value.data_type == AttrTypeObj and last_value.referral and last_value.referral.is_active):
+                elif (last_value.data_type == AttrTypeObj and last_value.referral and
+                        last_value.referral.is_active):
                     attrinfo['last_referral'] = last_value.referral
 
                 elif last_value.data_type == AttrTypeArrStr:
@@ -1007,8 +1018,8 @@ class Entry(ACLBase):
                     attrinfo['last_value'] = [x.value for x in last_value.data_array.all()]
 
                 elif last_value.data_type == AttrTypeArrObj:
-                    attrinfo['last_value'] = [x.referral for x
-                            in last_value.data_array.all() if x.referral and x.referral.is_active]
+                    attrinfo['last_value'] = [x.referral for x in last_value.data_array.all()
+                                              if x.referral and x.referral.is_active]
 
                 elif last_value.data_type == AttrTypeValue['boolean']:
                     attrinfo['last_value'] = last_value.boolean
@@ -1043,7 +1054,7 @@ class Entry(ACLBase):
     def to_dict(self, user):
         # check permissions for each entry, entity and attrs
         if (not user.has_permission(self.schema, ACLType.Readable) or
-            not user.has_permission(self, ACLType.Readable)):
+                not user.has_permission(self, ACLType.Readable)):
             return None
 
         attrs = [x for x in self.attrs.filter(is_active=True, schema__is_active=True)
@@ -1086,7 +1097,7 @@ class Entry(ACLBase):
 
     def clone(self, user, **extra_params):
         if (not user.has_permission(self, ACLType.Readable) or
-            not user.has_permission(self.schema, ACLType.Readable)):
+                not user.has_permission(self.schema, ACLType.Readable)):
             return None
 
         # set STATUS_CREATING flag until all related parameters are set
@@ -1101,8 +1112,8 @@ class Entry(ACLBase):
             'created_user': user,
             'schema': self.schema,
             'status': status,
-            **extra_params,
         }
+        params.update(extra_params)
         cloned_entry = Entry.objects.create(**params)
 
         for attr in self.attrs.filter(is_active=True):
@@ -1154,18 +1165,19 @@ class Entry(ACLBase):
             if not (attr.type & AttrTypeValue['array'] and not is_recursive):
                 container.append(attrinfo)
 
-            elif attr.type & AttrTypeValue['array'] and not is_recursive and attrv != None:
+            elif attr.type & AttrTypeValue['array'] and not is_recursive and attrv is not None:
                 # Here is the case of parent array, set each child values
                 [_set_attrinfo(attr, x, container, True) for x in attrv.data_array.all()]
 
-                # If there is no value in container, this set blank value for maching blank search request
+                # If there is no value in container,
+                # this set blank value for maching blank search request
                 if not [x for x in container if x['name'] == attr.name]:
                     container.append(attrinfo)
 
                 return
 
             # This is the processing to be safe even if the empty AttributeValue was passed.
-            if attrv == None:
+            if attrv is None:
                 return
 
             # Convert data format for mapping of Elasticsearch  according to the data type
@@ -1227,7 +1239,7 @@ class Entry(ACLBase):
         if not es:
             es = ESS()
 
-        resp = es.index(doc_type='entry', id=self.id, body=self.get_es_document(es))
+        es.index(doc_type='entry', id=self.id, body=self.get_es_document(es))
         if not skip_refresh:
             es.refresh()
 
@@ -1248,8 +1260,9 @@ class Entry(ACLBase):
             }
 
         ret_values = []
-        all_attrv = AttributeValue.objects.filter(parent_attr__in=self.attrs.all(),
-                                                  parent_attrv__isnull=True).order_by('-created_time')[index:]
+        all_attrv = AttributeValue.objects.filter(
+            parent_attr__in=self.attrs.all(),
+            parent_attrv__isnull=True).order_by('-created_time')[index:]
 
         for (i, attrv) in enumerate(all_attrv):
             if (len(ret_values) >= count):
@@ -1257,9 +1270,9 @@ class Entry(ACLBase):
 
             attr = attrv.parent_attr
             if (attr.is_active and
-                attr.schema.is_active and
-                user.has_permission(attr, ACLType.Readable) and
-                user.has_permission(attr.schema, ACLType.Readable)):
+                    attr.schema.is_active and
+                    user.has_permission(attr, ACLType.Readable) and
+                    user.has_permission(attr.schema, ACLType.Readable)):
 
                 # try to get next attrv
                 next_attrv = None
@@ -1279,7 +1292,8 @@ class Entry(ACLBase):
         return ret_values
 
     @classmethod
-    def search_entries(kls, user, hint_entity_ids, hint_attrs=[], limit=CONFIG.MAX_LIST_ENTRIES, entry_name=None, or_match=False, hint_referral=False):
+    def search_entries(kls, user, hint_entity_ids, hint_attrs=[], limit=CONFIG.MAX_LIST_ENTRIES,
+                       entry_name=None, or_match=False, hint_referral=False):
         """Main method called from simple search and advanced search.
 
         Do the following:

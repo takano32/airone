@@ -8,6 +8,7 @@ from entity.models import Entity
 
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
+
 class ViewTest(AironeViewTest):
     def setUp(self):
         super(ViewTest, self).setUp()

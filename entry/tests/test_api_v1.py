@@ -6,9 +6,8 @@ from airone.lib.types import AttrTypeValue
 from django.urls import reverse
 
 from entity.models import Entity, EntityAttr
-from entry.models import Entry, Attribute, AttributeValue
+from entry.models import Entry
 from entry.settings import CONFIG
-from group.models import Group
 
 
 class ViewTest(AironeViewTest):
@@ -30,7 +29,8 @@ class ViewTest(AironeViewTest):
         self.assertEqual(len(resp.json()['results']), CONFIG.MAX_LIST_ENTRIES)
 
         # send request with empty keyword
-        resp = self.client.get(reverse('entry:api_v1:get_entries', args=[entity.id]), {'keyword': ''})
+        resp = self.client.get(reverse('entry:api_v1:get_entries', args=[entity.id]),
+                               {'keyword': ''})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue('results' in resp.json())
         self.assertEqual(len(resp.json()['results']), CONFIG.MAX_LIST_ENTRIES)
@@ -42,7 +42,8 @@ class ViewTest(AironeViewTest):
 
         self.assertTrue('results' in resp.json())
         self.assertEqual(len(resp.json()['results']), 2)
-        self.assertTrue(all([x['name'] == 'e-10' or x['name'] == 'e-100' for x in resp.json()['results']]))
+        self.assertTrue(
+            all([x['name'] == 'e-10' or x['name'] == 'e-100' for x in resp.json()['results']]))
 
         # send request with invalid keyword parameter
         resp = self.client.get(reverse('entry:api_v1:get_entries', args=[entity.id]),
@@ -62,7 +63,7 @@ class ViewTest(AironeViewTest):
         """
         Check for cases with special characters
         """
-        add_chars = ['!', '"', '#', '$', '%', '\'' ,'(', ')', '-', '=', '^', '~', '@', '`',
+        add_chars = ['!', '"', '#', '$', '%', '\'', '(', ')', '-', '=', '^', '~', '@', '`',
                      '[', ']', '{', '}', ';', '+', ':', '*', ',', '<', '>', '.', '/', '?', '_', ' '
                      '&', '|']
         test_suites = []
@@ -77,7 +78,7 @@ class ViewTest(AironeViewTest):
 
         for test_suite in test_suites:
             resp = self.client.get(reverse('entry:api_v1:get_entries', args=[entity.id]),
-                {'keyword': test_suite['search_word']})
+                                   {'keyword': test_suite['search_word']})
             ret_cnt = test_suite['ret_cnt'] if test_suite[
                 'search_word'] != '-' else CONFIG.MAX_LIST_ENTRIES
             self.assertEqual(resp.status_code, 200)
@@ -158,7 +159,8 @@ class ViewTest(AironeViewTest):
 
         # create Entity&Entries
         ref_entity = Entity.objects.create(name='Referred Entity', created_user=admin)
-        ref_entry = Entry.objects.create(name='Referred Entry', schema=ref_entity, created_user=admin)
+        ref_entry = Entry.objects.create(name='Referred Entry', schema=ref_entity,
+                                         created_user=admin)
 
         entity = Entity.objects.create(name='Entity', created_user=admin)
         entity.attrs.add(EntityAttr.objects.create(**{
@@ -183,11 +185,12 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(resp.json()['total_count'], CONFIG.MAX_LIST_REFERRALS + 1)
         self.assertEqual(resp.json()['found_count'], CONFIG.MAX_LIST_REFERRALS)
-        self.assertTrue(all(['id' in x and 'name' in x and 'entity' in x for x in resp.json()['entries']]))
+        self.assertTrue(
+            all(['id' in x and 'name' in x and 'entity' in x for x in resp.json()['entries']]))
 
         # send request with keyword parameter
         resp = self.client.get(reverse('entry:api_v1:get_referrals', args=[ref_entry.id]),
-                                       {'keyword': 'e-10'})
+                               {'keyword': 'e-10'})
         self.assertEqual(resp.status_code, 200)
 
         self.assertEqual(resp.json()['total_count'], CONFIG.MAX_LIST_REFERRALS + 1)
@@ -195,7 +198,7 @@ class ViewTest(AironeViewTest):
 
         # send request with invalid keyword parameter
         resp = self.client.get(reverse('entry:api_v1:get_referrals', args=[ref_entry.id]),
-                                       {'keyword': 'invalid_keyword'})
+                               {'keyword': 'invalid_keyword'})
         self.assertEqual(resp.status_code, 200)
 
         self.assertEqual(resp.json()['total_count'], CONFIG.MAX_LIST_REFERRALS + 1)
@@ -330,17 +333,11 @@ class ViewTest(AironeViewTest):
             entity.attrs.add(entity_attr)
 
         for index in range(0, 20):
-            ref_entry = Entry.objects.get(name='r-%d' % index)
-
             entry = Entry.objects.create(name='e-%d' % index, schema=entity, created_user=admin)
             entry.complement_attrs(admin)
             for attr_name in ['attr_ref', 'attr_val']:
                 attr = entry.attrs.get(name=attr_name)
 
-                base_params = {
-                    'created_user': admin,
-                    'parent_attr': attr,
-                }
                 if attr.schema.type & AttrTypeValue['string']:
                     attr.add_value(admin, str(index))
 
@@ -471,7 +468,8 @@ class ViewTest(AironeViewTest):
             attr.add_value(user, 'value-%d' % index)
 
         # check to get all history data
-        resp = self.client.get(reverse('entry:api_v1:get_entry_history', args=[entry.id]), {'count': 10})
+        resp = self.client.get(reverse('entry:api_v1:get_entry_history', args=[entry.id]),
+                               {'count': 10})
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp['Content-Type'], 'application/json')
 

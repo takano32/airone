@@ -9,7 +9,7 @@ from airone.lib.acl import ACLType
 from airone.lib.types import AttrTypeValue
 from airone.celery import app
 from entity.models import Entity, EntityAttr
-from entry.models import Entry, Attribute, AttributeValue
+from entry.models import Entry, Attribute
 from user.models import User
 from datetime import datetime
 from job.models import Job
@@ -45,6 +45,7 @@ def _merge_referrals_by_index(ref_list, name_list):
             result[name_info['index']]['name'] = name_info['data']
 
     return result
+
 
 def _convert_data_value(attr, info):
     if attr.schema.type & AttrTypeValue['array']:
@@ -84,6 +85,7 @@ def _convert_data_value(attr, info):
 
         else:
             return recv_value
+
 
 @app.task(bind=True)
 def create_entry_attrs(self, user_id, entry_id, job_id):
@@ -156,6 +158,7 @@ def create_entry_attrs(self, user_id, entry_id, job_id):
         if entry:
             entry.delete()
 
+
 @app.task(bind=True)
 def edit_entry_attrs(self, user_id, entry_id, job_id):
     job = Job.objects.get(id=job_id)
@@ -186,7 +189,7 @@ def edit_entry_attrs(self, user_id, entry_id, job_id):
                 continue
 
             # Add new AttributeValue instance to Attribute instnace
-            new_value = attr.add_value(user, converted_value)
+            attr.add_value(user, converted_value)
 
         if custom_view.is_custom("after_edit_entry", entry.schema.name):
             custom_view.call_custom("after_edit_entry", entry.schema.name, recv_data, user, entry)
@@ -200,6 +203,7 @@ def edit_entry_attrs(self, user_id, entry_id, job_id):
         # update job status and save it
         job.status = Job.STATUS['DONE']
         job.save()
+
 
 @app.task(bind=True)
 def delete_entry(self, entry_id, job_id):
@@ -215,6 +219,7 @@ def delete_entry(self, entry_id, job_id):
         # update job status and save it
         job.status = Job.STATUS['DONE']
         job.save()
+
 
 @app.task(bind=True)
 def restore_entry(self, entry_id, job_id):
@@ -243,6 +248,7 @@ def restore_entry(self, entry_id, job_id):
         job.status = Job.STATUS['DONE']
         job.save()
 
+
 @app.task(bind=True)
 def copy_entry(self, user_id, src_entry_id, job_id):
     job = Job.objects.get(id=job_id)
@@ -264,7 +270,8 @@ def copy_entry(self, user_id, src_entry_id, job_id):
             dest_entry.register_es()
 
         if custom_view.is_custom("after_copy_entry", src_entry.schema.name):
-            custom_view.call_custom("after_copy_entry", src_entry.schema.name, user, src_entry, dest_entry, params['post_data'])
+            custom_view.call_custom("after_copy_entry", src_entry.schema.name, user, src_entry,
+                                    dest_entry, params['post_data'])
 
         # update job status and save it
         job.target = dest_entry
@@ -272,6 +279,7 @@ def copy_entry(self, user_id, src_entry_id, job_id):
         job.text = 'original entry: %s' % src_entry.name
 
         job.save()
+
 
 @app.task(bind=True)
 def import_entries(self, job_id):
@@ -286,7 +294,8 @@ def import_entries(self, job_id):
         entity = Entity.objects.get(id=job.target.id)
         if not user.has_permission(entity, ACLType.Writable):
             job.status = Job.STATUS['ERROR']
-            job.text = 'Permission denied to import. You need Writable permission for "%s"' % entity.name
+            job.text = 'Permission denied to import. ' \
+                'You need Writable permission for "%s"' % entity.name
             job.save(update_fields=['text', 'status'])
             return
 
@@ -317,30 +326,34 @@ def import_entries(self, job_id):
 
             entry = Entry.objects.filter(name=entry_data['name'], schema=entity).first()
             if not entry:
-                entry = Entry.objects.create(name=entry_data['name'], schema=entity, created_user=user)
+                entry = Entry.objects.create(name=entry_data['name'], schema=entity,
+                                             created_user=user)
             else:
                 if not user.has_permission(entry, ACLType.Writable):
                     continue
 
             entry.complement_attrs(user)
             for attr_name, value in entry_data['attrs'].items():
-                # If user doesn't have readable permission for target Attribute, it won't be created.
+                # If user doesn't have readable permission for target Attribute,
+                # it won't be created.
                 if not entry.attrs.filter(schema__name=attr_name).exists():
                     continue
 
                 entity_attr = EntityAttr.objects.get(name=attr_name, parent_entity=entry.schema)
                 attr = entry.attrs.get(schema=entity_attr, is_active=True)
                 if (not user.has_permission(entity_attr, ACLType.Writable) or
-                    not user.has_permission(attr, ACLType.Writable)):
+                        not user.has_permission(attr, ACLType.Writable)):
                     continue
 
                 input_value = attr.convert_value_to_register(value)
-                if user.has_permission(attr.schema, ACLType.Writable) and attr.is_updated(input_value):
+                if user.has_permission(
+                        attr.schema, ACLType.Writable) and attr.is_updated(input_value):
                     attr.add_value(user, input_value)
 
                 # call custom-view processing corresponding to import entry
                 if custom_view_handler:
-                    custom_view.call_custom(custom_view_handler, entity.name, user, entry, attr, value)
+                    custom_view.call_custom(custom_view_handler, entity.name, user, entry, attr,
+                                            value)
 
             # register entry to the Elasticsearch
             entry.register_es()
@@ -350,6 +363,7 @@ def import_entries(self, job_id):
             job.status = Job.STATUS['DONE']
             job.text = ''
             job.save()
+
 
 @app.task(bind=True)
 def export_entries(self, job_id):
@@ -397,7 +411,7 @@ def export_entries(self, job_id):
         writer = csv.writer(output)
 
         attrs = [x.name for x in entity.attrs.filter(is_active=True)]
-        writer.writerow(['Name', *attrs])
+        writer.writerow(['Name'] + attrs)
 
         def data2str(data):
             if not data:
@@ -405,13 +419,12 @@ def export_entries(self, job_id):
             return str(data)
 
         for data in exported_data:
-            writer.writerow([
-                data['name'],
-                *[data2str(data['attrs'][x]) for x in attrs if x in data['attrs']]
-            ])
+            writer.writerow(
+                [data['name']] + [data2str(data['attrs'][x]) for x in attrs if x in data['attrs']])
     else:
         output = io.StringIO()
-        output.write(yaml.dump({entity.name: exported_data}, default_flow_style=False, allow_unicode=True))
+        output.write(yaml.dump({entity.name: exported_data}, default_flow_style=False,
+                               allow_unicode=True))
 
     if output:
         job.set_cache(output.getvalue())

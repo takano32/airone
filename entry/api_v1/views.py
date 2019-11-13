@@ -12,7 +12,7 @@ from airone.lib.profile import airone_profile
 from airone.lib.elasticsearch import prepend_escape_character
 from datetime import datetime, date
 
-from entry.models import Entry, Attribute, AttributeValue
+from entry.models import Entry, Attribute
 from entity.models import Entity, EntityAttr
 from entry.settings import CONFIG
 from pytz import timezone
@@ -51,6 +51,7 @@ def get_referrals(request, entry_id):
         'total_count': total_count,
     })
 
+
 @http_post([
     {'name': 'cond_params', 'type': list, 'meta': [
         {'name': 'type', 'type': str,
@@ -87,7 +88,7 @@ def search_entries(request, entity_ids, recv_data):
         for attr in attrs:
             # The case specified condition doesn't match with attribute type
             if ((cond['type'] == 'text' and not attr.schema.type & AttrTypeValue['string']) or
-                (cond['type'] == 'entry' and not attr.schema.type & AttrTypeValue['object'])):
+                    (cond['type'] == 'entry' and not attr.schema.type & AttrTypeValue['object'])):
                 continue
 
             # The case target attribute has no value
@@ -122,6 +123,7 @@ def search_entries(request, entity_ids, recv_data):
         } for x in ret_entries],
     })
 
+
 @http_get
 def get_entries(request, entity_ids):
     total_entries = []
@@ -136,7 +138,7 @@ def get_entries(request, entity_ids):
         query_name_regex = Q()
 
     for entity_id in [x for x in entity_ids.split(',')
-            if x and Entity.objects.filter(id=x, is_active=True).exists()]:
+                      if x and Entity.objects.filter(id=x, is_active=True).exists()]:
         query = Q(Q(schema__id=entity_id, is_active=is_active), query_name_regex)
 
         total_entries += Entry.objects.order_by('-updated_time').filter(query)
@@ -156,13 +158,14 @@ def get_entries(request, entity_ids):
     # return entries as JSON
     return JsonResponse({'results': entries_data})
 
+
 @http_get
 def get_attr_referrals(request, attr_id):
     """
     This returns entries that target attribute refers to.
     """
     if (not Attribute.objects.filter(id=attr_id).exists() and
-        not EntityAttr.objects.filter(id=attr_id).exists()):
+            not EntityAttr.objects.filter(id=attr_id).exists()):
         return HttpResponse('Failed to get target attribute(%s)' % attr_id, status=400)
 
     attr = None
@@ -183,13 +186,15 @@ def get_attr_referrals(request, attr_id):
             query_name_regex = Q()
 
         results += [{'id': x.id, 'name': x.name}
-                    for x in Entry.objects.filter(Q(schema=referral, is_active=True), query_name_regex)]
+                    for x in Entry.objects.filter(Q(schema=referral, is_active=True),
+                                                  query_name_regex)]
 
         if len(results) > CONFIG.MAX_LIST_REFERRALS:
             break
 
     return JsonResponse(
-        {'results': natsorted(results, key=lambda x:x['name'])[0:CONFIG.MAX_LIST_REFERRALS]})
+        {'results': natsorted(results, key=lambda x: x['name'])[0:CONFIG.MAX_LIST_REFERRALS]})
+
 
 @airone_profile
 @http_get
@@ -201,7 +206,7 @@ def get_entry_history(request, entry_id):
         try:
             params[key] = int(request.GET.get(key, 0))
         except ValueError:
-            return HttpResponse('invaid parameter value "%s" is specified' % value, status=400)
+            return HttpResponse('invaid parameter value "%s" is specified' % key, status=400)
 
     if not all([isinstance(x, int) for x in params.values()]):
         return HttpResponse('parameter "index" and "count" are mandatory', status=400)
@@ -218,13 +223,14 @@ def get_entry_history(request, entry_id):
         elif isinstance(obj, date):
             return str(obj)
 
-        raise TypeError ("Type %s not serializable" % type(obj))
+        raise TypeError("Type %s not serializable" % type(obj))
 
     history = entry.get_value_history(user, count=params['count'], index=params['index'])
 
     return JsonResponse({
         'results': json.loads(json.dumps(history, default=json_serial)),
     })
+
 
 @http_get
 def get_entry_info(request, entry_id):
@@ -244,6 +250,6 @@ def get_entry_info(request, entry_id):
         },
         'attrs': sorted([dict({'name': x.schema.name, 'index': x.schema.index},
                               **x.get_latest_value().get_value(with_metainfo=True))
-                              for x in entry.attrs.all() if user.has_permission(x, ACLType.Readable)],
-                        key=lambda x:x['index'])
+                         for x in entry.attrs.all() if user.has_permission(x, ACLType.Readable)],
+                        key=lambda x: x['index'])
     })

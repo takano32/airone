@@ -8,11 +8,11 @@ CONFIG = Settings({
     },
     'MAX_HISTORY_COUNT': 10,
     'MAX_QUERY_SIZE': 512,
-    'EMPTY_SEARCH_CHARACTER':'\\',
+    'EMPTY_SEARCH_CHARACTER': '\\',
     'EMPTY_SEARCH_CHARACTER_CODE': chr(165),
     'AND_SEARCH_CHARACTER': '&',
     'OR_SEARCH_CHARACTER': '|',
-    'ESCAPE_CHARACTERS': ['(',')','<','"','{','[', '#', '~', '@', '+', '*', '.', '?'],
+    'ESCAPE_CHARACTERS': ['(', ')', '<', '"', '{', '[', '#', '~', '@', '+', '*', '.', '?'],
     'ESCAPE_CHARACTERS_REFERRALS_ENTRY': ['$', '(', '^', '|', '[', '+', '*', '.', '?'],
     'ESCAPE_CHARACTERS_ENTRY_LIST': ['$', '(', '^', '\\', '|', '[', '+', '*', '.', '?'],
 })

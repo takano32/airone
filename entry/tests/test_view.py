@@ -1,8 +1,7 @@
 import json
 import yaml
-import urllib.parse
+import errno
 
-from django.test import TestCase, Client
 from django.urls import reverse
 from django.core.cache import cache
 from django.conf import settings
@@ -27,6 +26,7 @@ from unittest import skip
 from entry import tasks
 from job.models import Job
 from django.http.response import JsonResponse
+
 
 class ViewTest(AironeViewTest):
     def setUp(self):
@@ -53,11 +53,14 @@ class ViewTest(AironeViewTest):
 
         return user
 
-    def make_attr(self, name, attrtype=AttrTypeStr, created_user=None, parent_entity=None, parent_entry=None):
+    def make_attr(self, name, attrtype=AttrTypeStr, created_user=None, parent_entity=None,
+                  parent_entry=None):
         schema = EntityAttr.objects.create(name=name,
                                            type=attrtype,
-                                           created_user=(created_user and created_user or self._user),
-                                           parent_entity=(parent_entity and parent_entity or self._entity))
+                                           created_user=(
+                                               created_user and created_user or self._user),
+                                           parent_entity=(
+                                               parent_entity and parent_entity or self._entity))
 
         return Attribute.objects.create(name=name,
                                         schema=schema,
@@ -83,7 +86,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
 
     def test_get_permitted_entries(self):
-        user = self.guest_login()
+        self.guest_login()
 
         another_user = User.objects.create(username='hoge')
         entity = Entity(name='hoge', created_user=another_user, is_public=False)
@@ -93,7 +96,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 400)
 
     def test_get_self_created_entries(self):
-        user = self.admin_login()
+        self.admin_login()
 
         self._entity.is_public = False
 
@@ -208,7 +211,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'type': str(AttrTypeArrStr), 'value': [{'data': 'hoge', 'index': '0'}], 'referral_key': []},
+                {'id': str(self._entity_attr.id), 'type': str(AttrTypeArrStr),
+                 'value': [{'data': 'hoge', 'index': '0'}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -250,7 +254,8 @@ class ViewTest(AironeViewTest):
         self.assertEqual(obj.status, Job.STATUS['DONE'])
         self.assertEqual(obj.operation, Job.OP_CREATE)
 
-        # checks specify part of attribute parameter then set AttributeValue which is only specified one
+        # checks specify part of attribute parameter then set AttributeValue
+        # which is only specified one
         new_attr = EntityAttr.objects.create(name='new_attr',
                                              created_user=user,
                                              type=AttrTypeValue['string'],
@@ -292,7 +297,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(attr_base.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(attr_base.id), 'value': [{'data': 'hoge', 'index': 0}],
+                 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -320,8 +326,10 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'type': str(AttrTypeStr), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
-                {'id': str(self._entity_attr_optional.id), 'type': str(AttrTypeStr), 'value': [], 'referral_key': []},
+                {'id': str(self._entity_attr.id), 'type': str(AttrTypeStr),
+                 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(self._entity_attr_optional.id), 'type': str(AttrTypeStr), 'value': [],
+                 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -348,7 +356,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': '',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(self._entity_attr.id), 'value': [{'data': 'hoge', 'index': 0}],
+                 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -377,8 +386,10 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'new_entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'type': str(AttrTypeObj), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
-                {'id': str(attr_base.id), 'type': str(AttrTypeObj), 'value': [{'data': str(entry.id), 'index': 0}], 'referral_key': []},
+                {'id': str(self._entity_attr.id), 'type': str(AttrTypeObj),
+                 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(attr_base.id), 'type': str(AttrTypeObj),
+                 'value': [{'data': str(entry.id), 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -400,7 +411,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(self._entity_attr.id), 'value': [{'data': 'hoge', 'index': 0}],
+                 'referral_key': []},
                 {'id': '9999', 'value': ['invalid value'], 'referral_key': []},
             ],
         }
@@ -428,8 +440,10 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'new_entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'type': str(AttrTypeObj), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
-                {'id': str(attr_base.id), 'type': str(AttrTypeObj), 'value': [{'data': '0', 'index': 0}], 'referral_key': []},
+                {'id': str(self._entity_attr.id), 'type': str(AttrTypeObj),
+                 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(attr_base.id), 'type': str(AttrTypeObj),
+                 'value': [{'data': '0', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -559,8 +573,10 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(Attribute.objects.get(name='foo').id), 'type': str(AttrTypeArrStr), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
-                {'id': str(Attribute.objects.get(name='bar').id), 'type': str(AttrTypeArrStr), 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
+                {'id': str(Attribute.objects.get(name='foo').id), 'type': str(AttrTypeArrStr),
+                 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(Attribute.objects.get(name='bar').id), 'type': str(AttrTypeArrStr),
+                 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -601,11 +617,13 @@ class ViewTest(AironeViewTest):
         self.assertEqual(obj.status, Job.STATUS['DONE'])
         self.assertEqual(obj.operation, Job.OP_EDIT)
 
-        # checks specify part of attribute parameter then set AttributeValue which is only specified one
+        # checks specify part of attribute parameter then set AttributeValue
+        # which is only specified one
         params = {
             'entry_name': 'foo',
             'attrs': [
-                {'id': str(Attribute.objects.get(name='foo').id), 'value': [{'data': 'puyo', 'index': 0}]},
+                {'id': str(Attribute.objects.get(name='foo').id),
+                 'value': [{'data': 'puyo', 'index': 0}]},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -635,9 +653,12 @@ class ViewTest(AironeViewTest):
             'entry_name': entry.name,
             'attrs': [
                 # include blank value
-                {'id': str(Attribute.objects.get(name='foo').id), 'type': str(AttrTypeArrStr), 'value': [{'data': '', 'index': 0}], 'referral_key': []},
-                {'id': str(Attribute.objects.get(name='bar').id), 'type': str(AttrTypeArrStr), 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
-                {'id': str(Attribute.objects.get(name='baz').id), 'type': str(AttrTypeArrStr), 'value': [{'data': '0', 'index': 0}], 'referral_key': []},
+                {'id': str(Attribute.objects.get(name='foo').id), 'type': str(AttrTypeArrStr),
+                 'value': [{'data': '', 'index': 0}], 'referral_key': []},
+                {'id': str(Attribute.objects.get(name='bar').id), 'type': str(AttrTypeArrStr),
+                 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
+                {'id': str(Attribute.objects.get(name='baz').id), 'type': str(AttrTypeArrStr),
+                 'value': [{'data': '0', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -707,7 +728,8 @@ class ViewTest(AironeViewTest):
         self.assertTrue(attr.values.last().status & AttributeValue.STATUS_DATA_ARRAY_PARENT)
 
         self.assertEqual(attr.values.last().data_array.count(), 2)
-        self.assertTrue(all([x.value in ['hoge', 'puyo'] for x in attr.values.last().data_array.all()]))
+        self.assertTrue(
+            all([x.value in ['hoge', 'puyo'] for x in attr.values.last().data_array.all()]))
 
     @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
     def test_post_edit_with_array_object_value(self):
@@ -724,7 +746,8 @@ class ViewTest(AironeViewTest):
         entry = Entry.objects.create(name='entry', created_user=user, schema=entity)
         entry.complement_attrs(user)
 
-        (e1, e2, e3) = [Entry.objects.create(name='E%d' % i, created_user=user, schema=entity) for i in range(3)]
+        (e1, e2, e3) = [Entry.objects.create(
+            name='E%d' % i, created_user=user, schema=entity) for i in range(3)]
 
         attr = entry.attrs.first()
         attr.add_value(user, [
@@ -823,7 +846,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'old_entry',
             'attrs': [
-                {'id': str(attr.id), 'type': str(AttrTypeObj), 'value': [{'data': str(new_entry.id), 'index': 0}], 'referral_key': []},
+                {'id': str(attr.id), 'type': str(AttrTypeObj),
+                 'value': [{'data': str(new_entry.id), 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -841,10 +865,10 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
 
         attr_base = EntityAttr.objects.create(name='attr_with_referral',
-                                                 created_user=user,
-                                                 type=AttrTypeObj,
-                                                 parent_entity=self._entity,
-                                                 is_mandatory=False)
+                                              created_user=user,
+                                              type=AttrTypeObj,
+                                              parent_entity=self._entity,
+                                              is_mandatory=False)
         attr_base.referral.add(self._entity)
         self._entity.attrs.add(attr_base)
 
@@ -859,7 +883,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(attr.id), 'type': str(AttrTypeObj), 'value': [{'data': '0', 'index': 0}], 'referral_key': []},
+                {'id': str(attr.id), 'type': str(AttrTypeObj),
+                 'value': [{'data': '0', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -982,7 +1007,10 @@ class ViewTest(AironeViewTest):
         job = Job.objects.last()
         self.assertEqual(job.operation, Job.OP_EXPORT)
         self.assertEqual(job.text, 'entry_ほげ.yaml')
-        with self.assertRaises(FileNotFoundError):
+        with self.assertRaises(OSError) as e:
+            raise OSError
+
+        if e.exception.errno == errno.ENOENT:
             job.get_cache()
 
     @patch('entry.views.export_entries.delay', Mock(side_effect=tasks.export_entries))
@@ -1004,7 +1032,7 @@ class ViewTest(AironeViewTest):
         ]
 
         for case in CASES:
-            type_name = case[0].__name__ # AttrTypeStr -> 'AttrTypeStr'
+            type_name = case[0].__name__  # AttrTypeStr -> 'AttrTypeStr'
             attr_name = type_name + ',"ATTR"'
 
             test_entity = Entity.objects.create(name="TestEntity_" + type_name, created_user=user)
@@ -1015,7 +1043,8 @@ class ViewTest(AironeViewTest):
             test_entity.attrs.add(test_entity_attr)
             test_entity.save()
 
-            test_entry = Entry.objects.create(name=type_name + ',"ENTRY"', schema=test_entity, created_user=user)
+            test_entry = Entry.objects.create(name=type_name + ',"ENTRY"', schema=test_entity,
+                                              created_user=user)
             test_entry.save()
 
             test_attr = Attribute.objects.create(
@@ -1027,7 +1056,7 @@ class ViewTest(AironeViewTest):
 
             test_val = None
 
-            if case[0].TYPE & AttrTypeValue['array'] ==0:
+            if case[0].TYPE & AttrTypeValue['array'] == 0:
                 if case[0] == AttrTypeStr:
                     test_val = AttributeValue.create(user=user, attr=test_attr, value=case[1])
                 elif case[0] == AttrTypeObj:
@@ -1043,19 +1072,23 @@ class ViewTest(AironeViewTest):
                 for child in case[1]:
                     test_val_child = None
                     if case[0] == AttrTypeArrStr:
-                        test_val_child = AttributeValue.create(user=user, attr=test_attr, value=child)
+                        test_val_child = AttributeValue.create(user=user, attr=test_attr,
+                                                               value=child)
                     elif case[0] == AttrTypeArrObj:
-                        test_val_child = AttributeValue.create(user=user, attr=test_attr, referral=child)
+                        test_val_child = AttributeValue.create(user=user, attr=test_attr,
+                                                               referral=child)
                     elif case[0] == AttrTypeArrNamedObj:
                         [(k, v)] = child.items()
-                        test_val_child = AttributeValue.create(user=user, attr=test_attr, value=k, referral=v)
+                        test_val_child = AttributeValue.create(user=user, attr=test_attr, value=k,
+                                                               referral=v)
                     test_val.data_array.add(test_val_child)
 
             test_val.save()
             test_attr.values.add(test_val)
             test_attr.save()
 
-            resp = self.client.get(reverse('entry:export', args=[test_entity.id]), {'format': 'CSV'})
+            resp = self.client.get(reverse('entry:export', args=[test_entity.id]),
+                                   {'format': 'CSV'})
             self.assertEqual(resp.status_code, 200)
 
             content = Job.objects.last().get_cache()
@@ -1063,7 +1096,7 @@ class ViewTest(AironeViewTest):
             self.assertEqual(header, 'Name,"%s,""ATTR"""' % type_name)
 
             data = content.replace(header, '', 1).strip()
-            self.assertEqual(data, '"%s,""ENTRY""",' % type_name + case[2] )
+            self.assertEqual(data, '"%s,""ENTRY""",' % type_name + case[2])
 
     @patch('entry.views.delete_entry.delay', Mock(side_effect=tasks.delete_entry))
     def test_post_delete_entry(self):
@@ -1087,7 +1120,8 @@ class ViewTest(AironeViewTest):
         self.assertFalse(Attribute.objects.get(name__icontains='attr-test_deleted_').is_active)
 
         # Checks Elasticsearch also removes document of removed entry
-        res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=entry.id, ignore=[404])
+        res = self._es.get(index=settings.ES_CONFIG['INDEX'], doc_type='entry', id=entry.id,
+                           ignore=[404])
         self.assertFalse(res['found'])
 
     @patch('entry.views.delete_entry.delay', Mock(return_value=None))
@@ -1140,10 +1174,10 @@ class ViewTest(AironeViewTest):
                                        created_user=user)
 
         attr_base = EntityAttr.objects.create(name='attr-test',
-                                                 type=AttrTypeArrStr,
-                                                 is_mandatory=False,
-                                                 created_user=user,
-                                                 parent_entity=self._entity)
+                                              type=AttrTypeArrStr,
+                                              is_mandatory=False,
+                                              created_user=user,
+                                              parent_entity=self._entity)
         entity.attrs.add(attr_base)
 
         params = {
@@ -1181,7 +1215,7 @@ class ViewTest(AironeViewTest):
         self.assertIsNone(attr_value.referral)
         self.assertEqual(attr_value.data_array.count(), 3)
         self.assertTrue([x.value == 'hoge' or x.value == 'fuga' or x.value == 'puyo'
-            for x in attr_value.data_array.all()])
+                         for x in attr_value.data_array.all()])
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_post_create_array_object_attribute(self):
@@ -1281,7 +1315,7 @@ class ViewTest(AironeViewTest):
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_post_create_just_limit_of_value(self):
-        user = self.admin_login()
+        self.admin_login()
 
         params = {
             'entry_name': 'entry',
@@ -1302,7 +1336,8 @@ class ViewTest(AironeViewTest):
         entry = Entry.objects.last()
         self.assertEqual(entry.attrs.count(), 1)
         self.assertEqual(entry.attrs.last().values.count(), 1)
-        self.assertEqual(len(entry.attrs.last().values.last().value), AttributeValue.MAXIMUM_VALUE_SIZE)
+        self.assertEqual(len(entry.attrs.last().values.last().value),
+                         AttributeValue.MAXIMUM_VALUE_SIZE)
 
     @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
     def test_post_edit_just_limit_of_value(self):
@@ -1330,7 +1365,7 @@ class ViewTest(AironeViewTest):
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_post_create_exceeding_limit_of_value(self):
-        user = self.admin_login()
+        self.admin_login()
 
         params = {
             'entry_name': 'entry',
@@ -1379,7 +1414,7 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
 
         entry = Entry.objects.create(name='entry', created_user=user, schema=self._entity)
-        attr = entry.add_attribute_from_base(self._entity_attr, user)
+        entry.add_attribute_from_base(self._entity_attr, user)
 
         params = {
             'entry_name': 'entry',
@@ -1402,7 +1437,7 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
 
         entry = Entry.objects.create(name='entry', created_user=user, schema=self._entity)
-        attr = entry.add_attribute_from_base(self._entity_attr, user)
+        entry.add_attribute_from_base(self._entity_attr, user)
 
         dup_entry = Entry.objects.create(name='dup_entry', created_user=user, schema=self._entity)
         dup_attr = Attribute.objects.create(name=self._entity_attr.name,
@@ -1413,7 +1448,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(dup_attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(dup_attr.id), 'value': [{'data': 'hoge', 'index': 0}],
+                 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[dup_entry.id]),
@@ -1438,13 +1474,15 @@ class ViewTest(AironeViewTest):
         self._entity_attr.default_permission = ACLType.Nothing.id
         self._entity_attr.save()
 
-        guest = self.guest_login()
+        self.guest_login()
 
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'type': str(AttrTypeStr), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
-                {'id': str(attr.id), 'type': str(AttrTypeStr),'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
+                {'id': str(self._entity_attr.id), 'type': str(AttrTypeStr),
+                 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(attr.id), 'type': str(AttrTypeStr),
+                 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[self._entity.id]),
@@ -1480,8 +1518,10 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry1',
             'attrs': [
-                {'id': str(attrs[0].id), 'type': str(AttrTypeStr), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
-                {'id': str(attrs[1].id), 'type': str(AttrTypeStr), 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
+                {'id': str(attrs[0].id), 'type': str(AttrTypeStr),
+                 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(attrs[1].id), 'type': str(AttrTypeStr),
+                 'value': [{'data': 'fuga', 'index': 0}], 'referral_key': []},
             ],
         }
 
@@ -1516,7 +1556,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entity_attr.id), 'type': str(AttrTypeValue['boolean']), 'value': [{'data': True, 'index': 0}], 'referral_key': []},
+                {'id': str(entity_attr.id), 'type': str(AttrTypeValue['boolean']),
+                 'value': [{'data': True, 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -1536,7 +1577,9 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entry.attrs.get(name='attr_bool').id), 'type': str(AttrTypeValue['boolean']), 'value': [{'data': False, 'index': 0}], 'referral_key': []},
+                {'id': str(entry.attrs.get(name='attr_bool').id),
+                 'type': str(AttrTypeValue['boolean']), 'value': [{'data': False, 'index': 0}],
+                 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -1563,7 +1606,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(attr_base.id), 'type': str(AttrTypeStr), 'value': [], 'referral_key': []},
+                {'id': str(attr_base.id), 'type': str(AttrTypeStr), 'value': [],
+                 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -1592,7 +1636,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'Updated Entry',
             'attrs': [
-                {'id': str(entry.attrs.get(name='attr').id), 'type': str(AttrTypeStr), 'value': [], 'referral_key': []},
+                {'id': str(entry.attrs.get(name='attr').id), 'type': str(AttrTypeStr), 'value': [],
+                 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -1668,8 +1713,10 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entry.attrs.get(name='ref').id), 'type': str(AttrTypeValue['object']), 'value': [], 'referral_key': []},
-                {'id': str(entry.attrs.get(name='arr_ref').id), 'type': str(AttrTypeValue['array_object']), 'value': [], 'referral_key': []},
+                {'id': str(entry.attrs.get(name='ref').id), 'type': str(AttrTypeValue['object']),
+                 'value': [], 'referral_key': []},
+                {'id': str(entry.attrs.get(name='arr_ref').id),
+                 'type': str(AttrTypeValue['array_object']), 'value': [], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -1769,12 +1816,12 @@ class ViewTest(AironeViewTest):
             resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
                                     json.dumps(params),
                                     'application/json')
-    
+
             self.assertEqual(resp.status_code, 200)
 
             entry = Entry.objects.get(name=req['name'])
             attr_ref = entry.attrs.get(schema__name='ref')
-            attr_arr_ref = entry.attrs.get(schema__name='arr_ref')
+            entry.attrs.get(schema__name='arr_ref')
 
             self.assertIsNone(attr_ref.get_latest_value().referral)
             self.assertEqual(attr_ref.get_latest_value().data_array.count(), 0)
@@ -1784,7 +1831,8 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
 
         ref_entity = Entity.objects.create(name='referred_entity', created_user=user)
-        ref_entry = Entry.objects.create(name='referred_entry', created_user=user, schema=ref_entity)
+        ref_entry = Entry.objects.create(name='referred_entry', created_user=user,
+                                         schema=ref_entity)
 
         entity = Entity.objects.create(name='entity', created_user=user)
         new_attr_params = {
@@ -1808,13 +1856,14 @@ class ViewTest(AironeViewTest):
                 'value': [],
             }],
         }
-        resp = self.client.post(reverse('entry:do_create', args=[entity.id]), json.dumps(params), 'application/json')
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]), json.dumps(params),
+                                'application/json')
         self.assertEqual(resp.status_code, 200)
 
         entry = Entry.objects.get(name='new_entry1')
 
-        # An AttributeValue will be created at the creating processing even though the value is empty,
-        # but except for invalid one.
+        # An AttributeValue will be created at the creating processing even though
+        # the value is empty, but except for invalid one.
         self.assertEqual(entry.attrs.get(name='named_ref').values.count(), 1)
         self.assertIsNone(entry.attrs.get(name='named_ref').values.first().referral)
 
@@ -1828,7 +1877,8 @@ class ViewTest(AironeViewTest):
                 'referral_key': [],
             }],
         }
-        resp = self.client.post(reverse('entry:do_create', args=[entity.id]), json.dumps(params), 'application/json')
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]), json.dumps(params),
+                                'application/json')
         self.assertEqual(resp.status_code, 200)
 
         entry = Entry.objects.get(name='new_entry2')
@@ -1846,7 +1896,8 @@ class ViewTest(AironeViewTest):
                 'referral_key': [{'data': 'hoge', 'index': 0}],
             }],
         }
-        resp = self.client.post(reverse('entry:do_create', args=[entity.id]), json.dumps(params), 'application/json')
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]), json.dumps(params),
+                                'application/json')
         self.assertEqual(resp.status_code, 200)
 
         entry = Entry.objects.get(name='new_entry3')
@@ -1859,7 +1910,8 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
 
         ref_entity = Entity.objects.create(name='referred_entity', created_user=user)
-        ref_entry = Entry.objects.create(name='referred_entry', created_user=user, schema=ref_entity)
+        ref_entry = Entry.objects.create(name='referred_entry', created_user=user,
+                                         schema=ref_entity)
 
         entity = Entity.objects.create(name='entity', created_user=user)
         new_attr_params = {
@@ -1889,7 +1941,8 @@ class ViewTest(AironeViewTest):
             }],
         }
 
-        resp = self.client.post(reverse('entry:do_create', args=[entity.id]), json.dumps(params), 'application/json')
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]), json.dumps(params),
+                                'application/json')
         self.assertEqual(resp.status_code, 200)
 
         entry = Entry.objects.get(name='new_entry')
@@ -1913,7 +1966,8 @@ class ViewTest(AironeViewTest):
         user = self.admin_login()
 
         ref_entity = Entity.objects.create(name='referred_entity', created_user=user)
-        ref_entry = Entry.objects.create(name='referred_entry', created_user=user, schema=ref_entity)
+        ref_entry = Entry.objects.create(name='referred_entry', created_user=user,
+                                         schema=ref_entity)
 
         entity = Entity.objects.create(name='entity', created_user=user)
 
@@ -1943,7 +1997,8 @@ class ViewTest(AironeViewTest):
                 'referral_key': [{'data': 'hoge', 'index': 0}],
             }],
         }
-        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]), json.dumps(params), 'application/json')
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]), json.dumps(params),
+                                'application/json')
         self.assertEqual(resp.status_code, 200)
 
         updated_entry = Entry.objects.get(id=entry.id)
@@ -1951,7 +2006,8 @@ class ViewTest(AironeViewTest):
         self.assertEqual(updated_entry.attrs.get(name='named_ref').values.count(), 1)
 
         # try to update with different data (expected to be updated)
-        ref_entry2 = Entry.objects.create(name='referred_entry2', created_user=user, schema=ref_entity)
+        ref_entry2 = Entry.objects.create(name='referred_entry2', created_user=user,
+                                          schema=ref_entity)
         params = {
             'entry_name': 'updated_entry',
             'attrs': [{
@@ -1961,20 +2017,23 @@ class ViewTest(AironeViewTest):
                 'referral_key': [{'data': 'fuga', 'index': 0}],
             }],
         }
-        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]), json.dumps(params), 'application/json')
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]), json.dumps(params),
+                                'application/json')
         self.assertEqual(resp.status_code, 200)
 
         updated_entry = Entry.objects.get(id=entry.id)
         self.assertEqual(updated_entry.attrs.get(name='named_ref').values.count(), 2)
         self.assertEqual(updated_entry.attrs.get(name='named_ref').values.last().value, 'fuga')
-        self.assertEqual(updated_entry.attrs.get(name='named_ref').values.last().referral.id, ref_entry2.id)
+        self.assertEqual(updated_entry.attrs.get(name='named_ref').values.last().referral.id,
+                         ref_entry2.id)
 
     @patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=tasks.edit_entry_attrs))
     def test_edit_entry_with_array_named_ref(self):
         user = self.admin_login()
 
         ref_entity = Entity.objects.create(name='referred_entity', created_user=user)
-        ref_entry = Entry.objects.create(name='referred_entry', created_user=user, schema=ref_entity)
+        ref_entry = Entry.objects.create(name='referred_entry', created_user=user,
+                                         schema=ref_entity)
 
         entity = Entity.objects.create(name='entity', created_user=user)
         new_attr_params = {
@@ -2013,7 +2072,7 @@ class ViewTest(AironeViewTest):
             }],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]), json.dumps(params),
-                                        'application/json')
+                                'application/json')
         self.assertEqual(resp.status_code, 200)
 
         updated_entry = Entry.objects.get(id=entry.id)
@@ -2034,7 +2093,8 @@ class ViewTest(AironeViewTest):
                 'referral_key': [{'data': 'hoge_%d' % i, 'index': i} for i in range(0, 2)],
             }],
         }
-        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]), json.dumps(params), 'application/json')
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]), json.dumps(params),
+                                'application/json')
         self.assertEqual(resp.status_code, 200)
 
         updated_entry = Entry.objects.get(id=entry.id)
@@ -2069,15 +2129,16 @@ class ViewTest(AironeViewTest):
                 ],
             }],
         }
-        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]), json.dumps(params), 'application/json')
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]), json.dumps(params),
+                                'application/json')
         self.assertEqual(resp.status_code, 200)
 
         updated_entry = Entry.objects.get(id=entry.id)
         self.assertEqual(updated_entry.attrs.get(name='arr_named_ref').values.count(),
-                                                 old_attrv_count + 1)
+                         old_attrv_count + 1)
 
     def test_get_copy_with_invalid_entry(self):
-        user = self.admin_login()
+        self.admin_login()
 
         resp = self.client.get(reverse('entry:index', args=[9999]))
         self.assertEqual(resp.status_code, 400)
@@ -2100,7 +2161,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 400)
 
     def test_post_copy_with_invalid_entry(self):
-        user = self.admin_login()
+        self.admin_login()
 
         params = {
             'entries': 'foo\nbar\nbaz',
@@ -2174,7 +2235,8 @@ class ViewTest(AironeViewTest):
         results = resp.json()['results']
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]['status'], 'fail')
-        self.assertEqual(results[0]['msg'], 'There is another job that targets same name(foo) is existed')
+        self.assertEqual(results[0]['msg'],
+                         'There is another job that targets same name(foo) is existed')
 
         # check job won't be created by this request
         self.assertFalse(Job.objects.filter(Q(target=entry) & ~Q(id=job.id)).exists())
@@ -2203,7 +2265,7 @@ class ViewTest(AironeViewTest):
             }],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
-                                        json.dumps(params), 'application/json')
+                                json.dumps(params), 'application/json')
         self.assertEqual(resp.status_code, 200)
 
         entry = Entry.objects.get(name='entry', schema=entity)
@@ -2247,7 +2309,7 @@ class ViewTest(AironeViewTest):
             }],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
-                                        json.dumps(params), 'application/json')
+                                json.dumps(params), 'application/json')
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(AttributeValue.objects.count(), attrv_count)
@@ -2262,7 +2324,7 @@ class ViewTest(AironeViewTest):
             }],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
-                                        json.dumps(params), 'application/json')
+                                json.dumps(params), 'application/json')
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(AttributeValue.objects.count(), attrv_count + 1)
@@ -2327,14 +2389,17 @@ class ViewTest(AironeViewTest):
             {'attr': 'str', 'checker': lambda x: x.value == 'foo'},
             {'attr': 'obj', 'checker': lambda x: x.referral.id == ref_entry.id},
             {'attr': 'grp', 'checker': lambda x: x.value == str(group.id)},
-            {'attr': 'name', 'checker': lambda x: x.value == 'foo' and x.referral.id == ref_entry.id},
-            {'attr': 'bool', 'checker': lambda x: x.boolean == False},
-            {'attr': 'date', 'checker': lambda x: x.date == date(2018,12,31)},
+            {'attr': 'name',
+             'checker': lambda x: x.value == 'foo' and x.referral.id == ref_entry.id},
+            {'attr': 'bool', 'checker': lambda x: x.boolean is False},
+            {'attr': 'date', 'checker': lambda x: x.date == date(2018, 12, 31)},
             {'attr': 'arr1', 'checker': lambda x: x.data_array.count() == 3},
             {'attr': 'arr2',
-             'checker': lambda x: x.data_array.count() == 1 and x.data_array.first().referral.id == ref_entry.id},
+             'checker': lambda x: x.data_array.count() == 1 and
+             x.data_array.first().referral.id == ref_entry.id},
             {'attr': 'arr3',
-             'checker': lambda x: x.data_array.count() == 1 and x.data_array.first().referral.id == ref_entry.id},
+             'checker': lambda x: x.data_array.count() == 1 and
+             x.data_array.first().referral.id == ref_entry.id},
         ]
         for info in checklist:
             attr = entry.attrs.get(name=info['attr'])
@@ -2358,7 +2423,9 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 303)
         job = Job.objects.filter(target=entity).last()
         self.assertEqual(job.status, Job.STATUS['ERROR'])
-        self.assertEqual(job.text, 'Permission denied to import. You need Writable permission for "%s"' % entity.name)
+        self.assertEqual(
+            job.text,
+            'Permission denied to import. You need Writable permission for "%s"' % entity.name)
 
     @patch('entry.views.import_entries.delay', Mock(side_effect=tasks.import_entries))
     def test_import_entry_with_changing_entity_attr(self):
@@ -2366,8 +2433,8 @@ class ViewTest(AironeViewTest):
 
         # prepare to Entity and Entries which importing data refers to
         ref_entity = Entity.objects.create(name='RefEntity', created_user=user)
-        ref_entry = Entry.objects.create(name='ref', created_user=user, schema=ref_entity)
-        group = Group.objects.create(name='group')
+        Entry.objects.create(name='ref', created_user=user, schema=ref_entity)
+        Group.objects.create(name='group')
 
         entity = Entity.objects.create(name='Entity', created_user=user)
         attr_info = {
@@ -2455,7 +2522,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entity_attr.id), 'type': str(AttrTypeValue['date']), 'value': [{'data': '2018-12-31', 'index': 0}], 'referral_key': []},
+                {'id': str(entity_attr.id), 'type': str(AttrTypeValue['date']),
+                 'value': [{'data': '2018-12-31', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -2469,13 +2537,15 @@ class ViewTest(AironeViewTest):
 
         self.assertEqual(entry.attrs.count(), 1)
         self.assertIsNotNone(entry.attrs.last().get_latest_value())
-        self.assertEqual(entry.attrs.last().get_latest_value().date, date(2018,12,31))
+        self.assertEqual(entry.attrs.last().get_latest_value().date, date(2018, 12, 31))
 
         # edit entry to update the value of attribute 'attr_date'
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entry.attrs.get(name='attr_date').id), 'type': str(AttrTypeValue['date']), 'value': [{'data': '2019-1-1', 'index': 0}], 'referral_key': []},
+                {'id': str(entry.attrs.get(name='attr_date').id),
+                 'type': str(AttrTypeValue['date']), 'value': [{'data': '2019-1-1', 'index': 0}],
+                 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),
@@ -2486,7 +2556,7 @@ class ViewTest(AironeViewTest):
 
         # checks AttributeValue which is specified to update
         self.assertEqual(entry.attrs.last().values.count(), 2)
-        self.assertEqual(entry.attrs.last().get_latest_value().date, date(2019,1,1))
+        self.assertEqual(entry.attrs.last().get_latest_value().date, date(2019, 1, 1))
 
     @patch('entry.views.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_create_invalid_date_param(self):
@@ -2503,7 +2573,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entity_attr.id), 'type': str(AttrTypeValue['date']), 'value': [{'data': '2018-13-30', 'index': 0}], 'referral_key': []},
+                {'id': str(entity_attr.id), 'type': str(AttrTypeValue['date']),
+                 'value': [{'data': '2018-13-30', 'index': 0}], 'referral_key': []},
             ],
         }
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -2534,7 +2605,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(attr.id), 'type': str(AttrTypeValue['date']), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(attr.id), 'type': str(AttrTypeValue['date']),
+                 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
             ],
         }
 
@@ -2564,7 +2636,8 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entity_attr.id), 'type': str(AttrTypeValue['date']), 'value': [{'data': '', 'index': 0}], 'referral_key': []},
+                {'id': str(entity_attr.id), 'type': str(AttrTypeValue['date']),
+                 'value': [{'data': '', 'index': 0}], 'referral_key': []},
             ],
         }
 
@@ -2698,7 +2771,7 @@ class ViewTest(AironeViewTest):
 
         ###
         # checks that value histories for each Attributes will be same when same values are set
-        #before_vh = [x.get_value() for x in entry.get_value_history(user)]
+        # before_vh = [x.get_value() for x in entry.get_value_history(user)]
         before_vh = entry.get_value_history(user)
 
         params = {
@@ -2778,7 +2851,8 @@ class ViewTest(AironeViewTest):
                     'id': str(x.id),
                     'type': str(x.type),
                     'value': [{'data': value, 'index': 0}],
-                    'referral_key': [{'data': 'foo', 'index': 0}] if x.type & AttrTypeValue['named'] else [],
+                    'referral_key': [
+                        {'data': 'foo', 'index': 0}] if x.type & AttrTypeValue['named'] else [],
                 } for x in entity.attrs.all()],
             }
             resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
@@ -2845,8 +2919,8 @@ class ViewTest(AironeViewTest):
             if info['type'] & AttrTypeValue['named']:
                 referral_key[0]['data'] = 'hoge'
                 resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
-                                    json.dumps(params),
-                                    'application/json')
+                                        json.dumps(params),
+                                        'application/json')
 
                 self.assertEqual(resp.status_code, 200)
                 self.assertEqual(Entry.objects.filter(schema=entity).count(), 1)
@@ -2890,7 +2964,8 @@ class ViewTest(AironeViewTest):
         self.assertEqual(self.client.get(reverse('entry:edit', args=[entry.id])).status_code, 400)
         self.assertEqual(self.client.get(reverse('entry:copy', args=[entry.id])).status_code, 400)
         self.assertEqual(self.client.get(reverse('entry:refer', args=[entry.id])).status_code, 400)
-        self.assertEqual(self.client.get(reverse('entry:history', args=[entry.id])).status_code, 400)
+        self.assertEqual(
+            self.client.get(reverse('entry:history', args=[entry.id])).status_code, 400)
 
     def test_not_to_show_under_processing_entry(self):
         user = self.guest_login()
@@ -2906,7 +2981,8 @@ class ViewTest(AironeViewTest):
         self.assertEqual(self.client.get(reverse('entry:edit', args=[entry.id])).status_code, 400)
         self.assertEqual(self.client.get(reverse('entry:copy', args=[entry.id])).status_code, 400)
         self.assertEqual(self.client.get(reverse('entry:refer', args=[entry.id])).status_code, 400)
-        self.assertEqual(self.client.get(reverse('entry:history', args=[entry.id])).status_code, 400)
+        self.assertEqual(
+            self.client.get(reverse('entry:history', args=[entry.id])).status_code, 400)
 
     def test_show_entry_history(self):
         user = self.guest_login()
@@ -2931,7 +3007,8 @@ class ViewTest(AironeViewTest):
     def test_create_and_edit_without_type_parameter(self):
         user = self.guest_login()
         entity = Entity.objects.create(name='entity', created_user=user)
-        attr = EntityAttr.objects.create(name='attr', created_user=user, parent_entity=entity, type=AttrTypeValue['string'])
+        attr = EntityAttr.objects.create(name='attr', created_user=user, parent_entity=entity,
+                                         type=AttrTypeValue['string'])
         entity.attrs.add(attr)
 
         # create without type parameter
@@ -2941,7 +3018,8 @@ class ViewTest(AironeViewTest):
                 {'id': str(attr.id), 'value': [{'data': 'hoge', 'index': '0'}]},
             ],
         }
-        resp = self.client.post(reverse('entry:do_create', args=[entity.id]), json.dumps(params), 'application/json')
+        resp = self.client.post(reverse('entry:do_create', args=[entity.id]), json.dumps(params),
+                                'application/json')
         self.assertEqual(resp.status_code, 200)
 
         entry = Entry.objects.get(name='entry', schema=entity, is_active=True)
@@ -2954,7 +3032,8 @@ class ViewTest(AironeViewTest):
                 {'id': str(entry.attrs.first().id), 'value': [{'data': 'fuga', 'index': '0'}]},
             ],
         }
-        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]), json.dumps(params), 'application/json')
+        resp = self.client.post(reverse('entry:do_edit', args=[entry.id]), json.dumps(params),
+                                'application/json')
         self.assertEqual(resp.status_code, 200)
 
         entry.refresh_from_db()
@@ -3002,11 +3081,13 @@ class ViewTest(AironeViewTest):
         entry.complement_attrs(user)
 
         # send request with invalid entry-id
-        resp = self.client.post(reverse('entry:do_restore', args=[9999]), json.dumps({}), 'application/json')
+        resp = self.client.post(reverse('entry:do_restore', args=[9999]), json.dumps({}),
+                                'application/json')
         self.assertEqual(resp.status_code, 400)
 
         # send request with entry-id which is active
-        resp = self.client.post(reverse('entry:do_restore', args=[entry.id]), json.dumps({}), 'application/json')
+        resp = self.client.post(reverse('entry:do_restore', args=[entry.id]), json.dumps({}),
+                                'application/json')
         self.assertEqual(resp.status_code, 400)
 
         # delete target entry to run restore processing
@@ -3016,7 +3097,8 @@ class ViewTest(AironeViewTest):
         self.assertTrue(entry.name.find('_deleted_') > 0)
         self.assertFalse(any([x.is_active for x in entry.attrs.all()]))
 
-        resp = self.client.post(reverse('entry:do_restore', args=[entry.id]), json.dumps({}), 'application/json')
+        resp = self.client.post(reverse('entry:do_restore', args=[entry.id]), json.dumps({}),
+                                'application/json')
         self.assertEqual(resp.status_code, 200)
 
         entry.refresh_from_db()
@@ -3035,7 +3117,8 @@ class ViewTest(AironeViewTest):
 
         # initialize referred objects
         ref_entity = Entity.objects.create(name='RefEntity', created_user=user)
-        ref_entries = [Entry.objects.create(name='r%d' % i, created_user=user, schema=ref_entity) for i in range(3)]
+        ref_entries = [Entry.objects.create(name='r%d' % i, created_user=user,
+                                            schema=ref_entity) for i in range(3)]
         groups = [Group.objects.create(name='g%d' % i) for i in range(2)]
 
         # initialize Entity and Entry
@@ -3153,8 +3236,9 @@ class ViewTest(AironeViewTest):
                                  {value['name']: {'name': value['id'].name, 'id': value['id'].id}})
 
             elif data['type'] == AttrTypeValue['array_named_object']:
-                self.assertEqual(data['value'],
-                                 [{x['name']: {'name': x['id'].name, 'id': x['id'].id}} for x in value])
+                self.assertEqual(
+                    data['value'],
+                    [{x['name']: {'name': x['id'].name, 'id': x['id'].id}} for x in value])
 
             else:
                 self.assertEqual(data['value'], value)
@@ -3199,19 +3283,21 @@ class ViewTest(AironeViewTest):
 
         # specify attrv_id which refers different parent_attr
         params = {'attr_id': str(entry.attrs.last().id), 'attrv_id': str(attrvs[0].id)}
-        resp = self.client.post(reverse('entry:revert_attrv'), json.dumps(params), 'application/json')
+        resp = self.client.post(reverse('entry:revert_attrv'), json.dumps(params),
+                                'application/json')
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.content, b'Specified AttributeValue-id is invalid')
 
     @patch('custom_view.is_custom', Mock(return_value=True))
     @patch('custom_view.call_custom', Mock(return_value=(False, 400, 'test')))
     def test_call_custom_do_create_entry_return_int(self):
-        user = self.admin_login()
+        self.admin_login()
 
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'type': str(AttrTypeArrStr), 'value': [{'data': 'hoge', 'index': '0'}], 'referral_key': []},
+                {'id': str(self._entity_attr.id), 'type': str(AttrTypeArrStr),
+                 'value': [{'data': 'hoge', 'index': '0'}], 'referral_key': []},
             ],
         }
 
@@ -3222,14 +3308,16 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp.status_code, 400)
 
     @patch('custom_view.is_custom', Mock(return_value=True))
-    @patch('custom_view.call_custom', Mock(return_value=(False, JsonResponse({'entry_id': 1,'entry_name': 'fuga',}), '')))
+    @patch('custom_view.call_custom',
+           Mock(return_value=(False, JsonResponse({'entry_id': 1, 'entry_name': 'fuga', }), '')))
     def test_call_custom_do_create_entry_return_json(self):
-        user = self.admin_login()
+        self.admin_login()
 
         params = {
             'entry_name': 'hoge',
             'attrs': [
-                {'id': str(self._entity_attr.id), 'type': str(AttrTypeArrStr), 'value': [{'data': 'hoge', 'index': '0'}], 'referral_key': []},
+                {'id': str(self._entity_attr.id), 'type': str(AttrTypeArrStr),
+                 'value': [{'data': 'hoge', 'index': '0'}], 'referral_key': []},
             ],
         }
 
@@ -3259,7 +3347,7 @@ class ViewTest(AironeViewTest):
         attr.add_value(user, 'test_value2')
 
         fp = self.open_fixture_file('import_data02.yaml')
-        resp = self.client.post(reverse('entry:do_import', args=[self._entity.id]), {'file': fp})
+        self.client.post(reverse('entry:do_import', args=[self._entity.id]), {'file': fp})
         fp.close()
 
         # Check attribute value
@@ -3282,11 +3370,13 @@ class ViewTest(AironeViewTest):
         params = {
             'entry_name': 'entry',
             'attrs': [
-                {'id': str(entity_attr.id), 'value': [{'data': 'hoge', 'index': 0}], 'referral_key': []},
+                {'id': str(entity_attr.id), 'value': [{'data': 'hoge', 'index': 0}],
+                 'referral_key': []},
             ],
         }
 
-        # This task would be canceled because is_canceled method of creating job object returns True.
+        # This task would be canceled because is_canceled method of creating job object
+        # returns True.
         resp = self.client.post(reverse('entry:do_create', args=[entity.id]),
                                 json.dumps(params),
                                 'application/json')
@@ -3316,7 +3406,7 @@ class ViewTest(AironeViewTest):
     @patch.object(Job, 'is_canceled', Mock(return_value=True))
     @patch('entry.views.import_entries.delay', Mock(side_effect=tasks.import_entries))
     def test_cancel_importing_entries(self):
-        user = self.admin_login()
+        self.admin_login()
 
         fp = self.open_fixture_file('import_data03.yaml')
         resp = self.client.post(reverse('entry:do_import', args=[self._entity.id]), {'file': fp})

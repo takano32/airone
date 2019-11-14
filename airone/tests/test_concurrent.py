@@ -1,11 +1,13 @@
 from airone.lib.test import AironeTestCase
 from airone.lib.concurrent import ConcurrentExec
 
+
 class ModelTest(AironeTestCase):
     def test_concurrent_processing(self):
-        data = range(10) 
+        data = range(10)
 
         ce = ConcurrentExec()
+
         def worker(ret_dict, lock, data):
             ret_dict[data] = data + 1
 

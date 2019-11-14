@@ -3,6 +3,7 @@ import sys
 import logging
 import subprocess
 import pymysql
+import errno
 
 pymysql.install_as_MySQLdb()
 
@@ -96,9 +97,9 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'airone',
-        'USER':'root',
-        'PASSWORD':'',
-        'HOST':'localhost',
+        'USER': 'root',
+        'PASSWORD': '',
+        'HOST': 'localhost',
     }
 }
 DATABASE_ROUTERS = ['airone.db_router.DBRouter']
@@ -108,9 +109,9 @@ if 'test' in sys.argv:
         'default': {
             'ENGINE': 'django.db.backends.mysql',
             'NAME': 'airone',
-            'USER':'root',
-            'PASSWORD':'',
-            'HOST':'localhost',
+            'USER': 'root',
+            'PASSWORD': '',
+            'HOST': 'localhost',
         }
     }
     DATABASE_ROUTERS = []
@@ -156,7 +157,7 @@ STATICFILES_DIRS = [
     PROJECT_PATH + '/../static/'
 ]
 
-LOGIN_REDIRECT_URL='/dashboard/'
+LOGIN_REDIRECT_URL = '/dashboard/'
 
 # global settins for AirOne
 AIRONE = {
@@ -183,9 +184,11 @@ try:
     if not os.path.exists(AIRONE['FILE_STORE_PATH']):
         os.makedirs(AIRONE['FILE_STORE_PATH'])
 
-except FileNotFoundError:
-    # do nothing and use 'unknown' as version when git does not exists
-    logging.getLogger(__name__).warning('git command not found.')
+except OSError as e:
+    # errno.ENOENT is the errno of FileNotFoundError
+    if e.errno == errno.ENOENT:
+        # do nothing and use 'unknown' as version when git does not exists
+        logging.getLogger(__name__).warning('git command not found.')
 
 
 CACHES = {
@@ -206,9 +209,9 @@ ES_CONFIG = {
 #
 # Note: Disable LDAP authentication by default in the mean time.
 #
-#AUTHENTICATION_BACKENDS = (
-#    'airone.auth.ldap.LDAPBackend',
-#)
+# AUTHENTICATION_BACKENDS = (
+#     'airone.auth.ldap.LDAPBackend',
+# )
 
 AUTH_CONFIG = {
     'LDAP': {

@@ -18,7 +18,7 @@ class LDAPBackend(object):
         if user and user.check_password(password):
             return user
         elif user:
-            # This is necessary not to send a request to check authentication even though 
+            # This is necessary not to send a request to check authentication even though
             # the specified user is in the local database.
             Logger.info('Failed to authenticate user(%s) in local' % username)
             return None

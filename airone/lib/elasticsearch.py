@@ -37,11 +37,12 @@ class ESS(Elasticsearch):
         if not self.additional_config:
             self.additional_config = True
 
-            body = {"index": {"max_result_window" : settings.ES_CONFIG['MAXIMUM_RESULTS_NUM']}}
+            body = {"index": {"max_result_window": settings.ES_CONFIG['MAXIMUM_RESULTS_NUM']}}
             self.indices.put_settings(index=self._index, body=body)
 
         return super(ESS, self).search(index=self._index,
-                                       size=settings.ES_CONFIG['MAXIMUM_RESULTS_NUM'], *args, **kwargs)
+                                       size=settings.ES_CONFIG['MAXIMUM_RESULTS_NUM'], *args,
+                                       **kwargs)
 
     def recreate_index(self):
         self.indices.delete(index=self._index, ignore=[400, 404])
@@ -54,7 +55,7 @@ class ESS(Elasticsearch):
                             'index': 'true',
                             'analyzer': 'keyword',
                             'fields': {
-                                'keyword': { 'type': 'keyword' },
+                                'keyword': {'type': 'keyword'},
                             },
                         },
                         'entity': {
@@ -111,6 +112,7 @@ class ESS(Elasticsearch):
             }
         }))
 
+
 __all__ = [
     'make_query',
     'execute_query',
@@ -118,6 +120,7 @@ __all__ = [
     'prepend_escape_character',
     'is_date_check'
 ]
+
 
 def make_query(hint_entity_ids, hint_attrs, entry_name, or_match):
     """Create a search query for Elasticsearch.
@@ -195,6 +198,7 @@ def make_query(hint_entity_ids, hint_attrs, entry_name, or_match):
 
     return query
 
+
 def _get_regex_pattern(keyword):
     """Create a regex pattern pattern.
 
@@ -211,6 +215,7 @@ def _get_regex_pattern(keyword):
         x.lower(), x.upper()) if x.isalpha() else x for x in prepend_escape_character(
         CONFIG.ESCAPE_CHARACTERS, keyword)])
 
+
 def prepend_escape_character(escape_character_list, keyword):
     """Add escape character.
 
@@ -225,7 +230,8 @@ def prepend_escape_character(escape_character_list, keyword):
         str: Returns 'keyword' after conversion.
 
     """
-    return ''.join(['\\' + x if x in escape_character_list else x for x in [*keyword]])
+    return ''.join(['\\' + x if x in escape_character_list else x for x in list(keyword)])
+
 
 def _get_hint_keyword_val(keyword):
     """Null character conversion processing.
@@ -243,6 +249,7 @@ def _get_hint_keyword_val(keyword):
             CONFIG.EMPTY_SEARCH_CHARACTER_CODE == keyword):
         return ''
     return keyword
+
 
 def _make_entry_name_query(entry_name):
     """Create a search query for the entry name.
@@ -295,6 +302,7 @@ def _make_entry_name_query(entry_name):
 
     return entry_name_or_query
 
+
 def _parse_or_search(hint, or_match, attr_query):
     """Performs keyword analysis processing.
 
@@ -319,6 +327,7 @@ def _parse_or_search(hint, or_match, attr_query):
         _parse_and_search(hint, keyword_divided_or, or_match, attr_query, duplicate_keys)
 
     return attr_query
+
 
 def _parse_and_search(hint, keyword_divided_or, or_match, attr_query, duplicate_keys):
     """Analyze the keywords separated by `OR`
@@ -377,6 +386,7 @@ def _parse_and_search(hint, keyword_divided_or, or_match, attr_query, duplicate_
 
     return attr_query
 
+
 def _make_key_for_each_block_of_keywords(hint, keyword, or_match):
     """Create a key for each block of minimal keywords.
 
@@ -398,6 +408,7 @@ def _make_key_for_each_block_of_keywords(hint, keyword, or_match):
 
     """
     return keyword if or_match else keyword + '_' + hint['name']
+
 
 def _build_queries_along_keywords(hint_attrs, attr_query, or_match):
     """Build queries along search terms.
@@ -479,6 +490,7 @@ def _build_queries_along_keywords(hint_attrs, attr_query, or_match):
             res_query = or_query
 
     return res_query
+
 
 def _make_an_attribute_filter(hint, keyword):
     """creates an attribute filter from keywords.
@@ -571,6 +583,7 @@ def _make_an_attribute_filter(hint, keyword):
 
     return adding_cond
 
+
 def execute_query(query):
     """Run a search query.
 
@@ -590,6 +603,7 @@ def execute_query(query):
         raise(e)
 
     return res
+
 
 def make_search_results(results, res, hint_attrs, limit, hint_referral):
     """Acquires and returns the attribute values held by each search result
@@ -699,7 +713,7 @@ def make_search_results(results, res, hint_attrs, limit, hint_referral):
         }
 
         # When 'hint_referral' parameter is specifed, return referred entries for each results
-        if hint_referral != False:
+        if hint_referral is not False:
             ret_info['referrals'] = [{
                 'id': x.id,
                 'name': x.name,
@@ -769,6 +783,7 @@ def make_search_results(results, res, hint_attrs, limit, hint_referral):
 
     return results
 
+
 def is_date_check(value):
     try:
         for delimiter in ['-', '/']:
@@ -789,6 +804,7 @@ def is_date_check(value):
         return None
 
     return None
+
 
 def _is_date(value):
     # checks all specified value is date format

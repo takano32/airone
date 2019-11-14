@@ -9,6 +9,7 @@ _ATTR_DATE_TYPE = 1 << 5
 _ATTR_ARRAY_TYPE = 1 << 10
 _ATTR_NAMED_TYPE = 1 << 11
 
+
 class MetaAttrType(type):
     def __eq__(cls, comp):
         if isinstance(comp, int):
@@ -28,46 +29,57 @@ class MetaAttrType(type):
     def __int__(cls):
         return cls.TYPE
 
+
 class AttrTypeObj(with_metaclass(MetaAttrType)):
     NAME = 'entry'
     TYPE = _ATTR_OBJECT_TYPE
+
 
 # STRING-type restricts data size to AttributeValue.MAXIMUM_VALUE_LENGTH
 class AttrTypeStr(with_metaclass(MetaAttrType)):
     NAME = 'string'
     TYPE = _ATTR_STRING_TYPE
 
+
 class AttrTypeNamedObj(with_metaclass(MetaAttrType)):
     NAME = 'named_entry'
     TYPE = _ATTR_OBJECT_TYPE | _ATTR_NAMED_TYPE
+
 
 class AttrTypeArrObj(with_metaclass(MetaAttrType)):
     NAME = 'array_entry'
     TYPE = _ATTR_OBJECT_TYPE | _ATTR_ARRAY_TYPE
 
+
 class AttrTypeArrStr(with_metaclass(MetaAttrType)):
     NAME = 'array_string'
     TYPE = _ATTR_STRING_TYPE | _ATTR_ARRAY_TYPE
+
 
 class AttrTypeArrNamedObj(with_metaclass(MetaAttrType)):
     NAME = 'array_named_entry'
     TYPE = _ATTR_OBJECT_TYPE | _ATTR_NAMED_TYPE | _ATTR_ARRAY_TYPE
 
+
 class AttrTypeText(with_metaclass(MetaAttrType)):
     NAME = 'textarea'
     TYPE = _ATTR_TEXT_TYPE
+
 
 class AttrTypeBoolean(with_metaclass(MetaAttrType)):
     NAME = 'boolean'
     TYPE = _ATTR_BOOL_TYPE
 
+
 class AttrTypeGroup(with_metaclass(MetaAttrType)):
     NAME = 'group'
     TYPE = _ATTR_GROUP_TYPE
 
+
 class AttrTypeDate(with_metaclass(MetaAttrType)):
     NAME = 'date'
     TYPE = _ATTR_DATE_TYPE
+
 
 AttrTypes = [
     AttrTypeStr,

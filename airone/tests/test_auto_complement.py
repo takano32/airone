@@ -18,7 +18,8 @@ class LibAutoComplementTest(AironeTestCase):
         self.org_auto_complement_user = settings.AIRONE['AUTO_COMPLEMENT_USER']
 
         # make auto complement user
-        self.complement_user = User(username=self.org_auto_complement_user, email='hoge@example.com', is_superuser=True)
+        self.complement_user = User(username=self.org_auto_complement_user,
+                                    email='hoge@example.com', is_superuser=True)
         self.complement_user.set_password(self.org_auto_complement_user)
         self.complement_user.save()
 

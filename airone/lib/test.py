@@ -1,6 +1,5 @@
 import inspect
 import os
-import shutil
 
 from django.test import TestCase, Client, override_settings
 from django.conf import settings
@@ -26,9 +25,10 @@ class AironeTestCase(TestCase):
             os.makedirs(settings.AIRONE['FILE_STORE_PATH'])
 
     def tearDown(self):
-        #shutil.rmtree(settings.AIRONE['FILE_STORE_PATH'])
+        # shutil.rmtree(settings.AIRONE['FILE_STORE_PATH'])
         for fname in os.listdir(settings.AIRONE['FILE_STORE_PATH']):
             os.unlink(os.path.join(settings.AIRONE['FILE_STORE_PATH'], fname))
+
 
 class AironeViewTest(AironeTestCase):
     def setUp(self):

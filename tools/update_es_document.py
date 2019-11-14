@@ -2,6 +2,9 @@ import django
 import os
 import sys
 
+from entry.models import Entry
+from airone.lib.elasticsearch import ESS
+
 # append airone directory to the default path
 sys.path.append("./")
 
@@ -11,15 +14,12 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "airone.settings")
 # load AirOne application
 django.setup()
 
-from entry.models import Entry
-from airone.lib.elasticsearch import ESS
-
 ES_INDEX = django.conf.settings.ES_CONFIG['INDEX']
+
 
 def register_documents(es, es_index):
     total_count = Entry.objects.filter(is_active=True).count()
     current_index = 1
-    bulk = []
     for entry in Entry.objects.filter(is_active=True):
         sys.stdout.write('\rRegister entry: (%6d/%6d)' % (current_index, total_count))
 
@@ -28,6 +28,7 @@ def register_documents(es, es_index):
         current_index += 1
 
     es.indices.refresh(index=es_index)
+
 
 def delete_unnecessary_documents(es, es_index):
     query = {
@@ -47,6 +48,7 @@ def delete_unnecessary_documents(es, es_index):
         es.delete(doc_type='entry', id=entry_id, ignore=[404])
 
     es.indices.refresh(index=es_index)
+
 
 if __name__ == "__main__":
     es = ESS()

@@ -13,6 +13,7 @@ CUSTOM_VIEW = {}
 def _isin_cache(entity_name, method_name):
     return entity_name in CUSTOM_VIEW and method_name in CUSTOM_VIEW
 
+
 def _is_view(entity_name, method_name):
     # return if cache is hit
     if _isin_cache(entity_name, method_name):
@@ -37,9 +38,11 @@ def _is_view(entity_name, method_name):
 
     return True
 
+
 # check custom_view handlerd exists
 def is_custom(handler_name, entity_name):
     return _is_view(entity_name, handler_name)
+
 
 def call_custom(handler_name, entity_name, *args, **kwargs):
     if(_isin_cache(entity_name, handler_name) or _is_view(entity_name, handler_name)):

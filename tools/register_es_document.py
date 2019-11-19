@@ -2,9 +2,6 @@ import django
 import os
 import sys
 
-from entry.models import Entry
-from airone.lib.elasticsearch import ESS
-
 # append airone directory to the default path
 sys.path.append("./")
 
@@ -13,6 +10,9 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "airone.settings")
 
 # load AirOne application
 django.setup()
+
+from entry.models import Entry # NOQA
+from airone.lib.elasticsearch import ESS # NOQA
 
 ES_INDEX = django.conf.settings.ES_CONFIG['INDEX']
 

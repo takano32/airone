@@ -16,6 +16,8 @@ from entry.tasks import delete_entry
 from job.models import Job
 from user.models import User
 
+from entry.settings import CONFIG as ENTRY_CONFIG
+
 from django.db.models import Q
 
 
@@ -104,12 +106,13 @@ class EntryAPI(APIView):
         # The parameter for entry is acceptable both id and name.
         param_entry_id = request.GET.get('entry_id')
         param_entry_name = request.GET.get('entry')
-        if not (param_entry_name or param_entry_id):
-            return Response({'result': 'Parameter either "entry" or "entry_id" is mandatory'},
-                            status=status.HTTP_400_BAD_REQUEST)
+        param_entity = request.GET.get('entity')
+        if not (param_entry_name or param_entry_id or param_entity):
+            return Response(
+                    {'result': 'Parameter any of "entry", "entry_id" or "entity" is mandatory'},
+                    status=status.HTTP_400_BAD_REQUEST)
 
         entity = None
-        param_entity = request.GET.get('entity')
         if param_entity:
             entity = Entity.objects.filter(name=param_entity).first()
             if not entity:
@@ -126,10 +129,12 @@ class EntryAPI(APIView):
 
         if param_entry_id:
             query = Q(query, id=param_entry_id)
-        else:
+        elif param_entry_name:
             query = Q(query, name=param_entry_name)
 
-        retinfo = [x.to_dict(user) for x in Entry.objects.filter(query)]
+        param_offset = request.GET.get('offset', 0)
+        retinfo = [x.to_dict(user) for x in
+                   Entry.objects.filter(query)[int(param_offset):ENTRY_CONFIG.MAX_LIST_ENTRIES]]
         if not any(retinfo):
             return Response({'result': 'Failed to find entry'},
                             status=status.HTTP_404_NOT_FOUND)

@@ -1,3 +1,4 @@
+import copy
 import json
 import pytz
 
@@ -12,11 +13,25 @@ from entry import tasks
 from group.models import Group
 from user.models import User
 
+from entry.settings import CONFIG as ENTRY_CONFIG
+
 from unittest import mock
 from datetime import date, datetime, timedelta
 
 
 class APITest(AironeViewTest):
+    def setUp(self):
+        super(APITest, self).setUp()
+
+        # dump originl configuration data
+        self._orig_entry_config = copy.copy(ENTRY_CONFIG.conf)
+
+    def tearDown(self):
+        super(APITest, self).tearDown()
+
+        # restore originl configuration data
+        ENTRY_CONFIG.conf = self._orig_entry_config
+
     def test_post_entry(self):
         admin = self.admin_login()
 
@@ -603,6 +618,31 @@ class APITest(AironeViewTest):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(sorted([x['name'] for x in resp.json()[0]['attrs']]),
                          sorted(['ref', 'no_str']))
+
+    def test_get_entry_with_only_entity_parameter(self):
+        user = self.admin_login()
+
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        entries = [Entry.objects.create(name=x, schema=entity, created_user=user)
+                   for x in ['foo', 'bar', 'baz']]
+
+        resp = self.client.get('/api/v1/entry', {'entity': 'Entity'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(sorted([x['name'] for x in resp.json()]),
+                         sorted([x.name for x in entries]))
+
+        # Change configuration to test processing for offset parameter
+        ENTRY_CONFIG.conf['MAX_LIST_ENTRIES'] = 2
+
+        # Send a request to get entries which are belonged to Entity
+        resp = self.client.get('/api/v1/entry', {'entity': 'Entity'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.json()), ENTRY_CONFIG.MAX_LIST_ENTRIES)
+
+        # Send a request to get entries which are belonged to Entity with offset parameter
+        resp = self.client.get('/api/v1/entry', {'entity': 'Entity', 'offset': '1'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.json()), len(entries) - ENTRY_CONFIG.MAX_LIST_ENTRIES)
 
     def test_get_deleted_entry(self):
         user = self.guest_login()

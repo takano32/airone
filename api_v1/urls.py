@@ -24,5 +24,5 @@ except ImportError:
 try:
     from custom_view.api_v1 import views as custom_views
     urlpatterns.append(url(r'^entry$', custom_views.CustomEntryAPI.as_view()))
-except ImportError as e:
+except ImportError:
     urlpatterns.append(url(r'^entry$', views.EntryAPI.as_view()))

@@ -102,19 +102,7 @@ DATABASES = {
         'HOST': 'localhost',
     }
 }
-DATABASE_ROUTERS = ['airone.db_router.DBRouter']
-
-if 'test' in sys.argv:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': 'airone',
-            'USER': 'root',
-            'PASSWORD': '',
-            'HOST': 'localhost',
-        }
-    }
-    DATABASE_ROUTERS = []
+DATABASE_ROUTERS = []
 
 # Password validation
 # https://docs.djangoproject.com/en/1.11/ref/settings/#auth-password-validators

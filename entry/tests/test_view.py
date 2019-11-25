@@ -1,6 +1,7 @@
 import json
 import yaml
 import errno
+import re
 
 from django.urls import reverse
 from django.core.cache import cache
@@ -3080,6 +3081,16 @@ class ViewTest(AironeViewTest):
         entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
         entry.complement_attrs(user)
 
+        # Create an entry with the same name in another entity
+        other_entity = Entity.objects.create(name='other_entity', created_user=user)
+        other_entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr',
+            'type': AttrTypeValue['string'],
+            'created_user': user,
+            'parent_entity': other_entity,
+        }))
+        Entry.objects.create(name='entry', schema=other_entity, created_user=user)
+
         # send request with invalid entry-id
         resp = self.client.post(reverse('entry:do_restore', args=[9999]), json.dumps({}),
                                 'application/json')
@@ -3096,6 +3107,19 @@ class ViewTest(AironeViewTest):
         entry.refresh_from_db()
         self.assertTrue(entry.name.find('_deleted_') > 0)
         self.assertFalse(any([x.is_active for x in entry.attrs.all()]))
+
+        # After deleting, create an entry with the same name
+        dup_entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+
+        resp = self.client.post(reverse('entry:do_restore', args=[entry.id]), json.dumps({}),
+                                'application/json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content.decode("UTF-8"),
+                         'Duplicate entry name %s' % re.sub(r'_deleted_[0-9_]*$', '', entry.name))
+
+        # Remove duplicate entries
+        dup_entry.delete()
+        entry.refresh_from_db()
 
         resp = self.client.post(reverse('entry:do_restore', args=[entry.id]), json.dumps({}),
                                 'application/json')

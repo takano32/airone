@@ -1,5 +1,6 @@
 import yaml
 import json
+import re
 
 import custom_view
 
@@ -607,6 +608,13 @@ def do_restore(request, entry_id, recv_data):
     entry = Entry.objects.filter(id=entry_id, is_active=False).first()
     if not entry:
         return HttpResponse('Failed to get entry from specified parameter', status=400)
+
+    # checks that a same name entry corresponding to the entity is existed, or not.
+    if Entry.objects.filter(
+            schema=entry.schema.id, name=re.sub(r'_deleted_[0-9_]*$', '', entry.name),
+            is_active=True).exists():
+        return HttpResponse(
+            'Duplicate entry name %s' % re.sub(r'_deleted_[0-9_]*$', '', entry.name), status=400)
 
     entry.set_status(Entry.STATUS_CREATING)
 

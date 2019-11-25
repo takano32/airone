@@ -11,7 +11,7 @@ var restore_entry = function(e) {
       MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, data);
       location.reload();
     }).fail(function(data) {
-      MessageBox.setNextOnLoadMessage(MessageBox.ERROR, data);
+      MessageBox.setNextOnLoadMessage(MessageBox.ERROR, data.responseText);
       location.reload();
     });
   }

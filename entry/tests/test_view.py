@@ -1,7 +1,6 @@
 import json
 import yaml
 import errno
-import re
 
 from django.urls import reverse
 from django.core.cache import cache
@@ -3090,6 +3089,8 @@ class ViewTest(AironeViewTest):
         resp = self.client.post(reverse('entry:do_restore', args=[entry.id]), json.dumps({}),
                                 'application/json')
         self.assertEqual(resp.status_code, 400)
+        obj = json.loads(resp.content.decode("UTF-8"))
+        self.assertEqual(obj['msg'], 'Failed to get entry from specified parameter')
 
         # delete target entry to run restore processing
         entry.delete()
@@ -3117,27 +3118,21 @@ class ViewTest(AironeViewTest):
         # initialize entries to test
         user = self.guest_login()
         entity = Entity.objects.create(name='entity', created_user=user)
-        entity.attrs.add(EntityAttr.objects.create(**{
-            'name': 'attr',
-            'type': AttrTypeValue['string'],
-            'created_user': user,
-            'parent_entity': entity,
-        }))
-
         entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
-        entry.complement_attrs(user)
 
         # delete target entry to run restore processing
         entry.delete()
 
         # After deleting, create an entry with the same name
-        Entry.objects.create(name='entry', schema=entity, created_user=user)
+        dup_entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
 
         resp = self.client.post(reverse('entry:do_restore', args=[entry.id]), json.dumps({}),
                                 'application/json')
         self.assertEqual(resp.status_code, 400)
-        self.assertEqual(resp.content.decode("UTF-8"),
-                         'Duplicate entry name %s' % re.sub(r'_deleted_[0-9_]*$', '', entry.name))
+        obj = json.loads(resp.content.decode("UTF-8"))
+        self.assertEqual(obj['msg'], '')
+        self.assertEqual(obj['entry_id'], dup_entry.id)
+        self.assertEqual(obj['entry_name'], dup_entry.name)
 
     def test_revert_attrv(self):
         user = self.guest_login()

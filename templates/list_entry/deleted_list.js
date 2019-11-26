@@ -11,7 +11,11 @@ var restore_entry = function(e) {
       MessageBox.setNextOnLoadMessage(MessageBox.SUCCESS, data);
       location.reload();
     }).fail(function(data) {
-      MessageBox.setNextOnLoadMessage(MessageBox.ERROR, data);
+      if (data.responseJSON['msg']) {
+        MessageBox.setNextOnLoadMessage(MessageBox.ERROR, data.responseJSON['msg']);
+      } else {
+        MessageBox.setNextOnLoadMessage(MessageBox.ERROR, `Duplicate entry name <a href='/entry/show/${ data.responseJSON['entry_id'] }'>${ data.responseJSON['entry_name'] }</a>`);
+      }
       location.reload();
     });
   }

@@ -3089,6 +3089,8 @@ class ViewTest(AironeViewTest):
         resp = self.client.post(reverse('entry:do_restore', args=[entry.id]), json.dumps({}),
                                 'application/json')
         self.assertEqual(resp.status_code, 400)
+        obj = json.loads(resp.content.decode("UTF-8"))
+        self.assertEqual(obj['msg'], 'Failed to get entry from specified parameter')
 
         # delete target entry to run restore processing
         entry.delete()
@@ -3111,6 +3113,26 @@ class ViewTest(AironeViewTest):
         self.assertEqual(resp['ret_count'], 1)
         self.assertEqual(resp['ret_values'][0]['entry']['id'], entry.id)
         self.assertEqual(resp['ret_values'][0]['entry']['name'], entry.name)
+
+    def test_restore_when_duplicate_entry_exist(self):
+        # initialize entries to test
+        user = self.guest_login()
+        entity = Entity.objects.create(name='entity', created_user=user)
+        entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+
+        # delete target entry to run restore processing
+        entry.delete()
+
+        # After deleting, create an entry with the same name
+        dup_entry = Entry.objects.create(name='entry', schema=entity, created_user=user)
+
+        resp = self.client.post(reverse('entry:do_restore', args=[entry.id]), json.dumps({}),
+                                'application/json')
+        self.assertEqual(resp.status_code, 400)
+        obj = json.loads(resp.content.decode("UTF-8"))
+        self.assertEqual(obj['msg'], '')
+        self.assertEqual(obj['entry_id'], dup_entry.id)
+        self.assertEqual(obj['entry_name'], dup_entry.name)
 
     def test_revert_attrv(self):
         user = self.guest_login()

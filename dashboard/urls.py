@@ -19,5 +19,5 @@ try:
     from custom_view.dashboard import view as custom_view
     urlpatterns.append(url(r'^search/$', custom_view.search, name='search'))
 
-except ImportError as e:
+except ImportError:
     urlpatterns.append(url(r'^search/$', views.search, name='search'))

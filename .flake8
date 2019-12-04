@@ -1,2 +1,13 @@
 [flake8]
 max-line-length = 100
+exclude =
+    ./venv,
+    ./acl/migrations,
+    ./dashboard/migrations,
+    ./entity/migrations,
+    ./entry/migrations,
+    ./group/migrations,
+    ./entry/migrations,
+    ./job/migrations,
+    ./user/migrations,
+    .manage.py

@@ -1,3 +1,4 @@
+from datetime import datetime
 from django.conf import settings
 from django.http.request import HttpRequest
 from time import time
@@ -9,7 +10,9 @@ class SimpleProfiler(object):
 
     def check(self, msg=''):
         if self._is_enable():
-            print('[Profiling result] (%f) %s' % (time() - self.start_time, msg))
+            print('[%s] (Profiling result: %fs) %s' % (
+                datetime.now().strftime('%d/%b/%Y %H:%M:%S'),
+                time() - self.start_time, msg))
 
     def _is_enable(self):
         if (hasattr(settings, 'AIRONE') and
@@ -37,7 +40,7 @@ def airone_profile(func):
             req = args[1]
 
         if req:
-            prof.check("(user-id: %s) Total time of the request: %s" % (req.user.id, req.path))
+            prof.check("(user-id: %s) %s %s" % (req.user.id, req.method, req.path))
         else:
             prof.check("Total time of the request")
 

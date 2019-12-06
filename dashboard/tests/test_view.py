@@ -1,6 +1,4 @@
 import mock
-import re
-import sys
 import json
 import yaml
 import errno
@@ -13,7 +11,6 @@ from airone.lib.types import AttrTypeValue
 from django.urls import reverse
 from django.contrib.auth.models import User as DjangoUser
 from group.models import Group
-from io import StringIO
 from job.models import Job
 from datetime import date
 
@@ -118,23 +115,6 @@ class ViewTest(AironeViewTest):
 
         resp = self.client.get(reverse('dashboard:index'))
         self.assertEqual(resp.status_code, 200)
-
-    def test_enable_profiler(self):
-        self.client.logout()
-
-        # set StringIO to capteure stdout context
-        sys.stdout = StringIO()
-        with mock.patch('airone.lib.profile.settings') as st_mock:
-            # set to enable AirOne Profiler
-            st_mock.AIRONE = {'ENABLE_PROFILE': True}
-
-            resp = self.client.get(reverse('dashboard:index'))
-            self.assertEqual(resp.status_code, 200)
-            self.assertTrue(re.match(r"^\[Profiling result\] \(([0-9\.]*)\) .*$",
-                                     sys.stdout.getvalue()))
-
-        # reset stdout setting
-        sys.stdout = sys.__stdout__
 
     def test_show_advanced_search(self):
         # create entity which has attr

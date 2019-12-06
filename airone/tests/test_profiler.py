@@ -1,19 +1,17 @@
 import mock
 import re
-import sys
 import unittest
 
-from django.conf import settings
 from airone.lib.profile import airone_profile
+from django.conf import settings
 from django.http.request import HttpRequest
-from io import StringIO
+from testfixtures import LogCapture
 
 
 class AirOneProfilerTest(unittest.TestCase):
 
     def setUp(self):
         # this saves original configurations to be able to retrieve them
-        self.org_stdout, sys.stdout = sys.stdout, StringIO()
         self.org_conf_profile = None
         if hasattr(settings, 'AIRONE') and 'ENABLE_PROFILE' in settings.AIRONE:
             self.org_conf_profile = settings.AIRONE['ENABLE_PROFILE']
@@ -23,7 +21,6 @@ class AirOneProfilerTest(unittest.TestCase):
 
     def tearDown(self):
         # this retrieves original configurations
-        sys.stdout = self.org_stdout
         settings.AIRONE['ENABLE_PROFILE'] = self.org_conf_profile
 
     def test_airone_profile_decorator(self):
@@ -40,13 +37,16 @@ class AirOneProfilerTest(unittest.TestCase):
         def mock_handler(request):
             return 'mock_response'
 
-        # call mocked http request handler which decorate airone_profile
-        mock_handler(mock_request)
-
         # This is the output format of the airone profiling result
-        pattern = r'^\[[0-9]+/[A-Za-z]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+\] ' \
-                  + r'\(Profiling result: 0.[0-9]+s\) \(user-id: 1234\) GET /test$'
+        pattern = r'^\(Profiling result: 0.[0-9]+s\) \(user-id: 1234\) GET /test$'
 
-        # This checks output is matched with expected format as below
-        # e.g. "[06/Dec/2019 17:34:36] (Profiling result: 0.000049s) (user-id: 1234) GET /test"
-        self.assertTrue(re.match(pattern, sys.stdout.getvalue()))
+        with LogCapture() as log:
+            # call mocked http request handler which decorate airone_profile
+            mock_handler(mock_request)
+
+            # This checks output is matched with expected format as below
+            # e.g. "[06/Dec/2019 17:34:36] (Profiling result: 0.000049s) (user-id: 1234) GET /test"
+            [(log_app, log_level, log_context)] = log.actual()
+            self.assertEqual(log_app, 'airone')
+            self.assertEqual(log_level, 'INFO')
+            self.assertTrue(re.match(pattern, log_context))

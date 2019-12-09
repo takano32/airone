@@ -168,6 +168,7 @@ set up processing
 ### 1. setup middle ware
 
 ```
+$ git clone https://git.dmm.com/XaaS/airone-docker
 $ cd airone-docker
 $ docker-compose -f docker-compose-test.yml up -d nfs-server memcached elasticsearch rabbitmq mysql-master mysql-slave mysql-slave-second
 ```
@@ -175,6 +176,7 @@ $ docker-compose -f docker-compose-test.yml up -d nfs-server memcached elasticse
 ### 2. create virtualenv and install libraries
 
 ```
+$ git clone git@git.dmm.com:XaaS/airone.git
 $ cd airone
 $ virtualenv -p python3 virtualenv
 $ pip install -r requirements.txt

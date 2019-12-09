@@ -160,3 +160,42 @@ You can do it just by following command. The configurations about the database t
 ```
 $ tools/register_es_document.py
 ```
+
+## NOTES
+
+set up processing
+
+### 1. setup middle ware
+
+```
+$ cd airone-docker
+$ docker-compose -f docker-compose-test.yml up -d nfs-server memcached elasticsearch rabbitmq mysql-master mysql-slave mysql-slave-second
+```
+
+### 2. create virtualenv and install libraries
+
+```
+$ cd airone
+$ virtualenv -p python3 virtualenv
+$ pip install -r requirements.txt
+```
+
+### 3. initialize DB
+
+```
+$ cd airone
+$ ./tools/clear_and_initdb.sh
+```
+
+### 4. create super user
+
+```
+$ cd airone; python manage.py shell
+
+> from user.models import User
+> User.objects.create(username='hoge', is_superuser=True)
+> exit
+
+$ python manage.py changepassword hoge
+Password: 
+```

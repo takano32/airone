@@ -165,7 +165,7 @@ $ tools/register_es_document.py
 
 set up processing
 
-### 1. setup middle ware
+### Setup middle ware
 
 ```
 $ git clone https://git.dmm.com/XaaS/airone-docker
@@ -173,23 +173,57 @@ $ cd airone-docker
 $ docker-compose -f docker-compose-test.yml up -d nfs-server memcached elasticsearch rabbitmq mysql-master mysql-slave mysql-slave-second
 ```
 
-### 2. create virtualenv and install libraries
+### Create virtualenv and install libraries
 
 ```
 $ git clone git@git.dmm.com:XaaS/airone.git
 $ cd airone
 $ virtualenv -p python3 virtualenv
-$ pip install -r requirements.txt
+$ pip install -r requirements-dev.txt
 ```
 
-### 3. initialize DB
+### Setup airone/settings.py
+
+```diff
+diff --git a/airone/settings.py b/airone/settings.py
+index 0106a7c..2e4258f 100644
+--- a/airone/settings.py
++++ b/airone/settings.py
+@@ -17,7 +17,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ SECRET_KEY = '(ch@ngeMe)'
+ # Celery settings
+-CELERY_BROKER_URL = 'amqp://guest:guest@localhost//'
++CELERY_BROKER_URL = 'amqp://airone:password@localhost//'
+ #: Only add pickle to this list if your broker is secured
+ #: from unwanted access (see userguide/security.html)
+@@ -27,7 +27,7 @@ CELERY_TASK_SERIALIZER = 'json'
+ CELERY_BROKER_HEARTBEAT = 0
+ # SECURITY WARNING: don't run with debug turned on in production!
+-DEBUG = False
++DEBUG = True
+ ALLOWED_HOSTS = ['*']
+@@ -96,8 +96,8 @@ DATABASES = {
+     'default': {
+         'ENGINE': 'django.db.backends.mysql',
+         'NAME': 'airone',
+-        'USER': 'root',
+-        'PASSWORD': '',
++        'USER': 'airone',
++        'PASSWORD': 'password',
+         'HOST': 'localhost',
+     }
+ }
+```
+
+
+### Initialize DB
 
 ```
 $ cd airone
 $ ./tools/clear_and_initdb.sh
 ```
 
-### 4. create super user
+### Create super user
 
 ```
 $ cd airone; python manage.py shell
@@ -200,4 +234,16 @@ $ cd airone; python manage.py shell
 
 $ python manage.py changepassword hoge
 Password: 
+```
+
+### Run Django and Celery
+
+```
+$ cd airone
+$ python manage.py runserver 0:8080
+```
+
+```
+$ cd airone
+$ celery -A airone worker -l info
 ```

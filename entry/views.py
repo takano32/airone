@@ -689,11 +689,11 @@ def revert_attrv(request, recv_data):
         # register update to the Elasticsearch
         attr.parent_entry.register_es()
 
-    # call custom-view if it exists
-    if custom_view.is_custom("revert_attrv", attr.parent_entry.schema.name):
-        return custom_view.call_custom(*[
-            "revert_attrv", attr.parent_entry.schema.name, request, user, attr, latest_value,
-            new_attrv
-        ])
+        # call custom-view if it exists
+        if custom_view.is_custom("revert_attrv", attr.parent_entry.schema.name):
+            return custom_view.call_custom(*[
+                "revert_attrv", attr.parent_entry.schema.name, request, user, attr, latest_value,
+                new_attrv
+            ])
 
     return HttpResponse('Succeed in updating Attribute "%s"' % attr.schema.name)

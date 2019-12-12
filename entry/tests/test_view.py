@@ -2,6 +2,7 @@ import json
 import yaml
 import errno
 
+from django.http import HttpResponse
 from django.urls import reverse
 from django.core.cache import cache
 from django.conf import settings
@@ -3309,6 +3310,71 @@ class ViewTest(AironeViewTest):
                                 'application/json')
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.content, b'Specified AttributeValue-id is invalid')
+
+    @patch('custom_view.is_custom', Mock(return_value=True))
+    @patch('custom_view.call_custom', Mock(return_value=HttpResponse('success')))
+    def test_revert_attrv_with_custom_view(self):
+        user = self.guest_login()
+
+        # initialize Entity and Entry
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr',
+            'type': AttrTypeValue['string'],
+            'created_user': user,
+            'parent_entity': entity,
+        }))
+
+        entry = Entry.objects.create(name='Entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+        attr = entry.attrs.first()
+
+        # set AttributeValues to the Attribute object
+        attrv1 = attr.add_value(user, 'hoge')
+        attr.add_value(user, 'fuga')
+        number_of_attrvalue = attr.values.count()
+
+        # send request to revert AttributeValue which is set before
+        params = {'attr_id': str(attr.id), 'attrv_id': str(attrv1.id)}
+        resp = self.client.post(reverse('entry:revert_attrv'), json.dumps(params),
+                                'application/json')
+
+        # the latest AttributeValue object is reverted from "fuga" to "hoge"
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(attr.values.count(), number_of_attrvalue + 1)
+        self.assertEqual(attr.get_latest_value().value, attrv1.value)
+        self.assertNotEqual(attr.get_latest_value().id, attrv1.id)
+
+    @patch('custom_view.is_custom', Mock(return_value=True))
+    @patch('custom_view.call_custom', Mock(return_value=HttpResponse('success')))
+    def test_revert_attrv_with_custom_view_by_latest_value(self):
+        user = self.guest_login()
+
+        # initialize Entity and Entry
+        entity = Entity.objects.create(name='Entity', created_user=user)
+        entity.attrs.add(EntityAttr.objects.create(**{
+            'name': 'attr',
+            'type': AttrTypeValue['string'],
+            'created_user': user,
+            'parent_entity': entity,
+        }))
+
+        entry = Entry.objects.create(name='Entry', schema=entity, created_user=user)
+        entry.complement_attrs(user)
+        attr = entry.attrs.first()
+
+        # set AttributeValue to Attribute
+        attrv = attr.add_value(user, 'hoge')
+        number_of_attrvalue = attr.values.count()
+
+        # try to revert AttributeValue which is the latest one
+        params = {'attr_id': str(attr.id), 'attrv_id': str(attrv.id)}
+        resp = self.client.post(reverse('entry:revert_attrv'), json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(attr.values.count(), number_of_attrvalue)
+        self.assertEqual(attr.get_latest_value(), attrv)
 
     @patch('custom_view.is_custom', Mock(return_value=True))
     @patch('custom_view.call_custom', Mock(return_value=(False, 400, 'test')))

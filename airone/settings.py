@@ -3,6 +3,9 @@ import logging
 import subprocess
 import pymysql
 import errno
+import importlib
+
+from airone.lib.log import Logger
 
 pymysql.install_as_MySQLdb()
 
@@ -155,7 +158,16 @@ AIRONE = {
     'AUTO_COMPLEMENT_USER': 'auto_complementer',
     'DB_SLAVES': ['default'],
     'DB_MASTER': 'default',
+    'EXTENSIONS': [],
 }
+
+# load extension settings individually
+for extension in AIRONE['EXTENSIONS']:
+    try:
+        importlib.import_module('%s.settings' % extension)
+    except ImportError:
+        Logger.warning('Failed to load settings %s' % extension)
+
 try:
     proc = subprocess.Popen("cd %s && git describe --tags" % BASE_DIR, shell=True,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)

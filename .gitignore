@@ -97,6 +97,7 @@ celerybeat-schedule
 .venv
 venv/
 ENV/
+virtualenv-*/
 
 # Spyder project settings
 .spyderproject
@@ -156,3 +157,10 @@ screenlog*
 
 # ignores AirOne configuration because this includes settings depends on each environment
 airone/settings.py
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+

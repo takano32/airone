@@ -372,7 +372,7 @@ class ViewTest(AironeViewTest):
 
         user1 = User.objects.filter(username='User1').first()
 
-        self.assertEqual(user1.email, 'user1@example.net')
+        self.assertEqual(user1.email, 'user1@example.com')
         self.assertEqual(user1.groups.count(), 2)
 
     # utility functions

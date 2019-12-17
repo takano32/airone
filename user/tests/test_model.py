@@ -10,7 +10,7 @@ from user.models import User, History
 
 class ModelTest(TestCase):
     def setUp(self):
-        self.user = User(username='ほげ', email='hoge@fuga.com', password='fuga')
+        self.user = User(username='ほげ', email='hoge@example.com', password='fuga')
         self.user.save()
 
     def test_make_user(self):
@@ -26,7 +26,7 @@ class ModelTest(TestCase):
         user = User.objects.get(id=self.user.id)
         self.assertTrue(isinstance(user, DjangoUser))
         self.assertEqual(user.username.find('ほげ_deleted_'), 0)
-        self.assertEqual(user.email, "deleted__hoge@fuga.com")
+        self.assertEqual(user.email, "deleted__hoge@example.com")
         self.assertEqual(user.authorized_type, 0)
         self.assertIsNotNone(user.date_joined)
         self.assertFalse(user.is_active)

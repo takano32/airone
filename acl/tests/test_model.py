@@ -9,7 +9,7 @@ from airone.lib.acl import ACLType
 
 class ModelTest(TestCase):
     def setUp(self):
-        self.user = User.objects.create(username='foo', email='hoge@fuga.com', password='fuga')
+        self.user = User.objects.create(username='foo', email='hoge@example.com', password='fuga')
 
     def test_acl_base(self):
         # chacks to enable embedded acl field
@@ -32,7 +32,7 @@ class ModelTest(TestCase):
         self.assertFalse(self.user.has_permission(aclobj, 'invalid-permission-level'))
 
     def test_fail_permission_check_with_invalid_level(self):
-        another_user = User.objects.create(username='bar', email='bar@f.com', password='')
+        another_user = User.objects.create(username='bar', email='bar@example.com', password='')
 
         aclobj = ACLBase.objects.create(name='hoge', created_user=self.user, is_public=False)
 
@@ -55,7 +55,7 @@ class ModelTest(TestCase):
         self.assertTrue(self.user.has_permission(aclobj, ACLType.Readable))
 
     def test_fail_permission_check_with_inferior_permissoin(self):
-        another_user = User.objects.create(username='bar', email='bar@f.com', password='')
+        another_user = User.objects.create(username='bar', email='bar@example.com', password='')
 
         aclobj = ACLBase.objects.create(name='hoge', created_user=self.user, is_public=False)
 
@@ -65,7 +65,7 @@ class ModelTest(TestCase):
         self.assertFalse(another_user.has_permission(aclobj, ACLType.Writable))
 
     def test_pass_permission_check_with_group_permissoin(self):
-        another_user = User.objects.create(username='bar', email='bar@f.com', password='')
+        another_user = User.objects.create(username='bar', email='bar@example.com', password='')
         group = Group.objects.create(name='hoge')
 
         aclobj = ACLBase.objects.create(name='hoge', created_user=self.user, is_public=False)
@@ -148,7 +148,7 @@ class ModelTest(TestCase):
 
     def test_default_permission(self):
         admin_user = User.objects.create(username='admin', is_superuser=True)
-        another_user = User.objects.create(username='bar', email='bar@f.com', password='')
+        another_user = User.objects.create(username='bar', email='bar@example.com', password='')
         aclobj = ACLBase.objects.create(name='hoge',
                                         created_user=another_user,
                                         is_public=False,

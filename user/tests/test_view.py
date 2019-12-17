@@ -9,8 +9,8 @@ from xml.etree import ElementTree
 class ViewTest(TestCase):
     def setUp(self):
         self._client = Client()
-        self.guest = self._create_user('guest', 'guest@guest.com')
-        self.admin = self._create_user('admin', 'admin@admin.com', True)
+        self.guest = self._create_user('guest', 'guest@example.com')
+        self.admin = self._create_user('admin', 'admin@example.com', True)
 
     def _create_user(self, name, email='email', is_superuser=False):
         user = User(username=name, email=email, is_superuser=is_superuser)
@@ -68,7 +68,7 @@ class ViewTest(TestCase):
 
         params = {
             'name': 'hoge',
-            'email': 'hoge@fuga.com',
+            'email': 'hoge@example.com',
             'passwd': 'puyo',
         }
         resp = self.client.post(reverse('user:do_create'),
@@ -83,7 +83,7 @@ class ViewTest(TestCase):
 
         params = {
             'name': 'hoge',
-            'email': 'hoge@fuga.com',
+            'email': 'hoge@example.com',
             'passwd': 'puyo',
         }
         resp = self.client.post(reverse('user:do_create'),
@@ -101,7 +101,7 @@ class ViewTest(TestCase):
         self._admin_login()
 
         params = {
-            'email': 'hoge@fuga.com',
+            'email': 'hoge@example.com',
             'passwd': 'puyo',
         }
         resp = self.client.post(reverse('user:do_create'),
@@ -158,11 +158,11 @@ class ViewTest(TestCase):
         self.assertTrue(any(['AccessToken' == x.text for x in root.findall('.//table/tr/th')]))
 
     def test_edit_post_without_login(self):
-        user = User.objects.create(username='test', email='test@local')
+        user = User.objects.create(username='test', email='test@example.com')
 
         params = {
             'name':  'hoge',  # update guest => hoge
-            'email': 'hoge@hoge.com',
+            'email': 'hoge@example.com',
             'is_superuser': True,
         }
         resp = self.client.post(reverse('user:do_edit', args=[user.id]),
@@ -171,12 +171,12 @@ class ViewTest(TestCase):
 
     def test_edit_post_with_login(self):
         self._admin_login()
-        user = User.objects.create(username='test', email='test@local')
+        user = User.objects.create(username='test', email='test@example.com')
         count = User.objects.count()
 
         params = {
             'name':  'hoge',  # update guest => hoge
-            'email': 'hoge@hoge.com',
+            'email': 'hoge@example.com',
             'is_superuser': True,
         }
         resp = self.client.post(reverse('user:do_edit', args=[user.id]),
@@ -194,7 +194,7 @@ class ViewTest(TestCase):
 
         params = {
             'name': 'admin',          # duplicated
-            'email': 'guest@guest.com',
+            'email': 'guest@example.com',
         }
         resp = self.client.post(reverse('user:do_edit', args=[user.id]),
                                 json.dumps(params), 'application/json')
@@ -207,11 +207,11 @@ class ViewTest(TestCase):
         user = User.objects.get(username='guest')
 
         # create test user
-        self._create_user('hoge', 'hoge@hoge.com')
+        self._create_user('hoge', 'hoge@example.com')
 
         params = {
             'name': 'guest',
-            'email': 'hoge@hoge.com',  # duplicated
+            'email': 'hoge@example.com',  # duplicated
         }
         resp = self.client.post(reverse('user:do_edit', args=[user.id]),
                                 json.dumps(params), 'application/json')
@@ -224,11 +224,11 @@ class ViewTest(TestCase):
         self._admin_login()
 
         # create test user
-        user = self._create_user('hoge', 'hoge@hoge.com')
+        user = self._create_user('hoge', 'hoge@example.com')
 
         params = {
             'name': 'hoge',
-            'email': 'hoge@hoge.com',
+            'email': 'hoge@example.com',
             'is_superuser': True,
         }
         resp = self.client.post(reverse('user:do_edit', args=[user.id]),
@@ -243,11 +243,11 @@ class ViewTest(TestCase):
         self._admin_login()
 
         # create test user
-        user = self._create_user('hoge', 'hoge@hoge.com', True)
+        user = self._create_user('hoge', 'hoge@example.com', True)
 
         params = {
             'name': 'hoge',
-            'email': 'hoge@hoge.com',
+            'email': 'hoge@example.com',
             # If is_superuser doesn't exist, it becomes False
         }
         resp = self.client.post(reverse('user:do_edit', args=[user.id]),
@@ -264,7 +264,7 @@ class ViewTest(TestCase):
         user = User.objects.get(username='guest')
         params = {
             'name': 'hoge',
-            'email': 'hoge@hoge.com',
+            'email': 'hoge@example.com',
         }
         resp = self.client.post(reverse('user:do_edit', args=[user.id]),
                                 json.dumps(params), 'application/json')
@@ -281,7 +281,7 @@ class ViewTest(TestCase):
         for invalid_value in ['abcd', '-1', str(User.MAXIMUM_TOKEN_LIFETIME + 1), '']:
             params = {
                 'name': 'hoge',
-                'email': 'hoge@hoge.com',
+                'email': 'hoge@example.com',
                 'token_lifetime': invalid_value,
             }
             resp = self.client.post(reverse('user:do_edit', args=[user.id]),
@@ -295,7 +295,7 @@ class ViewTest(TestCase):
         user = User.objects.get(username='guest')
         params = {
             'name': 'hoge',
-            'email': 'hoge@hoge.com',
+            'email': 'hoge@example.com',
             'token_lifetime': '10',
         }
         resp = self.client.post(reverse('user:do_edit', args=[user.id]),
@@ -487,7 +487,7 @@ class ViewTest(TestCase):
 
         params = {
             'name': 'hoge',
-            'email': 'hoge@fuga.com',
+            'email': 'hoge@example.com',
             'passwd': 'puyo',
         }
         resp = self.client.post(reverse('user:do_create'),
@@ -501,7 +501,7 @@ class ViewTest(TestCase):
 
         params = {
             'name': 'hoge',
-            'email': 'hoge@fuga.com',
+            'email': 'hoge@example.com',
             'passwd': 'puyo',
             'is_superuser': 'on',
         }

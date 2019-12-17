@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.http.request import HttpRequest
 from time import time
+from airone.lib.log import Logger as AIRONE_LOGGER
 
 
 class SimpleProfiler(object):
@@ -9,7 +10,7 @@ class SimpleProfiler(object):
 
     def check(self, msg=''):
         if self._is_enable():
-            print('[Profiling result] (%f) %s' % (time() - self.start_time, msg))
+            AIRONE_LOGGER.info('(Profiling result: %fs) %s' % (time() - self.start_time, msg))
 
     def _is_enable(self):
         if (hasattr(settings, 'AIRONE') and
@@ -37,7 +38,7 @@ def airone_profile(func):
             req = args[1]
 
         if req:
-            prof.check("(user-id: %s) Total time of the request: %s" % (req.user.id, req.path))
+            prof.check("(user-id: %s) %s %s" % (req.user.id, req.method, req.path))
         else:
             prof.check("Total time of the request")
 

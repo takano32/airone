@@ -77,6 +77,23 @@ class ViewTest(TestCase):
         self.assertEqual(resp.status_code, 401)
         self.assertEqual(User.objects.count(), count)  # user should not be created
 
+    def test_create_user_without_permission(self):
+        # request of creating an user requires administrative permission
+        self._guest_login()
+
+        params = {
+            'name': 'hoge',
+            'email': 'hoge@example.com',
+            'passwd': 'puyo',
+        }
+        resp = self.client.post(reverse('user:do_create'),
+                                json.dumps(params),
+                                'application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.content.decode('utf-8'),
+                         'This page needs administrative permission to access')
+
     def test_create_post_with_login(self):
         count = User.objects.count()
         self._admin_login()

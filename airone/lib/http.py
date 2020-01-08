@@ -68,7 +68,7 @@ def check_superuser(func):
             return HttpResponseSeeOther('/dashboard/login')
 
         if not request.user.is_superuser:
-            return HttpResponse('This page needs Admnistrator permission to access', status=400)
+            return HttpResponse('This page needs administrative permission to access', status=400)
 
         return func(*args, **kwargs)
     return wrapper

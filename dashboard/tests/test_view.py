@@ -11,7 +11,7 @@ from airone.lib.types import AttrTypeValue
 from django.urls import reverse
 from django.contrib.auth.models import User as DjangoUser
 from group.models import Group
-from job.models import Job
+from job.models import Job, JobOperation
 from datetime import date
 
 from entity.models import Entity, EntityAttr
@@ -185,7 +185,7 @@ class ViewTest(AironeViewTest):
 
         # check export task is executed
         job = Job.objects.last()
-        self.assertEqual(job.operation, Job.OP_EXPORT)
+        self.assertEqual(job.operation, JobOperation.EXPORT_SEARCH_RESULT.value)
         self.assertEqual(job.status, Job.STATUS['DONE'])
         self.assertEqual(json.loads(job.params), export_params)
 
@@ -209,7 +209,7 @@ class ViewTest(AironeViewTest):
             # check export task is executed
             job = Job.objects.last()
             self.assertEqual(resp.status_code, 200)
-            self.assertEqual(job.operation, Job.OP_EXPORT)
+            self.assertEqual(job.operation, JobOperation.EXPORT_SEARCH_RESULT.value)
             with self.assertRaises(OSError) as e:
                 raise OSError
 
@@ -496,7 +496,7 @@ class ViewTest(AironeViewTest):
         }), 'application/json')
         self.assertEqual(resp.status_code, 200)
 
-        resp_data = yaml.load(Job.objects.last().get_cache())
+        resp_data = yaml.load(Job.objects.last().get_cache(), Loader=yaml.FullLoader)
         for index in range(2):
             entity = Entity.objects.get(name='Entity-%d' % index)
             e_data = resp_data[entity.name]
@@ -615,6 +615,6 @@ class ViewTest(AironeViewTest):
         }), 'application/json')
         self.assertEqual(resp.status_code, 200)
 
-        resp_data = yaml.load(Job.objects.last().get_cache())
+        resp_data = yaml.load(Job.objects.last().get_cache(), Loader=yaml.FullLoader)
         self.assertEqual(len(resp_data['Entity']), 2)
         self.assertEqual([x['name'] for x in resp_data['Entity']], ['bar', 'baz'])

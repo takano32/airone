@@ -25,7 +25,7 @@ from unittest.mock import patch
 from unittest.mock import Mock
 from unittest import skip
 from entry import tasks
-from job.models import Job
+from job.models import Job, JobOperation
 from django.http.response import JsonResponse
 
 
@@ -253,7 +253,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(obj.target.id, entry.id)
         self.assertEqual(obj.target_type, Job.TARGET_ENTRY)
         self.assertEqual(obj.status, Job.STATUS['DONE'])
-        self.assertEqual(obj.operation, Job.OP_CREATE)
+        self.assertEqual(obj.operation, JobOperation.CREATE_ENTRY.value)
 
         # checks specify part of attribute parameter then set AttributeValue
         # which is only specified one
@@ -616,7 +616,7 @@ class ViewTest(AironeViewTest):
         self.assertEqual(obj.target.id, entry.id)
         self.assertEqual(obj.target_type, Job.TARGET_ENTRY)
         self.assertEqual(obj.status, Job.STATUS['DONE'])
-        self.assertEqual(obj.operation, Job.OP_EDIT)
+        self.assertEqual(obj.operation, JobOperation.EDIT_ENTRY.value)
 
         # checks specify part of attribute parameter then set AttributeValue
         # which is only specified one
@@ -953,7 +953,7 @@ class ViewTest(AironeViewTest):
         })
 
         job = Job.objects.last()
-        self.assertEqual(job.operation, Job.OP_EXPORT)
+        self.assertEqual(job.operation, JobOperation.EXPORT_ENTRY.value)
         self.assertEqual(job.status, Job.STATUS['DONE'])
         self.assertEqual(job.text, 'entry_ほげ.yaml')
 
@@ -1006,7 +1006,7 @@ class ViewTest(AironeViewTest):
         })
 
         job = Job.objects.last()
-        self.assertEqual(job.operation, Job.OP_EXPORT)
+        self.assertEqual(job.operation, JobOperation.EXPORT_ENTRY.value)
         self.assertEqual(job.text, 'entry_ほげ.yaml')
         with self.assertRaises(OSError) as e:
             raise OSError
@@ -1777,7 +1777,7 @@ class ViewTest(AironeViewTest):
         # checks jobs were created
         self.assertEqual(Job.objects.filter(user=user).count(), 4)
 
-        job = Job.objects.filter(user=user, operation=Job.OP_DELETE)
+        job = Job.objects.filter(user=user, operation=JobOperation.DELETE_ENTRY.value)
         self.assertEqual(job.count(), 1)
 
         # checks each parameters of the job are as expected
@@ -2206,7 +2206,7 @@ class ViewTest(AironeViewTest):
         # checks jobs were created
         self.assertEqual(Job.objects.filter(user=user).count(), 3)
 
-        jobs = Job.objects.filter(user=user, operation=Job.OP_COPY)
+        jobs = Job.objects.filter(user=user, operation=JobOperation.COPY_ENTRY.value)
 
         self.assertEqual(jobs.count(), 3)
         for obj in jobs.all():
@@ -2936,14 +2936,14 @@ class ViewTest(AironeViewTest):
             'attrs': [],
         }
 
-        def side_effect(user_id, entry_id, job_id):
+        def side_effect(job_id):
             job = Job.objects.get(id=job_id)
 
-            self.assertEqual(job.user.id, user_id)
-            self.assertEqual(job.target.id, entry_id)
+            self.assertEqual(job.user.id, user.id)
+            self.assertEqual(job.target.id, entry.id)
             self.assertEqual(job.target_type, Job.TARGET_ENTRY)
             self.assertEqual(job.status, Job.STATUS['PREPARING'])
-            self.assertEqual(job.operation, Job.OP_EDIT)
+            self.assertEqual(job.operation, JobOperation.EDIT_ENTRY.value)
 
         with patch('entry.views.edit_entry_attrs.delay', Mock(side_effect=side_effect)):
             resp = self.client.post(reverse('entry:do_edit', args=[entry.id]),

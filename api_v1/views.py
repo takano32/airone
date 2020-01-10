@@ -169,9 +169,8 @@ class EntryAPI(APIView):
 
         # Delete the specified entry then return its id, if is active
         if entry.is_active:
-            # create a new Job to delete entry
+            # create a new Job to delete entry and run it
             job = Job.new_delete(user, entry)
-
-            delete_entry.delay(entry.id, job.id)
+            job.run()
 
         return Response({'id': entry.id})

@@ -88,7 +88,7 @@ def _convert_data_value(attr, info):
 
 
 @app.task(bind=True)
-def create_entry_attrs(self, user_id, entry_id, job_id):
+def create_entry_attrs(self, job_id):
     job = Job.objects.get(id=job_id)
 
     # wait dependent job is finished
@@ -99,8 +99,8 @@ def create_entry_attrs(self, user_id, entry_id, job_id):
         job.status = Job.STATUS['PROCESSING']
         job.save(update_fields=['status'])
 
-        user = User.objects.filter(id=user_id).first()
-        entry = Entry.objects.filter(id=entry_id, is_active=True).first()
+        user = User.objects.filter(id=job.user.id).first()
+        entry = Entry.objects.filter(id=job.target.id, is_active=True).first()
         if not entry or not user:
             # Abort when specified entry doesn't exist
             job.set_status(Job.STATUS['CANCELED'])
@@ -154,13 +154,13 @@ def create_entry_attrs(self, user_id, entry_id, job_id):
 
     elif job.is_canceled():
         # When job is canceled before starting, created entry should be deleted.
-        entry = Entry.objects.filter(id=entry_id, is_active=True).first()
+        entry = Entry.objects.filter(id=job.target.id, is_active=True).first()
         if entry:
             entry.delete()
 
 
 @app.task(bind=True)
-def edit_entry_attrs(self, user_id, entry_id, job_id):
+def edit_entry_attrs(self, job_id):
     job = Job.objects.get(id=job_id)
 
     # wait dependent job is finished
@@ -171,8 +171,8 @@ def edit_entry_attrs(self, user_id, entry_id, job_id):
         job.status = Job.STATUS['PROCESSING']
         job.save(update_fields=['status'])
 
-        user = User.objects.get(id=user_id)
-        entry = Entry.objects.get(id=entry_id)
+        user = User.objects.get(id=job.user.id)
+        entry = Entry.objects.get(id=job.target.id)
 
         recv_data = json.loads(job.params)
         for info in recv_data['attrs']:
@@ -206,14 +206,14 @@ def edit_entry_attrs(self, user_id, entry_id, job_id):
 
 
 @app.task(bind=True)
-def delete_entry(self, entry_id, job_id):
+def delete_entry(self, job_id):
     job = Job.objects.get(id=job_id)
 
     # wait dependent job is finished
     job.wait_dependent_job()
 
     if job.is_ready_to_process():
-        entry = Entry.objects.get(id=entry_id)
+        entry = Entry.objects.get(id=job.target.id)
         entry.delete()
 
         # update job status and save it
@@ -222,7 +222,7 @@ def delete_entry(self, entry_id, job_id):
 
 
 @app.task(bind=True)
-def restore_entry(self, entry_id, job_id):
+def restore_entry(self, job_id):
     job = Job.objects.get(id=job_id)
 
     # wait dependent job is finished
@@ -231,7 +231,7 @@ def restore_entry(self, entry_id, job_id):
     if job.is_ready_to_process():
         job.set_status(Job.STATUS['PROCESSING'])
 
-        entry = Entry.objects.get(id=entry_id)
+        entry = Entry.objects.get(id=job.target.id)
         entry.restore()
 
         # remove status flag which is set before calling this
@@ -250,7 +250,7 @@ def restore_entry(self, entry_id, job_id):
 
 
 @app.task(bind=True)
-def copy_entry(self, user_id, src_entry_id, job_id):
+def copy_entry(self, job_id):
     job = Job.objects.get(id=job_id)
 
     # wait dependent job is finished
@@ -260,8 +260,8 @@ def copy_entry(self, user_id, src_entry_id, job_id):
         # update job status
         job.set_status(Job.STATUS['PROCESSING'])
 
-        user = User.objects.get(id=user_id)
-        src_entry = Entry.objects.get(id=src_entry_id)
+        user = User.objects.get(id=job.user.id)
+        src_entry = Entry.objects.get(id=job.target.id)
 
         params = json.loads(job.params)
         dest_entry = Entry.objects.filter(schema=src_entry.schema, name=params['new_name']).first()

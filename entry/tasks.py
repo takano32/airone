@@ -91,9 +91,6 @@ def _convert_data_value(attr, info):
 def create_entry_attrs(self, job_id):
     job = Job.objects.get(id=job_id)
 
-    # wait dependent job is finished
-    job.wait_dependent_job()
-
     if job.is_ready_to_process():
         # At the first time, update job status to prevent executing this job duplicately
         job.status = Job.STATUS['PROCESSING']
@@ -163,9 +160,6 @@ def create_entry_attrs(self, job_id):
 def edit_entry_attrs(self, job_id):
     job = Job.objects.get(id=job_id)
 
-    # wait dependent job is finished
-    job.wait_dependent_job()
-
     if job.is_ready_to_process():
         # At the first time, update job status to prevent executing this job duplicately
         job.status = Job.STATUS['PROCESSING']
@@ -209,9 +203,6 @@ def edit_entry_attrs(self, job_id):
 def delete_entry(self, job_id):
     job = Job.objects.get(id=job_id)
 
-    # wait dependent job is finished
-    job.wait_dependent_job()
-
     if job.is_ready_to_process():
         entry = Entry.objects.get(id=job.target.id)
         entry.delete()
@@ -224,9 +215,6 @@ def delete_entry(self, job_id):
 @app.task(bind=True)
 def restore_entry(self, job_id):
     job = Job.objects.get(id=job_id)
-
-    # wait dependent job is finished
-    job.wait_dependent_job()
 
     if job.is_ready_to_process():
         job.set_status(Job.STATUS['PROCESSING'])
@@ -252,9 +240,6 @@ def restore_entry(self, job_id):
 @app.task(bind=True)
 def copy_entry(self, job_id):
     job = Job.objects.get(id=job_id)
-
-    # wait dependent job is finished
-    job.wait_dependent_job()
 
     if job.is_ready_to_process():
         # update job status
@@ -284,9 +269,6 @@ def copy_entry(self, job_id):
 @app.task(bind=True)
 def import_entries(self, job_id):
     job = Job.objects.get(id=job_id)
-
-    # wait dependent job is finished
-    job.wait_dependent_job()
 
     if job.is_ready_to_process():
         user = job.user
@@ -371,9 +353,6 @@ def export_entries(self, job_id):
 
     if not job.is_ready_to_process():
         return
-
-    # wait dependent job is finished
-    job.wait_dependent_job()
 
     job.set_status(Job.STATUS['PROCESSING'])
 

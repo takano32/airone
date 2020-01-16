@@ -1,4 +1,5 @@
 import json
+import mock
 
 from airone.lib.test import AironeTestCase
 
@@ -6,7 +7,6 @@ from django.conf import settings
 from job.models import Job, JobOperation
 from entry.models import Entry
 from entity.models import Entity
-from unittest.mock import patch
 from user.models import User
 
 
@@ -146,25 +146,36 @@ class ModelTest(AironeTestCase):
         job.save(update_fields=['status'])
         self.assertTrue(job.is_ready_to_process())
 
-    @patch('job.models.time.sleep')
-    def test_waiting_job_until_dependent_one_is_finished(self, mock_sleep):
-        # create two jobs which have dependency
-        (job1, job2) = [Job.new_create(self.guest, self.entry) for _x in range(2)]
-        self.assertFalse(job1.is_finished())
-        self.assertFalse(job2.is_finished())
+    def test_is_dependent_job(self):
+        # This describes how many times run method of Job called.
+        self.test_data = 0
 
-        def side_effect(*args, **kwargs):
-            job1.text = 'finished manually from side_effect'
-            job1.status = Job.STATUS['DONE']
-            job1.save(update_fields=['status', 'text'])
+        def side_effect():
+            self.test_data += 1
 
-        mock_sleep.side_effect = side_effect
-        job2.wait_dependent_job()
+        [job1, job2] = [Job.new_create(self.guest, self.entry) for _ in range(2)]
 
-        self.assertTrue(job1.is_finished())
-        self.assertEqual(job1.text, 'finished manually from side_effect')
+        # Checks dependent_job parameters of both entries are set properly
+        self.assertIsNone(job1.dependent_job)
+        self.assertEqual(job2.dependent_job.id, job1.id)
 
-    @patch('job.models.import_module')
+        with mock.patch.object(Job, 'run') as mock_run:
+            mock_run.side_effect = side_effect
+
+            # job1 doesn't have dependent job and ready to run so this never be rescheduled
+            self.assertTrue(job1.is_ready_to_process())
+            self.assertFalse(job1.is_dependent_job())
+            self.assertEqual(self.test_data, 0)
+
+            # job2 depends on job1 so this will be rescheduled by calling run method
+            self.assertTrue(job2.is_dependent_job())
+            self.assertEqual(self.test_data, 1)
+
+            # This checks is_ready_to_process() method also call rescheduling method
+            self.assertFalse(job2.is_ready_to_process())
+            self.assertEqual(self.test_data, 2)
+
+    @mock.patch('job.models.import_module')
     def test_task_module(self, mock_import_module):
         # This initializes test data that describes how many times does import_module is called
         # in the processing actually.

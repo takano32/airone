@@ -23,8 +23,6 @@ from job.models import Job, JobOperation
 from user.models import User
 from group.models import Group
 from .settings import CONFIG
-from .tasks import (create_entry_attrs, edit_entry_attrs, delete_entry, copy_entry, import_entries,
-                    export_entries, restore_entry)
 
 
 def _validate_input(recv_data, obj):

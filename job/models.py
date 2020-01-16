@@ -16,6 +16,8 @@ from enum import Enum
 from importlib import import_module
 from user.models import User
 
+from job.settings import CONFIG as JOB_CONFIG
+
 
 def _support_time_default(o):
     if isinstance(o, date):
@@ -89,11 +91,19 @@ class Job(models.Model):
     # When this has another job, this job have to wait until it would be finished.
     dependent_job = models.ForeignKey('Job', null=True)
 
-    def wait_dependent_job(self):
-        # When there is dependent job, this waits until that would be finished.
-        if self.dependent_job:
-            while not self.dependent_job.is_finished():
-                time.sleep(.5)
+    def is_dependent_job(self):
+        # When there is dependent job
+        if self.dependent_job and not self.dependent_job.is_finished():
+            # This delay is needed to prevent sending excessive message to MQ
+            # when there are many dependent jobs.
+            time.sleep(JOB_CONFIG.RESCHEDULING_DELAY_SECONDS)
+
+            # This sends request to reschedule this job.
+            self.run()
+
+            return True
+        else:
+            return False
 
     def is_timeout(self):
         # Sync updated_at time information with the data which is stored in database
@@ -124,7 +134,15 @@ class Job(models.Model):
         return self.status == Job.STATUS['CANCELED']
 
     def is_ready_to_process(self):
-        return (not self.is_finished() and self.status != Job.STATUS['PROCESSING'])
+        # In this case, job is finished (might be canceled or proceeded same job by other process)
+        if self.is_finished() or self.status == Job.STATUS['PROCESSING']:
+            return False
+
+        # This checks whether dependent job is and it hasn't finished yet.
+        if self.is_dependent_job():
+            return False
+
+        return True
 
     def set_status(self, new_status):
         if new_status in Job.STATUS.values():

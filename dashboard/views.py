@@ -15,7 +15,6 @@ from entry.models import Entry, AttributeValue
 from job.models import Job
 from user.models import User
 from .settings import CONFIG
-from .tasks import export_search_result as task_export_search_result
 
 IMPORT_INFOS = [
     {'model': 'Entity', 'resource': EntityResource},

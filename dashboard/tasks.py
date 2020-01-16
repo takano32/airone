@@ -152,9 +152,6 @@ def export_search_result(self, job_id):
     if not job.is_ready_to_process():
         return
 
-    # wait dependent job is finished
-    job.wait_dependent_job()
-
     # set flag to indicate that this job starts processing
     job.set_status(Job.STATUS['PROCESSING'])
 

@@ -10,7 +10,6 @@ from rest_framework.authentication import SessionAuthentication
 from job.models import Job, JobOperation
 from job.settings import CONFIG as JOB_CONFIG
 from user.models import User
-from entry.tasks import create_entry_attrs, edit_entry_attrs, delete_entry, copy_entry
 
 from api_v1.auth import AironeTokenAuth
 

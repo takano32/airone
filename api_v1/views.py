@@ -12,7 +12,6 @@ from api_v1.auth import AironeTokenAuth
 from airone.lib.acl import ACLType
 from entity.models import Entity
 from entry.models import Entry
-from entry.tasks import delete_entry
 from job.models import Job
 from user.models import User
 

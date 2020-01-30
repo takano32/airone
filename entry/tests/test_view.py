@@ -3475,7 +3475,7 @@ class ViewTest(AironeViewTest):
         self.assertIn('entry_deleted_', entry.name)
 
     @patch.object(Job, 'is_canceled', Mock(return_value=True))
-    @patch.object(Job, 'is_ready_to_process', Mock(return_value=False))
+    @patch.object(Job, 'proceed_if_ready', Mock(return_value=False))
     @patch('entry.tasks.create_entry_attrs.delay', Mock(side_effect=tasks.create_entry_attrs))
     def test_cancel_creating_entry_before_starting_background_processing(self):
         user = self.admin_login()

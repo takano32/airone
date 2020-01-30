@@ -91,8 +91,8 @@ class Job(models.Model):
     # When this has another job, this job have to wait until it would be finished.
     dependent_job = models.ForeignKey('Job', null=True)
 
-    def is_dependent_job(self):
-        # When there is dependent job
+    def may_schedule(self):
+        # When there is dependent job, this re-send a request to run same job
         if self.dependent_job and not self.dependent_job.is_finished():
             # This delay is needed to prevent sending excessive message to MQ
             # when there are many dependent jobs.
@@ -133,25 +133,33 @@ class Job(models.Model):
 
         return self.status == Job.STATUS['CANCELED']
 
-    def is_ready_to_process(self):
+    def proceed_if_ready(self):
         # In this case, job is finished (might be canceled or proceeded same job by other process)
         if self.is_finished() or self.status == Job.STATUS['PROCESSING']:
             return False
 
         # This checks whether dependent job is and it hasn't finished yet.
-        if self.is_dependent_job():
+        if self.may_schedule():
             return False
 
         return True
 
-    def set_status(self, new_status):
-        if new_status in Job.STATUS.values():
-            self.status = new_status
-            self.save(update_fields=['status', 'updated_at'])
+    def update(self, status=None, text=None, target=None):
+        update_fields = ['updated_at']
 
-            return True
-        else:
-            return False
+        if status is not None and status in Job.STATUS.values():
+            update_fields.append('status')
+            self.status = status
+
+        if text is not None:
+            update_fields.append('text')
+            self.text = text
+
+        if target is not None:
+            update_fields.append('target')
+            self.target = target
+
+        self.save(update_fields=update_fields)
 
     def to_json(self):
         return {

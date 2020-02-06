@@ -53,6 +53,7 @@ $(document).ready(function() {
               operation = 'インポート';
               break;
             case data['constant']['operation']['export']:
+            case data['constant']['operation']['export_search_result']:
               operation = 'エクスポート';
               break;
             case data['constant']['operation']['restore']:
@@ -69,7 +70,8 @@ $(document).ready(function() {
               if (operation_type == data['constant']['operation']['import']) {
                 // The case of import job, target-id indicates Entity-ID
                 link_url = `/entry/${ jobinfo['target']['id'] }`;
-              } else if (operation_type == data['constant']['operation']['export']) {
+              } else if (operation_type == data['constant']['operation']['export'] ||
+                         operation_type == data['constant']['operation']['export_search_result']) {
                 // The case of export job, it has no target
                 link_url = `/job/download/${ jobinfo['id'] }`;
               } else {

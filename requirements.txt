@@ -1,6 +1,6 @@
 six==1.10.0
 django-import-export==2.1.0
-django==3.0.6
+Django==3.0.6
 mock==2.0.0
 coverage>=4.4.1
 celery==4.4.2

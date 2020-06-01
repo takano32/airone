@@ -3,10 +3,10 @@ django-import-export==0.5.1
 django==1.11.28
 mock==2.0.0
 coverage>=4.4.1
-celery==4.2.0
+celery==4.4.2
 flower==0.9.3
 pyyaml==5.2
-kombu==4.2.1
+kombu==4.6.8
 python-memcached==1.59
 djangorestframework==3.9.1
 django-filter==1.1.0
